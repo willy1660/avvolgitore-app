@@ -220,13 +220,15 @@ def build_coil_centerline(
 # VIEWER THREEJS
 # =========================================================
 
-def build_viewer_html(points,d_tubo,altezza,animazione,velocita):
+def build_viewer_html(points,d_tubo,altezza,animazione):
 
     pts = points.tolist()
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo/2
     tubular_segments = max(300,len(pts))
+
+    velocita = 4000 / len(pts)
 
     html = f"""
 
@@ -264,13 +266,17 @@ const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.c
 const renderer = new THREE.WebGLRenderer({{antialias:true}})
 renderer.setSize(container.clientWidth,container.clientHeight)
 
+renderer.setPixelRatio(window.devicePixelRatio)
+renderer.physicallyCorrectLights = true
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+
 container.appendChild(renderer.domElement)
 
 const controls = new THREE.OrbitControls(camera,renderer.domElement)
 
 scene.add(new THREE.HemisphereLight(0xffffff,0x2a2a2a,0.55))
 
-const light = new THREE.DirectionalLight(0xffffff,0.38)
+const light = new THREE.DirectionalLight(0xffffff,0.6)
 light.position.set(5,5,5)
 scene.add(light)
 
@@ -305,56 +311,13 @@ let progress = 0
 const tubeGeom = new THREE.TubeGeometry(curve,{tubular_segments},{r_tubo},40,false)
 
 const tubeMat = new THREE.MeshStandardMaterial({{
-color:0xe6e6e6,
-roughness:0.92
+color:0xf0f0f0,
+metalness:0.2,
+roughness:0.6
 }})
 
 const tubeMesh = new THREE.Mesh(tubeGeom,tubeMat)
 scene.add(tubeMesh)
-
-
-// ==============================
-// CAP PLANES
-// ==============================
-
-function createCap(position,dir,color){{
-
-const geometry=new THREE.CircleGeometry({r_tubo},32)
-
-const material=new THREE.MeshBasicMaterial({{
-color:color,
-side:THREE.DoubleSide
-}})
-
-const cap=new THREE.Mesh(geometry,material)
-
-const up=new THREE.Vector3(0,0,1)
-const quat=new THREE.Quaternion().setFromUnitVectors(up,dir.clone().normalize())
-
-cap.quaternion.copy(quat)
-
-cap.position.copy(position)
-
-scene.add(cap)
-
-}}
-
-
-// CAP VERD (entrada)
-const start=vectors[0]
-const dirStart=vectors[1].clone().sub(vectors[0]).multiplyScalar(-1)
-createCap(start,dirStart,0x00ff00)
-
-
-// CAP VERMELL (sortida)
-const end=vectors[vectors.length-1]
-const dirEnd=vectors[vectors.length-1].clone().sub(vectors[vectors.length-2])
-createCap(end,dirEnd,0xff0000)
-
-
-// ==============================
-// CAMERA
-// ==============================
 
 const box=new THREE.Box3().setFromPoints(vectors)
 const center=new THREE.Vector3()
@@ -371,7 +334,7 @@ requestAnimationFrame(animate)
 
 if({str(animazione).lower()}){{
 
-progress += {velocita}*0.002
+progress += {velocita}
 
 if(progress>1)progress=1
 
@@ -414,7 +377,7 @@ with c4:
 with c5:
     spessore_guaina=st.number_input("Spessore guaina (mm)",value=7.0)
 
-c6,c7,c8,c9=st.columns(4)
+c6,c7,c8=st.columns(3)
 
 with c6:
     compressione=st.slider("Compressione %",0.0,20.0,0.0)
@@ -422,16 +385,10 @@ with c6:
 with c7:
     gap=st.number_input("Gap axiale (mm)",value=0.0)
 
-with c9:
+with c8:
     altezza=st.slider("Altezza viewer",400,900,700)
 
-c10,c11=st.columns(2)
-
-with c10:
-    animazione=st.checkbox("Animazione avvolgimento",True)
-
-with c11:
-    velocita=st.slider("Velocità animazione",0.1,5.0,1.0)
+animazione=st.checkbox("Animazione avvolgimento",True)
 
 d_rame=COPPER_SIZES_MM[rame_label]
 
@@ -449,16 +406,10 @@ html=build_viewer_html(
 path,
 meta["DiametroTubo"],
 altezza,
-animazione,
-velocita
+animazione
 )
 
 components.html(html,height=altezza)
-
-
-# =========================================================
-# METRICHE
-# =========================================================
 
 st.divider()
 
@@ -475,7 +426,6 @@ with m3:
 
 with m4:
     st.metric("Diametro esterno max",f"{meta['DiametroEsterno']:.1f} mm")
-
 
 m5,m6,m7,m8=st.columns(4)
 
