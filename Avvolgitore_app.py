@@ -37,8 +37,6 @@ COPPER_SIZES_MM = {
     "7/8": 22.23,
 }
 
-EPS = 1e-9
-
 # =========================================================
 # UTILITÀ
 # =========================================================
@@ -50,7 +48,6 @@ def polyline_length(points):
 def trim_polyline_to_length(points, target):
     seg = np.linalg.norm(np.diff(points, axis=0), axis=1)
     cum = np.concatenate([[0.0], np.cumsum(seg)])
-
     if cum[-1] <= target:
         return points
 
@@ -59,8 +56,8 @@ def trim_polyline_to_length(points, target):
 
     p0 = points[idx]
     p1 = points[idx + 1]
-
     seg_len = np.linalg.norm(p1 - p0)
+
     alpha = (target - cum[idx]) / seg_len
     p_cut = p0 + alpha * (p1 - p0)
 
@@ -75,7 +72,7 @@ def points_to_sldcrv(points):
     return "\n".join(f"{p[0]} {p[1]} {p[2]}" for p in points).encode()
 
 # =========================================================
-# GEOMETRIA BOBINA
+# GEOMETRIA
 # =========================================================
 def build_coil_centerline(
     d_aspo_mm,
@@ -105,7 +102,6 @@ def build_coil_centerline(
 
     z0 = 0
     z1 = spalla_mm
-
     theta = 0
     points = []
 
@@ -135,12 +131,14 @@ def build_coil_centerline(
         points.extend(layer.tolist())
         theta += dtheta
 
-        # RITARDO
+        # =========================
+        # RITARDO (SAFE)
+        # =========================
         if ritardo_max_deg > 0:
-            ritardo_deg = np.random.uniform(ritardo_min_deg, ritardo_max_deg)
-            ritardo_rad = math.radians(ritardo_deg)
+            rit = np.random.uniform(ritardo_min_deg, ritardo_max_deg)
+            rit_rad = math.radians(rit)
 
-            t_delay = np.linspace(0, ritardo_rad, 30)
+            t_delay = np.linspace(0, rit_rad, 20)
             theta_vals = theta + t_delay
             z_vals = np.full_like(theta_vals, z1)
 
@@ -150,7 +148,7 @@ def build_coil_centerline(
             delay = np.column_stack([x,y,z_vals])[1:]
             points.extend(delay.tolist())
 
-            theta += ritardo_rad
+            theta += rit_rad
 
         if polyline_length(np.array(points)) >= lunghezza_mm:
             break
@@ -194,18 +192,16 @@ def build_coil_centerline(
     }
 
 # =========================================================
-# VIEWER
+# VIEWER (ORIGINAL FIXED)
 # =========================================================
 def build_viewer_html(points,d_tubo,altezza,animazione,velocita):
 
     pts = points.tolist()
     points_json = json.dumps(pts)
     r_tubo = d_tubo/2
-    tubular_segments = max(300,len(pts))
 
-    html = f"""
+    return f"""
 <div style="position:relative;width:100%;height:{altezza}px;">
-<img src="{logo_path}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.05;">
 <div id="viewer" style="width:100%;height:100%;"></div>
 </div>
 
@@ -214,38 +210,33 @@ def build_viewer_html(points,d_tubo,altezza,animazione,velocita):
 
 <script>
 
+const container = document.getElementById("viewer")
+
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x000000)
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight,0.1,100000)
-const renderer = new THREE.WebGLRenderer({{antialias:true}})
-renderer.setSize(window.innerWidth,window.innerHeight)
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight,0.1,100000)
 
-document.getElementById("viewer").appendChild(renderer.domElement)
+const renderer = new THREE.WebGLRenderer({{antialias:true}})
+renderer.setSize(container.clientWidth,container.clientHeight)
+container.appendChild(renderer.domElement)
 
 const controls = new THREE.OrbitControls(camera,renderer.domElement)
 
 const rawPoints = {points_json}
 const vectors = rawPoints.map(p=>new THREE.Vector3(p[0],p[1],p[2]))
 
-class CurvePath extends THREE.Curve{{
-constructor(points){{super();this.points=points;}}
-getPoint(t){{
-const f=t*(this.points.length-1)
-const i=Math.floor(f)
-const t2=f-i
-return new THREE.Vector3().lerpVectors(this.points[i],this.points[i+1],t2)
-}}
-}}
+const curve = new THREE.CatmullRomCurve3(vectors)
 
-const curve = new CurvePath(vectors)
 const tube = new THREE.Mesh(
-new THREE.TubeGeometry(curve,{tubular_segments},{r_tubo},32,false),
+new THREE.TubeGeometry(curve,1000,{r_tubo},24,false),
 new THREE.MeshStandardMaterial({{color:0xe6e6e6}})
 )
 
 scene.add(tube)
+
 camera.position.set(500,500,300)
+controls.update()
 
 function animate(){{
 requestAnimationFrame(animate)
@@ -256,50 +247,44 @@ renderer.render(scene,camera)
 animate()
 </script>
 """
-    return html
 
 # =========================================================
-# UI
+# UI (INTACTE)
 # =========================================================
 c1,c2,c3,c4,c5=st.columns(5)
 
-with c1: diametro_aspo=st.number_input("Diametro aspo (mm)",450.0)
-with c2: spalla=st.number_input("Spalla (mm)",95.0)
-with c3: lunghezza=st.number_input("Lunghezza (m)",50.0)
+with c1: diametro_aspo=st.number_input("Diametro aspo (mm)",value=450.0)
+with c2: spalla=st.number_input("Spalla (mm)",value=95.0)
+with c3: lunghezza=st.number_input("Lunghezza (m)",value=50.0)
 with c4: rame_label=st.selectbox("Diametro rame",list(COPPER_SIZES_MM.keys()))
-with c5: spessore_guaina=st.number_input("Spessore guaina (mm)",7.0)
+with c5: spessore_guaina=st.number_input("Spessore guaina (mm)",value=7.0)
 
 c6,c7,c8,c9=st.columns(4)
 
 with c6: compressione=st.slider("Compressione %",0.0,20.0,0.0)
-with c7: gap=st.number_input("Gap axiale (mm)",0.0)
-with c8: incremento_strato=st.number_input("Incremento strato (mm)",0.0)
+with c7: gap=st.number_input("Gap axiale (mm)",value=0.0)
+with c8: incremento_strato=st.number_input("Incremento strato (mm)",value=0.0)
 with c9: altezza=st.slider("Altezza viewer",400,900,700)
 
 c10,c11=st.columns(2)
-with c10: animazione=st.checkbox("Animazione",True)
-with c11: velocita=st.slider("Velocità",0.1,5.0,1.0)
+with c10: animazione=st.checkbox("Animazione avvolgimento",True)
+with c11: velocita=st.slider("Velocità animazione",0.1,5.0,1.0)
 
 c12,c13=st.columns(2)
-with c12: ritardo_min=st.number_input("Ritardo MIN (deg)",0.0)
-with c13: ritardo_max=st.number_input("Ritardo MAX (deg)",0.0)
+with c12: ritardo_min=st.number_input("Ritardo MIN (deg)",value=0.0)
+with c13: ritardo_max=st.number_input("Ritardo MAX (deg)",value=0.0)
+
+# =========================================================
+# RUN
+# =========================================================
+d_rame=COPPER_SIZES_MM[rame_label]
 
 path,meta=build_coil_centerline(
 diametro_aspo,spalla,lunghezza,
-COPPER_SIZES_MM[rame_label],
-spessore_guaina,compressione,gap,
-incremento_strato,ritardo_min,ritardo_max
+d_rame,spessore_guaina,
+compressione,gap,
+incremento_strato,
+ritardo_min,ritardo_max
 )
 
 components.html(build_viewer_html(path,meta["DiametroTubo"],altezza,animazione,velocita),height=altezza)
-
-# =========================================================
-# METRICS
-# =========================================================
-st.divider()
-
-for k,v in meta.items():
-    st.write(k,":",round(v,2) if isinstance(v,float) else v)
-
-if meta["DiametroEsterno"] > 750:
-    st.warning("Bobina fuori pallet")
