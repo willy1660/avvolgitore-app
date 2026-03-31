@@ -312,6 +312,59 @@ roughness:0.92
 const tubeMesh = new THREE.Mesh(tubeGeom,tubeMat)
 scene.add(tubeMesh)
 
+
+// ==============================
+// CAP PLANES
+// ==============================
+
+function createCap(position,dir,color){{
+
+const geometry=new THREE.CircleGeometry({r_tubo},32)
+
+const material=new THREE.MeshBasicMaterial({{
+color:color,
+side:THREE.DoubleSide
+}})
+
+const cap=new THREE.Mesh(geometry,material)
+
+const up=new THREE.Vector3(0,0,1)
+const quat=new THREE.Quaternion().setFromUnitVectors(up,dir.clone().normalize())
+
+cap.quaternion.copy(quat)
+
+cap.position.copy(position)
+
+scene.add(cap)
+
+}}
+
+
+// CAP VERD (entrada)
+const start=vectors[0]
+const dirStart=vectors[1].clone().sub(vectors[0]).multiplyScalar(-1)
+createCap(start,dirStart,0x00ff00)
+
+
+// CAP VERMELL (sortida)
+const end=vectors[vectors.length-1]
+const dirEnd=vectors[vectors.length-1].clone().sub(vectors[vectors.length-2])
+createCap(end,dirEnd,0xff0000)
+
+
+// ==============================
+// CAMERA
+// ==============================
+
+const box=new THREE.Box3().setFromPoints(vectors)
+const center=new THREE.Vector3()
+box.getCenter(center)
+
+camera.position.set(center.x+600,center.y+600,center.z+300)
+camera.lookAt(center)
+
+controls.target.copy(center)
+
 function animate(){{
 
 requestAnimationFrame(animate)
