@@ -39,13 +39,13 @@ COPPER_SIZES_MM = {
     "7/8": 22.23,
 }
 
+EPS = 1e-9
+
 # =========================================================
 # UTILITÀ
 # =========================================================
 
 def polyline_length(points):
-    if len(points) < 2:
-        return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def trim_polyline_to_length(points, target):
@@ -55,22 +55,18 @@ def trim_polyline_to_length(points, target):
     if cum[-1] <= target:
         return points
 
-    idx = np.searchsorted(cum, target, side="right") - 1
-    idx = max(0, min(idx, len(points) - 2))
-
+    idx = np.searchsorted(cum, target) - 1
     p0 = points[idx]
     p1 = points[idx + 1]
 
-    seg_len = np.linalg.norm(p1 - p0)
-    alpha = (target - cum[idx]) / seg_len
+    alpha = (target - cum[idx]) / np.linalg.norm(p1 - p0)
     p_cut = p0 + alpha * (p1 - p0)
 
     return np.vstack([points[:idx + 1], p_cut])
 
 def compute_total_turns(points):
     theta = np.unwrap(np.arctan2(points[:,1], points[:,0]))
-    dtheta = np.diff(theta)
-    return np.sum(np.abs(dtheta)) / (2*np.pi)
+    return np.sum(np.abs(np.diff(theta))) / (2*np.pi)
 
 def points_to_sldcrv(points):
     return "\n".join(f"{p[0]} {p[1]} {p[2]}" for p in points).encode()
@@ -97,22 +93,18 @@ def build_coil_centerline(
     passo_radiale = d_tubo * (1 - compressione_pct / 100)
     passo_assiale = d_tubo + gap_axiale_mm
 
-    r0 = d_aspo_mm/2 + d_tubo/2
-    r = r0
-
-    z0 = 0
-    z1 = spalla_mm
-
+    r = d_aspo_mm/2 + d_tubo/2
+    z0, z1 = 0, spalla_mm
     theta = 0
     points = []
 
     while True:
 
         dz = z1 - z0
-        giri = max(abs(dz) / passo_assiale, 0.1)
-        dtheta = 2 * math.pi * giri
+        giri = max(abs(dz)/passo_assiale, 0.1)
+        dtheta = 2*np.pi*giri
 
-        t = np.linspace(0, dtheta, max(100, int(giri*120)))
+        t = np.linspace(0, dtheta, int(giri*120)+50)
 
         theta_vals = theta + t
         z_vals = z0 + dz * t / dtheta
@@ -121,6 +113,7 @@ def build_coil_centerline(
         y = r * np.sin(theta_vals)
 
         layer = np.column_stack([x,y,z_vals])
+
         if len(points)>0:
             layer = layer[1:]
 
@@ -141,9 +134,7 @@ def build_coil_centerline(
             x = r * np.cos(theta_vals)
             y = r * np.sin(theta_vals)
 
-            delay_pts = np.column_stack([x,y,z_vals])[1:]
-            points.extend(delay_pts.tolist())
-
+            points.extend(np.column_stack([x,y,z_vals])[1:].tolist())
             theta += ritardo
 
         if polyline_length(np.array(points)) >= lunghezza_mm:
@@ -161,14 +152,11 @@ def build_coil_centerline(
         "PassoRadiale": passo_radiale,
         "PassoAssiale": passo_assiale,
         "DiametroEsterno": 2*(r_max + d_tubo/2),
-        "LunghezzaM": polyline_length(path)/1000,
-        "Capes": 1,
-        "VolteTotali": compute_total_turns(path),
-        "VoltePerCapa": compute_total_turns(path),
+        "VolteTotali": compute_total_turns(path)
     }
 
 # =========================================================
-# VIEWER THREEJS
+# VIEWER ORIGINAL
 # =========================================================
 
 def build_viewer_html(points,d_tubo,altezza,animazione,velocita):
@@ -185,6 +173,7 @@ def build_viewer_html(points,d_tubo,altezza,animazione,velocita):
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
 <script>
+
 const container = document.getElementById("viewer")
 
 const scene = new THREE.Scene()
@@ -198,30 +187,49 @@ container.appendChild(renderer.domElement)
 
 const controls = new THREE.OrbitControls(camera,renderer.domElement)
 
-const points = {points_json}.map(p=>new THREE.Vector3(p[0],p[1],p[2]))
-
-const curve = new THREE.CatmullRomCurve3(points)
-
-const geometry = new THREE.TubeGeometry(curve,1000,{r_tubo},16,false)
-const material = new THREE.MeshStandardMaterial({{color:0xffffff}})
-
-const mesh = new THREE.Mesh(geometry,material)
-scene.add(mesh)
-
 const light = new THREE.DirectionalLight(0xffffff,1)
 light.position.set(5,5,5)
 scene.add(light)
 
-camera.position.set(500,500,300)
-controls.update()
+const points = {points_json}.map(p=>new THREE.Vector3(p[0],p[1],p[2]))
+
+class Curve extends THREE.Curve {{
+    constructor(points){{super();this.points=points;}}
+    getPoint(t){{
+        const i = Math.floor(t*(this.points.length-1))
+        return this.points[i]
+    }}
+}}
+
+const curve = new Curve(points)
+
+const tubularSegments = points.length
+const geometry = new THREE.TubeGeometry(curve,tubularSegments,{r_tubo},16,false)
+
+const material = new THREE.MeshStandardMaterial({{color:0xffffff}})
+const mesh = new THREE.Mesh(geometry,material)
+scene.add(mesh)
+
+let progress = 0
 
 function animate(){{
 requestAnimationFrame(animate)
+
+if({str(animazione).lower()}){{
+progress += {velocita} * 0.002
+if(progress > 1) progress = 1
+
+mesh.geometry.setDrawRange(0, progress * geometry.index.count)
+}}
+
 controls.update()
 renderer.render(scene,camera)
 }}
 
+camera.position.set(500,500,300)
+
 animate()
+
 </script>
 """
     return html
@@ -286,13 +294,7 @@ path,meta=build_coil_centerline(
     ritardo_inv_min
 )
 
-html = build_viewer_html(
-    path,
-    meta["DiametroTubo"],
-    altezza,
-    animazione,
-    velocita
-)
+html = build_viewer_html(path, meta["DiametroTubo"], altezza, animazione, velocita)
 
 components.html(html,height=altezza)
 
