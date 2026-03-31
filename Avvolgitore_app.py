@@ -39,8 +39,6 @@ COPPER_SIZES_MM = {
     "7/8": 22.23,
 }
 
-EPS = 1e-9
-
 # =========================================================
 # UTILITÀ
 # =========================================================
@@ -129,7 +127,10 @@ def build_coil_centerline(
         points.extend(layer.tolist())
         theta += dtheta
 
-        # 🔥 RITARDO
+        # ==============================
+        # RITARDI
+        # ==============================
+
         ritardo = math.radians(ritardo_inv_max if z1 > z0 else ritardo_inv_min)
 
         if ritardo > 0:
@@ -165,6 +166,65 @@ def build_coil_centerline(
         "VolteTotali": compute_total_turns(path),
         "VoltePerCapa": compute_total_turns(path),
     }
+
+# =========================================================
+# VIEWER THREEJS
+# =========================================================
+
+def build_viewer_html(points,d_tubo,altezza,animazione,velocita):
+
+    pts = points.tolist()
+    points_json = json.dumps(pts)
+
+    r_tubo = d_tubo/2
+
+    html = f"""
+<div style="width:100%;height:{altezza}px;" id="viewer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+const container = document.getElementById("viewer")
+
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x000000)
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight,0.1,100000)
+
+const renderer = new THREE.WebGLRenderer({{antialias:true}})
+renderer.setSize(container.clientWidth,container.clientHeight)
+container.appendChild(renderer.domElement)
+
+const controls = new THREE.OrbitControls(camera,renderer.domElement)
+
+const points = {points_json}.map(p=>new THREE.Vector3(p[0],p[1],p[2]))
+
+const curve = new THREE.CatmullRomCurve3(points)
+
+const geometry = new THREE.TubeGeometry(curve,1000,{r_tubo},16,false)
+const material = new THREE.MeshStandardMaterial({{color:0xffffff}})
+
+const mesh = new THREE.Mesh(geometry,material)
+scene.add(mesh)
+
+const light = new THREE.DirectionalLight(0xffffff,1)
+light.position.set(5,5,5)
+scene.add(light)
+
+camera.position.set(500,500,300)
+controls.update()
+
+function animate(){{
+requestAnimationFrame(animate)
+controls.update()
+renderer.render(scene,camera)
+}}
+
+animate()
+</script>
+"""
+    return html
 
 # =========================================================
 # UI
@@ -226,6 +286,14 @@ path,meta=build_coil_centerline(
     ritardo_inv_min
 )
 
-components.html("<h3>Viewer OK</h3>",height=altezza)
+html = build_viewer_html(
+    path,
+    meta["DiametroTubo"],
+    altezza,
+    animazione,
+    velocita
+)
+
+components.html(html,height=altezza)
 
 st.write(meta)
