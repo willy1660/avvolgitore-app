@@ -104,6 +104,8 @@ def build_coil_centerline(
     spessore_guaina_mm,
     compressione_pct,
     gap_axiale_mm,
+    ritardo_inv_max,
+    ritardo_inv_min,
 ):
 
     lunghezza_mm = lunghezza_m * 1000
@@ -156,6 +158,34 @@ def build_coil_centerline(
             points.extend(layer.tolist())
 
         theta += dtheta
+
+        # ==============================
+        # RITARDI INVERSIONE
+        # ==============================
+
+        if z1 > z0:
+            ritardo = math.radians(ritardo_inv_max)
+        else:
+            ritardo = math.radians(ritardo_inv_min)
+
+        if ritardo > 0:
+
+            n_delay = 30
+            t_delay = np.linspace(0, ritardo, n_delay)
+
+            theta_vals = theta + t_delay
+            z_vals = np.full_like(theta_vals, z1)
+
+            x = r * np.cos(theta_vals)
+            y = r * np.sin(theta_vals)
+
+            delay_pts = np.column_stack([x,y,z_vals])
+
+            delay_pts = delay_pts[1:]
+
+            points.extend(delay_pts.tolist())
+
+            theta += ritardo
 
         pts_np = np.array(points)
 
@@ -312,11 +342,6 @@ roughness:0.92
 const tubeMesh = new THREE.Mesh(tubeGeom,tubeMat)
 scene.add(tubeMesh)
 
-
-// ==============================
-// CAP PLANES
-// ==============================
-
 function createCap(position,dir,color){{
 
 const geometry=new THREE.CircleGeometry({r_tubo},32)
@@ -339,22 +364,13 @@ scene.add(cap)
 
 }}
 
-
-// CAP VERD (entrada)
 const start=vectors[0]
 const dirStart=vectors[1].clone().sub(vectors[0]).multiplyScalar(-1)
 createCap(start,dirStart,0x00ff00)
 
-
-// CAP VERMELL (sortida)
 const end=vectors[vectors.length-1]
 const dirEnd=vectors[vectors.length-1].clone().sub(vectors[vectors.length-2])
 createCap(end,dirEnd,0xff0000)
-
-
-// ==============================
-// CAMERA
-// ==============================
 
 const box=new THREE.Box3().setFromPoints(vectors)
 const center=new THREE.Vector3()
@@ -422,8 +438,11 @@ with c6:
 with c7:
     gap=st.number_input("Gap axiale (mm)",value=0.0)
 
+with c8:
+    ritardo_inv_max = st.number_input("Ritardo inv max (°)", value=0.0)
+
 with c9:
-    altezza=st.slider("Altezza viewer",400,900,700)
+    ritardo_inv_min = st.number_input("Ritardo inv min (°)", value=0.0)
 
 c10,c11=st.columns(2)
 
@@ -442,7 +461,9 @@ lunghezza,
 d_rame,
 spessore_guaina,
 compressione,
-gap
+gap,
+ritardo_inv_max,
+ritardo_inv_min
 )
 
 html=build_viewer_html(
