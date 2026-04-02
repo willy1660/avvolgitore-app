@@ -7,6 +7,79 @@ import os
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
 # =========================
+# 🌍 LANGUAGE
+# =========================
+
+if "lang" not in st.session_state:
+    st.session_state.lang = "IT"
+
+lang_option = st.selectbox(
+    "🌍 Language",
+    ["🇮🇹 Italiano", "🇺🇸 English (US)"],
+    index=0 if st.session_state.lang == "IT" else 1
+)
+
+if "Italiano" in lang_option:
+    st.session_state.lang = "IT"
+else:
+    st.session_state.lang = "EN"
+
+lang = st.session_state.lang
+
+TEXTS = {
+    "IT": {
+        "title": "Avvolgimento",
+        "bobina": "🟦 Bobina",
+        "tubo": "🟩 Tubo",
+        "avvolg": "🟧 Avvolgimento",
+        "viewer": "⚙️ Viewer",
+        "diam_aspo": "Ø Aspo (mm)",
+        "spalla": "Spalla (mm)",
+        "rame": "Ø Rame",
+        "isolamento": "Spessore isolamento (mm)",
+        "lunghezza": "Lunghezza rotolo (m)",
+        "passo_assiale": "Passo assiale (mm)",
+        "incremento": "Incremento strato (mm)",
+        "rit_min": "Ritardo min (°)",
+        "rit_max": "Ritardo max (°)",
+        "altezza": "Altezza",
+        "animazione": "Animazione",
+        "velocita": "Velocità",
+        "metric1": "Diametro tubo",
+        "metric2": "Passo assiale",
+        "metric3": "Incremento strato",
+        "metric4": "Diametro esterno",
+        "warning": "⚠️ Diametro esterno superiore a 750 mm. La bobina potrebbe uscire dal pallet."
+    },
+    "EN": {
+        "title": "Coiling",
+        "bobina": "🟦 Coil",
+        "tubo": "🟩 Tube",
+        "avvolg": "🟧 Winding",
+        "viewer": "⚙️ Viewer",
+        "diam_aspo": "Spool diameter (mm)",
+        "spalla": "Width (mm)",
+        "rame": "Copper size",
+        "isolamento": "Insulation thickness (mm)",
+        "lunghezza": "Coil length (m)",
+        "passo_assiale": "Axial pitch (mm)",
+        "incremento": "Layer increment (mm)",
+        "rit_min": "Delay min (°)",
+        "rit_max": "Delay max (°)",
+        "altezza": "Height",
+        "animazione": "Animation",
+        "velocita": "Speed",
+        "metric1": "Tube diameter",
+        "metric2": "Axial pitch",
+        "metric3": "Layer increment",
+        "metric4": "Outer diameter",
+        "warning": "⚠️ Outer diameter exceeds 750 mm. Coil may not fit on pallet."
+    }
+}
+
+t = TEXTS[lang]
+
+# =========================
 # HEADER
 # =========================
 
@@ -19,7 +92,7 @@ with col_logo:
         st.image(logo_path, width=130)
 
 with col_title:
-    st.markdown("# Avvolgimento")
+    st.markdown(f"# {t['title']}")
 
 # =========================
 # CONSTANTS
@@ -71,11 +144,8 @@ def hermite_scalar(y0, y1, m0, m1, u):
     h11 = u**3 - u**2
     return h00*y0 + h10*m0 + h01*y1 + h11*m1
 
-def smoothstep01(u):
-    return 0.5 - 0.5*np.cos(np.pi*u)
-
 # =========================
-# MODEL CONTINU REAL
+# GEOMETRY
 # =========================
 
 def build_coil(
@@ -86,119 +156,106 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_top_deg,
-    ritardo_bottom_deg,
+    ritardo_min_deg,
+    ritardo_max_deg,
 ):
 
     lunghezza_mm = lunghezza_m * 1000
     d_tubo = d_rame_mm + 2*spessore_guaina_mm
 
-    dz_dtheta = passo_assiale / (2*np.pi)
+    passo_assiale = max(passo_assiale, EPS)
+    passo_radiale = max(passo_radiale, EPS)
 
-    r = d_aspo_mm/2 + d_tubo/2
-    r0 = r
+    r0 = d_aspo_mm/2 + d_tubo/2
+    r = r0
 
+    z0, z1 = 0.0, spalla_mm
     theta = 0
-    z = 0
-
-    direction = 1  # +1 puja, -1 baixa
 
     points = []
 
-    def add_point(theta, r, z):
-        x = r*np.cos(theta)
-        y = r*np.sin(theta)
-        points.append([x,y,z])
+    base_transition_turn = 0.18
 
     while True:
 
-        if len(points) > 2 and polyline_length(np.array(points)) >= lunghezza_mm:
+        dz = z1 - z0
+        turns = max(abs(dz)/passo_assiale, 0.1)
+        dtheta = 2*np.pi*turns
+        dz_dtheta_in = dz / dtheta
+
+        t = np.linspace(0, dtheta, int(turns*200)+80)
+
+        theta_vals = theta + t
+        z_vals = z0 + dz*(t/dtheta)
+
+        x = r*np.cos(theta_vals)
+        y = r*np.sin(theta_vals)
+
+        layer = np.column_stack([x,y,z_vals])
+
+        if len(points) > 0:
+            layer = layer[1:]
+
+        points.extend(layer.tolist())
+
+        if polyline_length(np.array(points)) >= lunghezza_mm:
             break
 
-        # =========================
-        # RUN LINEAL
-        # =========================
+        ritardo = np.random.uniform(ritardo_min_deg, ritardo_max_deg)
+        extra_turn = ritardo / 360.0
 
-        for _ in range(200):
+        total_turn = base_transition_turn + extra_turn
+        dtheta_trans = 2*np.pi*total_turn
 
-            theta += 0.05
-            z += direction * dz_dtheta * 0.05
+        r_next = r + passo_radiale
 
-            add_point(theta, r, z)
+        dz_next = z0 - z1
+        turns_next = max(abs(dz_next)/passo_assiale, 0.1)
+        dtheta_next = 2*np.pi*turns_next
+        dz_dtheta_out = dz_next / dtheta_next
 
-            if z >= spalla_mm or z <= 0:
-                break
+        t_trans = np.linspace(0, dtheta_trans, int(total_turn*240)+60)
+        u = t_trans / dtheta_trans
 
-        # =========================
-        # TURN
-        # =========================
+        theta_trans = theta + dtheta + t_trans
 
-        if direction == 1:
-            ritardo = ritardo_top_deg
-        else:
-            ritardo = ritardo_bottom_deg
+        s = 0.5 - 0.5*np.cos(np.linspace(0, np.pi, len(t_trans)))
+        r_trans = r + (r_next - r)*s
 
-        if ritardo < 1e-6:
-            # 🔥 canvi sec REAL → sense kink artificial
-            direction *= -1
-            r += passo_radiale
-            continue
+        z_trans = hermite_scalar(
+            z1, z1,
+            dz_dtheta_in*dtheta_trans,
+            dz_dtheta_out*dtheta_trans,
+            u
+        )
 
-        theta_turn = np.deg2rad(ritardo)
-        steps = int(200 * (ritardo/360 + 0.1))
+        x = r_trans*np.cos(theta_trans)
+        y = r_trans*np.sin(theta_trans)
 
-        for i in range(steps):
+        points.extend(np.column_stack([x,y,z_trans])[1:].tolist())
 
-            t = i / steps
-            theta += theta_turn / steps
+        theta += dtheta + dtheta_trans
+        r = r_next
+        z0, z1 = z1, z0
 
-            if direction == 1:
-                z_local = hermite_scalar(
-                    spalla_mm - 1,
-                    spalla_mm,
-                    1,
-                    0,
-                    min(t*2,1)
-                ) if t < 0.5 else hermite_scalar(
-                    spalla_mm,
-                    spalla_mm - 1,
-                    0,
-                    -1,
-                    (t-0.5)*2
-                )
-            else:
-                z_local = hermite_scalar(
-                    1,
-                    0,
-                    -1,
-                    0,
-                    min(t*2,1)
-                ) if t < 0.5 else hermite_scalar(
-                    0,
-                    1,
-                    0,
-                    1,
-                    (t-0.5)*2
-                )
-
-            z = z_local
-            r_current = r + passo_radiale * smoothstep01(t)
-
-            add_point(theta, r_current, z)
-
-        r += passo_radiale
-        direction *= -1
+        if polyline_length(np.array(points)) >= lunghezza_mm:
+            break
 
     path = trim_polyline(np.array(points), lunghezza_mm)
 
     r_max = np.max(np.sqrt(path[:,0]**2 + path[:,1]**2))
     diam_ext = 2*(r_max + d_tubo/2)
 
+    capes = int((r_max - r0)/passo_radiale) + 1
+    turns_tot = compute_total_turns(path)
+
     meta = {
         "DiametroTubo": d_tubo,
+        "PassoAssiale": passo_assiale,
+        "IncrementoStrato": passo_radiale,
         "DiametroEsterno": diam_ext,
-        "Capes": int((r_max-r0)/passo_radiale)+1,
-        "VolteTotali": compute_total_turns(path)
+        "Capes": capes,
+        "VolteTotali": turns_tot,
     }
 
     return path, meta
@@ -207,52 +264,138 @@ def build_coil(
 # VIEWER
 # =========================
 
-def build_viewer_html(points, d_tubo, altezza):
+def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
 
     pts = points.tolist()
     points_json = json.dumps(pts)
 
-    r_tubo = d_tubo/2
+    r_tubo = d_tubo / 2.0
+    tubular_segments = min(4000, max(800, int(len(pts)*0.5)))
 
-    return f"""
-<div style="width:100%;height:{altezza}px;">
-<div id="viewer" style="width:100%;height:100%;"></div>
-</div>
+    html = f"""
+    <div style="width:100%;height:{altezza}px;">
+    <div id="viewer" style="width:100%;height:100%;"></div>
+    </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
-<script>
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
+    <script>
+    const container = document.getElementById("viewer");
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 100000);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
 
-const renderer = new THREE.WebGLRenderer({{ antialias:true }});
-renderer.setSize(window.innerWidth, {altezza});
-document.getElementById("viewer").appendChild(renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100000);
 
-const rawPoints = {points_json};
-const vectors = rawPoints.map(p => new THREE.Vector3(p[0],p[1],p[2]));
+    const renderer = new THREE.WebGLRenderer({{ antialias:true }});
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
 
-const curve = new THREE.CatmullRomCurve3(vectors);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-const geometry = new THREE.TubeGeometry(curve, 2000, {r_tubo}, 32, false);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.7));
 
-const material = new THREE.MeshBasicMaterial({{ color:0xffffff }});
-const mesh = new THREE.Mesh(geometry, material);
+    const light = new THREE.DirectionalLight(0xffffff, 0.5);
+    light.position.set(5,5,5);
+    scene.add(light);
 
-scene.add(mesh);
+    const rawPoints = {points_json};
+    const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-camera.position.z = 500;
+    class CurvePath extends THREE.Curve {{
+      constructor(points) {{
+        super();
+        this.points = points;
+      }}
+      getPoint(t) {{
+        const n = this.points.length;
+        const f = t*(n-1);
+        const i = Math.floor(f);
+        const i0 = Math.max(0, Math.min(i, n-2));
+        const i1 = i0+1;
+        const tt = f-i0;
+        return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
+      }}
+    }}
 
-function animate() {{
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-}}
+    const curve = new CurvePath(vectors);
 
-animate();
-</script>
-"""
+    let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 48, false);
+    tubeGeom = tubeGeom.toNonIndexed();
+
+    const tubeMesh = new THREE.Mesh(
+      tubeGeom,
+      new THREE.MeshStandardMaterial({{
+        color:0xe6e6e6,
+        roughness:0.85,
+        metalness:0.1
+      }})
+    );
+
+    scene.add(tubeMesh);
+
+    function createCap(position, direction, color) {{
+      const geometry = new THREE.CircleGeometry({r_tubo}, 32);
+      const material = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
+      const cap = new THREE.Mesh(geometry, material);
+
+      const up = new THREE.Vector3(0,0,1);
+      const quat = new THREE.Quaternion().setFromUnitVectors(up, direction.clone().normalize());
+
+      cap.quaternion.copy(quat);
+      cap.position.copy(position);
+
+      scene.add(cap);
+    }}
+
+    if (vectors.length >= 2) {{
+      createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
+      createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
+    }}
+
+    const box = new THREE.Box3().setFromPoints(vectors);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const dist = Math.max(size.x,size.y,size.z)*1.8;
+
+    camera.position.set(center.x+dist, center.y+dist, center.z+dist*0.6);
+    camera.lookAt(center);
+    controls.target.copy(center);
+
+    let progress = 0;
+    const total = tubeGeom.attributes.position.count;
+
+    if ({str(animazione).lower()}) {{
+      tubeGeom.setDrawRange(0,0);
+    }} else {{
+      tubeGeom.setDrawRange(0,total);
+    }}
+
+    function animate(){{
+      requestAnimationFrame(animate);
+
+      if ({str(animazione).lower()}) {{
+        progress += {velocita} * 0.002;
+        if (progress > 1) progress = 1;
+
+        const visible = Math.floor(progress * total);
+        tubeGeom.setDrawRange(0, visible);
+      }}
+
+      controls.update();
+      renderer.render(scene,camera);
+    }}
+
+    animate();
+    </script>
+    """
+    return html
 
 # =========================
 # UI
@@ -261,25 +404,30 @@ animate();
 colA, colB, colC, colD = st.columns(4)
 
 with colA:
-    diametro_aspo = st.number_input("Ø Aspo (mm)", 450.0)
-    spalla = st.number_input("Spalla (mm)", 95.0)
+    st.markdown(f"#### {t['bobina']}")
+    diametro_aspo = st.number_input(t["diam_aspo"], 450.0)
+    spalla = st.number_input(t["spalla"], 95.0)
 
 with colB:
-    rame_label = st.selectbox("Ø Rame", list(COPPER_SIZES_MM.keys()))
-    spessore_guaina = st.number_input("Spessore isolamento", 7.0)
-    lunghezza = st.number_input("Lunghezza (m)", 50.0)
+    st.markdown(f"#### {t['tubo']}")
+    rame_label = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
+    spessore_guaina = st.number_input(t["isolamento"], 7.0)
+    lunghezza = st.number_input(t["lunghezza"], 50.0)
 
     d_rame = COPPER_SIZES_MM[rame_label]
 
 with colC:
-    passo_assiale = st.number_input("Passo assiale", 20.0)
-    incremento_strato = st.number_input("Incremento strato", 20.0)
-
-    ritardo_top = st.number_input("Ritardo alto (°)", 180.0)
-    ritardo_bottom = st.number_input("Ritardo basso (°)", 180.0)
+    st.markdown(f"#### {t['avvolg']}")
+    passo_assiale = st.number_input(t["passo_assiale"], value=20.0)
+    incremento_strato = st.number_input(t["incremento"], value=20.0)
+    ritardo_min = st.number_input(t["rit_min"], 0.0, 720.0, 360.0)
+    ritardo_max = st.number_input(t["rit_max"], 0.0, 720.0, 360.0)
 
 with colD:
-    altezza = st.number_input("Viewer height", 700)
+    st.markdown(f"#### {t['viewer']}")
+    altezza = st.slider(t["altezza"], 400, 900, 700)
+    animazione = st.checkbox(t["animazione"], False)
+    velocita = st.slider(t["velocita"], 0.1, 5.0, 1.0)
 
 # =========================
 # BUILD
@@ -293,15 +441,32 @@ path, meta = build_coil(
     spessore_guaina,
     passo_assiale,
     incremento_strato,
-    ritardo_top,
-    ritardo_bottom,
+    ritardo_min,
+    ritardo_max,
 )
 
-html = build_viewer_html(path, meta["DiametroTubo"], altezza)
+html = build_viewer_html(
+    path,
+    meta["DiametroTubo"],
+    altezza,
+    animazione,
+    velocita
+)
+
 components.html(html, height=altezza)
 
 # =========================
 # METRICS
 # =========================
 
-st.write(meta)
+st.divider()
+
+m1,m2,m3,m4 = st.columns(4)
+
+m1.metric(t["metric1"], f"{meta['DiametroTubo']:.2f} mm")
+m2.metric(t["metric2"], f"{meta['PassoAssiale']:.2f} mm")
+m3.metric(t["metric3"], f"{meta['IncrementoStrato']:.2f} mm")
+m4.metric(t["metric4"], f"{meta['DiametroEsterno']:.1f} mm")
+
+if meta["DiametroEsterno"] > 750:
+    st.warning(t["warning"])
