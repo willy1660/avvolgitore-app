@@ -163,8 +163,8 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_min_deg,   # base
-    ritardo_max_deg,   # spalla
+    ritardo_min_deg,
+    ritardo_max_deg,
 ):
     lunghezza_mm = float(lunghezza_m) * 1000.0
     d_tubo = float(d_rame_mm) + 2.0 * float(spessore_guaina_mm)
@@ -181,14 +181,12 @@ def build_coil(
 
     z = 0.0
     theta = 0.0
-    direction = 1  # +1 puja, -1 baixa
+    direction = 1
 
-    # densitats de discretització
-    theta_step_run = np.deg2rad(4.0)
+    theta_step_run = np.deg2rad(3.0)
     dz_dtheta = passo_assiale / (2.0 * np.pi)
 
-    # quan ritardo = 0, fem un canvi radial repartit al començament del següent tram
-    bridge_steps_zero_delay = 14
+    bridge_steps_zero_delay = 18
 
     points = []
 
@@ -206,13 +204,9 @@ def build_coil(
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
             break
 
-        # =========================
-        # RUN HELICOIDAL
-        # =========================
         while True:
             theta += theta_step_run
 
-            # si venim d'un ritardo 0°, repartim el canvi radial al començament del tram
             if pending_bridge_steps > 0:
                 bridge_idx = bridge_steps_zero_delay - pending_bridge_steps + 1
                 u = bridge_idx / bridge_steps_zero_delay
@@ -241,16 +235,12 @@ def build_coil(
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
             break
 
-        # =========================
-        # DWELL / RITARDO
-        # carro quiet, mandrí gira
-        # =========================
         at_top = direction == 1
         ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
         theta_dwell = np.deg2rad(ritardo_deg)
 
         if theta_dwell > EPS:
-            dwell_steps = max(8, int(np.ceil(ritardo_deg / 4.0)))
+            dwell_steps = max(12, int(np.ceil(ritardo_deg / 3.0)))
             theta_step_dwell = theta_dwell / dwell_steps
 
             r_start = r
@@ -265,13 +255,9 @@ def build_coil(
 
             r = r_end
         else:
-            # sense espera: inversió immediata
-            # per evitar kink artificial, el canvi radial es reparteix
-            # als primers punts del següent tram, sense z constant
             pending_radial_shift = passo_radiale
             pending_bridge_steps = bridge_steps_zero_delay
 
-        # canvi de direcció
         direction *= -1
 
     path = np.array(points, dtype=float)
@@ -302,16 +288,16 @@ def build_coil(
 # =========================
 
 def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
-
     pts = points.tolist()
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
-    tubular_segments = min(4000, max(800, int(len(pts) * 0.5)))
+    tubular_segments = min(8000, max(1500, int(len(pts) * 0.9)))
+    radial_segments = 56
 
     html = f"""
-    <div style="width:100%;height:{altezza}px;">
-    <div id="viewer" style="width:100%;height:100%;"></div>
+    <div style="width:100%;height:{altezza}px;border-radius:16px;overflow:hidden;background:#0b0d10;">
+      <div id="viewer" style="width:100%;height:100%;"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -321,64 +307,110 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     const container = document.getElementById("viewer");
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    scene.background = new THREE.Color(0x0b0d10);
+    scene.fog = new THREE.Fog(0x0b0d10, 1800, 7000);
 
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100000);
+    const camera = new THREE.PerspectiveCamera(
+      42,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      100000
+    );
 
-    const renderer = new THREE.WebGLRenderer({{ antialias:true }});
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const renderer = new THREE.WebGLRenderer({{
+      antialias: true,
+      alpha: false,
+      powerPreference: "high-performance"
+    }});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.rotateSpeed = 0.8;
+    controls.zoomSpeed = 0.9;
+    controls.panSpeed = 0.7;
+    controls.screenSpacePanning = true;
+    controls.minDistance = 50;
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.7));
+    const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+    scene.add(ambient);
 
-    const light = new THREE.DirectionalLight(0xffffff, 0.5);
-    light.position.set(5,5,5);
-    scene.add(light);
+    const hemi = new THREE.HemisphereLight(0xdde7ff, 0x20242c, 0.7);
+    hemi.position.set(0, 0, 1);
+    scene.add(hemi);
+
+    const key = new THREE.DirectionalLight(0xffffff, 0.95);
+    key.position.set(900, 900, 1200);
+    key.castShadow = true;
+    key.shadow.mapSize.width = 2048;
+    key.shadow.mapSize.height = 2048;
+    key.shadow.camera.near = 0.5;
+    key.shadow.camera.far = 6000;
+    scene.add(key);
+
+    const fill = new THREE.DirectionalLight(0xbfd3ff, 0.35);
+    fill.position.set(-900, -400, 600);
+    scene.add(fill);
+
+    const rim = new THREE.DirectionalLight(0xffffff, 0.25);
+    rim.position.set(-300, 1200, 500);
+    scene.add(rim);
 
     const rawPoints = {points_json};
     const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-    class CurvePath extends THREE.Curve {{
+    class CurvePathLinear extends THREE.Curve {{
       constructor(points) {{
         super();
         this.points = points;
       }}
       getPoint(t) {{
         const n = this.points.length;
-        const f = t*(n-1);
+        const f = t * (n - 1);
         const i = Math.floor(f);
-        const i0 = Math.max(0, Math.min(i, n-2));
-        const i1 = i0+1;
-        const tt = f-i0;
+        const i0 = Math.max(0, Math.min(i, n - 2));
+        const i1 = i0 + 1;
+        const tt = f - i0;
         return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
       }}
     }}
 
-    const curve = new CurvePath(vectors);
+    const curve = new CurvePathLinear(vectors);
 
-    let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 48, false);
-    tubeGeom = tubeGeom.toNonIndexed();
+    let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, {radial_segments}, false);
+    tubeGeom.computeVertexNormals();
 
-    const tubeMesh = new THREE.Mesh(
-      tubeGeom,
-      new THREE.MeshStandardMaterial({{
-        color:0xe6e6e6,
-        roughness:0.85,
-        metalness:0.1
-      }})
-    );
+    const tubeMat = new THREE.MeshPhysicalMaterial({{
+      color: 0xe2e5e9,
+      roughness: 0.68,
+      metalness: 0.08,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.65,
+      reflectivity: 0.18
+    }});
 
+    const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
+    tubeMesh.castShadow = true;
+    tubeMesh.receiveShadow = true;
     scene.add(tubeMesh);
 
     function createCap(position, direction, color) {{
-      const geometry = new THREE.CircleGeometry({r_tubo}, 32);
-      const material = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
-      const cap = new THREE.Mesh(geometry, material);
+      const capGeom = new THREE.CircleGeometry({r_tubo}, 48);
+      const capMat = new THREE.MeshStandardMaterial({{
+        color: color,
+        roughness: 0.55,
+        metalness: 0.08,
+        side: THREE.DoubleSide
+      }});
+      const cap = new THREE.Mesh(capGeom, capMat);
 
-      const up = new THREE.Vector3(0,0,1);
+      const up = new THREE.Vector3(0, 0, 1);
       const dir = direction.clone().normalize();
 
       if (dir.length() > 1e-9) {{
@@ -387,12 +419,22 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
       }}
 
       cap.position.copy(position);
+      cap.castShadow = true;
+      cap.receiveShadow = true;
       scene.add(cap);
     }}
 
     if (vectors.length >= 2) {{
-      createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
-      createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
+      createCap(
+        vectors[0],
+        vectors[1].clone().sub(vectors[0]).multiplyScalar(-1),
+        0x2ecc71
+      );
+      createCap(
+        vectors[vectors.length - 1],
+        vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]),
+        0xe74c3c
+      );
     }}
 
     const box = new THREE.Box3().setFromPoints(vectors);
@@ -402,26 +444,56 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     const size = new THREE.Vector3();
     box.getSize(size);
 
-    const dist = Math.max(size.x,size.y,size.z)*1.8;
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const radiusVisual = Math.max(size.x, size.y) * 0.5;
 
-    camera.position.set(center.x+dist, center.y+dist, center.z+dist*0.6);
+    const gridSize = Math.max(1200, Math.ceil(maxDim * 2.2 / 100) * 100);
+    const gridDivisions = Math.max(12, Math.round(gridSize / 100));
+
+    const grid = new THREE.GridHelper(gridSize, gridDivisions, 0x3b4452, 0x232933);
+    grid.position.set(center.x, center.y, 0);
+    grid.material.opacity = 0.28;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    const axes = new THREE.AxesHelper(Math.max(120, radiusVisual * 0.35));
+    axes.position.set(center.x, center.y, 0);
+    scene.add(axes);
+
+    const planeGeom = new THREE.PlaneGeometry(gridSize, gridSize);
+    const planeMat = new THREE.ShadowMaterial({{
+      opacity: 0.18
+    }});
+    const plane = new THREE.Mesh(planeGeom, planeMat);
+    plane.receiveShadow = true;
+    plane.position.set(center.x, center.y, 0);
+    scene.add(plane);
+
+    const dist = Math.max(maxDim * 1.55, 450);
+    camera.position.set(
+      center.x + dist * 0.95,
+      center.y + dist * 0.95,
+      center.z + dist * 0.42
+    );
     camera.lookAt(center);
     controls.target.copy(center);
 
+    controls.maxDistance = dist * 6.0;
+
     let progress = 0;
-    const total = tubeGeom.attributes.position.count;
+    const total = tubeGeom.index ? tubeGeom.index.count : tubeGeom.attributes.position.count;
 
     if ({str(animazione).lower()}) {{
-      tubeGeom.setDrawRange(0,0);
+      tubeGeom.setDrawRange(0, 0);
     }} else {{
-      tubeGeom.setDrawRange(0,total);
+      tubeGeom.setDrawRange(0, total);
     }}
 
-    function animate(){{
+    function animate() {{
       requestAnimationFrame(animate);
 
       if ({str(animazione).lower()}) {{
-        progress += {velocita} * 0.002;
+        progress += {velocita} * 0.0018;
         if (progress > 1) progress = 1;
 
         const visible = Math.floor(progress * total);
@@ -429,10 +501,21 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
       }}
 
       controls.update();
-      renderer.render(scene,camera);
+      renderer.render(scene, camera);
     }}
 
+    function onResize() {{
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    }}
+
+    window.addEventListener("resize", onResize);
     animate();
+    onResize();
     </script>
     """
     return html
@@ -453,7 +536,6 @@ with colB:
     rame_label = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
     spessore_guaina = st.number_input(t["isolamento"], value=7.0, step=0.1)
     lunghezza = st.number_input(t["lunghezza"], value=50.0, step=1.0)
-
     d_rame = COPPER_SIZES_MM[rame_label]
 
 with colC:
@@ -465,7 +547,7 @@ with colC:
 
 with colD:
     st.markdown(f"#### {t['viewer']}")
-    altezza = st.slider(t["altezza"], 400, 900, 700)
+    altezza = st.slider(t["altezza"], 400, 950, 720)
     animazione = st.checkbox(t["animazione"], False)
     velocita = st.slider(t["velocita"], 0.1, 5.0, 1.0)
 
