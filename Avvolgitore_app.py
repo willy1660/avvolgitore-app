@@ -17,9 +17,12 @@ COPPER_SIZES_MM = {
 
 EPS = 1e-9
 
+# =========================
+# UTILS
+# =========================
+
 def polyline_length(p):
     return float(np.linalg.norm(np.diff(p, axis=0), axis=1).sum()) if len(p)>1 else 0
-
 
 def trim(p, L):
     seg = np.linalg.norm(np.diff(p, axis=0), axis=1)
@@ -34,15 +37,13 @@ def trim(p, L):
 
     return np.vstack([p[:i+1], p0 + t*(p1-p0)])
 
-
 def turns(p):
     th = np.unwrap(np.arctan2(p[:,1], p[:,0]))
     return np.sum(np.abs(np.diff(th))) / (2*np.pi)
 
-
-# =========================================================
-# GEOMETRY FIXED
-# =========================================================
+# =========================
+# GEOMETRY
+# =========================
 
 def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
 
@@ -83,10 +84,7 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
         if polyline_length(np.array(pts)) >= L:
             break
 
-        # =========================
         # TRANSICIÓ CORRECTA
-        # =========================
-
         rit = 0
         if rmax > 0:
             rit = np.random.uniform(rmin, rmax)
@@ -101,8 +99,7 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
 
         s = 0.5 - 0.5*np.cos(np.linspace(0, np.pi, n))
 
-        th = theta + dth_layer + t   # 🔴 FIX CLAU
-
+        th = theta + dth_layer + t
         r_vals = r + (r_next - r)*s
         z_vals = np.full_like(th, z1)
 
@@ -112,9 +109,7 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
         trans = np.column_stack([x,y,z_vals])[1:]
         pts.extend(trans.tolist())
 
-        # 🔴 FIX CLAU
         theta = theta + dth_layer + dth
-
         r = r_next
         z0, z1 = z1, z0
 
@@ -125,23 +120,23 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
     pts = trim(pts, L)
 
     ttot = turns(pts)
-    rmax = np.max(np.sqrt(pts[:,0]**2 + pts[:,1]**2))
+    rmax_val = np.max(np.sqrt(pts[:,0]**2 + pts[:,1]**2))
 
     meta = {
         "DiametroTubo": d,
         "PassoRadiale": pr,
         "PassoAssiale": pa,
-        "DiametroEsterno": 2*(rmax + d/2),
+        "DiametroEsterno": 2*(rmax_val + d/2),
         "LunghezzaM": polyline_length(pts)/1000,
         "VolteTotali": ttot,
+        "Capes": int((rmax_val - (d_aspo/2))/pr)+1
     }
 
     return pts, meta
 
-
-# =========================================================
-# VIEWER (igual que abans)
-# =========================================================
+# =========================
+# VIEWER FIXED
+# =========================
 
 def viewer(points, d, h, anim, vel):
 
@@ -155,18 +150,20 @@ def viewer(points, d, h, anim, vel):
 
 <script>
 
-const pts = {pts}.map(p => new THREE.Vector3(p[0],p[1],p[2]))
+const container = document.getElementById("v")
 
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x000000)
 
-const camera = new THREE.PerspectiveCamera(45,1,0.1,100000)
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100000)
 
 const renderer = new THREE.WebGLRenderer({{antialias:true}})
-renderer.setSize(window.innerWidth, {h})
-document.getElementById("v").appendChild(renderer.domElement)
+renderer.setSize(container.clientWidth, container.clientHeight)
+container.appendChild(renderer.domElement)
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement)
+
+const pts = {pts}.map(p => new THREE.Vector3(p[0],p[1],p[2]))
 
 class C extends THREE.Curve {{
     constructor(p) {{ super(); this.p=p }}
@@ -188,11 +185,16 @@ scene.add(mesh)
 scene.add(new THREE.HemisphereLight(0xffffff,0x444444,0.7))
 
 const box = new THREE.Box3().setFromPoints(pts)
-const c = new THREE.Vector3()
-box.getCenter(c)
+const center = new THREE.Vector3()
+box.getCenter(center)
 
-camera.position.set(c.x+600,c.y+600,c.z+300)
-controls.target.copy(c)
+const size = new THREE.Vector3()
+box.getSize(size)
+
+const maxDim = Math.max(size.x, size.y, size.z)
+
+camera.position.set(center.x + maxDim, center.y + maxDim, center.z + maxDim*0.6)
+controls.target.copy(center)
 
 let p=0
 
@@ -214,10 +216,9 @@ animate()
 </script>
 """
 
-
-# =========================================================
+# =========================
 # UI
-# =========================================================
+# =========================
 
 c1,c2,c3,c4,c5 = st.columns(5)
 
@@ -254,4 +255,15 @@ pts, meta = build_coil(
 
 components.html(viewer(pts, meta["DiametroTubo"], h, anim, vel), height=h)
 
-st.metric("Diametro esterno", f"{meta['DiametroEsterno']:.1f} mm")
+# =========================
+# METRICS RESTORED
+# =========================
+
+st.divider()
+
+m1,m2,m3,m4 = st.columns(4)
+
+m1.metric("Diametro tubo", f"{meta['DiametroTubo']:.2f} mm")
+m2.metric("Passo radiale", f"{meta['PassoRadiale']:.2f} mm")
+m3.metric("Passo assiale", f"{meta['PassoAssiale']:.2f} mm")
+m4.metric("Diametro esterno", f"{meta['DiametroEsterno']:.1f} mm")
