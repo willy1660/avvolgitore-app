@@ -40,7 +40,8 @@ TEXTS = {
         "lunghezza": "Lunghezza rotolo (m)",
         "passo_assiale": "Passo assiale (mm)",
         "incremento": "Incremento strato (mm)",
-        "ritardo": "Ritardo (°)",
+        "ritardo_top": "Ritardo alto (°)",
+        "ritardo_bottom": "Ritardo basso (°)",
         "altezza": "Altezza",
         "animazione": "Animazione",
         "velocita": "Velocità",
@@ -65,7 +66,8 @@ TEXTS = {
         "lunghezza": "Coil length (m)",
         "passo_assiale": "Axial pitch (mm)",
         "incremento": "Layer increment (mm)",
-        "ritardo": "Delay (°)",
+        "ritardo_top": "Top delay (°)",
+        "ritardo_bottom": "Bottom delay (°)",
         "altezza": "Height",
         "animazione": "Animation",
         "velocita": "Speed",
@@ -135,6 +137,7 @@ def trim_polyline(points, target_length):
 
     p0, p1 = points[idx], points[idx + 1]
     seg_len = np.linalg.norm(p1 - p0)
+
     if seg_len < EPS:
         return points[:idx + 1]
 
@@ -174,7 +177,7 @@ def make_segment(theta0, duration, npts, r_vals, z_vals):
     y = r_vals * np.sin(theta)
     return np.column_stack([x, y, z_vals]), theta[-1]
 
-def npts_from_turns(duration_rad, density_per_turn=240, min_pts=30):
+def npts_from_turns(duration_rad, density_per_turn=260, min_pts=30):
     turns = max(duration_rad / (2 * np.pi), 0.01)
     return max(min_pts, int(turns * density_per_turn))
 
@@ -190,81 +193,98 @@ def build_coil_continuous(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_deg,
+    ritardo_top_deg,
+    ritardo_bottom_deg,
 ):
-    lunghezza_mm = lunghezza_m * 1000.0
-    d_tubo = d_rame_mm + 2.0 * spessore_guaina_mm
+    lunghezza_mm = float(lunghezza_m) * 1000.0
+    d_tubo = float(d_rame_mm) + 2.0 * float(spessore_guaina_mm)
 
     passo_assiale = max(float(passo_assiale), EPS)
     passo_radiale = max(float(passo_radiale), EPS)
     spalla_mm = max(float(spalla_mm), EPS)
 
-    # ritardo real de màquina: 0..360°
-    ritardo_deg = max(0.0, min(360.0, float(ritardo_deg)))
-    theta_rev = np.deg2rad(ritardo_deg)
+    ritardo_top_deg = max(0.0, min(360.0, float(ritardo_top_deg)))
+    ritardo_bottom_deg = max(0.0, min(360.0, float(ritardo_bottom_deg)))
 
-    # petit mínim numèric per evitar degeneració total si ritardo = 0
-    theta_rev_eff = max(theta_rev, np.deg2rad(0.5))
+    theta_top = np.deg2rad(ritardo_top_deg)
+    theta_bottom = np.deg2rad(ritardo_bottom_deg)
 
-    # pitch axial per radiant de rotació
+    # mínims numèrics perquè no col·lapsi si és 0°
+    theta_top_eff = max(theta_top, np.deg2rad(0.5))
+    theta_bottom_eff = max(theta_bottom, np.deg2rad(0.5))
+
+    # pas axial per rad
     dz_dtheta = passo_assiale / (2.0 * np.pi)
 
-    # radi inicial sobre línia central del tub
+    # radi inicial del centre del tub
     r = d_aspo_mm / 2.0 + d_tubo / 2.0
     r0 = r
 
-    # quant "arrodonim" els extrems axialment durant el gir
-    # prou gran per suavitzar, però sense menjar-se tota la spalla
-    blend = dz_dtheta * theta_rev_eff * 0.5
-    blend = min(blend, spalla_mm * 0.45)
-    blend = max(blend, 0.25)
+    # zones de blend locals per dalt i per baix
+    blend_top = dz_dtheta * theta_top_eff * 0.5
+    blend_bottom = dz_dtheta * theta_bottom_eff * 0.5
 
-    run_height = max(spalla_mm - 2.0 * blend, 0.0)
+    blend_top = min(blend_top, spalla_mm * 0.45)
+    blend_bottom = min(blend_bottom, spalla_mm * 0.45)
+
+    blend_top = max(blend_top, 0.25)
+    blend_bottom = max(blend_bottom, 0.25)
+
+    run_height = max(spalla_mm - blend_top - blend_bottom, 0.0)
     theta_run = run_height / dz_dtheta if run_height > EPS else 0.0
 
     points = []
     theta = 0.0
 
-    # Entrada suau inicial: de z=0 a z=blend, pendent 0 -> +dz_dtheta
-    theta_entry = theta_rev_eff * 0.5
+    # entrada inicial suau: 0 -> blend_bottom
+    theta_entry = theta_bottom_eff * 0.5
     n_entry = npts_from_turns(theta_entry, min_pts=24)
     u = np.linspace(0.0, 1.0, n_entry)
-    z_entry = hermite_scalar(0.0, blend, 0.0, dz_dtheta * theta_entry, u)
+
+    z_entry = hermite_scalar(
+        0.0,
+        blend_bottom,
+        0.0,
+        dz_dtheta * theta_entry,
+        u
+    )
     r_entry = np.full_like(z_entry, r)
+
     seg, theta = make_segment(theta, theta_entry, n_entry, r_entry, z_entry)
     append_segment(points, seg)
 
-    target_reached = False
     turnarounds = 0
 
     while True:
-        if polyline_length(np.array(points)) >= lunghezza_mm:
-            target_reached = True
+        current_points = np.array(points, dtype=float)
+        if polyline_length(current_points) >= lunghezza_mm:
             break
 
-        # ---------------------------------
-        # RUN UP: blend -> spalla-blend
-        # ---------------------------------
+        # =================================
+        # RUN UP
+        # =================================
         if theta_run > EPS:
-            n_run = npts_from_turns(theta_run, min_pts=40)
-            tt = np.linspace(0.0, theta_run, n_run)
-            z_run = blend + dz_dtheta * tt
-            r_run = np.full_like(z_run, r)
-            seg, theta = make_segment(theta, theta_run, n_run, r_run, z_run)
+            n_run_up = npts_from_turns(theta_run, min_pts=40)
+            tt = np.linspace(0.0, theta_run, n_run_up)
+
+            z_run_up = blend_bottom + dz_dtheta * tt
+            r_run_up = np.full_like(z_run_up, r)
+
+            seg, theta = make_segment(theta, theta_run, n_run_up, r_run_up, z_run_up)
             append_segment(points, seg)
 
-            if polyline_length(np.array(points)) >= lunghezza_mm:
-                target_reached = True
+            current_points = np.array(points, dtype=float)
+            if polyline_length(current_points) >= lunghezza_mm:
                 break
 
-        # ---------------------------------
-        # TOP TURNAROUND (continu)
-        # z: (spalla-blend) -> spalla -> (spalla-blend)
+        # =================================
+        # TOP TURN
+        # z: (spalla-blend_top) -> spalla -> (spalla-blend_top)
         # r: r -> r + passo_radiale
-        # ---------------------------------
-        n_top = npts_from_turns(theta_rev_eff, min_pts=50)
-        tt = np.linspace(0.0, theta_rev_eff, n_top)
-        u = tt / theta_rev_eff
+        # =================================
+        n_top = npts_from_turns(theta_top_eff, min_pts=50)
+        tt = np.linspace(0.0, theta_top_eff, n_top)
+        u = tt / theta_top_eff
         u1 = np.clip(2.0 * u, 0.0, 1.0)
         u2 = np.clip(2.0 * u - 1.0, 0.0, 1.0)
 
@@ -272,9 +292,9 @@ def build_coil_continuous(
 
         mask1 = u <= 0.5
         z_top[mask1] = hermite_scalar(
-            spalla_mm - blend,
+            spalla_mm - blend_top,
             spalla_mm,
-            dz_dtheta * (theta_rev_eff / 2.0),
+            dz_dtheta * (theta_top_eff / 2.0),
             0.0,
             u1[mask1]
         )
@@ -282,78 +302,82 @@ def build_coil_continuous(
         mask2 = ~mask1
         z_top[mask2] = hermite_scalar(
             spalla_mm,
-            spalla_mm - blend,
+            spalla_mm - blend_top,
             0.0,
-            -dz_dtheta * (theta_rev_eff / 2.0),
+            -dz_dtheta * (theta_top_eff / 2.0),
             u2[mask2]
         )
 
         r_top = r + passo_radiale * smoothstep01(u)
-        seg, theta = make_segment(theta, theta_rev_eff, n_top, r_top, z_top)
+
+        seg, theta = make_segment(theta, theta_top_eff, n_top, r_top, z_top)
         append_segment(points, seg)
 
         r = r + passo_radiale
         turnarounds += 1
 
-        if polyline_length(np.array(points)) >= lunghezza_mm:
-            target_reached = True
+        current_points = np.array(points, dtype=float)
+        if polyline_length(current_points) >= lunghezza_mm:
             break
 
-        # ---------------------------------
-        # RUN DOWN: spalla-blend -> blend
-        # ---------------------------------
+        # =================================
+        # RUN DOWN
+        # =================================
         if theta_run > EPS:
-            n_run = npts_from_turns(theta_run, min_pts=40)
-            tt = np.linspace(0.0, theta_run, n_run)
-            z_run = (spalla_mm - blend) - dz_dtheta * tt
-            r_run = np.full_like(z_run, r)
-            seg, theta = make_segment(theta, theta_run, n_run, r_run, z_run)
+            n_run_down = npts_from_turns(theta_run, min_pts=40)
+            tt = np.linspace(0.0, theta_run, n_run_down)
+
+            z_run_down = (spalla_mm - blend_top) - dz_dtheta * tt
+            r_run_down = np.full_like(z_run_down, r)
+
+            seg, theta = make_segment(theta, theta_run, n_run_down, r_run_down, z_run_down)
             append_segment(points, seg)
 
-            if polyline_length(np.array(points)) >= lunghezza_mm:
-                target_reached = True
+            current_points = np.array(points, dtype=float)
+            if polyline_length(current_points) >= lunghezza_mm:
                 break
 
-        # ---------------------------------
-        # BOTTOM TURNAROUND (continu)
-        # z: blend -> 0 -> blend
+        # =================================
+        # BOTTOM TURN
+        # z: blend_bottom -> 0 -> blend_bottom
         # r: r -> r + passo_radiale
-        # ---------------------------------
-        n_bot = npts_from_turns(theta_rev_eff, min_pts=50)
-        tt = np.linspace(0.0, theta_rev_eff, n_bot)
-        u = tt / theta_rev_eff
+        # =================================
+        n_bottom = npts_from_turns(theta_bottom_eff, min_pts=50)
+        tt = np.linspace(0.0, theta_bottom_eff, n_bottom)
+        u = tt / theta_bottom_eff
         u1 = np.clip(2.0 * u, 0.0, 1.0)
         u2 = np.clip(2.0 * u - 1.0, 0.0, 1.0)
 
-        z_bot = np.empty_like(u)
+        z_bottom = np.empty_like(u)
 
         mask1 = u <= 0.5
-        z_bot[mask1] = hermite_scalar(
-            blend,
+        z_bottom[mask1] = hermite_scalar(
+            blend_bottom,
             0.0,
-            -dz_dtheta * (theta_rev_eff / 2.0),
+            -dz_dtheta * (theta_bottom_eff / 2.0),
             0.0,
             u1[mask1]
         )
 
         mask2 = ~mask1
-        z_bot[mask2] = hermite_scalar(
+        z_bottom[mask2] = hermite_scalar(
             0.0,
-            blend,
+            blend_bottom,
             0.0,
-            dz_dtheta * (theta_rev_eff / 2.0),
+            dz_dtheta * (theta_bottom_eff / 2.0),
             u2[mask2]
         )
 
-        r_bot = r + passo_radiale * smoothstep01(u)
-        seg, theta = make_segment(theta, theta_rev_eff, n_bot, r_bot, z_bot)
+        r_bottom = r + passo_radiale * smoothstep01(u)
+
+        seg, theta = make_segment(theta, theta_bottom_eff, n_bottom, r_bottom, z_bottom)
         append_segment(points, seg)
 
         r = r + passo_radiale
         turnarounds += 1
 
-        if polyline_length(np.array(points)) >= lunghezza_mm:
-            target_reached = True
+        current_points = np.array(points, dtype=float)
+        if polyline_length(current_points) >= lunghezza_mm:
             break
 
         if turnarounds > 10000:
@@ -511,7 +535,6 @@ camera.position.set(center.x + dist, center.y + dist, center.z + dist * 0.6);
 camera.lookAt(center);
 controls.target.copy(center);
 
-// Animation
 let progress = 0;
 const total = tubeGeom.attributes.position.count;
 
@@ -566,13 +589,14 @@ with colB:
     lunghezza = st.number_input(t["lunghezza"], value=50.0, step=1.0)
 
     d_rame = COPPER_SIZES_MM[rame_label]
-    d_tubo = d_rame + 2 * spessore_guaina
+    d_tubo = d_rame + 2.0 * spessore_guaina
 
 with colC:
     st.markdown(f"#### {t['avvolg']}")
     passo_assiale = st.number_input(t["passo_assiale"], value=float(d_tubo), step=0.1)
     incremento_strato = st.number_input(t["incremento"], value=float(d_tubo), step=0.1)
-    ritardo = st.slider(t["ritardo"], min_value=0, max_value=360, value=180, step=1)
+    ritardo_top = st.slider(t["ritardo_top"], min_value=0, max_value=360, value=180, step=1)
+    ritardo_bottom = st.slider(t["ritardo_bottom"], min_value=0, max_value=360, value=180, step=1)
 
 with colD:
     st.markdown(f"#### {t['viewer']}")
@@ -592,7 +616,8 @@ path, meta = build_coil_continuous(
     spessore_guaina,
     passo_assiale,
     incremento_strato,
-    ritardo,
+    ritardo_top,
+    ritardo_bottom,
 )
 
 html = build_viewer_html(
