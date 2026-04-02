@@ -339,9 +339,8 @@ colA, colB, colC, colD = st.columns(4)
 with colA:
     st.markdown("#### 🟦 Bobina")
 
-    diametro_aspo = st.number_input("Ø Aspo", 450.0)
-    spalla = st.number_input("Spalla", 95.0)
-    lunghezza = st.number_input("Lunghezza (m)", 50.0)
+    diametro_aspo = st.number_input("Ø Aspo (mm)", 450.0)
+    spalla = st.number_input("Spalla (mm)", 95.0)
 
 # -------------------------
 # 🟩 TUBO
@@ -349,8 +348,9 @@ with colA:
 with colB:
     st.markdown("#### 🟩 Tubo")
 
-    rame_label = st.selectbox("Ø Rame", list(COPPER_SIZES_MM.keys()))
-    spessore_guaina = st.number_input("Guaina", 7.0)
+    rame_label = st.selectbox("Ø Rame (in")", list(COPPER_SIZES_MM.keys()))
+    spessore_guaina = st.number_input("Spessore isolamento (mm)", 7.0)
+    lunghezza = st.number_input("Lunghezza rotolo (m)", 50.0)
 
     d_rame = COPPER_SIZES_MM[rame_label]
     d_tubo = d_rame + 2*spessore_guaina
@@ -361,11 +361,11 @@ with colB:
 with colC:
     st.markdown("#### 🟧 Avvolg.")
 
-    passo_assiale = st.number_input("Passo assiale", value=float(d_tubo))
-    incremento_strato = st.number_input("Incremento", value=float(d_tubo))
+    passo_assiale = st.number_input("Passo assiale (mm)", value=float(d_tubo))
+    incremento_strato = st.number_input("Incremento strato (mm)", value=float(d_tubo))
 
-    ritardo_min = st.number_input("Ritardo min", 0.0, 720.0, 360.0)
-    ritardo_max = st.number_input("Ritardo max", 0.0, 720.0, 360.0)
+    ritardo_min = st.number_input("Ritardo min (º)", 0.0, 720.0, 360.0)
+    ritardo_max = st.number_input("Ritardo max (º)", 0.0, 720.0, 360.0)
 
 # -------------------------
 # ⚙️ VIEWER
