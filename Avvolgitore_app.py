@@ -10,13 +10,13 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 # HEADER
 # =========================
 
-col_logo, col_title = st.columns([1,5])
+col_logo, col_title = st.columns([1,6])
 
 logo_path = os.path.join(os.path.dirname(__file__), "New Logo PDM - rame.png")
 
 with col_logo:
     if os.path.exists(logo_path):
-        st.image(logo_path, width=150)
+        st.image(logo_path, width=110)
 
 with col_title:
     st.markdown("# Avvolgimento")
