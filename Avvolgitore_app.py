@@ -19,7 +19,7 @@ with col_logo:
         st.image(logo_path, width=150)
 
 with col_title:
-    st.markdown("## Avvolgimento")
+    st.markdown("# Avvolgimento")
 
 # =========================
 # CONSTANTS
