@@ -189,17 +189,19 @@ def build_coil(
 # VIEWER
 # =========================
 
-def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
-
-    # 🔥 DECIMACIÓ (clau)
-    step = max(1, int(len(points) / 2000))  
-    points_decimated = points[::step]
-
-    pts = points_decimated.tolist()
+def build_viewer_html(points: np.ndarray, d_tubo: float, altezza: int, animazione: bool, velocita: float) -> str:
+    pts = points.tolist()
     points_json = json.dumps(pts)
 
+    r_tubo = d_tubo / 2.0
+
+    # 🔥 FIX IMPORTANT
+    tubular_segments = min(2000, max(300, int(len(pts) * 0.25)))
+
     html = f"""
-<div id="viewer" style="width:100%;height:{altezza}px;"></div>
+<div id="viewer-wrap" style="position:relative;width:100%;height:{altezza}px;">
+  <div id="viewer" style="width:100%;height:100%;"></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
@@ -210,96 +212,141 @@ const container = document.getElementById("viewer");
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100000);
+const camera = new THREE.PerspectiveCamera(
+  45,
+  container.clientWidth / container.clientHeight,
+  0.1,
+  100000
+);
 
-const renderer = new THREE.WebGLRenderer({{ antialias:true }});
+const renderer = new THREE.WebGLRenderer({{ antialias: true }});
 renderer.setSize(container.clientWidth, container.clientHeight);
 container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-// ==========================
-// DATA
-// ==========================
+scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.60));
+
+const light = new THREE.DirectionalLight(0xffffff, 0.40);
+light.position.set(5, 5, 5);
+scene.add(light);
 
 const rawPoints = {points_json};
 const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-// ==========================
-// LINEA MILLORADA
-// ==========================
+class CurvePath extends THREE.Curve {{
+  constructor(points) {{
+    super();
+    this.points = points;
+  }}
 
-const geometry = new THREE.BufferGeometry().setFromPoints(vectors);
+  getPoint(t) {{
+    const n = this.points.length;
+    const f = t * (n - 1);
 
-const material = new THREE.LineBasicMaterial({{
-  color: 0xffffff,
-  transparent: true,
-  opacity: 0.85
+    const i = Math.floor(f);
+    const i0 = Math.max(0, Math.min(i, n - 2));
+    const i1 = i0 + 1;
+    const tt = f - i0;
+
+    return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
+  }}
+}}
+
+const curve = new CurvePath(vectors);
+
+const tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 40, false);
+
+const tubeMat = new THREE.MeshStandardMaterial({{
+  color: 0xe6e6e6,
+  roughness: 0.92
 }});
 
-const line = new THREE.Line(geometry, material);
-scene.add(line);
+const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
+scene.add(tubeMesh);
 
-// ==========================
-// CAPS (MÉS PETITS)
-// ==========================
+// CAPS
 
-function createCap(pos, dir, color) {{
-  const g = new THREE.CircleGeometry({d_tubo/2}, 20);
-  const m = new THREE.MeshBasicMaterial({{
+function createCap(position, direction, color) {{
+  const geometry = new THREE.CircleGeometry({r_tubo}, 32);
+  const material = new THREE.MeshBasicMaterial({{
     color: color,
     side: THREE.DoubleSide
   }});
-  const cap = new THREE.Mesh(g, m);
+
+  const cap = new THREE.Mesh(geometry, material);
 
   const up = new THREE.Vector3(0,0,1);
-  const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
+  const dir = direction.clone().normalize();
 
-  cap.quaternion.copy(quat);
-  cap.position.copy(pos);
+  if (dir.length() > 0) {{
+    const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+    cap.quaternion.copy(quat);
+  }}
 
+  cap.position.copy(position);
   scene.add(cap);
 }}
 
-if(vectors.length >= 2){{
-  createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
-  createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
+if (vectors.length >= 2) {{
+  const start = vectors[0];
+  const dirStart = vectors[1].clone().sub(vectors[0]).multiplyScalar(-1);
+  createCap(start, dirStart, 0x00ff00);
+
+  const end = vectors[vectors.length - 1];
+  const dirEnd = vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]);
+  createCap(end, dirEnd, 0xff0000);
 }}
 
-// ==========================
-// CAMERA DINÀMICA
-// ==========================
-
+// CAMERA (també milloro una mica)
 const box = new THREE.Box3().setFromPoints(vectors);
 const center = new THREE.Vector3();
 box.getCenter(center);
 
 const size = new THREE.Vector3();
 box.getSize(size);
-
 const maxDim = Math.max(size.x, size.y, size.z);
-const dist = maxDim * 1.6;
 
-camera.position.set(center.x + dist, center.y + dist, center.z + dist*0.6);
+const dist = maxDim * 1.8;
+
+camera.position.set(center.x + dist, center.y + dist, center.z + dist * 0.6);
 camera.lookAt(center);
 controls.target.copy(center);
 
-// ==========================
-// RENDER
-// ==========================
+let progress = 0;
 
-function animate(){{
+if ({str(animazione).lower()}) {{
+  tubeMesh.geometry.setDrawRange(0, 0);
+}}
+
+function animate() {{
   requestAnimationFrame(animate);
+
+  if ({str(animazione).lower()}) {{
+    progress += {velocita} * 0.002;
+    if (progress > 1) progress = 1;
+
+    if (tubeGeom.index) {{
+      tubeMesh.geometry.setDrawRange(0, Math.floor(progress * tubeGeom.index.count));
+    }}
+  }}
+
   controls.update();
-  renderer.render(scene,camera);
+  renderer.render(scene, camera);
 }}
 
 animate();
 
+window.addEventListener("resize", () => {{
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}});
 </script>
 """
     return html
-
 # =========================
 # UI
 # =========================
