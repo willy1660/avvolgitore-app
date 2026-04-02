@@ -197,7 +197,6 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
-    tubular_segments = min(2000, max(300, int(len(pts)*0.25)))
 
     html = f"""
 <div id="viewer-wrap" style="width:100%;height:{altezza}px;">
@@ -222,7 +221,6 @@ container.appendChild(renderer.domElement);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.6));
-
 const light = new THREE.DirectionalLight(0xffffff, 0.4);
 light.position.set(5,5,5);
 scene.add(light);
@@ -230,11 +228,16 @@ scene.add(light);
 const rawPoints = {points_json};
 const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
+// ==========================
+// CURVA
+// ==========================
+
 class CurvePath extends THREE.Curve {{
   constructor(points) {{
     super();
     this.points = points;
   }}
+
   getPoint(t) {{
     const n = this.points.length;
     const f = t*(n-1);
@@ -248,16 +251,42 @@ class CurvePath extends THREE.Curve {{
 
 const curve = new CurvePath(vectors);
 
-const tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 40, false);
+// ==========================
+// MESH DINÀMIC
+// ==========================
 
-const tubeMesh = new THREE.Mesh(
-  tubeGeom,
-  new THREE.MeshStandardMaterial({{color:0xe6e6e6, roughness:0.92}})
-);
+let tubeMesh = null;
 
-scene.add(tubeMesh);
+function buildTube(progress) {{
 
+  if (tubeMesh) {{
+    scene.remove(tubeMesh);
+    tubeMesh.geometry.dispose();
+  }}
+
+  const segments = Math.max(10, Math.floor(progress * 2000));
+
+  const geom = new THREE.TubeGeometry(
+    curve,
+    segments,
+    {r_tubo},
+    24,
+    false
+  );
+
+  const mat = new THREE.MeshStandardMaterial({{
+    color: 0xe6e6e6,
+    roughness: 0.92
+  }});
+
+  tubeMesh = new THREE.Mesh(geom, mat);
+  scene.add(tubeMesh);
+}}
+
+// ==========================
 // CAPS
+// ==========================
+
 function createCap(pos, dir, color) {{
   const g = new THREE.CircleGeometry({r_tubo}, 24);
   const m = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
@@ -265,8 +294,10 @@ function createCap(pos, dir, color) {{
 
   const up = new THREE.Vector3(0,0,1);
   const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
+
   cap.quaternion.copy(quat);
   cap.position.copy(pos);
+
   scene.add(cap);
 }}
 
@@ -275,7 +306,10 @@ if(vectors.length>=2){{
   createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
 }}
 
+// ==========================
 // CAMERA
+// ==========================
+
 const box = new THREE.Box3().setFromPoints(vectors);
 const center = new THREE.Vector3();
 box.getCenter(center);
@@ -288,18 +322,23 @@ camera.position.set(center.x+dist, center.y+dist, center.z+dist*0.6);
 camera.lookAt(center);
 controls.target.copy(center);
 
-// ANIMACIÓ
+// ==========================
+// ANIMACIÓ REAL
+// ==========================
+
 let progress = 0;
-tubeMesh.scale.z = { "0.001" if animazione else "1" };
 
 function animate(){{
   requestAnimationFrame(animate);
 
   if ({str(animazione).lower()}) {{
-    progress += {velocita} * 0.003;
+    progress += {velocita} * 0.002;
     if (progress > 1) progress = 1;
-    tubeMesh.scale.z = progress;
+  }} else {{
+    progress = 1;
   }}
+
+  buildTube(progress);
 
   controls.update();
   renderer.render(scene,camera);
