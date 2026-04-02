@@ -328,70 +328,54 @@ animate();
     return html
 
 # =========================
-# UI
+# UI COMPACTA EN COLUMNES
 # =========================
 
-# =========================
-# UI ORDENADA
-# =========================
+colA, colB, colC, colD = st.columns(4)
 
-st.markdown("### 🟦 Bobina")
+# -------------------------
+# 🟦 BOBINA
+# -------------------------
+with colA:
+    st.markdown("#### 🟦 Bobina")
 
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    diametro_aspo = st.number_input("Diametro aspo (mm)", 450.0)
-
-with c2:
-    spalla = st.number_input("Spalla (mm)", 95.0)
-
-with c3:
+    diametro_aspo = st.number_input("Ø Aspo", 450.0)
+    spalla = st.number_input("Spalla", 95.0)
     lunghezza = st.number_input("Lunghezza (m)", 50.0)
 
+# -------------------------
+# 🟩 TUBO
+# -------------------------
+with colB:
+    st.markdown("#### 🟩 Tubo")
 
-st.markdown("### 🟩 Tubo")
+    rame_label = st.selectbox("Ø Rame", list(COPPER_SIZES_MM.keys()))
+    spessore_guaina = st.number_input("Guaina", 7.0)
 
-c4, c5 = st.columns(2)
+    d_rame = COPPER_SIZES_MM[rame_label]
+    d_tubo = d_rame + 2*spessore_guaina
 
-with c4:
-    rame_label = st.selectbox("Diametro rame", list(COPPER_SIZES_MM.keys()))
+# -------------------------
+# 🟧 AVVOLGIMENTO
+# -------------------------
+with colC:
+    st.markdown("#### 🟧 Avvolg.")
 
-with c5:
-    spessore_guaina = st.number_input("Spessore guaina (mm)", 7.0)
+    passo_assiale = st.number_input("Passo assiale", value=float(d_tubo))
+    incremento_strato = st.number_input("Incremento", value=float(d_tubo))
 
-d_rame = COPPER_SIZES_MM[rame_label]
-d_tubo = d_rame + 2*spessore_guaina
+    ritardo_min = st.number_input("Ritardo min", 0.0, 720.0, 360.0)
+    ritardo_max = st.number_input("Ritardo max", 0.0, 720.0, 360.0)
 
+# -------------------------
+# ⚙️ VIEWER
+# -------------------------
+with colD:
+    st.markdown("#### ⚙️ Viewer")
 
-st.markdown("### 🟧 Avvolgimento")
-
-c6, c7, c8, c9 = st.columns(4)
-
-with c6:
-    passo_assiale = st.number_input("Passo assiale (mm)", value=float(d_tubo))
-
-with c7:
-    incremento_strato = st.number_input("Incremento strato (mm)", value=float(d_tubo))
-
-with c8:
-    ritardo_min = st.number_input("Ritardo min (°)", 0.0, 720.0, 360.0)
-
-with c9:
-    ritardo_max = st.number_input("Ritardo max (°)", 0.0, 720.0, 360.0)
-
-
-st.markdown("### ⚙️ Viewer")
-
-c10, c11, c12 = st.columns(3)
-
-with c10:
-    altezza = st.slider("Altezza viewer", 400, 900, 700)
-
-with c11:
+    altezza = st.slider("Altezza", 400, 900, 700)
     animazione = st.checkbox("Animazione", False)
-
-with c12:
-    velocita = st.slider("Velocità animazione", 0.1, 5.0, 1.0)
+    velocita = st.slider("Velocità", 0.1, 5.0, 1.0)
 
 # =========================
 # BUILD
