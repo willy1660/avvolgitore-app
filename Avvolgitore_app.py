@@ -176,10 +176,13 @@ def build_coil(
     ritardo_bottom_deg = max(0.0, float(ritardo_min_deg))
     ritardo_top_deg = max(0.0, float(ritardo_max_deg))
 
-    # Centreline inicial: el tub toca l'aspo pel seu exterior interior
+    # radi inicial del centreline
     r0 = d_aspo_mm / 2.0 + r_tubo
+    r = r0
 
-    # El centreline ha d'anar d'aquí a dalt perquè el tub toqui físicament
+    # IMPORTANT:
+    # el centreline va de r_tubo a spalla_mm - r_tubo
+    # així la superfície del tub toca base i spalla
     z_min = r_tubo
     z_max = spalla_mm - r_tubo
 
@@ -194,23 +197,12 @@ def build_coil(
             "Valid": False,
         }
 
-    axial_travel = z_max - z_min
-    dz_dtheta = passo_assiale / (2.0 * np.pi)
-
-    # Angle nominal necessari per recórrer una passada completa en z
-    theta_sweep_nom = axial_travel / max(dz_dtheta, EPS)
-
-    # VERSIÓ FÍSICA:
-    # el radi creix de manera contínua durant la passada,
-    # no a salts al canvi de sentit
-    dr_dtheta = passo_radiale / max(theta_sweep_nom, EPS)
-
-    theta_step_run = np.deg2rad(4.0)
-
-    r = r0
     z = z_min
     theta = 0.0
     direction = 1  # +1 puja, -1 baixa
+
+    theta_step_run = np.deg2rad(4.0)
+    dz_dtheta = passo_assiale / (2.0 * np.pi)
 
     points = []
 
@@ -226,32 +218,18 @@ def build_coil(
             break
 
         # =========================
-        # RUN HELICOIDAL FÍSIC
-        # radi continu + axial continu
+        # RUN HELICOIDAL
         # =========================
         while True:
             theta += theta_step_run
             z += direction * dz_dtheta * theta_step_run
-            r += dr_dtheta * theta_step_run
 
             if direction == 1 and z >= z_max:
-                overshoot = z - z_max
-                if abs(overshoot) > EPS:
-                    frac = overshoot / max(abs(direction * dz_dtheta * theta_step_run), EPS)
-                    frac = max(0.0, min(1.0, frac))
-                    theta -= theta_step_run * frac
-                    r -= dr_dtheta * theta_step_run * frac
                 z = z_max
                 add_point(theta, r, z)
                 break
 
             if direction == -1 and z <= z_min:
-                overshoot = z_min - z
-                if abs(overshoot) > EPS:
-                    frac = overshoot / max(abs(direction * dz_dtheta * theta_step_run), EPS)
-                    frac = max(0.0, min(1.0, frac))
-                    theta -= theta_step_run * frac
-                    r -= dr_dtheta * theta_step_run * frac
                 z = z_min
                 add_point(theta, r, z)
                 break
@@ -266,8 +244,7 @@ def build_coil(
 
         # =========================
         # DWELL / RITARDO
-        # es manté a base o spalla
-        # sense salt radial artificial
+        # canvi radial lineal, mantenint tota la resta
         # =========================
         at_top = direction == 1
         ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
@@ -276,18 +253,24 @@ def build_coil(
         if theta_dwell > EPS:
             dwell_steps = max(6, int(np.ceil(ritardo_deg / 4.0)))
             theta_step_dwell = theta_dwell / dwell_steps
+
+            r_start = r
+            r_end = r + passo_radiale
             z_const = z_max if at_top else z_min
 
-            for _ in range(dwell_steps):
+            for i in range(1, dwell_steps + 1):
                 theta += theta_step_dwell
-                add_point(theta, r, z_const)
+                u = i / dwell_steps
+                r_curr = r_start + passo_radiale * u
+                add_point(theta, r_curr, z_const)
 
-                if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
-                    break
+            r = r_end
+        else:
+            # sense ritardo: canvi radial instantani
+            r = r + passo_radiale
+            add_point(theta, r, z_max if at_top else z_min)
 
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
-            break
-
+        # canvi de direcció
         direction *= -1
 
     path = np.array(points, dtype=float)
@@ -304,7 +287,7 @@ def build_coil(
             "Valid": False,
         }
 
-    r_path = np.sqrt(path[:, 0] ** 2 + path[:, 1] ** 2)
+    r_path = np.sqrt(path[:, 0]**2 + path[:, 1]**2)
     r_max = float(np.max(r_path))
     diam_ext = 2.0 * (r_max + r_tubo)
 
