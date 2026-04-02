@@ -111,10 +111,8 @@ def build_coil(
 
     points = []
 
-    # Aquesta part és la “sortida” cap a la nova capa després del dwell.
-    # Ha de ser petita i estable. No depèn del ritardo real.
-    blend_turn = 0.12
-    dtheta_blend = 2.0 * np.pi * blend_turn
+    # Transició base necessària per canviar de capa encara que ritardo sigui 0
+    base_transition_turn = 0.18
 
     while True:
         # -------------------------------------------------
@@ -123,6 +121,7 @@ def build_coil(
         dz_layer = z_end - z_start
         giri_layer = max(abs(dz_layer) / passo_assiale, 0.1)
         dtheta_layer = 2.0 * np.pi * giri_layer
+        dz_dtheta_in = dz_layer / dtheta_layer
 
         n_layer = max(120, int(giri_layer * 150))
         t = np.linspace(0.0, dtheta_layer, n_layer)
@@ -145,7 +144,8 @@ def build_coil(
             break
 
         # -------------------------------------------------
-        # 2) DWELL REAL DE MÀQUINA (RITARDO)
+        # 2) TRANSICIÓ SUAU D'INVERSIÓ
+        #    Funciona bé tant per ritardo petit com gran.
         # -------------------------------------------------
         rit_lo = min(ritardo_min_deg, ritardo_max_deg)
         rit_hi = max(ritardo_min_deg, ritardo_max_deg)
@@ -154,73 +154,50 @@ def build_coil(
         if rit_hi > 0:
             ritardo_deg = np.random.uniform(rit_lo, rit_hi)
 
-        dtheta_delay = math.radians(ritardo_deg)
+        extra_turn = ritardo_deg / 360.0
+        total_transition_turn = base_transition_turn + extra_turn
+        dtheta_transition = 2.0 * np.pi * total_transition_turn
+
         r_next = r + passo_radiale
 
-        if dtheta_delay > EPS:
-            n_delay = max(48, int(ritardo_deg * 0.35))
-            t_delay = np.linspace(0.0, dtheta_delay, n_delay)
-
-            # easing radial suau
-            s = 0.5 - 0.5 * np.cos(np.linspace(0.0, np.pi, n_delay))
-
-            theta_delay = theta + dtheta_layer + t_delay
-            r_delay = r + (r_next - r) * s
-
-            # z pràcticament constant durant el dwell
-            z_delay = np.full_like(theta_delay, z_end)
-
-            x = r_delay * np.cos(theta_delay)
-            y = r_delay * np.sin(theta_delay)
-
-            delay_pts = np.column_stack([x, y, z_delay])[1:]
-            points.extend(delay_pts.tolist())
-
-        # -------------------------------------------------
-        # 3) BLEND D'ENTRADA A LA NOVA CAPA
-        # -------------------------------------------------
-        # Després del dwell, la capa nova ha de començar amb una entrada
-        # suau. Aquí fem una petita transició axial a radi constant r_next.
-        theta_after_delay = theta + dtheta_layer + dtheta_delay
-
+        # La capa següent anirà en direcció oposada
         dz_next_total = z_start - z_end
         giri_next_nom = max(abs(dz_next_total) / passo_assiale, 0.1)
         dtheta_next_nom = 2.0 * np.pi * giri_next_nom
-        dz_dtheta_next = dz_next_total / dtheta_next_nom
+        dz_dtheta_out = dz_next_total / dtheta_next_nom
 
-        # El blend acaba amb la pendent de la nova hèlix
-        z_blend_start = z_end
-        z_blend_end = z_blend_start + dz_dtheta_next * dtheta_blend
+        n_trans = max(48, int(total_transition_turn * 180))
+        t_trans = np.linspace(0.0, dtheta_transition, n_trans)
+        u = t_trans / max(dtheta_transition, EPS)
 
-        n_blend = 36
-        t_blend = np.linspace(0.0, dtheta_blend, n_blend)
-        u = t_blend / max(dtheta_blend, EPS)
+        # Angle continu
+        theta_trans = theta + dtheta_layer + t_trans
 
-        theta_blend = theta_after_delay + t_blend
-        r_blend = np.full_like(theta_blend, r_next)
+        # Radi suau cap a la nova capa
+        s = 0.5 - 0.5 * np.cos(np.linspace(0.0, np.pi, n_trans))
+        r_trans = r + (r_next - r) * s
 
-        # Hermite en Z:
-        # inici amb pendent 0 (dwell)
-        # final amb pendent dz_dtheta_next * dtheta_blend
-        z_blend = hermite_scalar(
-            y0=z_blend_start,
-            y1=z_blend_end,
-            m0=0.0,
-            m1=dz_dtheta_next * dtheta_blend,
+        # Z amb Hermite:
+        # mateix punt inicial i final a l'extrem,
+        # però tangent entrant i tangent sortint coherents
+        z_trans = hermite_scalar(
+            y0=z_end,
+            y1=z_end,
+            m0=dz_dtheta_in * dtheta_transition,
+            m1=dz_dtheta_out * dtheta_transition,
             u=u
         )
 
-        x = r_blend * np.cos(theta_blend)
-        y = r_blend * np.sin(theta_blend)
+        x = r_trans * np.cos(theta_trans)
+        y = r_trans * np.sin(theta_trans)
 
-        blend_pts = np.column_stack([x, y, z_blend])[1:]
-        points.extend(blend_pts.tolist())
+        trans_pts = np.column_stack([x, y, z_trans])[1:]
+        points.extend(trans_pts.tolist())
 
-        # Estat per a la següent capa
-        theta = theta_after_delay + dtheta_blend
+        # Nou estat
+        theta = theta + dtheta_layer + dtheta_transition
         r = r_next
-        z_start = z_blend_end
-        z_end = 0.0 if z_end > z_start else spalla_mm
+        z_start, z_end = z_end, z_start
 
         pts_np = np.array(points)
         if polyline_length(pts_np) >= lunghezza_mm:
