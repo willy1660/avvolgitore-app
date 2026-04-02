@@ -331,27 +331,41 @@ animate();
 # UI
 # =========================
 
-c1,c2,c3,c4,c5 = st.columns(5)
+# =========================
+# UI ORDENADA
+# =========================
+
+st.markdown("### 🟦 Bobina")
+
+c1, c2, c3 = st.columns(3)
 
 with c1:
-    diametro_aspo = st.number_input("Diametro aspo", 450.0)
+    diametro_aspo = st.number_input("Diametro aspo (mm)", 450.0)
 
 with c2:
-    spalla = st.number_input("Spalla", 95.0)
+    spalla = st.number_input("Spalla (mm)", 95.0)
 
 with c3:
     lunghezza = st.number_input("Lunghezza (m)", 50.0)
+
+
+st.markdown("### 🟩 Tubo")
+
+c4, c5 = st.columns(2)
 
 with c4:
     rame_label = st.selectbox("Diametro rame", list(COPPER_SIZES_MM.keys()))
 
 with c5:
-    spessore_guaina = st.number_input("Spessore guaina", 7.0)
+    spessore_guaina = st.number_input("Spessore guaina (mm)", 7.0)
 
 d_rame = COPPER_SIZES_MM[rame_label]
 d_tubo = d_rame + 2*spessore_guaina
 
-c6,c7 = st.columns(2)
+
+st.markdown("### 🟧 Avvolgimento")
+
+c6, c7, c8, c9 = st.columns(4)
 
 with c6:
     passo_assiale = st.number_input("Passo assiale (mm)", value=float(d_tubo))
@@ -359,13 +373,14 @@ with c6:
 with c7:
     incremento_strato = st.number_input("Incremento strato (mm)", value=float(d_tubo))
 
-c8,c9 = st.columns(2)
-
 with c8:
     ritardo_min = st.number_input("Ritardo min (°)", 0.0, 720.0, 360.0)
 
 with c9:
     ritardo_max = st.number_input("Ritardo max (°)", 0.0, 720.0, 360.0)
+
+
+st.markdown("### ⚙️ Viewer")
 
 c10, c11, c12 = st.columns(3)
 
