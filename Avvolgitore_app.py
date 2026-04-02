@@ -13,6 +13,10 @@ def resource_path(relative_path):
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
+# =========================================================
+# HEADER
+# =========================================================
+
 col_logo, col_title = st.columns([1,6])
 
 with col_logo:
@@ -22,6 +26,10 @@ with col_logo:
 with col_title:
     st.title("Avvolgimento")
 
+# =========================================================
+# DATI
+# =========================================================
+
 COPPER_SIZES_MM = {
     "1/4": 6.35,
     "3/8": 9.52,
@@ -30,6 +38,10 @@ COPPER_SIZES_MM = {
     "3/4": 19.05,
     "7/8": 22.23,
 }
+
+# =========================================================
+# UTILITÀ
+# =========================================================
 
 def polyline_length(points):
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum()) if len(points)>1 else 0.0
@@ -50,6 +62,10 @@ def compute_total_turns(points):
 
 def points_to_sldcrv(points):
     return "\n".join(f"{p[0]} {p[1]} {p[2]}" for p in points).encode()
+
+# =========================================================
+# GEOMETRIA BOBINA
+# =========================================================
 
 def build_coil_centerline(
     d_aspo_mm, spalla_mm, lunghezza_m,
@@ -90,7 +106,7 @@ def build_coil_centerline(
             break
 
         # ==============================
-        # RITARDO SUAU (FIX)
+        # RITARDO SUAU + RADIAL
         # ==============================
         if ritardo_max_deg > 0:
 
@@ -102,7 +118,7 @@ def build_coil_centerline(
             n = 40
             t = np.linspace(0,dtheta_delay,n)
 
-            # 🔥 SUAVITZAT COSINUS
+            # suavitzat cosinus (clau)
             s = 0.5 - 0.5*np.cos(np.linspace(0,math.pi,n))
 
             r_vals = r + (r_next - r)*s
@@ -141,7 +157,97 @@ def build_coil_centerline(
 
     return path,meta
 
-# ================= UI =================
+# =========================================================
+# VIEWER ORIGINAL (RECUPERAT)
+# =========================================================
+
+def build_viewer_html(points,d_tubo,altezza,animazione,velocita):
+
+    pts = points.tolist()
+    points_json = json.dumps(pts)
+
+    r_tubo = d_tubo/2
+    tubular_segments = max(300,len(pts))
+
+    html = f"""
+<div style="width:100%;height:{altezza}px;" id="viewer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+
+const container = document.getElementById("viewer")
+
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x000000)
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight,0.1,100000)
+
+const renderer = new THREE.WebGLRenderer({{antialias:true}})
+renderer.setSize(container.clientWidth,container.clientHeight)
+container.appendChild(renderer.domElement)
+
+const controls = new THREE.OrbitControls(camera,renderer.domElement)
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x2a2a2a,0.55))
+
+const light = new THREE.DirectionalLight(0xffffff,0.38)
+light.position.set(5,5,5)
+scene.add(light)
+
+const rawPoints = {points_json}
+const vectors = rawPoints.map(p=>new THREE.Vector3(p[0],p[1],p[2]))
+
+class CurvePath extends THREE.Curve{{
+constructor(points){{super();this.points=points;}}
+getPoint(t){{
+const n=this.points.length
+const f=t*(n-1)
+const i=Math.floor(f)
+const i0=Math.max(0,Math.min(i,n-2))
+const i1=i0+1
+const tt=f-i0
+return new THREE.Vector3().lerpVectors(this.points[i0],this.points[i1],tt)
+}}
+}}
+
+const curve = new CurvePath(vectors)
+
+const tubeGeom = new THREE.TubeGeometry(curve,{tubular_segments},{r_tubo},40,false)
+
+const tubeMat = new THREE.MeshStandardMaterial({{
+color:0xe6e6e6,
+roughness:0.92
+}})
+
+const tubeMesh = new THREE.Mesh(tubeGeom,tubeMat)
+scene.add(tubeMesh)
+
+const box=new THREE.Box3().setFromPoints(vectors)
+const center=new THREE.Vector3()
+box.getCenter(center)
+
+camera.position.set(center.x+600,center.y+600,center.z+300)
+camera.lookAt(center)
+controls.target.copy(center)
+
+function animate(){{
+requestAnimationFrame(animate)
+controls.update()
+renderer.render(scene,camera)
+}}
+
+animate()
+
+</script>
+"""
+
+    return html
+
+# =========================================================
+# UI
+# =========================================================
 
 c1,c2,c3,c4,c5=st.columns(5)
 diametro_aspo=c1.number_input("Diametro aspo",450.0)
@@ -168,5 +274,6 @@ path,meta=build_coil_centerline(
     gap,ritardo_min,ritardo_max
 )
 
-components.html(f"<pre>{len(path)} points</pre>",height=100)
+components.html(build_viewer_html(path,meta["DiametroTubo"],altezza,animazione,velocita),height=altezza)
+
 st.write(meta)
