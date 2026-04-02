@@ -194,9 +194,6 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     pts = points.tolist()
     points_json = json.dumps(pts)
 
-    r_tubo = d_tubo / 2.0
-    tubular_segments = max(300, len(pts))
-
     html = f"""
 <div id="viewer" style="width:100%;height:{altezza}px;"></div>
 
@@ -217,62 +214,66 @@ container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
+// ==========================
+// DATA
+// ==========================
+
 const rawPoints = {points_json};
 const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-class CurvePath extends THREE.Curve {{
-  constructor(points) {{
-    super();
-    this.points = points;
-  }}
-  getPoint(t) {{
-    const n = this.points.length;
-    const f = t*(n-1);
-    const i = Math.floor(f);
-    const i0 = Math.max(0, Math.min(i, n-2));
-    const i1 = i0+1;
-    const tt = f-i0;
-    return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
-  }}
-}}
+// ==========================
+// ✅ LINEA (SEMPRE FUNCIONA)
+// ==========================
 
-const curve = new CurvePath(vectors);
+const geometry = new THREE.BufferGeometry().setFromPoints(vectors);
+const material = new THREE.LineBasicMaterial({{ color: 0xffffff }});
+const line = new THREE.Line(geometry, material);
+scene.add(line);
 
-const tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 40, false);
-const tubeMesh = new THREE.Mesh(tubeGeom, new THREE.MeshStandardMaterial({{color:0xe6e6e6}}));
-scene.add(tubeMesh);
-
+// ==========================
 // CAPS
+// ==========================
+
 function createCap(pos, dir, color) {{
-  const g = new THREE.CircleGeometry({r_tubo}, 32);
+  const g = new THREE.CircleGeometry({d_tubo/2}, 24);
   const m = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
   const cap = new THREE.Mesh(g, m);
+
   const up = new THREE.Vector3(0,0,1);
   const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
+
   cap.quaternion.copy(quat);
   cap.position.copy(pos);
+
   scene.add(cap);
 }}
 
-if(vectors.length>=2){{
+if(vectors.length >= 2){{
   createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
   createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
 }}
 
+// ==========================
 // CAMERA DINÀMICA
+// ==========================
+
 const box = new THREE.Box3().setFromPoints(vectors);
 const center = new THREE.Vector3();
 box.getCenter(center);
 
 const size = new THREE.Vector3();
 box.getSize(size);
-const maxDim = Math.max(size.x, size.y, size.z);
 
+const maxDim = Math.max(size.x, size.y, size.z);
 const dist = maxDim * 1.8;
 
 camera.position.set(center.x + dist, center.y + dist, center.z + dist*0.6);
 camera.lookAt(center);
 controls.target.copy(center);
+
+// ==========================
+// RENDER
+// ==========================
 
 function animate(){{
   requestAnimationFrame(animate);
@@ -281,6 +282,7 @@ function animate(){{
 }}
 
 animate();
+
 </script>
 """
     return html
