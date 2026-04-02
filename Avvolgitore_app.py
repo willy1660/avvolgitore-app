@@ -2,6 +2,7 @@ import json
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
+import os
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
@@ -11,8 +12,11 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 
 col_logo, col_title = st.columns([1,4])
 
+logo_path = os.path.join(os.path.dirname(__file__), "New Logo PDM - rame.png")
+
 with col_logo:
-    st.image("New Logo PDM - rame.png", width=120)
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=120)
 
 with col_title:
     st.markdown("## Avvolgimento")
@@ -49,6 +53,8 @@ def trim_polyline(points, target_length):
         return points
 
     idx = np.searchsorted(cum, target_length) - 1
+    idx = max(0, min(idx, len(points)-2))
+
     p0, p1 = points[idx], points[idx+1]
     alpha = (target_length - cum[idx]) / np.linalg.norm(p1 - p0)
 
@@ -122,10 +128,6 @@ def build_coil(
         if polyline_length(np.array(points)) >= lunghezza_mm:
             break
 
-        # ======================
-        # TRANSICIÓ AMB RITARDO
-        # ======================
-
         ritardo = np.random.uniform(ritardo_min_deg, ritardo_max_deg)
         extra_turn = ritardo / 360.0
 
@@ -189,17 +191,16 @@ def build_coil(
 # VIEWER
 # =========================
 
-def build_viewer_html(points: np.ndarray, d_tubo: float, altezza: int, animazione: bool, velocita: float) -> str:
+def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
+
     pts = points.tolist()
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
-
-    # 🔥 FIX IMPORTANT
-    tubular_segments = min(2000, max(300, int(len(pts) * 0.25)))
+    tubular_segments = min(2000, max(300, int(len(pts)*0.25)))
 
     html = f"""
-<div id="viewer-wrap" style="position:relative;width:100%;height:{altezza}px;">
+<div id="viewer-wrap" style="width:100%;height:{altezza}px;">
   <div id="viewer" style="width:100%;height:100%;"></div>
 </div>
 
@@ -212,23 +213,18 @@ const container = document.getElementById("viewer");
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-const camera = new THREE.PerspectiveCamera(
-  45,
-  container.clientWidth / container.clientHeight,
-  0.1,
-  100000
-);
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100000);
 
-const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+const renderer = new THREE.WebGLRenderer({{ antialias:true }});
 renderer.setSize(container.clientWidth, container.clientHeight);
 container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.60));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.6));
 
-const light = new THREE.DirectionalLight(0xffffff, 0.40);
-light.position.set(5, 5, 5);
+const light = new THREE.DirectionalLight(0xffffff, 0.4);
+light.position.set(5,5,5);
 scene.add(light);
 
 const rawPoints = {points_json};
@@ -239,16 +235,13 @@ class CurvePath extends THREE.Curve {{
     super();
     this.points = points;
   }}
-
   getPoint(t) {{
     const n = this.points.length;
-    const f = t * (n - 1);
-
+    const f = t*(n-1);
     const i = Math.floor(f);
-    const i0 = Math.max(0, Math.min(i, n - 2));
-    const i1 = i0 + 1;
-    const tt = f - i0;
-
+    const i0 = Math.max(0, Math.min(i, n-2));
+    const i1 = i0+1;
+    const tt = f-i0;
     return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
   }}
 }}
@@ -257,96 +250,66 @@ const curve = new CurvePath(vectors);
 
 const tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 40, false);
 
-const tubeMat = new THREE.MeshStandardMaterial({{
-  color: 0xe6e6e6,
-  roughness: 0.92
-}});
+const tubeMesh = new THREE.Mesh(
+  tubeGeom,
+  new THREE.MeshStandardMaterial({{color:0xe6e6e6, roughness:0.92}})
+);
 
-const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
 scene.add(tubeMesh);
 
 // CAPS
-
-function createCap(position, direction, color) {{
-  const geometry = new THREE.CircleGeometry({r_tubo}, 32);
-  const material = new THREE.MeshBasicMaterial({{
-    color: color,
-    side: THREE.DoubleSide
-  }});
-
-  const cap = new THREE.Mesh(geometry, material);
+function createCap(pos, dir, color) {{
+  const g = new THREE.CircleGeometry({r_tubo}, 24);
+  const m = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
+  const cap = new THREE.Mesh(g, m);
 
   const up = new THREE.Vector3(0,0,1);
-  const dir = direction.clone().normalize();
-
-  if (dir.length() > 0) {{
-    const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
-    cap.quaternion.copy(quat);
-  }}
-
-  cap.position.copy(position);
+  const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
+  cap.quaternion.copy(quat);
+  cap.position.copy(pos);
   scene.add(cap);
 }}
 
-if (vectors.length >= 2) {{
-  const start = vectors[0];
-  const dirStart = vectors[1].clone().sub(vectors[0]).multiplyScalar(-1);
-  createCap(start, dirStart, 0x00ff00);
-
-  const end = vectors[vectors.length - 1];
-  const dirEnd = vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]);
-  createCap(end, dirEnd, 0xff0000);
+if(vectors.length>=2){{
+  createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
+  createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
 }}
 
-// CAMERA (també milloro una mica)
+// CAMERA
 const box = new THREE.Box3().setFromPoints(vectors);
 const center = new THREE.Vector3();
 box.getCenter(center);
 
 const size = new THREE.Vector3();
 box.getSize(size);
-const maxDim = Math.max(size.x, size.y, size.z);
+const dist = Math.max(size.x, size.y, size.z)*1.8;
 
-const dist = maxDim * 1.8;
-
-camera.position.set(center.x + dist, center.y + dist, center.z + dist * 0.6);
+camera.position.set(center.x+dist, center.y+dist, center.z+dist*0.6);
 camera.lookAt(center);
 controls.target.copy(center);
 
+// ANIMACIÓ
 let progress = 0;
+tubeMesh.scale.z = { "0.001" if animazione else "1" };
 
-if ({str(animazione).lower()}) {{
-  tubeMesh.geometry.setDrawRange(0, 0);
-}}
-
-function animate() {{
+function animate(){{
   requestAnimationFrame(animate);
 
   if ({str(animazione).lower()}) {{
-    progress += {velocita} * 0.002;
+    progress += {velocita} * 0.003;
     if (progress > 1) progress = 1;
-
-    if (tubeGeom.index) {{
-      tubeMesh.geometry.setDrawRange(0, Math.floor(progress * tubeGeom.index.count));
-    }}
+    tubeMesh.scale.z = progress;
   }}
 
   controls.update();
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }}
 
 animate();
-
-window.addEventListener("resize", () => {{
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
-}});
 </script>
 """
     return html
+
 # =========================
 # UI
 # =========================
@@ -387,9 +350,13 @@ with c8:
 with c9:
     ritardo_max = st.number_input("Ritardo max (°)", 0.0, 720.0, 360.0)
 
-c10 = st.columns(1)[0]
+c10,c11 = st.columns(2)
+
 with c10:
     altezza = st.slider("Altezza viewer", 400, 900, 700)
+
+with c11:
+    animazione = st.checkbox("Animazione", False)
 
 # =========================
 # BUILD
@@ -407,11 +374,11 @@ path, meta = build_coil(
     ritardo_max,
 )
 
-html = build_viewer_html(path, meta["DiametroTubo"], altezza, False, 1.0)
+html = build_viewer_html(path, meta["DiametroTubo"], altezza, animazione, 1.0)
 components.html(html, height=altezza)
 
 # =========================
-# METRICS
+# METRICS + WARNING
 # =========================
 
 st.divider()
@@ -422,3 +389,6 @@ m1.metric("Diametro tubo", f"{meta['DiametroTubo']:.2f} mm")
 m2.metric("Passo assiale", f"{meta['PassoAssiale']:.2f} mm")
 m3.metric("Incremento strato", f"{meta['IncrementoStrato']:.2f} mm")
 m4.metric("Diametro esterno", f"{meta['DiametroEsterno']:.1f} mm")
+
+if meta["DiametroEsterno"] > 750:
+    st.warning("⚠️ Diametro esterno superiore a 750 mm. La bobina potrebbe uscire dal pallet.")
