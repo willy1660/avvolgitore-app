@@ -173,16 +173,14 @@ def build_coil(
     passo_radiale = max(float(passo_radiale), EPS)
     spalla_mm = max(float(spalla_mm), EPS)
 
-    ritardo_bottom_deg = max(0.0, float(ritardo_min_deg))
-    ritardo_top_deg = max(0.0, float(ritardo_max_deg))
+    ritardo_bottom_deg = max(0.0, min(360.0, float(ritardo_min_deg)))
+    ritardo_top_deg = max(0.0, min(360.0, float(ritardo_max_deg)))
 
-    # radi inicial del centreline
+    # Radi inicial del centreline: el tub toca l'aspo
     r0 = d_aspo_mm / 2.0 + r_tubo
-    r = r0
 
-    # IMPORTANT:
-    # el centreline va de r_tubo a spalla_mm - r_tubo
-    # així la superfície del tub toca base i spalla
+    # El centreline va de r_tubo a spalla-r_tubo
+    # perquè el tub toqui físicament base i spalla
     z_min = r_tubo
     z_max = spalla_mm - r_tubo
 
@@ -199,6 +197,7 @@ def build_coil(
 
     z = z_min
     theta = 0.0
+    r = r0
     direction = 1  # +1 puja, -1 baixa
 
     theta_step_run = np.deg2rad(4.0)
@@ -219,17 +218,31 @@ def build_coil(
 
         # =========================
         # RUN HELICOIDAL
+        # radi constant durant la passada
         # =========================
         while True:
+            theta_prev = theta
+            z_prev = z
+
             theta += theta_step_run
             z += direction * dz_dtheta * theta_step_run
 
             if direction == 1 and z >= z_max:
+                # interpolació exacta fins a la spalla útil
+                dz_full = z - z_prev
+                frac = 0.0 if abs(dz_full) < EPS else (z_max - z_prev) / dz_full
+                frac = max(0.0, min(1.0, frac))
+                theta = theta_prev + frac * (theta - theta_prev)
                 z = z_max
                 add_point(theta, r, z)
                 break
 
             if direction == -1 and z <= z_min:
+                # interpolació exacta fins a la base útil
+                dz_full = z - z_prev
+                frac = 0.0 if abs(dz_full) < EPS else (z_min - z_prev) / dz_full
+                frac = max(0.0, min(1.0, frac))
+                theta = theta_prev + frac * (theta - theta_prev)
                 z = z_min
                 add_point(theta, r, z)
                 break
@@ -244,19 +257,19 @@ def build_coil(
 
         # =========================
         # DWELL / RITARDO
-        # canvi radial lineal, mantenint tota la resta
+        # carro quiet, mandrí gira, creix el radi
         # =========================
         at_top = direction == 1
         ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
         theta_dwell = np.deg2rad(ritardo_deg)
 
         if theta_dwell > EPS:
-            dwell_steps = max(6, int(np.ceil(ritardo_deg / 4.0)))
+            dwell_steps = max(8, int(np.ceil(ritardo_deg / 4.0)))
             theta_step_dwell = theta_dwell / dwell_steps
 
+            z_const = z_max if at_top else z_min
             r_start = r
             r_end = r + passo_radiale
-            z_const = z_max if at_top else z_min
 
             for i in range(1, dwell_steps + 1):
                 theta += theta_step_dwell
@@ -264,13 +277,18 @@ def build_coil(
                 r_curr = r_start + passo_radiale * u
                 add_point(theta, r_curr, z_const)
 
+                if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
+                    break
+
             r = r_end
         else:
-            # sense ritardo: canvi radial instantani
-            r = r + passo_radiale
+            # canvi de capa immediat si no hi ha ritardo
+            r += passo_radiale
             add_point(theta, r, z_max if at_top else z_min)
 
-        # canvi de direcció
+        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
+            break
+
         direction *= -1
 
     path = np.array(points, dtype=float)
@@ -287,7 +305,7 @@ def build_coil(
             "Valid": False,
         }
 
-    r_path = np.sqrt(path[:, 0]**2 + path[:, 1]**2)
+    r_path = np.sqrt(path[:, 0] ** 2 + path[:, 1] ** 2)
     r_max = float(np.max(r_path))
     diam_ext = 2.0 * (r_max + r_tubo)
 
@@ -365,11 +383,11 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
       }}
       getPoint(t) {{
         const n = this.points.length;
-        const f = t*(n-1);
+        const f = t * (n - 1);
         const i = Math.floor(f);
-        const i0 = Math.max(0, Math.min(i, n-2));
-        const i1 = i0+1;
-        const tt = f-i0;
+        const i0 = Math.max(0, Math.min(i, n - 2));
+        const i1 = i0 + 1;
+        const tt = f - i0;
         return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
       }}
     }}
@@ -415,8 +433,8 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
       );
 
       createCap(
-        vectors[vectors.length-1],
-        vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]),
+        vectors[vectors.length - 1],
+        vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]),
         0xff0000
       );
 
@@ -437,9 +455,9 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
       const total = tubeGeom.attributes.position.count;
 
       if ({str(animazione).lower()}) {{
-        tubeGeom.setDrawRange(0,0);
+        tubeGeom.setDrawRange(0, 0);
       }} else {{
-        tubeGeom.setDrawRange(0,total);
+        tubeGeom.setDrawRange(0, total);
       }}
 
       function animate(){{
@@ -454,7 +472,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
         }}
 
         controls.update();
-        renderer.render(scene,camera);
+        renderer.render(scene, camera);
       }}
 
       animate();
@@ -529,7 +547,6 @@ else:
         animazione,
         velocita
     )
-
     components.html(html, height=altezza)
 
 # =========================
