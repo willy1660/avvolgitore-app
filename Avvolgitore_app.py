@@ -191,7 +191,11 @@ def build_coil(
 
 def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
 
-    pts = points.tolist()
+    # 🔥 DECIMACIÓ (clau)
+    step = max(1, int(len(points) / 2000))  
+    points_decimated = points[::step]
+
+    pts = points_decimated.tolist()
     points_json = json.dumps(pts)
 
     html = f"""
@@ -222,21 +226,30 @@ const rawPoints = {points_json};
 const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
 // ==========================
-// ✅ LINEA (SEMPRE FUNCIONA)
+// LINEA MILLORADA
 // ==========================
 
 const geometry = new THREE.BufferGeometry().setFromPoints(vectors);
-const material = new THREE.LineBasicMaterial({{ color: 0xffffff }});
+
+const material = new THREE.LineBasicMaterial({{
+  color: 0xffffff,
+  transparent: true,
+  opacity: 0.85
+}});
+
 const line = new THREE.Line(geometry, material);
 scene.add(line);
 
 // ==========================
-// CAPS
+// CAPS (MÉS PETITS)
 // ==========================
 
 function createCap(pos, dir, color) {{
-  const g = new THREE.CircleGeometry({d_tubo/2}, 24);
-  const m = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
+  const g = new THREE.CircleGeometry({d_tubo/2}, 20);
+  const m = new THREE.MeshBasicMaterial({{
+    color: color,
+    side: THREE.DoubleSide
+  }});
   const cap = new THREE.Mesh(g, m);
 
   const up = new THREE.Vector3(0,0,1);
@@ -265,7 +278,7 @@ const size = new THREE.Vector3();
 box.getSize(size);
 
 const maxDim = Math.max(size.x, size.y, size.z);
-const dist = maxDim * 1.8;
+const dist = maxDim * 1.6;
 
 camera.position.set(center.x + dist, center.y + dist, center.z + dist*0.6);
 camera.lookAt(center);
