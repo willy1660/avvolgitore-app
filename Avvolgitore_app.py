@@ -197,6 +197,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
+    tubular_segments = min(2000, max(300, int(len(pts)*0.25)))
 
     html = f"""
 <div id="viewer-wrap" style="width:100%;height:{altezza}px;">
@@ -221,16 +222,13 @@ container.appendChild(renderer.domElement);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.6));
+
 const light = new THREE.DirectionalLight(0xffffff, 0.4);
 light.position.set(5,5,5);
 scene.add(light);
 
 const rawPoints = {points_json};
 const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
-// ==========================
-// CURVA
-// ==========================
 
 class CurvePath extends THREE.Curve {{
   constructor(points) {{
@@ -252,36 +250,21 @@ class CurvePath extends THREE.Curve {{
 const curve = new CurvePath(vectors);
 
 // ==========================
-// MESH DINÀMIC
+// GEOMETRIA (NO INDEXADA)
 // ==========================
 
-let tubeMesh = null;
+let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 24, false);
+tubeGeom = tubeGeom.toNonIndexed();   // 🔥 CLAU
 
-function buildTube(progress) {{
-
-  if (tubeMesh) {{
-    scene.remove(tubeMesh);
-    tubeMesh.geometry.dispose();
-  }}
-
-  const segments = Math.max(10, Math.floor(progress * 2000));
-
-  const geom = new THREE.TubeGeometry(
-    curve,
-    segments,
-    {r_tubo},
-    24,
-    false
-  );
-
-  const mat = new THREE.MeshStandardMaterial({{
+const tubeMesh = new THREE.Mesh(
+  tubeGeom,
+  new THREE.MeshStandardMaterial({{
     color: 0xe6e6e6,
     roughness: 0.92
-  }});
+  }})
+);
 
-  tubeMesh = new THREE.Mesh(geom, mat);
-  scene.add(tubeMesh);
-}}
+scene.add(tubeMesh);
 
 // ==========================
 // CAPS
@@ -316,9 +299,10 @@ box.getCenter(center);
 
 const size = new THREE.Vector3();
 box.getSize(size);
-const dist = Math.max(size.x, size.y, size.z)*1.8;
 
-camera.position.set(center.x+dist, center.y+dist, center.z+dist*0.6);
+const dist = Math.max(size.x, size.y, size.z) * 1.8;
+
+camera.position.set(center.x + dist, center.y + dist, center.z + dist * 0.6);
 camera.lookAt(center);
 controls.target.copy(center);
 
@@ -327,6 +311,14 @@ controls.target.copy(center);
 // ==========================
 
 let progress = 0;
+const total = tubeGeom.attributes.position.count;
+
+// inicial
+if ({str(animazione).lower()}) {{
+  tubeGeom.setDrawRange(0, 0);
+}} else {{
+  tubeGeom.setDrawRange(0, total);
+}}
 
 function animate(){{
   requestAnimationFrame(animate);
@@ -334,17 +326,17 @@ function animate(){{
   if ({str(animazione).lower()}) {{
     progress += {velocita} * 0.002;
     if (progress > 1) progress = 1;
-  }} else {{
-    progress = 1;
-  }}
 
-  buildTube(progress);
+    const visible = Math.floor(progress * total);
+    tubeGeom.setDrawRange(0, visible);
+  }}
 
   controls.update();
   renderer.render(scene,camera);
 }}
 
 animate();
+
 </script>
 """
     return html
