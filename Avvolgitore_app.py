@@ -16,7 +16,7 @@ logo_path = os.path.join(os.path.dirname(__file__), "New Logo PDM - rame.png")
 
 with col_logo:
     if os.path.exists(logo_path):
-        st.image(logo_path, width=120)
+        st.image(logo_path, width=90)
 
 with col_title:
     st.markdown("## Avvolgimento")
@@ -200,8 +200,8 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     tubular_segments = min(2000, max(300, int(len(pts)*0.25)))
 
     html = f"""
-<div id="viewer-wrap" style="width:100%;height:{altezza}px;">
-  <div id="viewer" style="width:100%;height:100%;"></div>
+<div style="width:100%;height:{altezza}px;">
+<div id="viewer" style="width:100%;height:100%;"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -235,7 +235,6 @@ class CurvePath extends THREE.Curve {{
     super();
     this.points = points;
   }}
-
   getPoint(t) {{
     const n = this.points.length;
     const f = t*(n-1);
@@ -249,50 +248,17 @@ class CurvePath extends THREE.Curve {{
 
 const curve = new CurvePath(vectors);
 
-// ==========================
-// GEOMETRIA (NO INDEXADA)
-// ==========================
-
 let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 24, false);
-tubeGeom = tubeGeom.toNonIndexed();   // 🔥 CLAU
+tubeGeom = tubeGeom.toNonIndexed();
 
 const tubeMesh = new THREE.Mesh(
   tubeGeom,
-  new THREE.MeshStandardMaterial({{
-    color: 0xe6e6e6,
-    roughness: 0.92
-  }})
+  new THREE.MeshStandardMaterial({{ color:0xe6e6e6, roughness:0.92 }})
 );
 
 scene.add(tubeMesh);
 
-// ==========================
-// CAPS
-// ==========================
-
-function createCap(pos, dir, color) {{
-  const g = new THREE.CircleGeometry({r_tubo}, 24);
-  const m = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
-  const cap = new THREE.Mesh(g, m);
-
-  const up = new THREE.Vector3(0,0,1);
-  const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
-
-  cap.quaternion.copy(quat);
-  cap.position.copy(pos);
-
-  scene.add(cap);
-}}
-
-if(vectors.length>=2){{
-  createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
-  createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
-}}
-
-// ==========================
 // CAMERA
-// ==========================
-
 const box = new THREE.Box3().setFromPoints(vectors);
 const center = new THREE.Vector3();
 box.getCenter(center);
@@ -300,24 +266,20 @@ box.getCenter(center);
 const size = new THREE.Vector3();
 box.getSize(size);
 
-const dist = Math.max(size.x, size.y, size.z) * 1.8;
+const dist = Math.max(size.x,size.y,size.z)*1.8;
 
-camera.position.set(center.x + dist, center.y + dist, center.z + dist * 0.6);
+camera.position.set(center.x+dist, center.y+dist, center.z+dist*0.6);
 camera.lookAt(center);
 controls.target.copy(center);
 
-// ==========================
 // ANIMACIÓ REAL
-// ==========================
-
 let progress = 0;
 const total = tubeGeom.attributes.position.count;
 
-// inicial
 if ({str(animazione).lower()}) {{
-  tubeGeom.setDrawRange(0, 0);
+  tubeGeom.setDrawRange(0,0);
 }} else {{
-  tubeGeom.setDrawRange(0, total);
+  tubeGeom.setDrawRange(0,total);
 }}
 
 function animate(){{
@@ -336,7 +298,6 @@ function animate(){{
 }}
 
 animate();
-
 </script>
 """
     return html
@@ -381,13 +342,16 @@ with c8:
 with c9:
     ritardo_max = st.number_input("Ritardo max (°)", 0.0, 720.0, 360.0)
 
-c10,c11 = st.columns(2)
+c10, c11, c12 = st.columns(3)
 
 with c10:
     altezza = st.slider("Altezza viewer", 400, 900, 700)
 
 with c11:
     animazione = st.checkbox("Animazione", False)
+
+with c12:
+    velocita = st.slider("Velocità animazione", 0.1, 5.0, 1.0)
 
 # =========================
 # BUILD
@@ -405,7 +369,14 @@ path, meta = build_coil(
     ritardo_max,
 )
 
-html = build_viewer_html(path, meta["DiametroTubo"], altezza, animazione, 1.0)
+html = build_viewer_html(
+    path,
+    meta["DiametroTubo"],
+    altezza,
+    animazione,
+    velocita
+)
+
 components.html(html, height=altezza)
 
 # =========================
