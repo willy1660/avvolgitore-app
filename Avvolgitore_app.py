@@ -12,7 +12,7 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 col_logo, col_title = st.columns([1,4])
 
 with col_logo:
-    st.image("logo.png", width=120)
+    st.image("New Logo PDM - rame.png", width=120)
 
 with col_title:
     st.markdown("## Avvolgimento")
