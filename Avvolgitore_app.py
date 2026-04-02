@@ -324,17 +324,24 @@ def build_viewer_html(
     tubular_segments = min(8000, max(1500, int(len(pts) * 0.9)))
     radial_segments = 56
 
-    bg_color = "0xf5f7fa" if light_mode else "0x0b0d10"
-    fog_far = 9000 if light_mode else 7000
-    grid_c1 = "0xb8c2cc" if light_mode else "0x3b4452"
-    grid_c2 = "0xd8dee6" if light_mode else "0x232933"
-    plane_opacity = 0.10 if light_mode else 0.18
-    tube_color = "0xd9dde2" if light_mode else "0xe2e5e9"
-    amb_intensity = 0.75 if light_mode else 0.55
-    hemi_ground = "0xd7dbe0" if light_mode else "0x20242c"
+    # 🎯 COLORS PRO
+    if light_mode:
+        bg_color = "0xf4f6f8"
+        tube_color = "0x9aa4ad"   # gris tècnic (clau)
+        grid_c1 = "0xb8c2cc"
+        grid_c2 = "0xd8dee6"
+        hemi_ground = "0xe6eaef"
+        plane_opacity = 0.08
+    else:
+        bg_color = "0x0b0d10"
+        tube_color = "0xcfd5db"   # gris clar (no blanc)
+        grid_c1 = "0x3b4452"
+        grid_c2 = "0x232933"
+        hemi_ground = "0x20242c"
+        plane_opacity = 0.18
 
     html = f"""
-    <div style="width:100%;height:{altezza}px;border-radius:16px;overflow:hidden;background:{'#f5f7fa' if light_mode else '#0b0d10'};">
+    <div style="width:100%;height:{altezza}px;border-radius:16px;overflow:hidden;background:{'#f4f6f8' if light_mode else '#0b0d10'};">
       <div id="viewer" style="width:100%;height:100%;"></div>
     </div>
 
@@ -346,7 +353,6 @@ def build_viewer_html(
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color({bg_color});
-    scene.fog = new THREE.Fog({bg_color}, 1800, {fog_far});
 
     const camera = new THREE.PerspectiveCamera(
       42,
@@ -357,212 +363,107 @@ def build_viewer_html(
 
     const renderer = new THREE.WebGLRenderer({{
       antialias: true,
-      alpha: false,
       powerPreference: "high-performance"
     }});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.rotateSpeed = 0.8;
-    controls.zoomSpeed = 0.9;
-    controls.panSpeed = 0.7;
-    controls.screenSpacePanning = true;
-    controls.minDistance = 50;
 
-    const ambient = new THREE.AmbientLight(0xffffff, {amb_intensity});
-    scene.add(ambient);
+    // 💡 LIGHTS més contrast
+    scene.add(new THREE.AmbientLight(0xffffff, {0.85 if light_mode else 0.55}));
 
-    const hemi = new THREE.HemisphereLight(0xdde7ff, {hemi_ground}, 0.7);
-    hemi.position.set(0, 0, 1);
-    scene.add(hemi);
-
-    const key = new THREE.DirectionalLight(0xffffff, 0.95);
-    key.position.set(900, 900, 1200);
-    key.castShadow = true;
-    key.shadow.mapSize.width = 2048;
-    key.shadow.mapSize.height = 2048;
-    key.shadow.camera.near = 0.5;
-    key.shadow.camera.far = 6000;
+    const key = new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(800,800,800);
     scene.add(key);
 
-    const fill = new THREE.DirectionalLight(0xbfd3ff, 0.35);
-    fill.position.set(-900, -400, 600);
+    const fill = new THREE.DirectionalLight(0x9fb3c8, 0.35);
+    fill.position.set(-800,-300,500);
     scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0xffffff, 0.25);
-    rim.position.set(-300, 1200, 500);
-    scene.add(rim);
+    // GEOMETRY
+    const pts = {points_json};
+    const vec = pts.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-    const rawPoints = {points_json};
-    const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
-    class CurvePathLinear extends THREE.Curve {{
-      constructor(points) {{
-        super();
-        this.points = points;
-      }}
+    class Curve extends THREE.Curve {{
+      constructor(points) {{ super(); this.points = points; }}
       getPoint(t) {{
         const n = this.points.length;
-        const f = t * (n - 1);
+        const f = t*(n-1);
         const i = Math.floor(f);
-        const i0 = Math.max(0, Math.min(i, n - 2));
-        const i1 = i0 + 1;
-        const tt = f - i0;
-        return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
+        return this.points[Math.min(i, n-1)];
       }}
     }}
 
-    const curve = new CurvePathLinear(vectors);
+    const curve = new Curve(vec);
 
-    let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, {radial_segments}, false);
-    tubeGeom.computeVertexNormals();
+    const tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, {radial_segments}, false);
 
-    const tubeMat = new THREE.MeshPhysicalMaterial({{
-      color: {tube_color},
-      roughness: 0.68,
-      metalness: 0.08,
-      clearcoat: 0.22,
-      clearcoatRoughness: 0.65,
-      reflectivity: 0.18,
-      transparent: true,
-      opacity: {1.0 - transparency}
+    // 🎯 MATERIAL MILLORAT (important)
+    const tubeMat = new THREE.MeshStandardMaterial({{
+        color: {tube_color},
+        roughness: 0.55,
+        metalness: 0.15,
+        transparent: true,
+        opacity: {1.0 - transparency}
     }});
 
-    const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
-    tubeMesh.castShadow = true;
-    tubeMesh.receiveShadow = true;
-    scene.add(tubeMesh);
+    const mesh = new THREE.Mesh(tubeGeom, tubeMat);
+    scene.add(mesh);
 
-    function createCap(position, direction, color) {{
-      const capGeom = new THREE.CircleGeometry({r_tubo}, 48);
-      const capMat = new THREE.MeshStandardMaterial({{
-        color: color,
-        roughness: 0.55,
-        metalness: 0.08,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.98
-      }});
-      const cap = new THREE.Mesh(capGeom, capMat);
-
-      const up = new THREE.Vector3(0, 0, 1);
-      const dir = direction.clone().normalize();
-
-      if (dir.length() > 1e-9) {{
-        const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
-        cap.quaternion.copy(quat);
-      }}
-
-      cap.position.copy(position);
-      cap.castShadow = true;
-      cap.receiveShadow = true;
-      scene.add(cap);
-    }}
-
-    if ({str(show_caps).lower()} && vectors.length >= 2) {{
-      createCap(
-        vectors[0],
-        vectors[1].clone().sub(vectors[0]).multiplyScalar(-1),
-        0x2ecc71
-      );
-      createCap(
-        vectors[vectors.length - 1],
-        vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]),
-        0xe74c3c
-      );
-    }}
-
-    const box = new THREE.Box3().setFromPoints(vectors);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const radiusVisual = Math.max(size.x, size.y) * 0.5;
-
-    const gridSize = Math.max(1200, Math.ceil(maxDim * 2.2 / 100) * 100);
-    const gridDivisions = Math.max(12, Math.round(gridSize / 100));
-
+    // GRID
     if ({str(show_grid).lower()}) {{
-      const grid = new THREE.GridHelper(gridSize, gridDivisions, {grid_c1}, {grid_c2});
-      grid.position.set(center.x, center.y, 0);
-      grid.material.opacity = 0.28;
-      grid.material.transparent = true;
-      scene.add(grid);
+        const grid = new THREE.GridHelper(2000, 40, {grid_c1}, {grid_c2});
+        grid.material.opacity = 0.35;
+        grid.material.transparent = true;
+        scene.add(grid);
     }}
 
+    // AXES
     if ({str(show_axes).lower()}) {{
-      const axes = new THREE.AxesHelper(Math.max(120, radiusVisual * 0.35));
-      axes.position.set(center.x, center.y, 0);
-      scene.add(axes);
+        scene.add(new THREE.AxesHelper(200));
     }}
 
+    // SHADOW PLANE
     if ({str(show_plane).lower()}) {{
-      const planeGeom = new THREE.PlaneGeometry(gridSize, gridSize);
-      const planeMat = new THREE.ShadowMaterial({{
-        opacity: {plane_opacity}
-      }});
-      const plane = new THREE.Mesh(planeGeom, planeMat);
-      plane.receiveShadow = true;
-      plane.position.set(center.x, center.y, 0);
-      scene.add(plane);
+        const plane = new THREE.Mesh(
+            new THREE.PlaneGeometry(2000,2000),
+            new THREE.MeshBasicMaterial({{color:0x000000, transparent:true, opacity:{plane_opacity}}})
+        );
+        plane.rotation.x = -Math.PI/2;
+        scene.add(plane);
     }}
 
-    const dist = Math.max(maxDim * 1.55, 450);
-    camera.position.set(
-      center.x + dist * 0.95,
-      center.y + dist * 0.95,
-      center.z + dist * 0.42
-    );
-    camera.lookAt(center);
-    controls.target.copy(center);
-    controls.maxDistance = dist * 6.0;
+    camera.position.set(600,600,400);
+    controls.target.set(0,0,200);
 
-    let progress = 0;
-    const total = tubeGeom.index ? tubeGeom.index.count : tubeGeom.attributes.position.count;
+    // PROGRESS
+    const total = tubeGeom.attributes.position.count;
 
     if ({str(animazione).lower()}) {{
-      tubeGeom.setDrawRange(0, 0);
+        tubeGeom.setDrawRange(0, 0);
     }} else {{
-      const visible = Math.max(1, Math.floor(total * {manual_progress}));
-      tubeGeom.setDrawRange(0, visible);
+        tubeGeom.setDrawRange(0, Math.floor(total * {manual_progress}));
     }}
 
-    function animate() {{
-      requestAnimationFrame(animate);
+    let progress = 0;
 
-      if ({str(animazione).lower()}) {{
-        progress += {velocita} * 0.0018;
-        if (progress > 1) progress = 1;
-        const visible = Math.max(1, Math.floor(progress * total));
-        tubeGeom.setDrawRange(0, visible);
-      }}
+    function animate(){{
+        requestAnimationFrame(animate);
 
-      controls.update();
-      renderer.render(scene, camera);
+        if ({str(animazione).lower()}) {{
+            progress += {velocita} * 0.002;
+            if (progress > 1) progress = 1;
+            tubeGeom.setDrawRange(0, Math.floor(progress * total));
+        }}
+
+        controls.update();
+        renderer.render(scene, camera);
     }}
 
-    function onResize() {{
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    }}
-
-    window.addEventListener("resize", onResize);
     animate();
-    onResize();
     </script>
     """
     return html
