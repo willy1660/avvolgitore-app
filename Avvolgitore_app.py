@@ -40,8 +40,8 @@ TEXTS = {
         "lunghezza": "Lunghezza rotolo (m)",
         "passo_assiale": "Passo assiale (mm)",
         "incremento": "Incremento strato (mm)",
-        "rit_min": "Ritardo min (°)",
-        "rit_max": "Ritardo max (°)",
+        "rit_min": "Ritardo base (°)",
+        "rit_max": "Ritardo spalla (°)",
         "altezza": "Altezza",
         "animazione": "Animazione",
         "velocita": "Velocità",
@@ -64,8 +64,8 @@ TEXTS = {
         "lunghezza": "Coil length (m)",
         "passo_assiale": "Axial pitch (mm)",
         "incremento": "Layer increment (mm)",
-        "rit_min": "Delay min (°)",
-        "rit_max": "Delay max (°)",
+        "rit_min": "Bottom delay (°)",
+        "rit_max": "Top delay (°)",
         "altezza": "Height",
         "animazione": "Animation",
         "velocita": "Speed",
@@ -83,7 +83,7 @@ t = TEXTS[lang]
 # HEADER
 # =========================
 
-col_logo, col_title = st.columns([1,7])
+col_logo, col_title = st.columns([1, 7])
 
 logo_path = os.path.join(os.path.dirname(__file__), "New Logo PDM - rame.png")
 
@@ -119,6 +119,9 @@ def polyline_length(points):
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def trim_polyline(points, target_length):
+    if len(points) < 2:
+        return points
+
     seg = np.linalg.norm(np.diff(points, axis=0), axis=1)
     cum = np.concatenate([[0.0], np.cumsum(seg)])
 
@@ -126,23 +129,27 @@ def trim_polyline(points, target_length):
         return points
 
     idx = np.searchsorted(cum, target_length) - 1
-    idx = max(0, min(idx, len(points)-2))
+    idx = max(0, min(idx, len(points) - 2))
 
-    p0, p1 = points[idx], points[idx+1]
-    alpha = (target_length - cum[idx]) / np.linalg.norm(p1 - p0)
+    p0, p1 = points[idx], points[idx + 1]
+    seg_len = np.linalg.norm(p1 - p0)
 
-    return np.vstack([points[:idx+1], p0 + alpha*(p1-p0)])
+    if seg_len < EPS:
+        return points[:idx + 1]
+
+    alpha = (target_length - cum[idx]) / seg_len
+    alpha = max(0.0, min(1.0, alpha))
+
+    return np.vstack([points[:idx + 1], p0 + alpha * (p1 - p0)])
 
 def compute_total_turns(points):
-    theta = np.unwrap(np.arctan2(points[:,1], points[:,0]))
-    return float(np.sum(np.abs(np.diff(theta))) / (2*np.pi))
+    if len(points) < 2:
+        return 0.0
+    theta = np.unwrap(np.arctan2(points[:, 1], points[:, 0]))
+    return float(np.sum(np.abs(np.diff(theta))) / (2 * np.pi))
 
-def hermite_scalar(y0, y1, m0, m1, u):
-    h00 = 2*u**3 - 3*u**2 + 1
-    h10 = u**3 - 2*u**2 + u
-    h01 = -2*u**3 + 3*u**2
-    h11 = u**3 - u**2
-    return h00*y0 + h10*m0 + h01*y1 + h11*m1
+def smoothstep01(u):
+    return 0.5 - 0.5 * np.cos(np.pi * u)
 
 # =========================
 # GEOMETRY
@@ -156,97 +163,127 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_min_deg,
-    ritardo_max_deg,
+    ritardo_min_deg,   # base
+    ritardo_max_deg,   # spalla
 ):
+    lunghezza_mm = float(lunghezza_m) * 1000.0
+    d_tubo = float(d_rame_mm) + 2.0 * float(spessore_guaina_mm)
 
-    lunghezza_mm = lunghezza_m * 1000
-    d_tubo = d_rame_mm + 2*spessore_guaina_mm
+    passo_assiale = max(float(passo_assiale), EPS)
+    passo_radiale = max(float(passo_radiale), EPS)
+    spalla_mm = max(float(spalla_mm), EPS)
 
-    passo_assiale = max(passo_assiale, EPS)
-    passo_radiale = max(passo_radiale, EPS)
+    ritardo_bottom_deg = max(0.0, min(360.0, float(ritardo_min_deg)))
+    ritardo_top_deg = max(0.0, min(360.0, float(ritardo_max_deg)))
 
-    r0 = d_aspo_mm/2 + d_tubo/2
+    r0 = d_aspo_mm / 2.0 + d_tubo / 2.0
     r = r0
 
-    z0, z1 = 0.0, spalla_mm
-    theta = 0
+    z = 0.0
+    theta = 0.0
+    direction = 1  # +1 puja, -1 baixa
+
+    # densitats de discretització
+    theta_step_run = np.deg2rad(4.0)
+    dz_dtheta = passo_assiale / (2.0 * np.pi)
+
+    # quan ritardo = 0, fem un canvi radial repartit al començament del següent tram
+    bridge_steps_zero_delay = 14
 
     points = []
 
-    base_transition_turn = 0.18
+    def add_point(theta_val, r_val, z_val):
+        x = r_val * np.cos(theta_val)
+        y = r_val * np.sin(theta_val)
+        points.append([x, y, z_val])
+
+    add_point(theta, r, z)
+
+    pending_radial_shift = 0.0
+    pending_bridge_steps = 0
 
     while True:
-
-        dz = z1 - z0
-        turns = max(abs(dz)/passo_assiale, 0.1)
-        dtheta = 2*np.pi*turns
-        dz_dtheta_in = dz / dtheta
-
-        t = np.linspace(0, dtheta, int(turns*200)+80)
-
-        theta_vals = theta + t
-        z_vals = z0 + dz*(t/dtheta)
-
-        x = r*np.cos(theta_vals)
-        y = r*np.sin(theta_vals)
-
-        layer = np.column_stack([x,y,z_vals])
-
-        if len(points) > 0:
-            layer = layer[1:]
-
-        points.extend(layer.tolist())
-
-        if polyline_length(np.array(points)) >= lunghezza_mm:
+        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
             break
 
-        ritardo = np.random.uniform(ritardo_min_deg, ritardo_max_deg)
-        extra_turn = ritardo / 360.0
+        # =========================
+        # RUN HELICOIDAL
+        # =========================
+        while True:
+            theta += theta_step_run
 
-        total_turn = base_transition_turn + extra_turn
-        dtheta_trans = 2*np.pi*total_turn
+            # si venim d'un ritardo 0°, repartim el canvi radial al començament del tram
+            if pending_bridge_steps > 0:
+                bridge_idx = bridge_steps_zero_delay - pending_bridge_steps + 1
+                u = bridge_idx / bridge_steps_zero_delay
+                u_prev = (bridge_idx - 1) / bridge_steps_zero_delay
+                dr = pending_radial_shift * (smoothstep01(u) - smoothstep01(u_prev))
+                r += dr
+                pending_bridge_steps -= 1
 
-        r_next = r + passo_radiale
+            z += direction * dz_dtheta * theta_step_run
 
-        dz_next = z0 - z1
-        turns_next = max(abs(dz_next)/passo_assiale, 0.1)
-        dtheta_next = 2*np.pi*turns_next
-        dz_dtheta_out = dz_next / dtheta_next
+            if direction == 1 and z >= spalla_mm:
+                z = spalla_mm
+                add_point(theta, r, z)
+                break
 
-        t_trans = np.linspace(0, dtheta_trans, int(total_turn*240)+60)
-        u = t_trans / dtheta_trans
+            if direction == -1 and z <= 0.0:
+                z = 0.0
+                add_point(theta, r, z)
+                break
 
-        theta_trans = theta + dtheta + t_trans
+            add_point(theta, r, z)
 
-        s = 0.5 - 0.5*np.cos(np.linspace(0, np.pi, len(t_trans)))
-        r_trans = r + (r_next - r)*s
+            if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
+                break
 
-        z_trans = hermite_scalar(
-            z1, z1,
-            dz_dtheta_in*dtheta_trans,
-            dz_dtheta_out*dtheta_trans,
-            u
-        )
-
-        x = r_trans*np.cos(theta_trans)
-        y = r_trans*np.sin(theta_trans)
-
-        points.extend(np.column_stack([x,y,z_trans])[1:].tolist())
-
-        theta += dtheta + dtheta_trans
-        r = r_next
-        z0, z1 = z1, z0
-
-        if polyline_length(np.array(points)) >= lunghezza_mm:
+        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
             break
 
-    path = trim_polyline(np.array(points), lunghezza_mm)
+        # =========================
+        # DWELL / RITARDO
+        # carro quiet, mandrí gira
+        # =========================
+        at_top = direction == 1
+        ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
+        theta_dwell = np.deg2rad(ritardo_deg)
 
-    r_max = np.max(np.sqrt(path[:,0]**2 + path[:,1]**2))
-    diam_ext = 2*(r_max + d_tubo/2)
+        if theta_dwell > EPS:
+            dwell_steps = max(8, int(np.ceil(ritardo_deg / 4.0)))
+            theta_step_dwell = theta_dwell / dwell_steps
 
-    capes = int((r_max - r0)/passo_radiale) + 1
+            r_start = r
+            r_end = r + passo_radiale
+            z_const = spalla_mm if at_top else 0.0
+
+            for i in range(1, dwell_steps + 1):
+                theta += theta_step_dwell
+                u = i / dwell_steps
+                r_curr = r_start + passo_radiale * smoothstep01(u)
+                add_point(theta, r_curr, z_const)
+
+            r = r_end
+        else:
+            # sense espera: inversió immediata
+            # per evitar kink artificial, el canvi radial es reparteix
+            # als primers punts del següent tram, sense z constant
+            pending_radial_shift = passo_radiale
+            pending_bridge_steps = bridge_steps_zero_delay
+
+        # canvi de direcció
+        direction *= -1
+
+    path = np.array(points, dtype=float)
+    path = trim_polyline(path, lunghezza_mm)
+
+    r_path = np.sqrt(path[:, 0]**2 + path[:, 1]**2)
+    r_max = float(np.max(r_path))
+    diam_ext = 2.0 * (r_max + d_tubo / 2.0)
+
+    capes = int((r_max - r0) / passo_radiale) + 1
+    capes = max(capes, 1)
+
     turns_tot = compute_total_turns(path)
 
     meta = {
@@ -270,7 +307,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
-    tubular_segments = min(4000, max(800, int(len(pts)*0.5)))
+    tubular_segments = min(4000, max(800, int(len(pts) * 0.5)))
 
     html = f"""
     <div style="width:100%;height:{altezza}px;">
@@ -342,11 +379,14 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
       const cap = new THREE.Mesh(geometry, material);
 
       const up = new THREE.Vector3(0,0,1);
-      const quat = new THREE.Quaternion().setFromUnitVectors(up, direction.clone().normalize());
+      const dir = direction.clone().normalize();
 
-      cap.quaternion.copy(quat);
+      if (dir.length() > 1e-9) {{
+        const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+        cap.quaternion.copy(quat);
+      }}
+
       cap.position.copy(position);
-
       scene.add(cap);
     }}
 
@@ -405,23 +445,23 @@ colA, colB, colC, colD = st.columns(4)
 
 with colA:
     st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], 450.0)
-    spalla = st.number_input(t["spalla"], 95.0)
+    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=1.0)
+    spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
 
 with colB:
     st.markdown(f"#### {t['tubo']}")
     rame_label = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore_guaina = st.number_input(t["isolamento"], 7.0)
-    lunghezza = st.number_input(t["lunghezza"], 50.0)
+    spessore_guaina = st.number_input(t["isolamento"], value=7.0, step=0.1)
+    lunghezza = st.number_input(t["lunghezza"], value=50.0, step=1.0)
 
     d_rame = COPPER_SIZES_MM[rame_label]
 
 with colC:
     st.markdown(f"#### {t['avvolg']}")
-    passo_assiale = st.number_input(t["passo_assiale"], value=20.0)
-    incremento_strato = st.number_input(t["incremento"], value=20.0)
-    ritardo_min = st.number_input(t["rit_min"], 0.0, 720.0, 360.0)
-    ritardo_max = st.number_input(t["rit_max"], 0.0, 720.0, 360.0)
+    passo_assiale = st.number_input(t["passo_assiale"], value=20.0, step=0.1)
+    incremento_strato = st.number_input(t["incremento"], value=20.0, step=0.1)
+    ritardo_min = st.number_input(t["rit_min"], min_value=0.0, max_value=360.0, value=180.0, step=1.0)
+    ritardo_max = st.number_input(t["rit_max"], min_value=0.0, max_value=360.0, value=180.0, step=1.0)
 
 with colD:
     st.markdown(f"#### {t['viewer']}")
@@ -461,7 +501,7 @@ components.html(html, height=altezza)
 
 st.divider()
 
-m1,m2,m3,m4 = st.columns(4)
+m1, m2, m3, m4 = st.columns(4)
 
 m1.metric(t["metric1"], f"{meta['DiametroTubo']:.2f} mm")
 m2.metric(t["metric2"], f"{meta['PassoAssiale']:.2f} mm")
