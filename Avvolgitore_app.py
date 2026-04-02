@@ -17,10 +17,6 @@ COPPER_SIZES_MM = {
 
 EPS = 1e-9
 
-# =========================
-# UTILS
-# =========================
-
 def polyline_length(p):
     return float(np.linalg.norm(np.diff(p, axis=0), axis=1).sum()) if len(p)>1 else 0
 
@@ -42,7 +38,7 @@ def turns(p):
     return np.sum(np.abs(np.diff(th))) / (2*np.pi)
 
 # =========================
-# GEOMETRY
+# GEOMETRY (FIX FINAL)
 # =========================
 
 def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
@@ -84,10 +80,7 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
         if polyline_length(np.array(pts)) >= L:
             break
 
-        # =========================
-        # TRANSICIÓ MILLORADA
-        # =========================
-
+        # TRANSICIÓ CORRECTA
         rit = 0
         if rmax > 0:
             rit = np.random.uniform(rmin, rmax)
@@ -105,8 +98,8 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
         th = theta + dth_layer + t
         r_vals = r + (r_next - r)*s
 
-        # 🔴 FIX SOLAPAMENT
-        z_vals = z1 + s * (pa * 0.6)
+        # 🔴 FIX KINK (continuïtat real)
+        z_vals = z1 + (z0 - z1) * (t / dth)
 
         x = r_vals*np.cos(th)
         y = r_vals*np.sin(th)
@@ -139,7 +132,7 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
     return pts, meta
 
 # =========================
-# VIEWER (amb punts!)
+# VIEWER FIXED
 # =========================
 
 def viewer(points, d, h, anim, vel):
@@ -186,17 +179,16 @@ const mat = new THREE.MeshStandardMaterial({{color:0xdddddd}})
 const mesh = new THREE.Mesh(geo, mat)
 scene.add(mesh)
 
-// 🔴 PUNT INICI (VERD)
+// punts petits
 const start = new THREE.Mesh(
-    new THREE.SphereGeometry({d}, 16,16),
+    new THREE.SphereGeometry({d*0.25}, 12,12),
     new THREE.MeshBasicMaterial({{color:0x00ff00}})
 )
 start.position.copy(pts[0])
 scene.add(start)
 
-// 🔴 PUNT FINAL (VERMELL)
 const end = new THREE.Mesh(
-    new THREE.SphereGeometry({d}, 16,16),
+    new THREE.SphereGeometry({d*0.25}, 12,12),
     new THREE.MeshBasicMaterial({{color:0xff0000}})
 )
 end.position.copy(pts[pts.length-1])
