@@ -7,21 +7,22 @@ import os
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
 # =========================
-# 🌍 LANGUAGE (FLAGS)
+# 🌍 LANGUAGE
 # =========================
 
 if "lang" not in st.session_state:
     st.session_state.lang = "IT"
 
-col_lang1, col_lang2, _ = st.columns([1,1,6])
+lang_option = st.selectbox(
+    "🌍 Language",
+    ["🇮🇹 Italiano", "🇺🇸 English (US)"],
+    index=0 if st.session_state.lang == "IT" else 1
+)
 
-with col_lang1:
-    if st.button("🇮🇹 IT"):
-        st.session_state.lang = "IT"
-
-with col_lang2:
-    if st.button("🇺🇸 EN"):
-        st.session_state.lang = "EN"
+if "Italiano" in lang_option:
+    st.session_state.lang = "IT"
+else:
+    st.session_state.lang = "EN"
 
 lang = st.session_state.lang
 
@@ -32,59 +33,46 @@ TEXTS = {
         "tubo": "🟩 Tubo",
         "avvolg": "🟧 Avvolgimento",
         "viewer": "⚙️ Viewer",
-
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
-
         "rame": "Ø Rame",
         "isolamento": "Spessore isolamento (mm)",
         "lunghezza": "Lunghezza rotolo (m)",
-
         "passo_assiale": "Passo assiale (mm)",
         "incremento": "Incremento strato (mm)",
         "rit_min": "Ritardo min (°)",
         "rit_max": "Ritardo max (°)",
-
         "altezza": "Altezza",
         "animazione": "Animazione",
         "velocita": "Velocità",
-
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
         "metric4": "Diametro esterno",
-
         "warning": "⚠️ Diametro esterno superiore a 750 mm. La bobina potrebbe uscire dal pallet."
     },
-
     "EN": {
         "title": "Coiling",
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Winding",
         "viewer": "⚙️ Viewer",
-
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
-
         "rame": "Copper size",
         "isolamento": "Insulation thickness (mm)",
         "lunghezza": "Coil length (m)",
-
         "passo_assiale": "Axial pitch (mm)",
         "incremento": "Layer increment (mm)",
         "rit_min": "Delay min (°)",
         "rit_max": "Delay max (°)",
-
         "altezza": "Height",
         "animazione": "Animation",
         "velocita": "Speed",
-
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
         "metric4": "Outer diameter",
-
         "warning": "⚠️ Outer diameter exceeds 750 mm. Coil may not fit on pallet."
     }
 }
@@ -193,6 +181,7 @@ def build_coil(
         dz = z1 - z0
         turns = max(abs(dz)/passo_assiale, 0.1)
         dtheta = 2*np.pi*turns
+        dz_dtheta_in = dz / dtheta
 
         t = np.linspace(0, dtheta, int(turns*200)+80)
 
@@ -220,14 +209,25 @@ def build_coil(
 
         r_next = r + passo_radiale
 
+        dz_next = z0 - z1
+        turns_next = max(abs(dz_next)/passo_assiale, 0.1)
+        dtheta_next = 2*np.pi*turns_next
+        dz_dtheta_out = dz_next / dtheta_next
+
         t_trans = np.linspace(0, dtheta_trans, int(total_turn*240)+60)
+        u = t_trans / dtheta_trans
 
         theta_trans = theta + dtheta + t_trans
 
         s = 0.5 - 0.5*np.cos(np.linspace(0, np.pi, len(t_trans)))
         r_trans = r + (r_next - r)*s
 
-        z_trans = np.full_like(t_trans, z1)
+        z_trans = hermite_scalar(
+            z1, z1,
+            dz_dtheta_in*dtheta_trans,
+            dz_dtheta_out*dtheta_trans,
+            u
+        )
 
         x = r_trans*np.cos(theta_trans)
         y = r_trans*np.sin(theta_trans)
@@ -259,6 +259,143 @@ def build_coil(
     }
 
     return path, meta
+
+# =========================
+# VIEWER
+# =========================
+
+def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
+
+    pts = points.tolist()
+    points_json = json.dumps(pts)
+
+    r_tubo = d_tubo / 2.0
+    tubular_segments = min(4000, max(800, int(len(pts)*0.5)))
+
+    html = f"""
+    <div style="width:100%;height:{altezza}px;">
+    <div id="viewer" style="width:100%;height:100%;"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+    const container = document.getElementById("viewer");
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100000);
+
+    const renderer = new THREE.WebGLRenderer({{ antialias:true }});
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.7));
+
+    const light = new THREE.DirectionalLight(0xffffff, 0.5);
+    light.position.set(5,5,5);
+    scene.add(light);
+
+    const rawPoints = {points_json};
+    const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+
+    class CurvePath extends THREE.Curve {{
+      constructor(points) {{
+        super();
+        this.points = points;
+      }}
+      getPoint(t) {{
+        const n = this.points.length;
+        const f = t*(n-1);
+        const i = Math.floor(f);
+        const i0 = Math.max(0, Math.min(i, n-2));
+        const i1 = i0+1;
+        const tt = f-i0;
+        return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
+      }}
+    }}
+
+    const curve = new CurvePath(vectors);
+
+    let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 48, false);
+    tubeGeom = tubeGeom.toNonIndexed();
+
+    const tubeMesh = new THREE.Mesh(
+      tubeGeom,
+      new THREE.MeshStandardMaterial({{
+        color:0xe6e6e6,
+        roughness:0.85,
+        metalness:0.1
+      }})
+    );
+
+    scene.add(tubeMesh);
+
+    function createCap(position, direction, color) {{
+      const geometry = new THREE.CircleGeometry({r_tubo}, 32);
+      const material = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
+      const cap = new THREE.Mesh(geometry, material);
+
+      const up = new THREE.Vector3(0,0,1);
+      const quat = new THREE.Quaternion().setFromUnitVectors(up, direction.clone().normalize());
+
+      cap.quaternion.copy(quat);
+      cap.position.copy(position);
+
+      scene.add(cap);
+    }}
+
+    if (vectors.length >= 2) {{
+      createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
+      createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
+    }}
+
+    const box = new THREE.Box3().setFromPoints(vectors);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const dist = Math.max(size.x,size.y,size.z)*1.8;
+
+    camera.position.set(center.x+dist, center.y+dist, center.z+dist*0.6);
+    camera.lookAt(center);
+    controls.target.copy(center);
+
+    let progress = 0;
+    const total = tubeGeom.attributes.position.count;
+
+    if ({str(animazione).lower()}) {{
+      tubeGeom.setDrawRange(0,0);
+    }} else {{
+      tubeGeom.setDrawRange(0,total);
+    }}
+
+    function animate(){{
+      requestAnimationFrame(animate);
+
+      if ({str(animazione).lower()}) {{
+        progress += {velocita} * 0.002;
+        if (progress > 1) progress = 1;
+
+        const visible = Math.floor(progress * total);
+        tubeGeom.setDrawRange(0, visible);
+      }}
+
+      controls.update();
+      renderer.render(scene,camera);
+    }}
+
+    animate();
+    </script>
+    """
+    return html
 
 # =========================
 # UI
@@ -307,6 +444,16 @@ path, meta = build_coil(
     ritardo_min,
     ritardo_max,
 )
+
+html = build_viewer_html(
+    path,
+    meta["DiametroTubo"],
+    altezza,
+    animazione,
+    velocita
+)
+
+components.html(html, height=altezza)
 
 # =========================
 # METRICS
