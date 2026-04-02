@@ -49,7 +49,7 @@ TEXTS = {
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
         "metric4": "Diametro esterno",
-        "warning": "⚠️ Diametro esterno superiore a 750 mm. La bobina potrebbe uscire dal pallet."
+        "warning": "⚠️ Diametro esterno superiore a 750 mm."
     },
     "EN": {
         "title": "Coiling",
@@ -73,7 +73,7 @@ TEXTS = {
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
         "metric4": "Outer diameter",
-        "warning": "⚠️ Outer diameter exceeds 750 mm. Coil may not fit on pallet."
+        "warning": "⚠️ Outer diameter exceeds 750 mm."
     }
 }
 
@@ -119,9 +119,6 @@ def polyline_length(points):
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def trim_polyline(points, target_length):
-    if len(points) < 2:
-        return points
-
     seg = np.linalg.norm(np.diff(points, axis=0), axis=1)
     cum = np.concatenate([[0.0], np.cumsum(seg)])
 
@@ -129,30 +126,13 @@ def trim_polyline(points, target_length):
         return points
 
     idx = np.searchsorted(cum, target_length) - 1
-    idx = max(0, min(idx, len(points) - 2))
-
     p0, p1 = points[idx], points[idx + 1]
-    seg_len = np.linalg.norm(p1 - p0)
-
-    if seg_len < EPS:
-        return points[:idx + 1]
-
-    alpha = (target_length - cum[idx]) / seg_len
-    alpha = max(0.0, min(1.0, alpha))
+    alpha = (target_length - cum[idx]) / (np.linalg.norm(p1 - p0) + EPS)
 
     return np.vstack([points[:idx + 1], p0 + alpha * (p1 - p0)])
 
-def compute_total_turns(points):
-    if len(points) < 2:
-        return 0.0
-    theta = np.unwrap(np.arctan2(points[:, 1], points[:, 0]))
-    return float(np.sum(np.abs(np.diff(theta))) / (2 * np.pi))
-
-def smoothstep01(u):
-    return 0.5 - 0.5 * np.cos(np.pi * u)
-
 # =========================
-# GEOMETRY (FIX REAL CONTACT)
+# GEOMETRY FIX
 # =========================
 
 def build_coil(
@@ -166,70 +146,54 @@ def build_coil(
     ritardo_min_deg,
     ritardo_max_deg,
 ):
-    lunghezza_mm = float(lunghezza_m) * 1000.0
-    d_tubo = float(d_rame_mm) + 2.0 * float(spessore_guaina_mm)
-    R_tubo = d_tubo / 2.0
+    lunghezza_mm = lunghezza_m * 1000
+    d_tubo = d_rame_mm + 2 * spessore_guaina_mm
+    R = d_tubo / 2
 
-    passo_assiale = max(float(passo_assiale), EPS)
-    passo_radiale = max(float(passo_radiale), EPS)
-    spalla_mm = max(float(spalla_mm), EPS)
+    z_min = R
+    z_max = spalla_mm - R
 
-    # 🔴 FIX 1: centreline offset per contacte real
-    z_min = R_tubo
-    z_max = spalla_mm - R_tubo
-
-    # 🔴 FIX 2: radi inicial correcte (contacte amb mandrí)
-    r0 = d_aspo_mm / 2.0 + R_tubo
-    r = r0
+    r = d_aspo_mm / 2 + R
 
     z = z_min
-    theta = 0.0
+    theta = 0
     direction = 1
 
-    theta_step = np.deg2rad(4.0)
-    dz_dtheta = passo_assiale / (2.0 * np.pi)
+    step = np.deg2rad(4)
+    dz = passo_assiale / (2 * np.pi)
 
-    points = []
+    pts = []
 
-    def add_point(theta_val, r_val, z_val):
-        x = r_val * np.cos(theta_val)
-        y = r_val * np.sin(theta_val)
-        points.append([x, y, z_val])
+    def add():
+        pts.append([r*np.cos(theta), r*np.sin(theta), z])
 
-    add_point(theta, r, z)
+    add()
 
-    while True:
-        if len(points) > 2 and polyline_length(np.array(points)) >= lunghezza_mm:
-            break
+    while polyline_length(np.array(pts)) < lunghezza_mm:
+        theta += step
+        z += direction * dz * step
 
-        while True:
-            theta += theta_step
-            z += direction * dz_dtheta * theta_step
+        if z >= z_max:
+            z = z_max
+            add()
+            r += passo_radiale
+            direction = -1
+            continue
 
-            if direction == 1 and z >= z_max:
-                z = z_max
-                add_point(theta, r, z)
-                break
+        if z <= z_min:
+            z = z_min
+            add()
+            r += passo_radiale
+            direction = 1
+            continue
 
-            if direction == -1 and z <= z_min:
-                z = z_min
-                add_point(theta, r, z)
-                break
+        add()
 
-            add_point(theta, r, z)
+    pts = np.array(pts)
+    pts = trim_polyline(pts, lunghezza_mm)
 
-            if len(points) > 2 and polyline_length(np.array(points)) >= lunghezza_mm:
-                break
-
-        r += passo_radiale
-        direction *= -1
-
-    path = np.array(points)
-    path = trim_polyline(path, lunghezza_mm)
-
-    # 🔴 FIX 3: diàmetre exterior real (ja inclou tub)
-    r_path = np.sqrt(path[:, 0]**2 + path[:, 1]**2)
-    diam_ext = 2.0 * np.max(r_path + R_tubo)
+    r_path = np.sqrt(pts[:,0]**2 + pts[:,1]**2)
+    diam_ext = 2*np.max(r_path + R)
 
     meta = {
         "DiametroTubo": d_tubo,
@@ -238,10 +202,10 @@ def build_coil(
         "DiametroEsterno": diam_ext,
     }
 
-    return path, meta
+    return pts, meta
 
 # =========================
-# VIEWER (NO CHANGE)
+# VIEWER ORIGINAL (FIXED)
 # =========================
 
 def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
@@ -249,7 +213,8 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     pts = points.tolist()
     points_json = json.dumps(pts)
 
-    r_tubo = d_tubo / 2.0
+    r_tubo = d_tubo / 2
+    tubular_segments = min(4000, max(800, int(len(pts)*0.5)))
 
     html = f"""
     <div style="width:100%;height:{altezza}px;">
@@ -273,26 +238,44 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
+    scene.add(new THREE.HemisphereLight(0xffffff,0x2a2a2a,0.7));
+
     const rawPoints = {points_json};
-    const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    const vectors = rawPoints.map(p => new THREE.Vector3(p[0],p[1],p[2]));
 
-    const curve = new THREE.CatmullRomCurve3(vectors);
+    class CurvePath extends THREE.Curve {{
+      constructor(points){{ super(); this.points=points; }}
+      getPoint(t){{
+        const n=this.points.length;
+        const f=t*(n-1);
+        const i=Math.floor(f);
+        const i0=Math.max(0,Math.min(i,n-2));
+        const i1=i0+1;
+        const tt=f-i0;
+        return new THREE.Vector3().lerpVectors(this.points[i0],this.points[i1],tt);
+      }}
+    }}
 
-    const tubeGeom = new THREE.TubeGeometry(curve, 2000, {r_tubo}, 32, false);
+    const curve=new CurvePath(vectors);
 
-    const mesh = new THREE.Mesh(
-      tubeGeom,
-      new THREE.MeshStandardMaterial({{color:0xe6e6e6}})
-    );
+    let tubeGeom=new THREE.TubeGeometry(curve,{tubular_segments},{r_tubo},48,false);
+    tubeGeom=tubeGeom.toNonIndexed();
 
+    const mesh=new THREE.Mesh(tubeGeom,new THREE.MeshStandardMaterial({{color:0xe6e6e6}}));
     scene.add(mesh);
 
-    const box = new THREE.Box3().setFromPoints(vectors);
-    const center = new THREE.Vector3();
+    const box=new THREE.Box3().setFromPoints(vectors);
+    const center=new THREE.Vector3();
     box.getCenter(center);
 
-    camera.position.set(center.x+500, center.y+500, center.z+300);
+    const size=new THREE.Vector3();
+    box.getSize(size);
+
+    const dist=Math.max(size.x,size.y,size.z)*1.8;
+
+    camera.position.set(center.x+dist,center.y+dist,center.z+dist*0.6);
     camera.lookAt(center);
+    controls.target.copy(center);
 
     function animate(){{
       requestAnimationFrame(animate);
@@ -306,7 +289,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     return html
 
 # =========================
-# UI (UNCHANGED)
+# UI
 # =========================
 
 colA, colB, colC, colD = st.columns(4)
