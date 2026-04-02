@@ -13,6 +13,10 @@ def resource_path(relative_path):
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
+# =========================================================
+# HEADER
+# =========================================================
+
 col_logo, col_title = st.columns([1,6])
 
 with col_logo:
@@ -22,6 +26,10 @@ with col_logo:
 with col_title:
     st.title("Avvolgimento")
 
+# =========================================================
+# DATI
+# =========================================================
+
 COPPER_SIZES_MM = {
     "1/4": 6.35,
     "3/8": 9.52,
@@ -30,6 +38,10 @@ COPPER_SIZES_MM = {
     "3/4": 19.05,
     "7/8": 22.23,
 }
+
+# =========================================================
+# UTILITÀ
+# =========================================================
 
 def polyline_length(points):
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum()) if len(points)>1 else 0.0
@@ -50,6 +62,10 @@ def compute_total_turns(points):
 
 def points_to_sldcrv(points):
     return "\n".join(f"{p[0]} {p[1]} {p[2]}" for p in points).encode()
+
+# =========================================================
+# GEOMETRIA BOBINA
+# =========================================================
 
 def build_coil_centerline(
     d_aspo_mm, spalla_mm, lunghezza_m,
@@ -90,7 +106,7 @@ def build_coil_centerline(
             break
 
         # ==============================
-        # RITARDO CORREGIT (AMB RADIAL)
+        # RITARDO AMB CREIXEMENT RADIAL
         # ==============================
         if ritardo_max_deg > 0:
 
@@ -110,11 +126,10 @@ def build_coil_centerline(
             y = r_vals*np.sin(theta_vals)
 
             delay = np.column_stack([x,y,z_vals])[1:]
-
             points.extend(delay.tolist())
 
             theta += dtheta_delay
-            r = r_next   # 🔥 clau
+            r = r_next
 
         else:
             r = r + passo_radiale
@@ -139,7 +154,61 @@ def build_coil_centerline(
 
     return path,meta
 
-# ================= UI =================
+# =========================================================
+# VIEWER (RESTAURAT)
+# =========================================================
+
+def build_viewer_html(points,d_tubo,altezza,animazione,velocita):
+
+    pts = points.tolist()
+    points_json = json.dumps(pts)
+
+    r_tubo = d_tubo/2
+
+    return f"""
+<div style="width:100%;height:{altezza}px;" id="viewer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x000000)
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/{altezza}, 0.1, 100000)
+const renderer = new THREE.WebGLRenderer({{antialias:true}})
+renderer.setSize(window.innerWidth,{altezza})
+document.getElementById("viewer").appendChild(renderer.domElement)
+
+const controls = new THREE.OrbitControls(camera,renderer.domElement)
+
+const pts = {points_json}
+const vectors = pts.map(p=>new THREE.Vector3(p[0],p[1],p[2]))
+
+const curve = new THREE.CatmullRomCurve3(vectors)
+
+const tube = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, vectors.length, {r_tubo}, 16, false),
+    new THREE.MeshStandardMaterial({{color:0xffffff}})
+)
+
+scene.add(tube)
+scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1))
+
+camera.position.set(500,500,200)
+
+function animate(){{
+requestAnimationFrame(animate)
+controls.update()
+renderer.render(scene,camera)
+}}
+animate()
+</script>
+"""
+
+# =========================================================
+# UI
+# =========================================================
 
 c1,c2,c3,c4,c5=st.columns(5)
 diametro_aspo=c1.number_input("Diametro aspo",450.0)
