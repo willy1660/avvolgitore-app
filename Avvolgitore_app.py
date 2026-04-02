@@ -84,7 +84,10 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
         if polyline_length(np.array(pts)) >= L:
             break
 
-        # TRANSICIÓ CORRECTA
+        # =========================
+        # TRANSICIÓ MILLORADA
+        # =========================
+
         rit = 0
         if rmax > 0:
             rit = np.random.uniform(rmin, rmax)
@@ -101,7 +104,9 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
 
         th = theta + dth_layer + t
         r_vals = r + (r_next - r)*s
-        z_vals = np.full_like(th, z1)
+
+        # 🔴 FIX SOLAPAMENT
+        z_vals = z1 + s * (pa * 0.6)
 
         x = r_vals*np.cos(th)
         y = r_vals*np.sin(th)
@@ -129,13 +134,12 @@ def build_coil(d_aspo, spalla, Lm, d_rame, guaina, comp, gap, rmin, rmax):
         "DiametroEsterno": 2*(rmax_val + d/2),
         "LunghezzaM": polyline_length(pts)/1000,
         "VolteTotali": ttot,
-        "Capes": int((rmax_val - (d_aspo/2))/pr)+1
     }
 
     return pts, meta
 
 # =========================
-# VIEWER FIXED
+# VIEWER (amb punts!)
 # =========================
 
 def viewer(points, d, h, anim, vel):
@@ -182,6 +186,22 @@ const mat = new THREE.MeshStandardMaterial({{color:0xdddddd}})
 const mesh = new THREE.Mesh(geo, mat)
 scene.add(mesh)
 
+// 🔴 PUNT INICI (VERD)
+const start = new THREE.Mesh(
+    new THREE.SphereGeometry({d}, 16,16),
+    new THREE.MeshBasicMaterial({{color:0x00ff00}})
+)
+start.position.copy(pts[0])
+scene.add(start)
+
+// 🔴 PUNT FINAL (VERMELL)
+const end = new THREE.Mesh(
+    new THREE.SphereGeometry({d}, 16,16),
+    new THREE.MeshBasicMaterial({{color:0xff0000}})
+)
+end.position.copy(pts[pts.length-1])
+scene.add(end)
+
 scene.add(new THREE.HemisphereLight(0xffffff,0x444444,0.7))
 
 const box = new THREE.Box3().setFromPoints(pts)
@@ -190,10 +210,9 @@ box.getCenter(center)
 
 const size = new THREE.Vector3()
 box.getSize(size)
+const maxDim = Math.max(size.x,size.y,size.z)
 
-const maxDim = Math.max(size.x, size.y, size.z)
-
-camera.position.set(center.x + maxDim, center.y + maxDim, center.z + maxDim*0.6)
+camera.position.set(center.x+maxDim, center.y+maxDim, center.z+maxDim*0.6)
 controls.target.copy(center)
 
 let p=0
@@ -242,28 +261,11 @@ with c11: vel = st.slider("Velocità",0.1,5.0,1.0)
 with c12: h = st.slider("Altezza",400,900,700)
 
 pts, meta = build_coil(
-    d_aspo,
-    spalla,
-    L,
+    d_aspo, spalla, L,
     COPPER_SIZES_MM[rame],
-    guaina,
-    comp,
-    gap,
-    rmin,
-    rmax
+    guaina, comp, gap, rmin, rmax
 )
 
 components.html(viewer(pts, meta["DiametroTubo"], h, anim, vel), height=h)
 
-# =========================
-# METRICS RESTORED
-# =========================
-
-st.divider()
-
-m1,m2,m3,m4 = st.columns(4)
-
-m1.metric("Diametro tubo", f"{meta['DiametroTubo']:.2f} mm")
-m2.metric("Passo radiale", f"{meta['PassoRadiale']:.2f} mm")
-m3.metric("Passo assiale", f"{meta['PassoAssiale']:.2f} mm")
-m4.metric("Diametro esterno", f"{meta['DiametroEsterno']:.1f} mm")
+st.metric("Diametro esterno", f"{meta['DiametroEsterno']:.1f} mm")
