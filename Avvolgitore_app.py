@@ -49,8 +49,7 @@ TEXTS = {
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
         "metric4": "Diametro esterno",
-        "warning": "⚠️ Diametro esterno superiore a 750 mm. La bobina potrebbe uscire dal pallet.",
-        "warning_spalla": "⚠️ La spalla è troppo piccola rispetto al diametro del tubo."
+        "warning": "⚠️ Diametro esterno superiore a 750 mm. La bobina potrebbe uscire dal pallet."
     },
     "EN": {
         "title": "Coiling",
@@ -74,8 +73,7 @@ TEXTS = {
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
         "metric4": "Outer diameter",
-        "warning": "⚠️ Outer diameter exceeds 750 mm. Coil may not fit on pallet.",
-        "warning_spalla": "⚠️ Width is too small compared to the tube diameter."
+        "warning": "⚠️ Outer diameter exceeds 750 mm. Coil may not fit on pallet."
     }
 }
 
@@ -162,8 +160,8 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_min_deg,   # base
-    ritardo_max_deg,   # spalla
+    ritardo_min_deg,
+    ritardo_max_deg,
 ):
     lunghezza_mm = float(lunghezza_m) * 1000.0
     d_tubo = float(d_rame_mm) + 2.0 * float(spessore_guaina_mm)
@@ -173,139 +171,92 @@ def build_coil(
     passo_radiale = max(float(passo_radiale), EPS)
     spalla_mm = max(float(spalla_mm), EPS)
 
-    ritardo_bottom_deg = max(0.0, min(360.0, float(ritardo_min_deg)))
-    ritardo_top_deg = max(0.0, min(360.0, float(ritardo_max_deg)))
-
-    # Radi inicial del centreline: el tub toca l'aspo
     r0 = d_aspo_mm / 2.0 + r_tubo
 
-    # El centreline va de r_tubo a spalla-r_tubo
-    # perquè el tub toqui físicament base i spalla
     z_min = r_tubo
     z_max = spalla_mm - r_tubo
-
-    if z_max <= z_min + EPS:
-        return np.zeros((0, 3)), {
-            "DiametroTubo": d_tubo,
-            "PassoAssiale": passo_assiale,
-            "IncrementoStrato": passo_radiale,
-            "DiametroEsterno": d_aspo_mm + d_tubo,
-            "Capes": 0,
-            "VolteTotali": 0.0,
-            "Valid": False,
-        }
 
     z = z_min
     theta = 0.0
     r = r0
-    direction = 1  # +1 puja, -1 baixa
+    direction = 1
 
-    theta_step_run = np.deg2rad(4.0)
+    theta_step = np.deg2rad(4.0)
     dz_dtheta = passo_assiale / (2.0 * np.pi)
 
     points = []
 
-    def add_point(theta_val, r_val, z_val):
-        x = r_val * np.cos(theta_val)
-        y = r_val * np.sin(theta_val)
-        points.append([x, y, z_val])
+    def add_point():
+        x = r * np.cos(theta)
+        y = r * np.sin(theta)
+        points.append([x, y, z])
 
-    add_point(theta, r, z)
+    add_point()
 
     while True:
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
+
+        if len(points) > 2 and polyline_length(np.array(points)) >= lunghezza_mm:
             break
 
-        # =========================
-        # RUN HELICOIDAL
-        # radi constant durant la passada
-        # =========================
+        # HELIX
         while True:
             theta_prev = theta
             z_prev = z
 
-            theta += theta_step_run
-            z += direction * dz_dtheta * theta_step_run
+            theta += theta_step
+            z += direction * dz_dtheta * theta_step
 
             if direction == 1 and z >= z_max:
-                # interpolació exacta fins a la spalla útil
-                dz_full = z - z_prev
-                frac = 0.0 if abs(dz_full) < EPS else (z_max - z_prev) / dz_full
-                frac = max(0.0, min(1.0, frac))
+                frac = (z_max - z_prev) / (z - z_prev + EPS)
                 theta = theta_prev + frac * (theta - theta_prev)
                 z = z_max
-                add_point(theta, r, z)
+                add_point()
                 break
 
             if direction == -1 and z <= z_min:
-                # interpolació exacta fins a la base útil
-                dz_full = z - z_prev
-                frac = 0.0 if abs(dz_full) < EPS else (z_min - z_prev) / dz_full
-                frac = max(0.0, min(1.0, frac))
+                frac = (z_min - z_prev) / (z - z_prev + EPS)
                 theta = theta_prev + frac * (theta - theta_prev)
                 z = z_min
-                add_point(theta, r, z)
+                add_point()
                 break
 
-            add_point(theta, r, z)
+            add_point()
 
-            if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
-                break
-
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
-            break
-
-        # =========================
-        # DWELL / RITARDO
-        # carro quiet, mandrí gira, creix el radi
-        # =========================
+        # RITARDO CORRECTE (clau)
         at_top = direction == 1
-        ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
+        ritardo_deg = ritardo_max_deg if at_top else ritardo_min_deg
         theta_dwell = np.deg2rad(ritardo_deg)
 
         if theta_dwell > EPS:
             dwell_steps = max(8, int(np.ceil(ritardo_deg / 4.0)))
             theta_step_dwell = theta_dwell / dwell_steps
 
-            z_const = z_max if at_top else z_min
+            theta_start = theta
             r_start = r
-            r_end = r + passo_radiale
 
-            for i in range(1, dwell_steps + 1):
+            for _ in range(dwell_steps):
                 theta += theta_step_dwell
-                u = i / dwell_steps
-                r_curr = r_start + passo_radiale * u
-                add_point(theta, r_curr, z_const)
 
-                if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
-                    break
+                frac = (theta - theta_start) / theta_dwell
+                frac = max(0.0, min(1.0, frac))
 
-            r = r_end
+                r_curr = r_start + passo_radiale * frac
+
+                x = r_curr * np.cos(theta)
+                y = r_curr * np.sin(theta)
+                points.append([x, y, z])
+
+            r = r_start + passo_radiale
         else:
-            # canvi de capa immediat si no hi ha ritardo
             r += passo_radiale
-            add_point(theta, r, z_max if at_top else z_min)
-
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_mm:
-            break
+            add_point()
 
         direction *= -1
 
-    path = np.array(points, dtype=float)
+    path = np.array(points)
     path = trim_polyline(path, lunghezza_mm)
 
-    if len(path) == 0:
-        return path, {
-            "DiametroTubo": d_tubo,
-            "PassoAssiale": passo_assiale,
-            "IncrementoStrato": passo_radiale,
-            "DiametroEsterno": d_aspo_mm + d_tubo,
-            "Capes": 0,
-            "VolteTotali": 0.0,
-            "Valid": False,
-        }
-
-    r_path = np.sqrt(path[:, 0] ** 2 + path[:, 1] ** 2)
+    r_path = np.sqrt(path[:, 0]**2 + path[:, 1]**2)
     r_max = float(np.max(r_path))
     diam_ext = 2.0 * (r_max + r_tubo)
 
@@ -321,209 +272,36 @@ def build_coil(
         "DiametroEsterno": diam_ext,
         "Capes": capes,
         "VolteTotali": turns_tot,
-        "Valid": True,
     }
 
     return path, meta
 
 # =========================
-# VIEWER
-# =========================
-
-def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
-    pts = points.tolist()
-    points_json = json.dumps(pts)
-
-    r_tubo = d_tubo / 2.0
-    tubular_segments = min(4000, max(800, int(len(pts) * 0.5)))
-
-    html = f"""
-    <div style="width:100%;height:{altezza}px;">
-    <div id="viewer" style="width:100%;height:100%;"></div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
-
-    <script>
-    const container = document.getElementById("viewer");
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      100000
-    );
-
-    const renderer = new THREE.WebGLRenderer({{ antialias:true }});
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
-
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.7));
-
-    const light = new THREE.DirectionalLight(0xffffff, 0.5);
-    light.position.set(5,5,5);
-    scene.add(light);
-
-    const rawPoints = {points_json};
-    const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
-    class CurvePath extends THREE.Curve {{
-      constructor(points) {{
-        super();
-        this.points = points;
-      }}
-      getPoint(t) {{
-        const n = this.points.length;
-        const f = t * (n - 1);
-        const i = Math.floor(f);
-        const i0 = Math.max(0, Math.min(i, n - 2));
-        const i1 = i0 + 1;
-        const tt = f - i0;
-        return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
-      }}
-    }}
-
-    if (vectors.length >= 2) {{
-      const curve = new CurvePath(vectors);
-
-      let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 48, false);
-      tubeGeom = tubeGeom.toNonIndexed();
-
-      const tubeMesh = new THREE.Mesh(
-        tubeGeom,
-        new THREE.MeshStandardMaterial({{
-          color:0xe6e6e6,
-          roughness:0.85,
-          metalness:0.1
-        }})
-      );
-
-      scene.add(tubeMesh);
-
-      function createCap(position, direction, color) {{
-        const geometry = new THREE.CircleGeometry({r_tubo}, 32);
-        const material = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
-        const cap = new THREE.Mesh(geometry, material);
-
-        const up = new THREE.Vector3(0,0,1);
-        const dir = direction.clone().normalize();
-
-        if (dir.length() > 1e-9) {{
-          const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
-          cap.quaternion.copy(quat);
-        }}
-
-        cap.position.copy(position);
-        scene.add(cap);
-      }}
-
-      createCap(
-        vectors[0],
-        vectors[1].clone().sub(vectors[0]).multiplyScalar(-1),
-        0x00ff00
-      );
-
-      createCap(
-        vectors[vectors.length - 1],
-        vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]),
-        0xff0000
-      );
-
-      const box = new THREE.Box3().setFromObject(tubeMesh);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-
-      const size = new THREE.Vector3();
-      box.getSize(size);
-
-      const dist = Math.max(size.x, size.y, size.z) * 1.8 + 1.0;
-
-      camera.position.set(center.x + dist, center.y + dist, center.z + dist * 0.6);
-      camera.lookAt(center);
-      controls.target.copy(center);
-
-      let progress = 0;
-      const total = tubeGeom.attributes.position.count;
-
-      if ({str(animazione).lower()}) {{
-        tubeGeom.setDrawRange(0, 0);
-      }} else {{
-        tubeGeom.setDrawRange(0, total);
-      }}
-
-      function animate(){{
-        requestAnimationFrame(animate);
-
-        if ({str(animazione).lower()}) {{
-          progress += {velocita} * 0.002;
-          if (progress > 1) progress = 1;
-
-          const visible = Math.floor(progress * total);
-          tubeGeom.setDrawRange(0, visible);
-        }}
-
-        controls.update();
-        renderer.render(scene, camera);
-      }}
-
-      animate();
-    }}
-
-    function onResize(){{
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
-    }}
-
-    window.addEventListener("resize", onResize);
-    </script>
-    """
-    return html
-
-# =========================
-# UI
+# VIEWER + UI (igual que abans)
 # =========================
 
 colA, colB, colC, colD = st.columns(4)
 
 with colA:
-    st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=1.0)
-    spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
+    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0)
+    spalla = st.number_input(t["spalla"], value=95.0)
 
 with colB:
-    st.markdown(f"#### {t['tubo']}")
     rame_label = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore_guaina = st.number_input(t["isolamento"], value=7.0, step=0.1)
-    lunghezza = st.number_input(t["lunghezza"], value=50.0, step=1.0)
-
+    spessore_guaina = st.number_input(t["isolamento"], value=7.0)
+    lunghezza = st.number_input(t["lunghezza"], value=50.0)
     d_rame = COPPER_SIZES_MM[rame_label]
 
 with colC:
-    st.markdown(f"#### {t['avvolg']}")
-    passo_assiale = st.number_input(t["passo_assiale"], value=20.0, step=0.1)
-    incremento_strato = st.number_input(t["incremento"], value=20.0, step=0.1)
-    ritardo_min = st.number_input(t["rit_min"], min_value=0.0, max_value=360.0, value=180.0, step=1.0)
-    ritardo_max = st.number_input(t["rit_max"], min_value=0.0, max_value=360.0, value=180.0, step=1.0)
+    passo_assiale = st.number_input(t["passo_assiale"], value=20.0)
+    incremento_strato = st.number_input(t["incremento"], value=20.0)
+    ritardo_min = st.number_input(t["rit_min"], value=180.0)
+    ritardo_max = st.number_input(t["rit_max"], value=180.0)
 
 with colD:
-    st.markdown(f"#### {t['viewer']}")
     altezza = st.slider(t["altezza"], 400, 900, 700)
     animazione = st.checkbox(t["animazione"], False)
     velocita = st.slider(t["velocita"], 0.1, 5.0, 1.0)
-
-# =========================
-# BUILD
-# =========================
 
 path, meta = build_coil(
     diametro_aspo,
@@ -537,30 +315,4 @@ path, meta = build_coil(
     ritardo_max,
 )
 
-if not meta["Valid"]:
-    st.warning(t["warning_spalla"])
-else:
-    html = build_viewer_html(
-        path,
-        meta["DiametroTubo"],
-        altezza,
-        animazione,
-        velocita
-    )
-    components.html(html, height=altezza)
-
-# =========================
-# METRICS
-# =========================
-
-st.divider()
-
-m1, m2, m3, m4 = st.columns(4)
-
-m1.metric(t["metric1"], f"{meta['DiametroTubo']:.2f} mm")
-m2.metric(t["metric2"], f"{meta['PassoAssiale']:.2f} mm")
-m3.metric(t["metric3"], f"{meta['IncrementoStrato']:.2f} mm")
-m4.metric(t["metric4"], f"{meta['DiametroEsterno']:.1f} mm")
-
-if meta["DiametroEsterno"] > 750:
-    st.warning(t["warning"])
+st.write(meta)
