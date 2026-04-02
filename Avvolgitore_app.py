@@ -16,7 +16,7 @@ logo_path = os.path.join(os.path.dirname(__file__), "New Logo PDM - rame.png")
 
 with col_logo:
     if os.path.exists(logo_path):
-        st.image(logo_path, width=90)
+        st.image(logo_path, width=150)
 
 with col_title:
     st.markdown("## Avvolgimento")
