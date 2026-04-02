@@ -110,7 +110,7 @@ def build_coil(
         dtheta = 2*np.pi*turns
         dz_dtheta_in = dz / dtheta
 
-        t = np.linspace(0, dtheta, int(turns*150)+50)
+        t = np.linspace(0, dtheta, int(turns*200)+80)
 
         theta_vals = theta + t
         z_vals = z0 + dz*(t/dtheta)
@@ -141,7 +141,7 @@ def build_coil(
         dtheta_next = 2*np.pi*turns_next
         dz_dtheta_out = dz_next / dtheta_next
 
-        t_trans = np.linspace(0, dtheta_trans, int(total_turn*180)+30)
+        t_trans = np.linspace(0, dtheta_trans, int(total_turn*240)+60)
         u = t_trans / dtheta_trans
 
         theta_trans = theta + dtheta + t_trans
@@ -197,7 +197,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
-    tubular_segments = min(2000, max(300, int(len(pts)*0.25)))
+    tubular_segments = min(4000, max(800, int(len(pts)*0.5)))
 
     html = f"""
 <div style="width:100%;height:{altezza}px;">
@@ -216,14 +216,15 @@ scene.background = new THREE.Color(0x000000);
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100000);
 
 const renderer = new THREE.WebGLRenderer({{ antialias:true }});
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(container.clientWidth, container.clientHeight);
 container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.6));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.7));
 
-const light = new THREE.DirectionalLight(0xffffff, 0.4);
+const light = new THREE.DirectionalLight(0xffffff, 0.5);
 light.position.set(5,5,5);
 scene.add(light);
 
@@ -248,15 +249,39 @@ class CurvePath extends THREE.Curve {{
 
 const curve = new CurvePath(vectors);
 
-let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 24, false);
+let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 48, false);
 tubeGeom = tubeGeom.toNonIndexed();
 
 const tubeMesh = new THREE.Mesh(
   tubeGeom,
-  new THREE.MeshStandardMaterial({{ color:0xe6e6e6, roughness:0.92 }})
+  new THREE.MeshStandardMaterial({{
+    color:0xe6e6e6,
+    roughness:0.85,
+    metalness:0.1
+  }})
 );
 
 scene.add(tubeMesh);
+
+// CAPS
+function createCap(position, direction, color) {{
+  const geometry = new THREE.CircleGeometry({r_tubo}, 32);
+  const material = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
+  const cap = new THREE.Mesh(geometry, material);
+
+  const up = new THREE.Vector3(0,0,1);
+  const quat = new THREE.Quaternion().setFromUnitVectors(up, direction.clone().normalize());
+
+  cap.quaternion.copy(quat);
+  cap.position.copy(position);
+
+  scene.add(cap);
+}}
+
+if (vectors.length >= 2) {{
+  createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
+  createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
+}}
 
 // CAMERA
 const box = new THREE.Box3().setFromPoints(vectors);
