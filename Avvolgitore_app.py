@@ -348,7 +348,7 @@ with colA:
 with colB:
     st.markdown("#### 🟩 Tubo")
 
-    rame_label = st.selectbox("Ø Rame (in")", list(COPPER_SIZES_MM.keys()))
+    rame_label = st.selectbox("Ø Rame", list(COPPER_SIZES_MM.keys()))
     spessore_guaina = st.number_input("Spessore isolamento (mm)", 7.0)
     lunghezza = st.number_input("Lunghezza rotolo (m)", 50.0)
 
