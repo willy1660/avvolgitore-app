@@ -8,7 +8,7 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 
 # =========================
 # 🌍 LANGUAGE
-# ========================
+# =========================
 
 if "lang" not in st.session_state:
     st.session_state.lang = "IT"
@@ -183,11 +183,17 @@ def build_coil(
     ritardo_top_deg = max(0.0, float(ritardo_max_deg))
     gradi_start_deg = max(0.0, float(gradi_start_deg))
 
-    # Centroline físic correcte
+    # =========================
+    # MODEL FÍSIC
+    # =========================
+    # El tub toca base i spalla amb la seva superfície exterior
+    # -> el centreline va de d_tubo/2 a spalla - d_tubo/2
     z_min = d_tubo / 2.0
     z_max = spalla_mm - d_tubo / 2.0
 
+    # radi inicial: tub tocant el mandrí
     r0 = d_aspo_mm / 2.0 + d_tubo / 2.0
+
     r = r0
     z = z_min
     theta = 0.0
@@ -196,6 +202,9 @@ def build_coil(
     # discretització
     theta_step_run = np.deg2rad(4.0)
     dz_dtheta = passo_assiale / (2.0 * np.pi)  # mm per radià
+
+    # durant el retard, la rampa radial només passa al tram final
+    radial_ramp_fraction = 0.20  # últim 20% del retard
 
     points = []
 
@@ -230,6 +239,7 @@ def build_coil(
 
         # =========================
         # RUN HELICOIDAL
+        # Guidatubo imposa z i r; el mandrí imposa theta
         # =========================
         while True:
             theta += theta_step_run
@@ -255,7 +265,8 @@ def build_coil(
 
         # =========================
         # DWELL / RITARDO
-        # carro quiet, mandrí gira, rampa radial lineal
+        # guidatubo quiet axialment, mandrí gira
+        # el canvi radial es concentra al tram final del retard
         # =========================
         at_top = direction == 1
         ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
@@ -269,10 +280,20 @@ def build_coil(
             r_start = r
             r_end = r + passo_radiale
 
+            ramp_steps = max(1, int(np.ceil(dwell_steps * radial_ramp_fraction)))
+            flat_steps = max(0, dwell_steps - ramp_steps)
+
             for i in range(1, dwell_steps + 1):
                 theta += theta_step_dwell
-                u = i / dwell_steps  # lineal
-                r_curr = r_start + passo_radiale * u
+
+                if i <= flat_steps:
+                    r_curr = r_start
+                else:
+                    j = i - flat_steps
+                    u = j / ramp_steps
+                    u = max(0.0, min(1.0, u))
+                    r_curr = r_start + passo_radiale * u
+
                 add_point(theta, r_curr, z_const)
 
                 if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
@@ -280,7 +301,7 @@ def build_coil(
 
             r = r_end
         else:
-            # si no hi ha retard, mantenim el canvi de capa immediat
+            # canvi radial immediat si no hi ha retard
             r += passo_radiale
             add_point(theta, r, z_const)
 
@@ -323,12 +344,14 @@ def build_coil(
 # VIEWER
 # =========================
 
-def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
+def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, spalla_mm):
 
     pts = points.tolist()
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
+    r_mandrel = d_aspo_mm / 2.0
+
     tubular_segments = min(4000, max(800, int(len(pts) * 0.5)))
 
     html = f"""
@@ -395,6 +418,50 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
 
     scene.add(tubeMesh);
 
+    // =========================
+    // MANDRÍ
+    // =========================
+    const mandrelHeight = {spalla_mm};
+    const mandrelGeom = new THREE.CylinderGeometry({r_mandrel}, {r_mandrel}, mandrelHeight, 64, 1, false);
+    const mandrelMat = new THREE.MeshStandardMaterial({{
+      color: 0x444444,
+      roughness: 0.8,
+      metalness: 0.4,
+      transparent: true,
+      opacity: 0.45
+    }});
+    const mandrelMesh = new THREE.Mesh(mandrelGeom, mandrelMat);
+    mandrelMesh.position.set(0, mandrelHeight / 2.0, 0);
+    scene.add(mandrelMesh);
+
+    // =========================
+    // BASE
+    // =========================
+    const baseRadius = Math.max({r_mandrel} + 80, 450);
+    const baseThickness = 6;
+    const baseGeom = new THREE.CylinderGeometry(baseRadius, baseRadius, baseThickness, 64);
+    const baseMat = new THREE.MeshStandardMaterial({{
+      color: 0x1f5aa6,
+      roughness: 0.85,
+      metalness: 0.15
+    }});
+    const baseMesh = new THREE.Mesh(baseGeom, baseMat);
+    baseMesh.position.set(0, -baseThickness / 2.0, 0);
+    scene.add(baseMesh);
+
+    // =========================
+    // SPALLA
+    // =========================
+    const topGeom = new THREE.CylinderGeometry(baseRadius, baseRadius, baseThickness, 64);
+    const topMat = new THREE.MeshStandardMaterial({{
+      color: 0x1f5aa6,
+      roughness: 0.85,
+      metalness: 0.15
+    }});
+    const topMesh = new THREE.Mesh(topGeom, topMat);
+    topMesh.position.set(0, {spalla_mm} + baseThickness / 2.0, 0);
+    scene.add(topMesh);
+
     function createCap(position, direction, color) {{
       const geometry = new THREE.CircleGeometry({r_tubo}, 32);
       const material = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
@@ -417,16 +484,23 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
       createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
     }}
 
-    const box = new THREE.Box3().setFromPoints(vectors);
+    // Convertim de Python (x,y,z) a Three.js (x,z,y) només visualment?
+    // No. Mantenim y com alçada perquè el model actual ja està així.
+
+    const box = new THREE.Box3().setFromObject(tubeMesh);
+    box.expandByObject(mandrelMesh);
+    box.expandByObject(baseMesh);
+    box.expandByObject(topMesh);
+
     const center = new THREE.Vector3();
     box.getCenter(center);
 
     const size = new THREE.Vector3();
     box.getSize(size);
 
-    const dist = Math.max(size.x,size.y,size.z)*1.8 + 1.0;
+    const dist = Math.max(size.x, size.y, size.z) * 1.8 + 1.0;
 
-    camera.position.set(center.x+dist, center.y+dist, center.z+dist*0.6);
+    camera.position.set(center.x + dist, center.y + dist, center.z + dist * 0.6);
     camera.lookAt(center);
     controls.target.copy(center);
 
@@ -434,9 +508,9 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
     const total = tubeGeom.attributes.position.count;
 
     if ({str(animazione).lower()}) {{
-      tubeGeom.setDrawRange(0,0);
+      tubeGeom.setDrawRange(0, 0);
     }} else {{
-      tubeGeom.setDrawRange(0,total);
+      tubeGeom.setDrawRange(0, total);
     }}
 
     function animate(){{
@@ -451,7 +525,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita):
       }}
 
       controls.update();
-      renderer.render(scene,camera);
+      renderer.render(scene, camera);
     }}
 
     animate();
@@ -522,7 +596,9 @@ html = build_viewer_html(
     meta["DiametroTubo"],
     altezza,
     animazione,
-    velocita
+    velocita,
+    diametro_aspo,
+    spalla
 )
 
 components.html(html, height=altezza)
