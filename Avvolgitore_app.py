@@ -173,21 +173,14 @@ def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo_ax, passo_rad,
     # Entrada recta del guidatubo
     # -------------------------
     guide_x_far = r0 + max(80.0, d_aspo * 0.35)
-    guide_x_near = max(35.0, d_aspo * 0.12)
+    # la boca del guidatubo queda tangent al mandrí en el punt inicial
+    guide_x_near = 0.0
     guide_y = -r0
 
     p_start = np.array([guide_x_far, guide_y, z_min - z_shift], dtype=float)
     p_entry = np.array([0.0, -r0, z_min - z_shift], dtype=float)
 
     append_segment(pts, p_start, p_entry, n=32)
-
-    # -------------------------
-    # Petit arc inicial tangent a base
-    # -------------------------
-    init_deg = 35.0
-    theta1 = theta - np.deg2rad(init_deg)
-    append_arc_constant_z(pts, r, theta, theta1, z_min - z_shift, n=24)
-    theta = theta1
 
     # -------------------------
     # Des d'aquí, alternança axial real
@@ -279,10 +272,10 @@ def build_html(points, d_tubo, altura, anim, speed, d_aspo, spalla):
     # Spalla una mica més gran que el mandrí
     spalla_r = r_mandrel + max(18.0, d_aspo * 0.06)
 
-    # Guidatubo lateral
+    # Guidatubo tangent al mandrí al punt d'entrada
     guide_y = -(r_mandrel + r_tubo)
     guide_x_far = (r_mandrel + r_tubo) + max(80.0, d_aspo * 0.35)
-    guide_x_near = max(35.0, d_aspo * 0.12)
+    guide_x_near = 0.0
     guide_z = -spalla / 2.0 + r_tubo
 
     anim_js = "true" if anim else "false"
@@ -423,6 +416,7 @@ def build_html(points, d_tubo, altura, anim, speed, d_aspo, spalla):
           metalness: 0.3
         }});
 
+        // eix radial del braç (governa aproximadament el moviment radial)
         const armLen = {guide_x_far - guide_x_near};
         const armGeom = new THREE.CylinderGeometry(6, 6, armLen, 18);
         const arm = new THREE.Mesh(armGeom, guideMat);
@@ -430,11 +424,26 @@ def build_html(points, d_tubo, altura, anim, speed, d_aspo, spalla):
         arm.position.set(({guide_x_far} + {guide_x_near}) / 2, {guide_y}, {guide_z});
         scene.add(arm);
 
+        // columna guia (governa aproximadament el moviment axial)
         const postGeom = new THREE.CylinderGeometry(8, 8, {max(spalla * 1.2, 120)}, 18);
         const post = new THREE.Mesh(postGeom, guideMat);
         post.rotation.x = Math.PI / 2;
         post.position.set({guide_x_far}, {guide_y}, 0);
         scene.add(post);
+
+        // carro axial sobre la columna
+        const carriageGeom = new THREE.BoxGeometry(24, 24, 18);
+        const carriage = new THREE.Mesh(carriageGeom, guideMat);
+        carriage.position.set({guide_x_far}, {guide_y}, {guide_z});
+        scene.add(carriage);
+
+        // tirant entre carro axial i braç radial
+        const tieLen = {guide_x_far - guide_x_near};
+        const tieGeom = new THREE.CylinderGeometry(4, 4, tieLen, 16);
+        const tie = new THREE.Mesh(tieGeom, guideMat);
+        tie.rotation.z = Math.PI / 2;
+        tie.position.set(({guide_x_far} + {guide_x_near}) / 2, {guide_y}, {guide_z});
+        scene.add(tie);
 
         const nozzleGeom = new THREE.CylinderGeometry(9, 9, 24, 18);
         const nozzle = new THREE.Mesh(nozzleGeom, guideMat);
@@ -491,6 +500,8 @@ def build_html(points, d_tubo, altura, anim, speed, d_aspo, spalla):
         box.expandByObject(topFlange);
         box.expandByObject(arm);
         box.expandByObject(post);
+        box.expandByObject(carriage);
+        box.expandByObject(tie);
 
         const center = new THREE.Vector3();
         const size = new THREE.Vector3();
