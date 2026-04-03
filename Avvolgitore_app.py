@@ -192,127 +192,111 @@ def build_coil(
 
     theta_step_deg = 4.0
     theta_step = np.deg2rad(theta_step_deg)
-
     dz_dtheta = passo_assiale / (2.0 * np.pi)
-    dr_step = passo_radiale
 
     points_machine = []
 
-    theta_tube = 0.0
-    p_tube = np.array([r_center_min, 0.0, z_min], dtype=float)
-    points_machine.append(p_tube.copy())
+    def add_point(theta_val, r_val, z_val):
+        x = r_val * np.cos(theta_val)
+        y = r_val * np.sin(theta_val)
+        points_machine.append([x, y, z_val])
 
-    z_guide = z_min
-    r_guide = r_center_min
-    axial_dir = +1
+    # =========================
+    # 1) ENTRADA INICIAL
+    # punta corba en sentit horari i tangent a base + mandrí
+    # =========================
+
+    theta = 0.0
+    r_layer = r_center_min
+    z = z_min
+    direction = +1  # puja primer
+
+    add_point(theta, r_layer, z)
 
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
-        start_steps = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
+        # gir inicial enganxat a la base, amb corba horària
+        start_steps = max(6, int(np.ceil(gradi_start_deg / theta_step_deg)))
         theta_step_start = np.deg2rad(gradi_start_deg) / start_steps
 
         for _ in range(start_steps):
-            theta_tube += theta_step_start
-            p_tube = np.array([
-                r_center_min * np.cos(theta_tube),
-                r_center_min * np.sin(theta_tube),
-                z_min
-            ], dtype=float)
-            points_machine.append(p_tube.copy())
-
-            if polyline_length(np.array(points_machine, dtype=float)) >= lunghezza_visibile_mm:
+            theta -= theta_step_start  # sentit horari
+            add_point(theta, r_layer, z_min)
+            if len(points_machine) > 2 and polyline_length(np.array(points_machine, dtype=float)) >= lunghezza_visibile_mm:
                 break
 
-    settled = np.array(points_machine, dtype=float)
+    # després reanivellem theta perquè el mandrí continuï en sentit horari
+    # i tota la lògica posterior també sigui horària
+    # mantenint la continuïtat
+    # a partir d'aquí: theta decreix
+    dwell_remaining_deg = 0.0
+    pending_radial_increment = False
 
-    dwell_remaining = 0.0
-
-    def project_radial_contact(p_trial: np.ndarray, settled_pts: np.ndarray) -> np.ndarray:
-        p = p_trial.copy()
-
-        p[2] = max(z_min, min(z_max, p[2]))
-
-        r_xy = np.hypot(p[0], p[1])
-        if r_xy < r_center_min:
-            if r_xy < EPS:
-                ux, uy = 1.0, 0.0
-            else:
-                ux, uy = p[0] / r_xy, p[1] / r_xy
-            p[0] = ux * r_center_min
-            p[1] = uy * r_center_min
-            r_xy = r_center_min
-
-        if len(settled_pts) > 0:
-            z_band = max(d_tubo * 0.90, 1.0)
-
-            mask = np.abs(settled_pts[:, 2] - p[2]) <= z_band
-            candidates = settled_pts[mask]
-
-            if len(candidates) > 0:
-                cand_theta = np.unwrap(np.arctan2(candidates[:, 1], candidates[:, 0]))
-                p_theta = np.arctan2(p[1], p[0])
-
-                ang_diff = np.abs(np.angle(np.exp(1j * (cand_theta - p_theta))))
-                ang_mask = ang_diff <= np.deg2rad(35.0)
-
-                candidates = candidates[ang_mask]
-                if len(candidates) > 0:
-                    cand_r = np.hypot(candidates[:, 0], candidates[:, 1])
-                    max_local_r = float(np.max(cand_r))
-                    target_r = max(r_center_min, max_local_r + d_tubo)
-
-                    ux = p[0] / (r_xy + EPS)
-                    uy = p[1] / (r_xy + EPS)
-                    if r_xy < target_r:
-                        p[0] = ux * target_r
-                        p[1] = uy * target_r
-
-        return p
+    # =========================
+    # 2) BUCLE PRINCIPAL
+    # puja tangent al mandrí / capa anterior
+    # arriba a spalla -> ritardo -> incremento strato -> baixa
+    # arriba a base   -> ritardo -> incremento strato -> puja
+    # =========================
 
     while True:
         current_path = np.array(points_machine, dtype=float)
         if len(current_path) > 2 and polyline_length(current_path) >= lunghezza_visibile_mm:
             break
 
-        theta_tube += theta_step
+        # Gira sempre en sentit horari
+        theta -= theta_step
 
-        if dwell_remaining > EPS:
-            dwell_remaining -= theta_step_deg
+        if dwell_remaining_deg > EPS:
+            # durant el ritardo manté radi i z constants
+            dwell_remaining_deg -= theta_step_deg
+            add_point(theta, r_layer, z)
+
         else:
-            z_guide += axial_dir * dz_dtheta * theta_step
+            if pending_radial_increment:
+                # IMPORTANT: primer acaba ritardo, DESPRÉS incremento strato
+                r_layer += passo_radiale
+                pending_radial_increment = False
 
-            if axial_dir == +1 and z_guide >= z_max:
-                z_guide = z_max
-                r_guide += dr_step
-                dwell_remaining = ritardo_top_deg
-                axial_dir = -1
+            # tram helicoïdal tangent
+            z += direction * dz_dtheta * theta_step
 
-            elif axial_dir == -1 and z_guide <= z_min:
-                z_guide = z_min
-                r_guide += dr_step
-                dwell_remaining = ritardo_bottom_deg
-                axial_dir = +1
+            if direction == +1 and z >= z_max:
+                z = z_max
+                add_point(theta, r_layer, z)
 
-        p_trial = np.array([
-            max(r_center_min, r_guide) * np.cos(theta_tube),
-            max(r_center_min, r_guide) * np.sin(theta_tube),
-            z_guide
-        ], dtype=float)
+                # ritardo primer
+                dwell_remaining_deg = ritardo_top_deg
+                # després incremento strato
+                pending_radial_increment = True
+                # i llavors canvia sentit
+                direction = -1
 
-        p_new = project_radial_contact(p_trial, settled)
+            elif direction == -1 and z <= z_min:
+                z = z_min
+                add_point(theta, r_layer, z)
 
-        points_machine.append(p_new.copy())
-        settled = np.array(points_machine, dtype=float)
+                dwell_remaining_deg = ritardo_bottom_deg
+                pending_radial_increment = True
+                direction = +1
+
+            else:
+                add_point(theta, r_layer, z)
+
+        if len(points_machine) > 2 and polyline_length(np.array(points_machine, dtype=float)) >= lunghezza_visibile_mm:
+            break
 
     path = np.array(points_machine, dtype=float)
 
     if lunghezza_visibile_mm > EPS:
         path = trim_polyline(path, lunghezza_visibile_mm)
 
+    # centrat vertical
     path[:, 2] -= spalla_mm / 2.0
 
+    # orientar la trajectòria perquè l'extrem final quedi al costat visual correcte
     if len(path) >= 1:
         theta_end = np.arctan2(path[-1, 1], path[-1, 0])
-        theta_contact = -np.pi / 2.0
+        theta_contact = np.pi / 2.0
         rot = theta_contact - theta_end
 
         c = np.cos(rot)
@@ -359,10 +343,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     r_tubo = d_tubo / 2.0
     r_mandrel = d_aspo_mm / 2.0
-
-    # Base fixa, no dependent del rotllo
     flange_radius = r_mandrel + 40.0
-
     tubular_segments = min(6000, max(1500, int(len(pts) * 0.6)))
 
     html = f"""
@@ -531,7 +512,6 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       coilGroup.add(endCap);
     }}
 
-    // GUIDATUBO A L'ALTRE COSTAT
     const guideGroup = new THREE.Group();
     scene.add(guideGroup);
 
@@ -643,8 +623,6 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       tubeGeom.setDrawRange(0, total);
     }}
 
-    const thetaContact = -Math.PI / 2.0;
-
     function getCurrentPointLocal(t) {{
       const tt = Math.max(0.0005, Math.min(1.0, t));
       return curve.getPoint(tt);
@@ -653,28 +631,19 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     function updateMachine(t) {{
       const pLocal = getCurrentPointLocal(t);
 
-      const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
-
-      coilGroup.rotation.z = thetaContact - thetaCurrent;
       coilGroup.updateMatrixWorld(true);
-
       const pWorld = coilGroup.localToWorld(pLocal.clone());
 
       const rCurrent = Math.sqrt(pWorld.x * pWorld.x + pWorld.y * pWorld.y);
 
-      guideGroup.position.set(guideColumnX, +rCurrent, pWorld.z);
+      guideGroup.position.set(guideColumnX, pWorld.y, pWorld.z);
 
       const outlet = getGuideOutletWorld();
-      const tangentPoint = new THREE.Vector3(0, +rCurrent, pWorld.z);
+      const tangentPoint = new THREE.Vector3(pWorld.x, pWorld.y, pWorld.z);
       setCylinderBetween(feedMesh, outlet, tangentPoint);
 
       if (endCap) {{
         endCap.position.copy(tangentPoint);
-
-        const tangWorld = new THREE.Vector3(1, 0, 0);
-        const up = new THREE.Vector3(0, 0, 1);
-        const quat = new THREE.Quaternion().setFromUnitVectors(up, tangWorld);
-        endCap.quaternion.copy(quat);
       }}
     }}
 
