@@ -168,6 +168,14 @@ def build_coil(
     gradi_start_deg,
     lunghezza_pinza_m,
 ):
+    """
+    Geometria governada per màquina:
+    - mandrí imposa theta
+    - guidatubo imposa z
+    - radi actiu r només canvia en transicions
+    - contacte final al costat esquerre del viewer
+    """
+
     lunghezza_totale_mm = float(lunghezza_m) * 1000.0
     lunghezza_pinza_mm = max(0.0, float(lunghezza_pinza_m) * 1000.0)
     lunghezza_visibile_mm = max(0.0, lunghezza_totale_mm - lunghezza_pinza_mm)
@@ -204,6 +212,7 @@ def build_coil(
 
     add_point(theta, r, z)
 
+    # enganxament inicial
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
         start_steps = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
         theta_step_start = np.deg2rad(gradi_start_deg) / start_steps
@@ -283,9 +292,10 @@ def build_coil(
 
     path[:, 2] -= spalla_mm / 2.0
 
+    # contacte final a l'esquerra
     if len(path) >= 1:
         theta_end = np.arctan2(path[-1, 1], path[-1, 0])
-        theta_contact = np.pi / 2.0
+        theta_contact = -np.pi / 2.0
         rot = theta_contact - theta_end
 
         c = np.cos(rot)
@@ -503,50 +513,40 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       coilGroup.add(endCap);
     }}
 
-    // PAL VERTICAL A LA DRETA
+    // PAL A L'ESQUERRA
     const guideColumnHeight = mandrelHeight + 180.0;
-    const guideColumnX = +(flangeRadius + 115.0);
+    const guideColumnX = -(flangeRadius + 115.0);
 
     const guideColumnGeom = new THREE.BoxGeometry(18, 18, guideColumnHeight);
     const guideColumnMat = new THREE.MeshStandardMaterial({{
       color: 0x5c5c5c,
-      roughness: 0.78,
+      roughness: 0x5c5c5c ? 0.78 : 0.78,
       metalness: 0.35
     }});
     const guideColumn = new THREE.Mesh(guideColumnGeom, guideColumnMat);
     guideColumn.position.set(guideColumnX, 0, 0);
     scene.add(guideColumn);
 
-    // GUIDATUBO A L'ALTRA BANDA DEL PAL
+    // GUIDATUBO A L'ALTRA BANDA DEL PAL = MÉS A L'ESQUERRA
     const guideGroup = new THREE.Group();
     scene.add(guideGroup);
 
-    const guideHeadOffset = 95.0;
-    const guideHeadX = guideColumnX + guideHeadOffset;
+    const guideHeadOffset = 75.0;
+    const guideHeadX = guideColumnX - guideHeadOffset;
 
-    const carriageGeom = new THREE.BoxGeometry(30, 24, 24);
-    const carriageMat = new THREE.MeshStandardMaterial({{
-      color: 0xc7c7c7,
-      roughness: 0.82,
-      metalness: 0.18
+    // cos curt
+    const guideBodyGeom = new THREE.BoxGeometry(24, 20, 20);
+    const guideBodyMat = new THREE.MeshStandardMaterial({{
+      color: 0xf2f2f2,
+      roughness: 0.78,
+      metalness: 0.10
     }});
-    const carriageMesh = new THREE.Mesh(carriageGeom, carriageMat);
-    guideGroup.add(carriageMesh);
+    const guideBody = new THREE.Mesh(guideBodyGeom, guideBodyMat);
+    guideBody.position.set(0, 0, 0);
+    guideGroup.add(guideBody);
 
-    const nozzleStandOff = 28.0;
-    const armLen = guideHeadX - nozzleStandOff;
-
-    const armGeom = new THREE.BoxGeometry(armLen, 12, 12);
-    const armMat = new THREE.MeshStandardMaterial({{
-      color: 0x9a9a9a,
-      roughness: 0.74,
-      metalness: 0.28
-    }});
-    const armMesh = new THREE.Mesh(armGeom, armMat);
-    armMesh.position.set(-armLen / 2.0, 0, 0);
-    guideGroup.add(armMesh);
-
-    const guideNozzleLen = 32.0;
+    // boquilla curta
+    const guideNozzleLen = 18.0;
     const nozzleRadius = Math.max({r_tubo} * 0.95, 4.5);
 
     const nozzleGeom = new THREE.CylinderGeometry(nozzleRadius, nozzleRadius * 0.9, guideNozzleLen, 28);
@@ -557,7 +557,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }});
     const nozzleMesh = new THREE.Mesh(nozzleGeom, nozzleMat);
     nozzleMesh.rotation.z = Math.PI / 2.0;
-    nozzleMesh.position.set(-armLen - guideNozzleLen / 2.0, 0, 0);
+    nozzleMesh.position.set(guideNozzleLen / 2.0 + 12.0, 0, 0);
     guideGroup.add(nozzleMesh);
 
     const ringGeom = new THREE.TorusGeometry(Math.max({r_tubo} * 0.9, 4.0), 1.1, 12, 28);
@@ -568,19 +568,10 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }});
     const ringMesh = new THREE.Mesh(ringGeom, ringMat);
     ringMesh.rotation.y = Math.PI / 2.0;
-    ringMesh.position.set(-armLen - guideNozzleLen, 0, 0);
+    ringMesh.position.set(guideNozzleLen + 12.0, 0, 0);
     guideGroup.add(ringMesh);
 
-    const guideBodyGeom = new THREE.BoxGeometry(20, 20, 20);
-    const guideBodyMat = new THREE.MeshStandardMaterial({{
-      color: 0xf2f2f2,
-      roughness: 0.78,
-      metalness: 0.10
-    }});
-    const guideBody = new THREE.Mesh(guideBodyGeom, guideBodyMat);
-    guideBody.position.set(0, 0, 0);
-    guideGroup.add(guideBody);
-
+    // tub recte que surt de la boquilla
     const feedGeom = new THREE.CylinderGeometry({r_tubo}, {r_tubo}, 1.0, 28, 1, false);
     const feedMesh = new THREE.Mesh(feedGeom, tubeMat);
     scene.add(feedMesh);
@@ -607,7 +598,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }}
 
     function getGuideOutletWorld() {{
-      const outlet = new THREE.Vector3(-armLen - guideNozzleLen, 0, 0);
+      const outlet = new THREE.Vector3(guideNozzleLen + 12.0, 0, 0);
       return guideGroup.localToWorld(outlet);
     }}
 
@@ -631,14 +622,20 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       tubeGeom.setDrawRange(0, total);
     }}
 
-    const thetaContact = Math.PI / 2.0;
+    const thetaContact = -Math.PI / 2.0;
 
-    function getCurrentPointLocal(t) {{
-      const tt = Math.max(0.0005, Math.min(1.0, t));
-      return curve.getPoint(tt);
+    function getVisibleT(progressValue) {{
+      // compensació lleu perquè el guidatubo no vagi avançat
+      const visibleT = Math.max(0.0005, Math.min(1.0, progressValue - 0.01));
+      return visibleT;
     }}
 
-    function updateMachine(t) {{
+    function getCurrentPointLocal(t) {{
+      return curve.getPoint(t);
+    }}
+
+    function updateMachine(progressValue) {{
+      const t = getVisibleT(progressValue);
       const pLocal = getCurrentPointLocal(t);
       const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
 
@@ -648,16 +645,19 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       const pWorld = coilGroup.localToWorld(pLocal.clone());
       const rCurrent = Math.sqrt(pWorld.x * pWorld.x + pWorld.y * pWorld.y);
 
-      guideGroup.position.set(guideHeadX, +rCurrent, pWorld.z);
+      // guidatubo a l'esquerra de veritat
+      guideGroup.position.set(guideHeadX, -rCurrent, pWorld.z);
 
-      const tangentPoint = new THREE.Vector3(0, +rCurrent, pWorld.z);
+      // punt tangent al mateix costat esquerre
+      const tangentPoint = new THREE.Vector3(0, -rCurrent, pWorld.z);
+
       const outlet = getGuideOutletWorld();
       setCylinderBetween(feedMesh, outlet, tangentPoint);
 
       if (endCap) {{
         endCap.position.copy(tangentPoint);
 
-        const tangWorld = new THREE.Vector3(-1, 0, 0);
+        const tangWorld = new THREE.Vector3(1, 0, 0);
         const up = new THREE.Vector3(0, 0, 1);
         const quat = new THREE.Quaternion().setFromUnitVectors(up, tangWorld);
         endCap.quaternion.copy(quat);
@@ -666,7 +666,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     updateMachine(progress);
 
-    camera.position.set(-700, 980, 290);
+    camera.position.set(700, -980, 290);
     camera.lookAt(0, 0, 0);
     controls.target.set(0, 0, 0);
 
