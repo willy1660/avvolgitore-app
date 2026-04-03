@@ -164,24 +164,11 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_min_deg,   # base
-    ritardo_max_deg,   # spalla
+    ritardo_min_deg,
+    ritardo_max_deg,
     gradi_start_deg,
     lunghezza_pinza_m,
 ):
-    """
-    Model físic simplificat coherent amb la foto:
-    - eix del mandrí vertical
-    - cada capa amb radi constant
-    - el tub puja des de la base fins a la spalla
-    - a cada extrem:
-        1) incremento strato
-        2) ritardo
-        3) canvi de sentit
-    - després es gira la trajectòria perquè el punt final quedi al costat
-      del guidatubo (esquerra)
-    """
-
     lunghezza_totale_mm = float(lunghezza_m) * 1000.0
     lunghezza_pinza_mm = max(0.0, float(lunghezza_pinza_m) * 1000.0)
     lunghezza_visibile_mm = max(0.0, lunghezza_totale_mm - lunghezza_pinza_mm)
@@ -219,7 +206,7 @@ def build_coil(
 
     add_point(theta, r, z)
 
-    # ENGANXAMENT INICIAL
+    # Enganxament inicial a base
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
         start_steps = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
         theta_step_start = np.deg2rad(gradi_start_deg) / start_steps
@@ -232,12 +219,11 @@ def build_coil(
             if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
                 break
 
-    # BUCLE PRINCIPAL
     while True:
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # TRAM HELICOÏDAL
+        # Tram helicoïdal
         while True:
             theta += theta_step
             z += direction * dz_dtheta * theta_step
@@ -260,7 +246,6 @@ def build_coil(
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # EXTREM
         at_top = (direction == +1)
         z_const = z_max if at_top else z_min
         ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
@@ -283,7 +268,7 @@ def build_coil(
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # 3) canvi de sentit
+        # 3) canvi sentit
         direction *= -1
 
     path = np.array(points, dtype=float)
@@ -294,7 +279,7 @@ def build_coil(
     # centrat vertical
     path[:, 2] -= spalla_mm / 2.0
 
-    # orientem la trajectòria perquè l'extrem final estigui al costat esquerre
+    # orientar la trajectòria perquè l'extrem final quedi al costat esquerre
     if len(path) >= 1:
         theta_end = np.arctan2(path[-1, 1], path[-1, 0])
         theta_contact = -np.pi / 2.0
@@ -339,7 +324,6 @@ def build_coil(
 # =========================
 
 def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, spalla_mm, r_max_mm):
-
     pts = points.tolist()
     points_json = json.dumps(pts)
 
@@ -411,13 +395,13 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       }}
     }}
 
-    const curve = new CurvePath(vectors);
-
     // =========================
     // GRUP NOMÉS DE LA BOBINA
     // =========================
     const coilGroup = new THREE.Group();
     scene.add(coilGroup);
+
+    const curve = new CurvePath(vectors);
 
     let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 48, false);
     tubeGeom = tubeGeom.toNonIndexed();
@@ -433,6 +417,8 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     // =========================
     // MANDRÍ FIX I VERTICAL
+    // IMPORTANT: CylinderGeometry ve alineat amb Y
+    // el girem 90° sobre X perquè l'eix sigui Z
     // =========================
     const mandrelHeight = {spalla_mm};
 
@@ -445,6 +431,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       opacity: 0.42
     }});
     const mandrelMesh = new THREE.Mesh(mandrelGeom, mandrelMat);
+    mandrelMesh.rotation.x = Math.PI / 2.0;
     mandrelMesh.position.set(0, 0, 0);
     scene.add(mandrelMesh);
 
@@ -456,11 +443,13 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       metalness: 0.18
     }});
     const hubMesh = new THREE.Mesh(hubGeom, hubMat);
+    hubMesh.rotation.x = Math.PI / 2.0;
     hubMesh.position.set(0, 0, 0);
     scene.add(hubMesh);
 
     // =========================
     // BASE I SPALLA FIXES I HORITZONTALS
+    // també han de tenir l'eix en Z
     // =========================
     const flangeRadius = {flange_radius};
     const flangeThickness = 6.0;
@@ -473,11 +462,13 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     const baseGeom = new THREE.CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 96);
     const baseMesh = new THREE.Mesh(baseGeom, flangeMat);
+    baseMesh.rotation.x = Math.PI / 2.0;
     baseMesh.position.set(0, 0, -mandrelHeight / 2.0 - flangeThickness / 2.0);
     scene.add(baseMesh);
 
     const topGeom = new THREE.CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 96);
     const topMesh = new THREE.Mesh(topGeom, flangeMat);
+    topMesh.rotation.x = Math.PI / 2.0;
     topMesh.position.set(0, 0, mandrelHeight / 2.0 + flangeThickness / 2.0);
     scene.add(topMesh);
 
@@ -634,8 +625,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     // =========================
     // ANIMACIÓ
-    // Gira només la bobina.
-    // Mandrí/base/spalla queden fixes.
+    // gira només la bobina
     // =========================
     const total = tubeGeom.attributes.position.count;
     let progress = { "0.0" if animazione else "1.0" };
@@ -658,7 +648,6 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
       const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
 
-      // gira només bobina
       coilGroup.rotation.z = thetaContact - thetaCurrent;
       coilGroup.updateMatrixWorld(true);
 
