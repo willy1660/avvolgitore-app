@@ -1,4 +1,5 @@
 import json
+import math
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
@@ -122,15 +123,21 @@ def polyline_length(points: np.ndarray) -> float:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
-def trim_polyline(points: np.ndarray, target_length: float) -> np.ndarray:
+def compute_total_turns(points: np.ndarray) -> float:
     if len(points) < 2:
-        return points
+        return 0.0
+    theta = np.unwrap(np.arctan2(points[:, 1], points[:, 0]))
+    return float(np.sum(np.abs(np.diff(theta))) / (2 * np.pi))
+
+def trim_polyline_and_aux(points: np.ndarray, aux_arrays: list[np.ndarray], target_length: float):
+    if len(points) < 2:
+        return points, aux_arrays
 
     seg = np.linalg.norm(np.diff(points, axis=0), axis=1)
     cum = np.concatenate([[0.0], np.cumsum(seg)])
 
     if cum[-1] <= target_length:
-        return points
+        return points, aux_arrays
 
     idx = np.searchsorted(cum, target_length) - 1
     idx = max(0, min(idx, len(points) - 2))
@@ -139,17 +146,56 @@ def trim_polyline(points: np.ndarray, target_length: float) -> np.ndarray:
     seg_len = np.linalg.norm(p1 - p0)
 
     if seg_len < EPS:
-        return points[:idx + 1]
+        trimmed_points = points[:idx + 1]
+        trimmed_aux = [a[:idx + 1] for a in aux_arrays]
+        return trimmed_points, trimmed_aux
 
     alpha = (target_length - cum[idx]) / seg_len
     alpha = max(0.0, min(1.0, alpha))
-    return np.vstack([points[:idx + 1], p0 + alpha * (p1 - p0)])
 
-def compute_total_turns(points: np.ndarray) -> float:
-    if len(points) < 2:
-        return 0.0
-    theta = np.unwrap(np.arctan2(points[:, 1], points[:, 0]))
-    return float(np.sum(np.abs(np.diff(theta))) / (2 * np.pi))
+    p_new = p0 + alpha * (p1 - p0)
+    trimmed_points = np.vstack([points[:idx + 1], p_new])
+
+    trimmed_aux = []
+    for arr in aux_arrays:
+        a0, a1 = arr[idx], arr[idx + 1]
+        a_new = a0 + alpha * (a1 - a0)
+        trimmed_aux.append(np.vstack([arr[:idx + 1], a_new]))
+
+    return trimmed_points, trimmed_aux
+
+def rot2(xy: np.ndarray, angle_rad: float) -> np.ndarray:
+    c = math.cos(angle_rad)
+    s = math.sin(angle_rad)
+    x, y = float(xy[0]), float(xy[1])
+    return np.array([c * x - s * y, s * x + c * y], dtype=float)
+
+def tangent_points_from_external_point(g_xy: np.ndarray, radius: float):
+    """
+    Tangents in 2D from external point g_xy to circle radius centered at origin.
+    Returns two tangent points in the same 2D frame.
+    """
+    gx, gy = float(g_xy[0]), float(g_xy[1])
+    d2 = gx * gx + gy * gy
+    radius = max(float(radius), EPS)
+
+    if d2 <= radius * radius + EPS:
+        # fallback: radial projection
+        d = math.sqrt(max(d2, EPS))
+        return (
+            np.array([radius * gx / d, radius * gy / d], dtype=float),
+            np.array([radius * gx / d, radius * gy / d], dtype=float),
+        )
+
+    alpha = (radius * radius) / d2
+    beta = radius * math.sqrt(d2 - radius * radius) / d2
+
+    perp = np.array([-gy, gx], dtype=float)
+    g = np.array([gx, gy], dtype=float)
+
+    t1 = alpha * g + beta * perp
+    t2 = alpha * g - beta * perp
+    return t1, t2
 
 # =========================
 # GEOMETRY - MANDRÍ + GUIDATUBO DRIVEN
@@ -163,20 +209,16 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_min_deg,
-    ritardo_max_deg,
+    ritardo_min_deg,   # base
+    ritardo_max_deg,   # spalla
     gradi_start_deg,
     lunghezza_pinza_m,
 ):
     """
-    Centreline governat per màquina:
-    - mandrí imposa theta
-    - guidatubo imposa z
-    - r és el radi actiu de capa
-    - a cada extrem:
-        1) transició radial progressiva
-        2) ritardo incorporat en la mateixa transició
-        3) canvi de sentit
+    Centreline generat per:
+    - posició del guidatubo
+    - recta de sortida
+    - tangència amb el cilindre actiu (aspo / capa activa)
     """
 
     lunghezza_totale_mm = float(lunghezza_m) * 1000.0
@@ -197,35 +239,78 @@ def build_coil(
     z_max = spalla_mm - d_tubo / 2.0
     r0 = d_aspo_mm / 2.0 + d_tubo / 2.0
 
+    # Pal a l'esquerra, cap del guidatubo encara més a l'esquerra i darrere
+    guide_column_x = -(d_aspo_mm / 2.0 + 115.0)
+    guide_head_x = guide_column_x - 75.0
+    guide_head_y = +70.0
+
     theta_step_deg = 4.0
-    theta_step = np.deg2rad(theta_step_deg)
-    dz_dtheta = passo_assiale / (2.0 * np.pi)
+    theta_step = math.radians(theta_step_deg)
+    dz_dtheta = passo_assiale / (2.0 * math.pi)
 
     theta = 0.0
-    z = z_min
-    r = r0
+    z_guide = z_min
+    r_active = r0
     direction = +1
 
-    points = []
+    path_points = []
+    guide_positions = []
+    outlet_positions = []
+    active_radii = []
 
-    def add_point(theta_val, r_val, z_val):
-        x = r_val * np.cos(theta_val)
-        y = r_val * np.sin(theta_val)
-        points.append([x, y, z_val])
+    prev_contact_world_xy = None
 
-    add_point(theta, r, z)
+    def compute_contact_world(theta_world: float, z_world: float, radius_active: float):
+        nonlocal prev_contact_world_xy
+
+        # guidatubo fix en world
+        g_world_xy = np.array([guide_head_x, guide_head_y], dtype=float)
+
+        # passem el guidatubo al frame del cilindre que rota amb el mandrí
+        g_rot_xy = rot2(g_world_xy, -theta_world)
+
+        # tangències al cercle actiu en el frame rotatiu
+        t1_rot, t2_rot = tangent_points_from_external_point(g_rot_xy, radius_active)
+
+        # tornem a world
+        t1_world = rot2(t1_rot, theta_world)
+        t2_world = rot2(t2_rot, theta_world)
+
+        # triem la branca contínua
+        if prev_contact_world_xy is None:
+            # per començar, la que queda més a la dreta del rotllo
+            chosen = t1_world if t1_world[0] > t2_world[0] else t2_world
+        else:
+            d1 = np.linalg.norm(t1_world - prev_contact_world_xy)
+            d2 = np.linalg.norm(t2_world - prev_contact_world_xy)
+            chosen = t1_world if d1 <= d2 else t2_world
+
+        prev_contact_world_xy = chosen.copy()
+
+        contact_world = np.array([chosen[0], chosen[1], z_world], dtype=float)
+        guide_body_world = np.array([guide_head_x, guide_head_y, z_world], dtype=float)
+        return guide_body_world, contact_world
+
+    def add_current_point(theta_world: float, z_world: float, radius_active: float):
+        guide_body_world, contact_world = compute_contact_world(theta_world, z_world, radius_active)
+        path_points.append(contact_world)
+        guide_positions.append(guide_body_world)
+        active_radii.append([radius_active])
+
+    # punt inicial
+    add_current_point(theta, z_guide, r_active)
 
     # enganxament inicial
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
-        start_steps = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
-        theta_step_start = np.deg2rad(gradi_start_deg) / start_steps
+        start_steps = max(4, int(math.ceil(gradi_start_deg / theta_step_deg)))
+        theta_step_start = math.radians(gradi_start_deg) / start_steps
 
         for _ in range(start_steps):
             theta += theta_step_start
-            z = z_min
-            add_point(theta, r, z)
+            z_guide = z_min
+            add_current_point(theta, z_guide, r_active)
 
-            if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
+            if len(path_points) > 2 and polyline_length(np.array(path_points, dtype=float)) >= lunghezza_visibile_mm:
                 break
 
     WIND = 0
@@ -235,81 +320,73 @@ def build_coil(
     trans_total_steps = 0
     trans_steps_remaining = 0
     trans_theta_step = 0.0
-    trans_r_start = r
-    trans_r_end = r
-    trans_z_const = z
+    trans_r_start = r_active
+    trans_r_end = r_active
+    trans_z_const = z_guide
     next_direction = direction
 
     while True:
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
+        current_path = np.array(path_points, dtype=float)
+        if len(current_path) > 2 and polyline_length(current_path) >= lunghezza_visibile_mm:
             break
 
         if state == WIND:
             theta += theta_step
-            z += direction * dz_dtheta * theta_step
+            z_guide += direction * dz_dtheta * theta_step
 
-            hit_top = direction == +1 and z >= z_max
-            hit_bottom = direction == -1 and z <= z_min
+            hit_top = direction == +1 and z_guide >= z_max
+            hit_bottom = direction == -1 and z_guide <= z_min
 
             if hit_top or hit_bottom:
-                z = z_max if hit_top else z_min
-                add_point(theta, r, z)
+                z_guide = z_max if hit_top else z_min
+                add_current_point(theta, z_guide, r_active)
 
                 ritardo_deg = ritardo_top_deg if hit_top else ritardo_bottom_deg
-                trans_total_steps = max(1, int(np.ceil(max(ritardo_deg, theta_step_deg) / theta_step_deg)))
+                trans_total_steps = max(1, int(math.ceil(max(ritardo_deg, theta_step_deg) / theta_step_deg)))
                 trans_steps_remaining = trans_total_steps
-                trans_theta_step = np.deg2rad(ritardo_deg) / trans_total_steps if ritardo_deg > EPS else 0.0
-                trans_r_start = r
-                trans_r_end = r + passo_radiale
-                trans_z_const = z
+                trans_theta_step = math.radians(ritardo_deg) / trans_total_steps if ritardo_deg > EPS else 0.0
+                trans_r_start = r_active
+                trans_r_end = r_active + passo_radiale
+                trans_z_const = z_guide
                 next_direction = -direction
                 state = TRANSITION
             else:
-                add_point(theta, r, z)
+                add_current_point(theta, z_guide, r_active)
 
         else:
             done_steps = trans_total_steps - trans_steps_remaining + 1
             u = done_steps / trans_total_steps
             u = max(0.0, min(1.0, u))
-            u_smooth = 0.5 - 0.5 * np.cos(np.pi * u)
+            u_smooth = 0.5 - 0.5 * math.cos(math.pi * u)
 
             theta += trans_theta_step
             r_curr = trans_r_start + (trans_r_end - trans_r_start) * u_smooth
-            add_point(theta, r_curr, trans_z_const)
+            add_current_point(theta, trans_z_const, r_curr)
 
             trans_steps_remaining -= 1
 
             if trans_steps_remaining <= 0:
-                r = trans_r_end
-                z = trans_z_const
+                r_active = trans_r_end
+                z_guide = trans_z_const
                 direction = next_direction
                 state = WIND
 
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
-            break
-
-    path = np.array(points, dtype=float)
+    path = np.array(path_points, dtype=float)
+    guide_positions = np.array(guide_positions, dtype=float)
+    active_radii = np.array(active_radii, dtype=float)
 
     if lunghezza_visibile_mm > EPS:
-        path = trim_polyline(path, lunghezza_visibile_mm)
+        path, [guide_positions, active_radii] = trim_polyline_and_aux(
+            path,
+            [guide_positions, active_radii],
+            lunghezza_visibile_mm,
+        )
 
     # centrat vertical
     path[:, 2] -= spalla_mm / 2.0
+    guide_positions[:, 2] -= spalla_mm / 2.0
 
-    # orientar perquè el punt actiu quedi al costat esquerre
-    if len(path) >= 1:
-        theta_end = np.arctan2(path[-1, 1], path[-1, 0])
-        theta_contact = -np.pi / 2.0
-        rot = theta_contact - theta_end
-
-        c = np.cos(rot)
-        s = np.sin(rot)
-        x_old = path[:, 0].copy()
-        y_old = path[:, 1].copy()
-        path[:, 0] = c * x_old - s * y_old
-        path[:, 1] = s * x_old + c * y_old
-
-    r_path = np.sqrt(path[:, 0]**2 + path[:, 1]**2)
+    r_path = np.sqrt(path[:, 0] ** 2 + path[:, 1] ** 2)
     r_max = float(np.max(r_path)) if len(r_path) > 0 else r0
     diam_ext = 2.0 * (r_max + d_tubo / 2.0)
 
@@ -332,6 +409,7 @@ def build_coil(
         "LunghezzaPinza": lunghezza_pinza_mm / 1000.0,
         "Rmax": r_max,
         "R0": r0,
+        "GuidePositions": guide_positions.tolist(),
     }
 
     return path, meta
@@ -340,9 +418,10 @@ def build_coil(
 # VIEWER
 # =========================
 
-def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, spalla_mm, r_max_mm):
+def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, spalla_mm, r_max_mm, guide_positions):
     pts = points.tolist()
     points_json = json.dumps(pts)
+    guide_json = json.dumps(guide_positions)
 
     r_tubo = d_tubo / 2.0
     r_mandrel = d_aspo_mm / 2.0
@@ -394,6 +473,8 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     scene.add(light2);
 
     const rawPoints = {points_json};
+    const guidePoints = {guide_json};
+
     const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
     class CurvePath extends THREE.Curve {{
@@ -517,11 +598,10 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       coilGroup.add(endCap);
     }}
 
-    // PAL VERTICAL A L'ESQUERRA
-    const guideColumnHeight = mandrelHeight + 180.0;
+    // pal a l'esquerra
     const guideColumnX = -(flangeRadius + 115.0);
 
-    const guideColumnGeom = new THREE.BoxGeometry(18, 18, guideColumnHeight);
+    const guideColumnGeom = new THREE.BoxGeometry(18, 18, mandrelHeight + 180.0);
     const guideColumnMat = new THREE.MeshStandardMaterial({{
       color: 0x5c5c5c,
       roughness: 0.78,
@@ -531,15 +611,10 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     guideColumn.position.set(guideColumnX, 0, 0);
     scene.add(guideColumn);
 
-    // GUIDATUBO MÉS A L'ESQUERRA I DARRERE DEL PAL
+    // guidatubo curt
     const guideGroup = new THREE.Group();
     scene.add(guideGroup);
 
-    const guideHeadOffsetX = 75.0;
-    const guideHeadX = guideColumnX - guideHeadOffsetX;
-    const guideBehindY = +70.0;
-
-    // cos curt
     const guideBodyGeom = new THREE.BoxGeometry(24, 20, 20);
     const guideBodyMat = new THREE.MeshStandardMaterial({{
       color: 0xf2f2f2,
@@ -550,7 +625,6 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     guideBody.position.set(0, 0, 0);
     guideGroup.add(guideBody);
 
-    // boquilla curta cap al rotllo (+X local)
     const guideNozzleLen = 18.0;
     const nozzleRadius = Math.max({r_tubo} * 0.95, 4.5);
 
@@ -576,7 +650,6 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     ringMesh.position.set(12.0 + guideNozzleLen, 0, 0);
     guideGroup.add(ringMesh);
 
-    // tub recte sortint de la boquilla
     const feedGeom = new THREE.CylinderGeometry({r_tubo}, {r_tubo}, 1.0, 28, 1, false);
     const feedMesh = new THREE.Mesh(feedGeom, tubeMat);
     scene.add(feedMesh);
@@ -627,35 +700,37 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       tubeGeom.setDrawRange(0, total);
     }}
 
-    const thetaContact = -Math.PI / 2.0;
-
-    function getCurrentPointLocal(progressValue) {{
-      const tt = Math.max(0.0005, Math.min(1.0, progressValue));
-      return curve.getPoint(tt);
+    function getCurrentIndex(progressValue) {{
+      const n = Math.max(1, rawPoints.length);
+      let idx = Math.floor(progressValue * (n - 1));
+      idx = Math.max(0, Math.min(n - 1, idx));
+      return idx;
     }}
 
     function updateMachine(progressValue) {{
-      const pLocal = getCurrentPointLocal(progressValue);
-      const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
+      const idx = getCurrentIndex(progressValue);
 
-      // la bobina gira perquè el punt actiu coincideixi amb el guidatubo
-      coilGroup.rotation.z = thetaContact - thetaCurrent;
-      coilGroup.updateMatrixWorld(true);
+      const contact = new THREE.Vector3(
+        rawPoints[idx][0],
+        rawPoints[idx][1],
+        rawPoints[idx][2]
+      );
 
-      // punt real actual del centreline
-      const pWorld = coilGroup.localToWorld(pLocal.clone());
+      const guidePos = new THREE.Vector3(
+        guidePoints[idx][0],
+        guidePoints[idx][1],
+        guidePoints[idx][2]
+      );
 
-      // el guidatubo guia axialment i radialment aquest mateix punt
-      guideGroup.position.set(guideHeadX, guideBehindY, pWorld.z);
+      guideGroup.position.copy(guidePos);
 
-      // tub sortint exactament de la boquilla fins al punt real actiu
       const outlet = getGuideOutletWorld();
-      setCylinderBetween(feedMesh, outlet, pWorld);
+      setCylinderBetween(feedMesh, outlet, contact);
 
       if (endCap) {{
-        endCap.position.copy(pWorld);
+        endCap.position.copy(contact);
 
-        const tangentWorld = new THREE.Vector3().subVectors(pWorld, outlet).normalize();
+        const tangentWorld = new THREE.Vector3().subVectors(contact, outlet).normalize();
         const up = new THREE.Vector3(0, 0, 1);
         if (tangentWorld.length() > 1e-9) {{
           const quat = new THREE.Quaternion().setFromUnitVectors(up, tangentWorld);
@@ -758,7 +833,8 @@ html = build_viewer_html(
     velocita,
     diametro_aspo,
     spalla,
-    meta["Rmax"]
+    meta["Rmax"],
+    meta["GuidePositions"],
 )
 
 components.html(html, height=altezza)
