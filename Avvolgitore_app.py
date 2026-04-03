@@ -1,8 +1,9 @@
 import math
 import time
+import json
 import numpy as np
 import streamlit as st
-import plotly.graph_objects as go
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
@@ -105,23 +106,6 @@ def radial_transition_segment(radius0, radius1, z_const, theta0, transition_turn
     pts = np.column_stack([x, y, z])
     return pts, float(theta[-1])
 
-def make_cylinder_surface(radius, zmin, zmax, n_theta=80, n_z=2):
-    theta = np.linspace(0, 2 * np.pi, n_theta)
-    z = np.linspace(zmin, zmax, n_z)
-    th, zz = np.meshgrid(theta, z)
-    x = radius * np.cos(th)
-    y = radius * np.sin(th)
-    return x, y, zz
-
-def make_disc_surface(r_inner, r_outer, z, n_theta=80, n_r=12):
-    theta = np.linspace(0, 2 * np.pi, n_theta)
-    rr = np.linspace(r_inner, r_outer, n_r)
-    th, r = np.meshgrid(theta, rr)
-    x = r * np.cos(th)
-    y = r * np.sin(th)
-    z = np.full_like(x, z)
-    return x, y, z
-
 def make_box_edges(center, size_xyz):
     cx, cy, cz = center
     sx, sy, sz = size_xyz
@@ -138,7 +122,7 @@ def make_box_edges(center, size_xyz):
         [x1, y0, z1],
         [x1, y1, z1],
         [x0, y1, z1],
-    ])
+    ], dtype=float)
 
     edges_idx = [
         (0,1),(1,2),(2,3),(3,0),
@@ -146,12 +130,11 @@ def make_box_edges(center, size_xyz):
         (0,4),(1,5),(2,6),(3,7)
     ]
 
-    xs, ys, zs = [], [], []
+    segments = []
     for a, b in edges_idx:
-        xs += [corners[a, 0], corners[b, 0], None]
-        ys += [corners[a, 1], corners[b, 1], None]
-        zs += [corners[a, 2], corners[b, 2], None]
-    return xs, ys, zs
+        segments.append(corners[a].tolist())
+        segments.append(corners[b].tolist())
+    return np.array(segments, dtype=float)
 
 def estimate_masses(length_m, copper_outer_mm, foam_thickness_mm, compression_pct):
     d_cu = copper_outer_mm / 1000.0
@@ -161,7 +144,6 @@ def estimate_masses(length_m, copper_outer_mm, foam_thickness_mm, compression_pc
     rho_cu = 8960.0
     rho_foam = 35.0
 
-    # Approx simple tube/cable style estimation
     area_cu = math.pi * (d_cu ** 2) / 4.0
     area_outer = math.pi * (d_outer ** 2) / 4.0
     area_foam = max(area_outer - area_cu, 0.0)
@@ -185,7 +167,6 @@ def build_winding_model(
     quality,
     progress_pct,
 ):
-    # Effective outer diameter of insulated tube after compression
     d_eff = copper_mm + 2.0 * foam_thickness_mm * (1.0 - compression_pct / 100.0)
     d_eff = max(d_eff, copper_mm)
 
@@ -208,21 +189,17 @@ def build_winding_model(
     }
     n_per_turn = qmap.get(quality, 72)
 
-    # Guide geometry:
-    # initial condition = line from guide to tangent point on first contact radius at base zmin
     guide_clearance = max(60.0, 2.2 * R_contact0)
     guide_x0 = -(R_contact0 + guide_clearance)
 
     points = []
-    guide_positions = []
 
     total_target_mm = length_m * 1000.0
     accumulated_mm = 0.0
 
     current_radius = R_contact0
-    current_theta = np.pi  # start visually on left side
+    current_theta = np.pi
     direction = +1
-    current_z = zmin
     pass_idx = 0
 
     while accumulated_mm < total_target_mm - 1e-6:
@@ -230,24 +207,17 @@ def build_winding_model(
         z_end = zmax if direction > 0 else zmin
 
         if pass_idx == 0:
-            current_z = z_start
-
-            # guide follows axial level and radial growth
             guide_x = guide_x0 - (current_radius - R_contact0)
-            guide_pt = np.array([guide_x, 0.0, current_z], dtype=float)
-            tan_pt = tangent_point_from_left_guide(guide_x, current_radius, current_z, side=1)
+            guide_pt = np.array([guide_x, 0.0, z_start], dtype=float)
+            tan_pt = tangent_point_from_left_guide(guide_x, current_radius, z_start, side=1)
 
             feed_pts = sample_segment(guide_pt, tan_pt, n=24)
             helix_pts, current_theta = helical_segment(
                 current_radius, z_start, z_end, turns_per_pass, current_theta, n_per_turn=n_per_turn
             )
-
             pts = np.vstack([feed_pts, helix_pts])
-
             accumulated_mm += polyline_length(pts)
             points.append(pts)
-            guide_positions.append(guide_pt)
-
         else:
             helix_pts, current_theta = helical_segment(
                 current_radius, z_start, z_end, turns_per_pass, current_theta, n_per_turn=n_per_turn
@@ -258,21 +228,14 @@ def build_winding_model(
         if accumulated_mm >= total_target_mm - 1e-6:
             break
 
-        # Radial transition at end of pass
         next_radius = current_radius + radial_step
-
         trans_pts, current_theta = radial_transition_segment(
             current_radius, next_radius, z_end, current_theta, transition_turns=0.33, n_per_turn=n_per_turn
         )
         accumulated_mm += polyline_length(trans_pts)
         points.append(trans_pts)
 
-        # guide position at end of pass / start next pass
-        next_guide_x = guide_x0 - (next_radius - R_contact0)
-        guide_positions.append(np.array([next_guide_x, 0.0, z_end], dtype=float))
-
         current_radius = next_radius
-        current_z = z_end
         direction *= -1
         pass_idx += 1
 
@@ -281,14 +244,11 @@ def build_winding_model(
     else:
         centerline = np.vstack(points)
 
-    # Trim to requested target length
     centerline = trim_polyline(centerline, total_target_mm)
 
-    # Progress
     shown_length_mm = (progress_pct / 100.0) * polyline_length(centerline)
     shown_line = trim_polyline(centerline, shown_length_mm)
 
-    # Current displayed guide point:
     if len(shown_line) >= 2:
         last = shown_line[-1]
         r_last = float(np.hypot(last[0], last[1]))
@@ -327,167 +287,291 @@ def build_winding_model(
     }
 
 # =========================
-# VIEWER
+# THREE.JS VIEWER
 # =========================
 
-def make_figure(model, viewer_height=760, show_grid=True, show_axes=False, show_trajectory=True, show_mesh=True, taglio_z=None):
-    fig = go.Figure()
+def make_threejs_viewer_html(
+    model,
+    viewer_height=760,
+    show_grid=True,
+    show_axes=False,
+    show_trajectory=True,
+    taglio_z=None,
+):
+    line = model["centerline_shown"].copy()
+    full_line = model["centerline_full"].copy()
 
-    R_core = model["R_core_geom"]
-    zmin = model["zmin"]
-    zmax = model["zmax"]
-    outer_r = model["outer_radius_est"]
+    if taglio_z is not None and len(line) > 0:
+        line = line[line[:, 2] <= taglio_z]
+    if taglio_z is not None and len(full_line) > 0:
+        full_line = full_line[full_line[:, 2] <= taglio_z]
+
     guide_pt = model["guide_pt"]
     tangent_pt = model["tangent_pt"]
-    line = model["centerline_shown"]
-
-    flange_outer = max(outer_r + model["d_eff"] * 1.2, R_core * 1.6)
-    flange_th = max(model["d_eff"] * 0.9, 6.0)
-    core_zmin = zmin - model["d_eff"] / 2.0
-    core_zmax = zmax + model["d_eff"] / 2.0
-
-    # Core cylinder
-    x, y, z = make_cylinder_surface(R_core, core_zmin, core_zmax, n_theta=90, n_z=2)
-    fig.add_trace(go.Surface(
-        x=x, y=y, z=z,
-        showscale=False,
-        opacity=0.85,
-        hoverinfo="skip",
-        name="Aspo"
-    ))
-
-    # Bottom flange
-    xb, yb, zb = make_disc_surface(R_core, flange_outer, core_zmin - flange_th, n_theta=90, n_r=20)
-    fig.add_trace(go.Surface(
-        x=xb, y=yb, z=zb,
-        showscale=False,
-        opacity=0.85,
-        hoverinfo="skip",
-        name="Spalla inferiore"
-    ))
-
-    # Top flange
-    xt, yt, zt = make_disc_surface(R_core, flange_outer, core_zmax + flange_th, n_theta=90, n_r=20)
-    fig.add_trace(go.Surface(
-        x=xt, y=yt, z=zt,
-        showscale=False,
-        opacity=0.85,
-        hoverinfo="skip",
-        name="Spalla superiore"
-    ))
-
-    # Tube centerline
-    if len(line) >= 2:
-        z_line = line[:, 2].copy()
-        if taglio_z is not None:
-            mask = z_line <= taglio_z
-            xs = np.where(mask, line[:, 0], np.nan)
-            ys = np.where(mask, line[:, 1], np.nan)
-            zs = np.where(mask, line[:, 2], np.nan)
-        else:
-            xs, ys, zs = line[:, 0], line[:, 1], line[:, 2]
-
-        fig.add_trace(go.Scatter3d(
-            x=xs, y=ys, z=zs,
-            mode="lines",
-            line=dict(width=8),
-            name="Tubo"
-        ))
-
-    # Straight guide-to-tangent segment
     feed_pts = sample_segment(guide_pt, tangent_pt, n=20)
-    fig.add_trace(go.Scatter3d(
-        x=feed_pts[:, 0], y=feed_pts[:, 1], z=feed_pts[:, 2],
-        mode="lines",
-        line=dict(width=7, dash="solid"),
-        name="Tratto rettilineo"
-    ))
 
-    # Guide block
-    guide_box_size = (
+    guide_box_size = np.array([
         max(28.0, model["d_eff"] * 2.0),
         max(18.0, model["d_eff"] * 1.3),
         max(18.0, model["d_eff"] * 1.3),
-    )
-    bx, by, bz = make_box_edges(guide_pt, guide_box_size)
-    fig.add_trace(go.Scatter3d(
-        x=bx, y=by, z=bz,
-        mode="lines",
-        line=dict(width=4),
-        name="Guidatubo"
-    ))
+    ], dtype=float)
 
-    # Arm from guide towards spool side
-    arm_start = guide_pt + np.array([guide_box_size[0] / 2.0, 0.0, 0.0])
-    arm_end = np.array([-(R_core + 12.0), 0.0, guide_pt[2]])
-    fig.add_trace(go.Scatter3d(
-        x=[arm_start[0], arm_end[0]],
-        y=[arm_start[1], arm_end[1]],
-        z=[arm_start[2], arm_end[2]],
-        mode="lines",
-        line=dict(width=5),
-        name="Braccio guidatubo"
-    ))
+    guide_box_edges = make_box_edges(guide_pt, guide_box_size)
+    arm_start = guide_pt + np.array([guide_box_size[0] / 2.0, 0.0, 0.0], dtype=float)
+    arm_end = np.array([-(model["R_core_geom"] + 12.0), 0.0, guide_pt[2]], dtype=float)
 
-    # Outlet point + tangent point
-    fig.add_trace(go.Scatter3d(
-        x=[guide_pt[0]], y=[guide_pt[1]], z=[guide_pt[2]],
-        mode="markers",
-        marker=dict(size=5),
-        name="Uscita guidatubo"
-    ))
-    fig.add_trace(go.Scatter3d(
-        x=[tangent_pt[0]], y=[tangent_pt[1]], z=[tangent_pt[2]],
-        mode="markers",
-        marker=dict(size=4),
-        name="Tangente"
-    ))
+    outer_r = model["outer_radius_est"]
+    R_core = model["R_core_geom"]
+    d_eff = model["d_eff"]
+    zmin = model["zmin"]
+    zmax = model["zmax"]
 
-    # Optional trajectory
-    if show_trajectory and len(model["centerline_full"]) >= 2:
-        tr = model["centerline_full"]
-        fig.add_trace(go.Scatter3d(
-            x=tr[:, 0], y=tr[:, 1], z=tr[:, 2],
-            mode="lines",
-            line=dict(width=2, dash="dot"),
-            name="Traiettoria completa",
-            opacity=0.35
-        ))
+    flange_outer = max(outer_r + d_eff * 1.2, R_core * 1.6)
+    flange_th = max(d_eff * 0.9, 6.0)
+    core_zmin = zmin - d_eff / 2.0
+    core_zmax = zmax + d_eff / 2.0
 
-    # Camera / aspect
-    max_r = max(flange_outer, abs(guide_pt[0]) + 30.0)
+    max_r = max(flange_outer, abs(float(guide_pt[0])) + 30.0)
     zmid = 0.5 * (core_zmin + core_zmax)
     zhalf = max(abs(core_zmax - core_zmin) / 2.0 + flange_th + 20.0, 40.0)
 
-    fig.update_layout(
-        height=viewer_height,
-        margin=dict(l=0, r=0, t=10, b=0),
-        showlegend=False,
-        scene=dict(
-            xaxis=dict(
-                visible=show_axes,
-                showgrid=show_grid,
-                range=[-max_r - 40, max_r + 40]
-            ),
-            yaxis=dict(
-                visible=show_axes,
-                showgrid=show_grid,
-                range=[-max_r, max_r]
-            ),
-            zaxis=dict(
-                visible=show_axes,
-                showgrid=show_grid,
-                range=[zmid - zhalf, zmid + zhalf]
-            ),
-            aspectmode="manual",
-            aspectratio=dict(x=1.6, y=1.1, z=1.3),
-            camera=dict(
-                eye=dict(x=-2.25, y=1.45, z=1.15)
-            ),
-        )
-    )
+    scene_payload = {
+        "line": line.tolist(),
+        "full_line": full_line.tolist(),
+        "feed_pts": feed_pts.tolist(),
+        "guide_box_edges": guide_box_edges.tolist(),
+        "guide_pt": guide_pt.tolist(),
+        "tangent_pt": tangent_pt.tolist(),
+        "arm_start": arm_start.tolist(),
+        "arm_end": arm_end.tolist(),
+        "R_core": float(R_core),
+        "flange_outer": float(flange_outer),
+        "flange_th": float(flange_th),
+        "core_zmin": float(core_zmin),
+        "core_zmax": float(core_zmax),
+        "zmid": float(zmid),
+        "zhalf": float(zhalf),
+        "max_r": float(max_r),
+        "show_grid": bool(show_grid),
+        "show_axes": bool(show_axes),
+        "show_trajectory": bool(show_trajectory),
+        "height": int(viewer_height),
+    }
 
-    return fig
+    scene_json = json.dumps(scene_payload)
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8"/>
+      <style>
+        html, body {{
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+          background: #ffffff;
+        }}
+        #viewer {{
+          width: 100%;
+          height: {int(viewer_height)}px;
+          display: block;
+        }}
+      </style>
+    </head>
+    <body>
+      <div id="viewer"></div>
+
+      <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+      <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+      <script>
+        const DATA = {scene_json};
+
+        const container = document.getElementById("viewer");
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+
+        const width = container.clientWidth || 1200;
+        const height = DATA.height || 760;
+
+        const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 10000);
+        camera.position.set(-2.25 * DATA.max_r, 1.45 * DATA.max_r, DATA.zmid + 1.15 * DATA.max_r);
+        camera.up.set(0, 0, 1);
+
+        const renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: false }});
+        renderer.setPixelRatio(window.devicePixelRatio || 1);
+        renderer.setSize(width, height);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, DATA.zmid);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.screenSpacePanning = true;
+        controls.update();
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.90));
+
+        const d1 = new THREE.DirectionalLight(0xffffff, 0.65);
+        d1.position.set(1, 1, 2);
+        scene.add(d1);
+
+        const d2 = new THREE.DirectionalLight(0xffffff, 0.45);
+        d2.position.set(-2, -1, 1);
+        scene.add(d2);
+
+        if (DATA.show_grid) {{
+          const grid = new THREE.GridHelper(2.4 * DATA.max_r, 20, 0xd0d0d0, 0xe8e8e8);
+          grid.rotation.x = Math.PI / 2;
+          grid.position.z = DATA.core_zmin - DATA.flange_th - 10;
+          scene.add(grid);
+        }}
+
+        if (DATA.show_axes) {{
+          const axes = new THREE.AxesHelper(0.8 * DATA.max_r);
+          scene.add(axes);
+        }}
+
+        function lineFromPoints(arr, color=0x111111, linewidth=2) {{
+          if (!arr || arr.length < 2) return null;
+          const pts = arr.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+          const geom = new THREE.BufferGeometry().setFromPoints(pts);
+          const mat = new THREE.LineBasicMaterial({{ color }});
+          return new THREE.Line(geom, mat);
+        }}
+
+        function lineSegmentsFromPoints(arr, color=0x333333) {{
+          if (!arr || arr.length < 2) return null;
+          const pts = arr.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+          const geom = new THREE.BufferGeometry().setFromPoints(pts);
+          const mat = new THREE.LineBasicMaterial({{ color }});
+          return new THREE.LineSegments(geom, mat);
+        }}
+
+        function makeTubePolyline(arr, radius, color=0x2f855a) {{
+          if (!arr || arr.length < 2) return null;
+          const pts = arr.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+          const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
+          const tubularSegments = Math.max(64, Math.min(1200, pts.length * 2));
+          const radialSegments = 10;
+          const geom = new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, false);
+          const mat = new THREE.MeshStandardMaterial({{
+            color,
+            roughness: 0.55,
+            metalness: 0.08
+          }});
+          return new THREE.Mesh(geom, mat);
+        }}
+
+        function makeCylinderZ(radius, height, color=0xbec5cc) {{
+          const geom = new THREE.CylinderGeometry(radius, radius, height, 72, 1, false);
+          const mat = new THREE.MeshStandardMaterial({{
+            color,
+            roughness: 0.70,
+            metalness: 0.12
+          }});
+          const mesh = new THREE.Mesh(geom, mat);
+          mesh.rotation.x = Math.PI / 2;
+          return mesh;
+        }}
+
+        function makeSphere(pos, radius, color=0xcc4444) {{
+          const geom = new THREE.SphereGeometry(radius, 16, 16);
+          const mat = new THREE.MeshStandardMaterial({{
+            color,
+            roughness: 0.45,
+            metalness: 0.10
+          }});
+          const mesh = new THREE.Mesh(geom, mat);
+          mesh.position.set(pos[0], pos[1], pos[2]);
+          return mesh;
+        }}
+
+        // Aspo core
+        const coreHeight = DATA.core_zmax - DATA.core_zmin;
+        const core = makeCylinderZ(DATA.R_core, coreHeight, 0xc8d0d8);
+        core.position.set(0, 0, (DATA.core_zmin + DATA.core_zmax) / 2);
+        scene.add(core);
+
+        // Spalle
+        const flangeColor = 0xaeb7c1;
+
+        const flangeBottom = makeCylinderZ(DATA.flange_outer, DATA.flange_th, flangeColor);
+        flangeBottom.position.set(0, 0, DATA.core_zmin - DATA.flange_th / 2);
+        scene.add(flangeBottom);
+
+        const flangeTop = makeCylinderZ(DATA.flange_outer, DATA.flange_th, flangeColor);
+        flangeTop.position.set(0, 0, DATA.core_zmax + DATA.flange_th / 2);
+        scene.add(flangeTop);
+
+        // Full trajectory
+        if (DATA.show_trajectory && DATA.full_line && DATA.full_line.length >= 2) {{
+          const traj = lineFromPoints(DATA.full_line, 0x9aa5b1, 1);
+          if (traj) scene.add(traj);
+        }}
+
+        // Main tube
+        const tubeRadius = Math.max(1.0, 0.22 * (DATA.line.length ? 1 : 1));
+        if (DATA.line && DATA.line.length >= 2) {{
+          const mainTube = makeTubePolyline(DATA.line, Math.max(1.8, {max(1.8, float(model["d_eff"]) * 0.22):.4f}), 0x2e8b57);
+          if (mainTube) scene.add(mainTube);
+        }}
+
+        // Straight feed segment
+        if (DATA.feed_pts && DATA.feed_pts.length >= 2) {{
+          const feedTube = makeTubePolyline(DATA.feed_pts, Math.max(1.6, {max(1.6, float(model["d_eff"]) * 0.18):.4f}), 0x3aa86b);
+          if (feedTube) scene.add(feedTube);
+        }}
+
+        // Guide block
+        const guideEdges = lineSegmentsFromPoints(DATA.guide_box_edges, 0x1f2937);
+        if (guideEdges) scene.add(guideEdges);
+
+        // Arm
+        const armGeom = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(DATA.arm_start[0], DATA.arm_start[1], DATA.arm_start[2]),
+          new THREE.Vector3(DATA.arm_end[0], DATA.arm_end[1], DATA.arm_end[2])
+        ]);
+        const arm = new THREE.Line(
+          armGeom,
+          new THREE.LineBasicMaterial({{ color: 0x374151 }})
+        );
+        scene.add(arm);
+
+        // Outlet & tangent markers
+        scene.add(makeSphere(DATA.guide_pt, Math.max(1.8, {max(1.8, float(model["d_eff"]) * 0.14):.4f}), 0x111111));
+        scene.add(makeSphere(DATA.tangent_pt, Math.max(1.5, {max(1.5, float(model["d_eff"]) * 0.11):.4f}), 0xcc3333));
+
+        function fitFarPlane() {{
+          const span = 6 * DATA.max_r + 4 * DATA.zhalf;
+          camera.far = Math.max(5000, span);
+          camera.updateProjectionMatrix();
+        }}
+        fitFarPlane();
+
+        function onResize() {{
+          const w = container.clientWidth || width;
+          const h = DATA.height || height;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h);
+          renderer.render(scene, camera);
+        }}
+
+        window.addEventListener("resize", onResize);
+
+        function animate() {{
+          requestAnimationFrame(animate);
+          controls.update();
+          renderer.render(scene, camera);
+        }}
+        animate();
+      </script>
+    </body>
+    </html>
+    """
+    return html
 
 # =========================
 # STATE FOR ANIMATION
@@ -545,7 +629,6 @@ taglio_z = None
 if clip_enabled:
     taglio_z = st.slider("Quota taglio Z (mm)", -500.0, 500.0, 0.0, 1.0)
 
-# Animation logic
 if animate:
     progress_pct = int(st.session_state.progress_anim)
 else:
@@ -563,17 +646,16 @@ model = build_winding_model(
     progress_pct=progress_pct,
 )
 
-fig = make_figure(
-    model,
+viewer_html = make_threejs_viewer_html(
+    model=model,
     viewer_height=viewer_height,
     show_grid=show_grid,
     show_axes=show_axes,
     show_trajectory=show_trajectory,
-    show_mesh=True,
     taglio_z=taglio_z,
 )
 
-st.plotly_chart(fig, use_container_width=True)
+components.html(viewer_html, height=viewer_height + 8, scrolling=False)
 
 # =========================
 # METRICS
