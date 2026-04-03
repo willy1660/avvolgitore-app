@@ -153,7 +153,7 @@ def compute_total_turns(points: np.ndarray) -> float:
     return float(np.sum(np.abs(np.diff(theta))) / (2 * np.pi))
 
 # =========================
-# GEOMETRY
+# GEOMETRY - MANDRÍ + GUIDATUBO DRIVEN
 # =========================
 
 def build_coil(
@@ -164,11 +164,20 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_min_deg,
-    ritardo_max_deg,
+    ritardo_min_deg,   # base
+    ritardo_max_deg,   # spalla
     gradi_start_deg,
     lunghezza_pinza_m,
 ):
+    """
+    Model governat per màquina:
+    - mandrí imposa theta
+    - guidatubo imposa z
+    - r només canvia en transicions de capa
+    - ritardo modelat com transició radial progressiva a l'extrem
+    - mandrí vertical, base i spalla horitzontals
+    """
+
     lunghezza_totale_mm = float(lunghezza_m) * 1000.0
     lunghezza_pinza_mm = max(0.0, float(lunghezza_pinza_m) * 1000.0)
     lunghezza_visibile_mm = max(0.0, lunghezza_totale_mm - lunghezza_pinza_mm)
@@ -186,6 +195,7 @@ def build_coil(
     z_min = d_tubo / 2.0
     z_max = spalla_mm - d_tubo / 2.0
 
+    # centreline de la primera capa
     r0 = d_aspo_mm / 2.0 + d_tubo / 2.0
 
     theta_step_deg = 4.0
@@ -195,7 +205,7 @@ def build_coil(
     theta = 0.0
     z = z_min
     r = r0
-    direction = +1
+    direction = +1  # +1 puja, -1 baixa
 
     points = []
 
@@ -206,7 +216,9 @@ def build_coil(
 
     add_point(theta, r, z)
 
-    # Enganxament inicial a base
+    # =========================
+    # ENGANXAMENT INICIAL A BASE
+    # =========================
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
         start_steps = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
         theta_step_start = np.deg2rad(gradi_start_deg) / start_steps
@@ -219,70 +231,91 @@ def build_coil(
             if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
                 break
 
+    # =========================
+    # ESTATS
+    # =========================
+    WIND = 0
+    TRANSITION = 1
+
+    state = WIND
+    trans_steps_remaining = 0
+    trans_theta_step = 0.0
+    trans_r_start = r
+    trans_r_end = r
+    trans_z_const = z
+    next_direction = direction
+
     while True:
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # Tram helicoïdal
-        while True:
+        if state == WIND:
             theta += theta_step
             z += direction * dz_dtheta * theta_step
 
-            if direction == +1 and z >= z_max:
-                z = z_max
+            hit_top = direction == +1 and z >= z_max
+            hit_bottom = direction == -1 and z <= z_min
+
+            if hit_top or hit_bottom:
+                z = z_max if hit_top else z_min
                 add_point(theta, r, z)
-                break
 
-            if direction == -1 and z <= z_min:
-                z = z_min
+                # Preparem transició de capa
+                ritardo_deg = ritardo_top_deg if hit_top else ritardo_bottom_deg
+                trans_steps_remaining = max(1, int(np.ceil(max(ritardo_deg, theta_step_deg) / theta_step_deg)))
+                trans_theta_step = np.deg2rad(ritardo_deg) / trans_steps_remaining if ritardo_deg > EPS else 0.0
+                trans_r_start = r
+                trans_r_end = r + passo_radiale
+                trans_z_const = z
+                next_direction = -direction
+                state = TRANSITION
+            else:
                 add_point(theta, r, z)
-                break
 
-            add_point(theta, r, z)
+        elif state == TRANSITION:
+            # Durant el ritardo:
+            # - z queda fixa a l’extrem
+            # - r canvia progressivament de capa
+            # - theta continua girant
+            step_index = (max(1, int(np.ceil(max((ritardo_top_deg if trans_z_const == z_max else ritardo_bottom_deg), theta_step_deg) / theta_step_deg))) - trans_steps_remaining + 1)
 
-            if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
-                break
+            # si ritardo = 0, fem igualment una transició mínima de capa
+            theta += trans_theta_step
+
+            total_steps = max(1, step_index + trans_steps_remaining - 1)
+            u = step_index / total_steps
+            u = max(0.0, min(1.0, u))
+
+            # easing lleu perquè no sigui brusca ni solapi tant
+            u_smooth = 0.5 - 0.5 * np.cos(np.pi * u)
+
+            r_curr = trans_r_start + (trans_r_end - trans_r_start) * u_smooth
+            add_point(theta, r_curr, trans_z_const)
+
+            trans_steps_remaining -= 1
+
+            if trans_steps_remaining <= 0:
+                r = trans_r_end
+                z = trans_z_const
+                direction = next_direction
+                state = WIND
 
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
-
-        at_top = (direction == +1)
-        z_const = z_max if at_top else z_min
-        ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
-
-        # 1) incremento strato
-        r += passo_radiale
-
-        # 2) ritardo
-        if ritardo_deg > EPS:
-            dwell_steps = max(8, int(np.ceil(ritardo_deg / theta_step_deg)))
-            theta_step_dwell = np.deg2rad(ritardo_deg) / dwell_steps
-
-            for _ in range(dwell_steps):
-                theta += theta_step_dwell
-                add_point(theta, r, z_const)
-
-                if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
-                    break
-
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
-            break
-
-        # 3) canvi sentit
-        direction *= -1
 
     path = np.array(points, dtype=float)
 
     if lunghezza_visibile_mm > EPS:
         path = trim_polyline(path, lunghezza_visibile_mm)
 
-    # centrat vertical
+    # Centrat axial
     path[:, 2] -= spalla_mm / 2.0
 
-    # orientar la trajectòria perquè l'extrem final quedi al costat esquerre
+    # Orientem la trajectòria perquè l’extrem final quedi sota el guidatubo,
+    # ara a l’altre costat (dreta)
     if len(path) >= 1:
         theta_end = np.arctan2(path[-1, 1], path[-1, 0])
-        theta_contact = -np.pi / 2.0
+        theta_contact = np.pi / 2.0
         rot = theta_contact - theta_end
 
         c = np.cos(rot)
@@ -417,8 +450,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     // =========================
     // MANDRÍ FIX I VERTICAL
-    // IMPORTANT: CylinderGeometry ve alineat amb Y
-    // el girem 90° sobre X perquè l'eix sigui Z
+    // CylinderGeometry: eix Y -> el girem a Z
     // =========================
     const mandrelHeight = {spalla_mm};
 
@@ -448,8 +480,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     scene.add(hubMesh);
 
     // =========================
-    // BASE I SPALLA FIXES I HORITZONTALS
-    // també han de tenir l'eix en Z
+    // BASE I SPALLA FIXES
     // =========================
     const flangeRadius = {flange_radius};
     const flangeThickness = 6.0;
@@ -515,13 +546,13 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }}
 
     // =========================
-    // GUIDATUBO A L'ESQUERRA
+    // GUIDATUBO A L'ALTRE COSTAT (DRETA)
     // =========================
     const guideGroup = new THREE.Group();
     scene.add(guideGroup);
 
     const guideColumnHeight = mandrelHeight + 180.0;
-    const guideColumnX = -(flangeRadius + 115.0);
+    const guideColumnX = +(flangeRadius + 115.0);
 
     const guideColumnGeom = new THREE.BoxGeometry(18, 18, guideColumnHeight);
     const guideColumnMat = new THREE.MeshStandardMaterial({{
@@ -550,7 +581,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       metalness: 0.28
     }});
     const armMesh = new THREE.Mesh(armGeom, armMat);
-    armMesh.position.set(guideArmLen / 2.0, 0, 0);
+    armMesh.position.set(-guideArmLen / 2.0, 0, 0);
     guideGroup.add(armMesh);
 
     const guideNozzleLen = 32.0;
@@ -564,7 +595,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }});
     const nozzleMesh = new THREE.Mesh(nozzleGeom, nozzleMat);
     nozzleMesh.rotation.z = Math.PI / 2.0;
-    nozzleMesh.position.set(guideArmLen + guideNozzleLen / 2.0, 0, 0);
+    nozzleMesh.position.set(-guideArmLen - guideNozzleLen / 2.0, 0, 0);
     guideGroup.add(nozzleMesh);
 
     const ringGeom = new THREE.TorusGeometry(Math.max({r_tubo} * 0.9, 4.0), 1.1, 12, 28);
@@ -575,7 +606,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }});
     const ringMesh = new THREE.Mesh(ringGeom, ringMat);
     ringMesh.rotation.y = Math.PI / 2.0;
-    ringMesh.position.set(guideArmLen + guideNozzleLen, 0, 0);
+    ringMesh.position.set(-guideArmLen - guideNozzleLen, 0, 0);
     guideGroup.add(ringMesh);
 
     // Tub recte del guidatubo al punt tangent
@@ -605,7 +636,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }}
 
     function getGuideOutletWorld() {{
-      const outlet = new THREE.Vector3(guideArmLen + guideNozzleLen, 0, 0);
+      const outlet = new THREE.Vector3(-guideArmLen - guideNozzleLen, 0, 0);
       return guideGroup.localToWorld(outlet);
     }}
 
@@ -625,7 +656,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     // =========================
     // ANIMACIÓ
-    // gira només la bobina
+    // Només gira la bobina; mandrí i guidatubo manen
     // =========================
     const total = tubeGeom.attributes.position.count;
     let progress = { "0.0" if animazione else "1.0" };
@@ -636,7 +667,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       tubeGeom.setDrawRange(0, total);
     }}
 
-    const thetaContact = -Math.PI / 2.0;
+    const thetaContact = Math.PI / 2.0;
 
     function getCurrentPointLocal(t) {{
       const tt = Math.max(0.0005, Math.min(1.0, t));
@@ -645,9 +676,9 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     function updateMachine(t) {{
       const pLocal = getCurrentPointLocal(t);
-
       const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
 
+      // gira només la bobina per mantenir el punt sota el guidatubo
       coilGroup.rotation.z = thetaContact - thetaCurrent;
       coilGroup.updateMatrixWorld(true);
 
@@ -655,16 +686,17 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
       const rCurrent = Math.sqrt(pWorld.x * pWorld.x + pWorld.y * pWorld.y);
 
-      guideGroup.position.set(guideColumnX, -rCurrent, pWorld.z);
+      // guidatubo a la dreta
+      guideGroup.position.set(guideColumnX, +rCurrent, pWorld.z);
 
       const outlet = getGuideOutletWorld();
-      const tangentPoint = new THREE.Vector3(0, -rCurrent, pWorld.z);
+      const tangentPoint = new THREE.Vector3(0, +rCurrent, pWorld.z);
       setCylinderBetween(feedMesh, outlet, tangentPoint);
 
       if (endCap) {{
         endCap.position.copy(tangentPoint);
 
-        const tangWorld = new THREE.Vector3(1, 0, 0);
+        const tangWorld = new THREE.Vector3(-1, 0, 0);
         const up = new THREE.Vector3(0, 0, 1);
         const quat = new THREE.Quaternion().setFromUnitVectors(up, tangWorld);
         endCap.quaternion.copy(quat);
@@ -676,7 +708,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     // =========================
     // CAMERA
     // =========================
-    camera.position.set(700, -980, 290);
+    camera.position.set(-700, 980, 290);
     camera.lookAt(0, 0, 0);
     controls.target.set(0, 0, 0);
 
