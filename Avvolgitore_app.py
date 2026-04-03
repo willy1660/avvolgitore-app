@@ -11,7 +11,6 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 # =========================
 
 lang = "IT"
-
 # =========================
 # CONSTANTS
 # =========================
