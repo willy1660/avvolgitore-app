@@ -8,7 +8,7 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 
 # =========================
 # 🌍 LANGUAGE
-# =========================
+# ========================
 
 if "lang" not in st.session_state:
     st.session_state.lang = "IT"
