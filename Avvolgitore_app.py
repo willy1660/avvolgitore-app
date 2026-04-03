@@ -117,12 +117,12 @@ EPS = 1e-9
 # UTILS
 # =========================
 
-def polyline_length(points: np.ndarray) -> float:
+def polyline_length(points):
     if len(points) < 2:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
-def trim_polyline(points: np.ndarray, target_length: float) -> np.ndarray:
+def trim_polyline(points, target_length):
     if len(points) < 2:
         return points
 
@@ -146,7 +146,7 @@ def trim_polyline(points: np.ndarray, target_length: float) -> np.ndarray:
 
     return np.vstack([points[:idx + 1], p0 + alpha * (p1 - p0)])
 
-def compute_total_turns(points: np.ndarray) -> float:
+def compute_total_turns(points):
     if len(points) < 2:
         return 0.0
     theta = np.unwrap(np.arctan2(points[:, 1], points[:, 0]))
@@ -164,8 +164,8 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_min_deg,
-    ritardo_max_deg,
+    ritardo_min_deg,   # base
+    ritardo_max_deg,   # spalla
     gradi_start_deg,
     lunghezza_pinza_m,
 ):
@@ -183,20 +183,28 @@ def build_coil(
     ritardo_top_deg = max(0.0, float(ritardo_max_deg))
     gradi_start_deg = max(0.0, float(gradi_start_deg))
 
+    # =========================
+    # MODEL FÍSIC
+    # =========================
+    # El tub toca base i spalla amb la seva superfície exterior
+    # -> el centreline va de d_tubo/2 a spalla - d_tubo/2
     z_min = d_tubo / 2.0
     z_max = spalla_mm - d_tubo / 2.0
 
+    # radi inicial: tub tocant el mandrí
     r0 = d_aspo_mm / 2.0 + d_tubo / 2.0
 
-    # abans 4.0, massa pesat
-    theta_step_deg = 8.0
-    theta_step = np.deg2rad(theta_step_deg)
-    dz_dtheta = passo_assiale / (2.0 * np.pi)
-
-    theta = 0.0
-    z = z_min
     r = r0
-    direction = +1
+    z = z_min
+    theta = 0.0
+    direction = 1  # +1 puja, -1 baixa
+
+    # discretització
+    theta_step_run = np.deg2rad(4.0)
+    dz_dtheta = passo_assiale / (2.0 * np.pi)  # mm per radià
+
+    # durant el retard, la rampa radial només passa al tram final
+    radial_ramp_fraction = 0.20  # últim 20% del retard
 
     points = []
 
@@ -207,29 +215,37 @@ def build_coil(
 
     add_point(theta, r, z)
 
-    # Enganxament inicial a base
+    # =========================
+    # START DWELL
+    # gir inicial, z constant, r constant
+    # =========================
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
-        start_steps = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
+        start_steps = max(4, int(np.ceil(gradi_start_deg / 4.0)))
         theta_step_start = np.deg2rad(gradi_start_deg) / start_steps
 
         for _ in range(start_steps):
             theta += theta_step_start
-            z = z_min
             add_point(theta, r, z)
 
             if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
                 break
 
+    # =========================
+    # MAIN LOOP
+    # =========================
     while True:
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # Tram helicoïdal
+        # =========================
+        # RUN HELICOIDAL
+        # Guidatubo imposa z i r; el mandrí imposa theta
+        # =========================
         while True:
-            theta += theta_step
-            z += direction * dz_dtheta * theta_step
+            theta += theta_step_run
+            z += direction * dz_dtheta * theta_step_run
 
-            if direction == +1 and z >= z_max:
+            if direction == 1 and z >= z_max:
                 z = z_max
                 add_point(theta, r, z)
                 break
@@ -247,51 +263,58 @@ def build_coil(
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        at_top = (direction == +1)
-        z_const = z_max if at_top else z_min
+        # =========================
+        # DWELL / RITARDO
+        # guidatubo quiet axialment, mandrí gira
+        # el canvi radial es concentra al tram final del retard
+        # =========================
+        at_top = direction == 1
         ritardo_deg = ritardo_top_deg if at_top else ritardo_bottom_deg
+        theta_dwell = np.deg2rad(ritardo_deg)
+        z_const = z_max if at_top else z_min
 
-        # 1) incremento strato
-        r += passo_radiale
+        if theta_dwell > EPS:
+            dwell_steps = max(8, int(np.ceil(ritardo_deg / 4.0)))
+            theta_step_dwell = theta_dwell / dwell_steps
 
-        # 2) ritardo
-        if ritardo_deg > EPS:
-            dwell_steps = max(8, int(np.ceil(ritardo_deg / theta_step_deg)))
-            theta_step_dwell = np.deg2rad(ritardo_deg) / dwell_steps
+            r_start = r
+            r_end = r + passo_radiale
 
-            for _ in range(dwell_steps):
+            ramp_steps = max(1, int(np.ceil(dwell_steps * radial_ramp_fraction)))
+            flat_steps = max(0, dwell_steps - ramp_steps)
+
+            for i in range(1, dwell_steps + 1):
                 theta += theta_step_dwell
-                add_point(theta, r, z_const)
+
+                if i <= flat_steps:
+                    r_curr = r_start
+                else:
+                    j = i - flat_steps
+                    u = j / ramp_steps
+                    u = max(0.0, min(1.0, u))
+                    r_curr = r_start + passo_radiale * u
+
+                add_point(theta, r_curr, z_const)
 
                 if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
                     break
 
+            r = r_end
+        else:
+            # canvi radial immediat si no hi ha retard
+            r += passo_radiale
+            add_point(theta, r, z_const)
+
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # 3) canvi sentit
+        # canvi de direcció
         direction *= -1
 
     path = np.array(points, dtype=float)
 
     if lunghezza_visibile_mm > EPS:
         path = trim_polyline(path, lunghezza_visibile_mm)
-
-    # centrat vertical
-    path[:, 2] -= spalla_mm / 2.0
-
-    # orientar la trajectòria perquè l'extrem final quedi al costat esquerre
-    if len(path) >= 1:
-        theta_end = np.arctan2(path[-1, 1], path[-1, 0])
-        theta_contact = -np.pi / 2.0
-        rot = theta_contact - theta_end
-
-        c = np.cos(rot)
-        s = np.sin(rot)
-        x_old = path[:, 0].copy()
-        y_old = path[:, 1].copy()
-        path[:, 0] = c * x_old - s * y_old
-        path[:, 1] = s * x_old + c * y_old
 
     r_path = np.sqrt(path[:, 0]**2 + path[:, 1]**2)
     r_max = float(np.max(r_path)) if len(r_path) > 0 else r0
@@ -309,13 +332,10 @@ def build_coil(
         "DiametroEsterno": diam_ext,
         "Capes": capes,
         "VolteTotali": turns_tot,
-        "Zmin": z_min - spalla_mm / 2.0,
-        "Zmax": z_max - spalla_mm / 2.0,
-        "MandrelHeight": spalla_mm,
+        "Zmin": z_min,
+        "Zmax": z_max,
         "LunghezzaVisibile": lunghezza_visibile_mm / 1000.0,
         "LunghezzaPinza": lunghezza_pinza_mm / 1000.0,
-        "Rmax": r_max,
-        "R0": r0,
     }
 
     return path, meta
@@ -324,26 +344,19 @@ def build_coil(
 # VIEWER
 # =========================
 
-def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, spalla_mm, r_max_mm):
-    # reducció de punts abans d'enviar-los al viewer
-    max_points_view = 1200
-    if len(points) > max_points_view:
-        idx = np.linspace(0, len(points) - 1, max_points_view).astype(int)
-        points = points[idx]
+def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, spalla_mm):
 
     pts = points.tolist()
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
     r_mandrel = d_aspo_mm / 2.0
-    flange_radius = max(r_max_mm + d_tubo * 1.2, r_mandrel + 55.0)
 
-    # abans molt més alt
-    tubular_segments = min(500, max(180, int(len(pts) * 0.18)))
+    tubular_segments = min(4000, max(800, int(len(pts) * 0.5)))
 
     html = f"""
     <div style="width:100%;height:{altezza}px;">
-      <div id="viewer" style="width:100%;height:100%;"></div>
+    <div id="viewer" style="width:100%;height:100%;"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -355,33 +368,20 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
 
-    const camera = new THREE.PerspectiveCamera(
-      42,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      100000
-    );
-    camera.up.set(0, 0, 1);
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100000);
 
-    const renderer = new THREE.WebGLRenderer({{ antialias: true }});
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    const renderer = new THREE.WebGLRenderer({{ antialias:true }});
+    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.target.set(0, 0, 0);
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x202020, 0.88));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2a2a, 0.7));
 
-    const light1 = new THREE.DirectionalLight(0xffffff, 0.62);
-    light1.position.set(900, -900, 1200);
-    scene.add(light1);
-
-    const light2 = new THREE.DirectionalLight(0xffffff, 0.25);
-    light2.position.set(-1200, 500, 700);
-    scene.add(light2);
+    const light = new THREE.DirectionalLight(0xffffff, 0.5);
+    light.position.set(5,5,5);
+    scene.add(light);
 
     const rawPoints = {points_json};
     const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
@@ -393,102 +393,81 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       }}
       getPoint(t) {{
         const n = this.points.length;
-        if (n === 1) return this.points[0].clone();
-        const f = t * (n - 1);
+        const f = t*(n-1);
         const i = Math.floor(f);
-        const i0 = Math.max(0, Math.min(i, n - 2));
-        const i1 = i0 + 1;
-        const tt = f - i0;
+        const i0 = Math.max(0, Math.min(i, n-2));
+        const i1 = i0+1;
+        const tt = f-i0;
         return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
       }}
     }}
 
-    // =========================
-    // GRUP NOMÉS DE LA BOBINA
-    // =========================
-    const coilGroup = new THREE.Group();
-    scene.add(coilGroup);
-
     const curve = new CurvePath(vectors);
 
-    let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 10, false);
+    let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 48, false);
     tubeGeom = tubeGeom.toNonIndexed();
 
-    const tubeMat = new THREE.MeshStandardMaterial({{
-      color: 0xe6e6e6,
-      roughness: 0.84,
-      metalness: 0.08
-    }});
+    const tubeMesh = new THREE.Mesh(
+      tubeGeom,
+      new THREE.MeshStandardMaterial({{
+        color:0xe6e6e6,
+        roughness:0.85,
+        metalness:0.1
+      }})
+    );
 
-    const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
-    coilGroup.add(tubeMesh);
+    scene.add(tubeMesh);
 
     // =========================
-    // MANDRÍ FIX I VERTICAL
+    // MANDRÍ
     // =========================
     const mandrelHeight = {spalla_mm};
-
-    const mandrelGeom = new THREE.CylinderGeometry({r_mandrel}, {r_mandrel}, mandrelHeight, 48, 1, false);
+    const mandrelGeom = new THREE.CylinderGeometry({r_mandrel}, {r_mandrel}, mandrelHeight, 64, 1, false);
     const mandrelMat = new THREE.MeshStandardMaterial({{
-      color: 0x595959,
-      roughness: 0.72,
-      metalness: 0.45,
+      color: 0x444444,
+      roughness: 0.8,
+      metalness: 0.4,
       transparent: true,
-      opacity: 0.42
+      opacity: 0.45
     }});
     const mandrelMesh = new THREE.Mesh(mandrelGeom, mandrelMat);
-    mandrelMesh.rotation.x = Math.PI / 2.0;
-    mandrelMesh.position.set(0, 0, 0);
+    mandrelMesh.position.set(0, mandrelHeight / 2.0, 0);
     scene.add(mandrelMesh);
 
-    const hubRadius = Math.max({r_mandrel} * 0.35, 28.0);
-    const hubGeom = new THREE.CylinderGeometry(hubRadius, hubRadius, mandrelHeight, 32);
-    const hubMat = new THREE.MeshStandardMaterial({{
-      color: 0x2c5fa8,
-      roughness: 0.82,
-      metalness: 0.18
-    }});
-    const hubMesh = new THREE.Mesh(hubGeom, hubMat);
-    hubMesh.rotation.x = Math.PI / 2.0;
-    hubMesh.position.set(0, 0, 0);
-    scene.add(hubMesh);
-
     // =========================
-    // BASE I SPALLA
+    // BASE
     // =========================
-    const flangeRadius = {flange_radius};
-    const flangeThickness = 6.0;
-
-    const flangeMat = new THREE.MeshStandardMaterial({{
-      color: 0x2e69b9,
-      roughness: 0.86,
-      metalness: 0.14
+    const baseRadius = Math.max({r_mandrel} + 80, 450);
+    const baseThickness = 6;
+    const baseGeom = new THREE.CylinderGeometry(baseRadius, baseRadius, baseThickness, 64);
+    const baseMat = new THREE.MeshStandardMaterial({{
+      color: 0x1f5aa6,
+      roughness: 0.85,
+      metalness: 0.15
     }});
-
-    const baseGeom = new THREE.CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 64);
-    const baseMesh = new THREE.Mesh(baseGeom, flangeMat);
-    baseMesh.rotation.x = Math.PI / 2.0;
-    baseMesh.position.set(0, 0, -mandrelHeight / 2.0 - flangeThickness / 2.0);
+    const baseMesh = new THREE.Mesh(baseGeom, baseMat);
+    baseMesh.position.set(0, -baseThickness / 2.0, 0);
     scene.add(baseMesh);
 
-    const topGeom = new THREE.CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 64);
-    const topMesh = new THREE.Mesh(topGeom, flangeMat);
-    topMesh.rotation.x = Math.PI / 2.0;
-    topMesh.position.set(0, 0, mandrelHeight / 2.0 + flangeThickness / 2.0);
+    // =========================
+    // SPALLA
+    // =========================
+    const topGeom = new THREE.CylinderGeometry(baseRadius, baseRadius, baseThickness, 64);
+    const topMat = new THREE.MeshStandardMaterial({{
+      color: 0x1f5aa6,
+      roughness: 0.85,
+      metalness: 0.15
+    }});
+    const topMesh = new THREE.Mesh(topGeom, topMat);
+    topMesh.position.set(0, {spalla_mm} + baseThickness / 2.0, 0);
     scene.add(topMesh);
 
-    // =========================
-    // CAPS
-    // =========================
     function createCap(position, direction, color) {{
-      const geometry = new THREE.CircleGeometry({r_tubo}, 20);
-      const material = new THREE.MeshBasicMaterial({{
-        color: color,
-        side: THREE.DoubleSide
-      }});
+      const geometry = new THREE.CircleGeometry({r_tubo}, 32);
+      const material = new THREE.MeshBasicMaterial({{color:color, side:THREE.DoubleSide}});
       const cap = new THREE.Mesh(geometry, material);
 
-      const up = new THREE.Vector3(0, 0, 1);
+      const up = new THREE.Vector3(0,0,1);
       const dir = direction.clone().normalize();
 
       if (dir.length() > 1e-9) {{
@@ -497,142 +476,36 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       }}
 
       cap.position.copy(position);
-      return cap;
+      scene.add(cap);
     }}
-
-    let startCap = null;
-    let endCap = null;
 
     if (vectors.length >= 2) {{
-      startCap = createCap(
-        vectors[0],
-        vectors[1].clone().sub(vectors[0]).multiplyScalar(-1),
-        0x00ff00
-      );
-      coilGroup.add(startCap);
-
-      endCap = createCap(
-        vectors[vectors.length - 1],
-        vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]),
-        0xff0000
-      );
-      coilGroup.add(endCap);
+      createCap(vectors[0], vectors[1].clone().sub(vectors[0]).multiplyScalar(-1), 0x00ff00);
+      createCap(vectors[vectors.length-1], vectors[vectors.length-1].clone().sub(vectors[vectors.length-2]), 0xff0000);
     }}
 
-    // =========================
-    // GUIDATUBO A L'ESQUERRA
-    // =========================
-    const guideGroup = new THREE.Group();
-    scene.add(guideGroup);
+    // Convertim de Python (x,y,z) a Three.js (x,z,y) només visualment?
+    // No. Mantenim y com alçada perquè el model actual ja està així.
 
-    const guideColumnHeight = mandrelHeight + 180.0;
-    const guideColumnX = -(flangeRadius + 115.0);
+    const box = new THREE.Box3().setFromObject(tubeMesh);
+    box.expandByObject(mandrelMesh);
+    box.expandByObject(baseMesh);
+    box.expandByObject(topMesh);
 
-    const guideColumnGeom = new THREE.BoxGeometry(18, 18, guideColumnHeight);
-    const guideColumnMat = new THREE.MeshStandardMaterial({{
-      color: 0x5c5c5c,
-      roughness: 0.78,
-      metalness: 0.35
-    }});
-    const guideColumn = new THREE.Mesh(guideColumnGeom, guideColumnMat);
-    guideColumn.position.set(guideColumnX, 0, 0);
-    scene.add(guideColumn);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
 
-    const carriageGeom = new THREE.BoxGeometry(30, 24, 24);
-    const carriageMat = new THREE.MeshStandardMaterial({{
-      color: 0xc7c7c7,
-      roughness: 0.82,
-      metalness: 0.18
-    }});
-    const carriageMesh = new THREE.Mesh(carriageGeom, carriageMat);
-    guideGroup.add(carriageMesh);
+    const size = new THREE.Vector3();
+    box.getSize(size);
 
-    const guideArmLen = Math.abs(guideColumnX) - 42.0;
-    const armGeom = new THREE.BoxGeometry(guideArmLen, 12, 12);
-    const armMat = new THREE.MeshStandardMaterial({{
-      color: 0x9a9a9a,
-      roughness: 0.74,
-      metalness: 0.28
-    }});
-    const armMesh = new THREE.Mesh(armGeom, armMat);
-    armMesh.position.set(guideArmLen / 2.0, 0, 0);
-    guideGroup.add(armMesh);
+    const dist = Math.max(size.x, size.y, size.z) * 1.8 + 1.0;
 
-    const guideNozzleLen = 32.0;
-    const nozzleRadius = Math.max({r_tubo} * 0.95, 4.5);
+    camera.position.set(center.x + dist, center.y + dist, center.z + dist * 0.6);
+    camera.lookAt(center);
+    controls.target.copy(center);
 
-    const nozzleGeom = new THREE.CylinderGeometry(nozzleRadius, nozzleRadius * 0.9, guideNozzleLen, 18);
-    const nozzleMat = new THREE.MeshStandardMaterial({{
-      color: 0xb0b0b0,
-      roughness: 0.62,
-      metalness: 0.42
-    }});
-    const nozzleMesh = new THREE.Mesh(nozzleGeom, nozzleMat);
-    nozzleMesh.rotation.z = Math.PI / 2.0;
-    nozzleMesh.position.set(guideArmLen + guideNozzleLen / 2.0, 0, 0);
-    guideGroup.add(nozzleMesh);
-
-    const ringGeom = new THREE.TorusGeometry(Math.max({r_tubo} * 0.9, 4.0), 1.1, 8, 18);
-    const ringMat = new THREE.MeshStandardMaterial({{
-      color: 0xe0e0e0,
-      roughness: 0.58,
-      metalness: 0.36
-    }});
-    const ringMesh = new THREE.Mesh(ringGeom, ringMat);
-    ringMesh.rotation.y = Math.PI / 2.0;
-    ringMesh.position.set(guideArmLen + guideNozzleLen, 0, 0);
-    guideGroup.add(ringMesh);
-
-    // Tub recte del guidatubo al punt tangent
-    const feedGeom = new THREE.CylinderGeometry({r_tubo}, {r_tubo}, 1.0, 16, 1, false);
-    const feedMesh = new THREE.Mesh(feedGeom, tubeMat);
-    scene.add(feedMesh);
-
-    function setCylinderBetween(mesh, p0, p1) {{
-      const dir = new THREE.Vector3().subVectors(p1, p0);
-      const len = dir.length();
-
-      if (len < 1e-6) {{
-        mesh.visible = false;
-        return;
-      }}
-
-      mesh.visible = true;
-
-      const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
-      mesh.position.copy(mid);
-
-      const yAxis = new THREE.Vector3(0, 1, 0);
-      const q = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
-      mesh.quaternion.copy(q);
-
-      mesh.scale.set(1, len, 1);
-    }}
-
-    function getGuideOutletWorld() {{
-      const outlet = new THREE.Vector3(guideArmLen + guideNozzleLen, 0, 0);
-      return guideGroup.localToWorld(outlet);
-    }}
-
-    // =========================
-    // AJUDA VISUAL
-    // =========================
-    const floorGeom = new THREE.CircleGeometry(flangeRadius * 1.5, 96);
-    const floorMat = new THREE.MeshBasicMaterial({{
-      color: 0x0a0a0a,
-      transparent: true,
-      opacity: 0.52
-    }});
-    const floorMesh = new THREE.Mesh(floorGeom, floorMat);
-    floorMesh.rotation.x = -Math.PI / 2.0;
-    floorMesh.position.set(0, -flangeRadius - 120, -mandrelHeight / 2.0 - flangeThickness - 2);
-    scene.add(floorMesh);
-
-    // =========================
-    // ANIMACIÓ
-    // =========================
+    let progress = 0;
     const total = tubeGeom.attributes.position.count;
-    let progress = { "0.0" if animazione else "1.0" };
 
     if ({str(animazione).lower()}) {{
       tubeGeom.setDrawRange(0, 0);
@@ -640,62 +513,16 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       tubeGeom.setDrawRange(0, total);
     }}
 
-    const thetaContact = -Math.PI / 2.0;
-
-    function getCurrentPointLocal(t) {{
-      const tt = Math.max(0.0005, Math.min(1.0, t));
-      return curve.getPoint(tt);
-    }}
-
-    function updateMachine(t) {{
-      const pLocal = getCurrentPointLocal(t);
-
-      const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
-
-      coilGroup.rotation.z = thetaContact - thetaCurrent;
-      coilGroup.updateMatrixWorld(true);
-
-      const pWorld = coilGroup.localToWorld(pLocal.clone());
-
-      const rCurrent = Math.sqrt(pWorld.x * pWorld.x + pWorld.y * pWorld.y);
-
-      guideGroup.position.set(guideColumnX, -rCurrent, pWorld.z);
-
-      const outlet = getGuideOutletWorld();
-      const tangentPoint = new THREE.Vector3(0, -rCurrent, pWorld.z);
-      setCylinderBetween(feedMesh, outlet, tangentPoint);
-
-      if (endCap) {{
-        endCap.position.copy(tangentPoint);
-
-        const tangWorld = new THREE.Vector3(1, 0, 0);
-        const up = new THREE.Vector3(0, 0, 1);
-        const quat = new THREE.Quaternion().setFromUnitVectors(up, tangWorld);
-        endCap.quaternion.copy(quat);
-      }}
-    }}
-
-    updateMachine(progress);
-
-    // =========================
-    // CAMERA
-    // =========================
-    camera.position.set(700, -980, 290);
-    camera.lookAt(0, 0, 0);
-    controls.target.set(0, 0, 0);
-
-    function animate() {{
+    function animate(){{
       requestAnimationFrame(animate);
 
       if ({str(animazione).lower()}) {{
         progress += {velocita} * 0.002;
-        if (progress > 1.0) progress = 1.0;
+        if (progress > 1) progress = 1;
 
-        const visible = Math.max(2, Math.floor(progress * total));
+        const visible = Math.floor(progress * total);
         tubeGeom.setDrawRange(0, visible);
       }}
-
-      updateMachine(progress);
 
       controls.update();
       renderer.render(scene, camera);
@@ -771,8 +598,7 @@ html = build_viewer_html(
     animazione,
     velocita,
     diametro_aspo,
-    spalla,
-    meta["Rmax"]
+    spalla
 )
 
 components.html(html, height=altezza)
