@@ -152,7 +152,7 @@ def compute_total_turns(points: np.ndarray) -> float:
     return float(np.sum(np.abs(np.diff(theta))) / (2 * np.pi))
 
 # =========================
-# GEOMETRY - ASP0 + GUIDATUBO DRIVEN
+# GEOMETRY - MANDRÍ + GUIDATUBO DRIVEN
 # =========================
 
 def build_coil(
@@ -169,11 +169,14 @@ def build_coil(
     lunghezza_pinza_m,
 ):
     """
-    Geometria governada per màquina:
+    Centreline governat per màquina:
     - mandrí imposa theta
     - guidatubo imposa z
-    - radi actiu r només canvia en transicions
-    - contacte final al costat esquerre del viewer
+    - r és el radi actiu de capa
+    - a cada extrem:
+        1) transició radial progressiva
+        2) ritardo incorporat en la mateixa transició
+        3) canvi de sentit
     """
 
     lunghezza_totale_mm = float(lunghezza_m) * 1000.0
@@ -290,9 +293,10 @@ def build_coil(
     if lunghezza_visibile_mm > EPS:
         path = trim_polyline(path, lunghezza_visibile_mm)
 
+    # centrat vertical
     path[:, 2] -= spalla_mm / 2.0
 
-    # contacte final a l'esquerra
+    # orientar perquè el punt actiu quedi al costat esquerre
     if len(path) >= 1:
         theta_end = np.arctan2(path[-1, 1], path[-1, 0])
         theta_contact = -np.pi / 2.0
@@ -513,26 +517,27 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       coilGroup.add(endCap);
     }}
 
-    // PAL A L'ESQUERRA
+    // PAL VERTICAL A L'ESQUERRA
     const guideColumnHeight = mandrelHeight + 180.0;
     const guideColumnX = -(flangeRadius + 115.0);
 
     const guideColumnGeom = new THREE.BoxGeometry(18, 18, guideColumnHeight);
     const guideColumnMat = new THREE.MeshStandardMaterial({{
       color: 0x5c5c5c,
-      roughness: 0x5c5c5c ? 0.78 : 0.78,
+      roughness: 0.78,
       metalness: 0.35
     }});
     const guideColumn = new THREE.Mesh(guideColumnGeom, guideColumnMat);
     guideColumn.position.set(guideColumnX, 0, 0);
     scene.add(guideColumn);
 
-    // GUIDATUBO A L'ALTRA BANDA DEL PAL = MÉS A L'ESQUERRA
+    // GUIDATUBO MÉS A L'ESQUERRA I DARRERE DEL PAL
     const guideGroup = new THREE.Group();
     scene.add(guideGroup);
 
-    const guideHeadOffset = 75.0;
-    const guideHeadX = guideColumnX - guideHeadOffset;
+    const guideHeadOffsetX = 75.0;
+    const guideHeadX = guideColumnX - guideHeadOffsetX;
+    const guideBehindY = +70.0;
 
     // cos curt
     const guideBodyGeom = new THREE.BoxGeometry(24, 20, 20);
@@ -545,7 +550,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     guideBody.position.set(0, 0, 0);
     guideGroup.add(guideBody);
 
-    // boquilla curta
+    // boquilla curta cap al rotllo (+X local)
     const guideNozzleLen = 18.0;
     const nozzleRadius = Math.max({r_tubo} * 0.95, 4.5);
 
@@ -557,7 +562,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }});
     const nozzleMesh = new THREE.Mesh(nozzleGeom, nozzleMat);
     nozzleMesh.rotation.z = Math.PI / 2.0;
-    nozzleMesh.position.set(guideNozzleLen / 2.0 + 12.0, 0, 0);
+    nozzleMesh.position.set(12.0 + guideNozzleLen / 2.0, 0, 0);
     guideGroup.add(nozzleMesh);
 
     const ringGeom = new THREE.TorusGeometry(Math.max({r_tubo} * 0.9, 4.0), 1.1, 12, 28);
@@ -568,10 +573,10 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }});
     const ringMesh = new THREE.Mesh(ringGeom, ringMat);
     ringMesh.rotation.y = Math.PI / 2.0;
-    ringMesh.position.set(guideNozzleLen + 12.0, 0, 0);
+    ringMesh.position.set(12.0 + guideNozzleLen, 0, 0);
     guideGroup.add(ringMesh);
 
-    // tub recte que surt de la boquilla
+    // tub recte sortint de la boquilla
     const feedGeom = new THREE.CylinderGeometry({r_tubo}, {r_tubo}, 1.0, 28, 1, false);
     const feedMesh = new THREE.Mesh(feedGeom, tubeMat);
     scene.add(feedMesh);
@@ -598,7 +603,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }}
 
     function getGuideOutletWorld() {{
-      const outlet = new THREE.Vector3(guideNozzleLen + 12.0, 0, 0);
+      const outlet = new THREE.Vector3(12.0 + guideNozzleLen, 0, 0);
       return guideGroup.localToWorld(outlet);
     }}
 
@@ -624,43 +629,38 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     const thetaContact = -Math.PI / 2.0;
 
-    function getVisibleT(progressValue) {{
-      // compensació lleu perquè el guidatubo no vagi avançat
-      const visibleT = Math.max(0.0005, Math.min(1.0, progressValue - 0.01));
-      return visibleT;
-    }}
-
-    function getCurrentPointLocal(t) {{
-      return curve.getPoint(t);
+    function getCurrentPointLocal(progressValue) {{
+      const tt = Math.max(0.0005, Math.min(1.0, progressValue));
+      return curve.getPoint(tt);
     }}
 
     function updateMachine(progressValue) {{
-      const t = getVisibleT(progressValue);
-      const pLocal = getCurrentPointLocal(t);
+      const pLocal = getCurrentPointLocal(progressValue);
       const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
 
+      // la bobina gira perquè el punt actiu coincideixi amb el guidatubo
       coilGroup.rotation.z = thetaContact - thetaCurrent;
       coilGroup.updateMatrixWorld(true);
 
+      // punt real actual del centreline
       const pWorld = coilGroup.localToWorld(pLocal.clone());
-      const rCurrent = Math.sqrt(pWorld.x * pWorld.x + pWorld.y * pWorld.y);
 
-      // guidatubo a l'esquerra de veritat
-      guideGroup.position.set(guideHeadX, -rCurrent, pWorld.z);
+      // el guidatubo guia axialment i radialment aquest mateix punt
+      guideGroup.position.set(guideHeadX, guideBehindY, pWorld.z);
 
-      // punt tangent al mateix costat esquerre
-      const tangentPoint = new THREE.Vector3(0, -rCurrent, pWorld.z);
-
+      // tub sortint exactament de la boquilla fins al punt real actiu
       const outlet = getGuideOutletWorld();
-      setCylinderBetween(feedMesh, outlet, tangentPoint);
+      setCylinderBetween(feedMesh, outlet, pWorld);
 
       if (endCap) {{
-        endCap.position.copy(tangentPoint);
+        endCap.position.copy(pWorld);
 
-        const tangWorld = new THREE.Vector3(1, 0, 0);
+        const tangentWorld = new THREE.Vector3().subVectors(pWorld, outlet).normalize();
         const up = new THREE.Vector3(0, 0, 1);
-        const quat = new THREE.Quaternion().setFromUnitVectors(up, tangWorld);
-        endCap.quaternion.copy(quat);
+        if (tangentWorld.length() > 1e-9) {{
+          const quat = new THREE.Quaternion().setFromUnitVectors(up, tangentWorld);
+          endCap.quaternion.copy(quat);
+        }}
       }}
     }}
 
