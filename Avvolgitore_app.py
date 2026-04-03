@@ -143,7 +143,6 @@ def trim_polyline(points: np.ndarray, target_length: float) -> np.ndarray:
 
     alpha = (target_length - cum[idx]) / seg_len
     alpha = max(0.0, min(1.0, alpha))
-
     return np.vstack([points[:idx + 1], p0 + alpha * (p1 - p0)])
 
 def compute_total_turns(points: np.ndarray) -> float:
@@ -153,7 +152,7 @@ def compute_total_turns(points: np.ndarray) -> float:
     return float(np.sum(np.abs(np.diff(theta))) / (2 * np.pi))
 
 # =========================
-# GEOMETRY - MANDRÍ + GUIDATUBO DRIVEN
+# GEOMETRY - ASP0 + GUIDATUBO DRIVEN
 # =========================
 
 def build_coil(
@@ -164,17 +163,18 @@ def build_coil(
     spessore_guaina_mm,
     passo_assiale,
     passo_radiale,
-    ritardo_min_deg,   # base
-    ritardo_max_deg,   # spalla
+    ritardo_min_deg,
+    ritardo_max_deg,
     gradi_start_deg,
     lunghezza_pinza_m,
 ):
     """
-    Model governat per màquina:
-    - mandrí imposa theta
-    - guidatubo imposa z
-    - r només canvia en transicions de capa
-    - ritardo modelat com transició radial progressiva a l'extrem
+    Geometria governada per màquina:
+    - el mandrí imposa theta
+    - el guidatubo imposa z
+    - el radi actiu r només canvia a les transicions
+    - el ritardo és una transició progressiva de capa
+    - el contacte final queda al costat dret (guidatubo a la dreta)
     """
 
     lunghezza_totale_mm = float(lunghezza_m) * 1000.0
@@ -191,9 +191,11 @@ def build_coil(
     ritardo_top_deg = max(0.0, float(ritardo_max_deg))
     gradi_start_deg = max(0.0, float(gradi_start_deg))
 
+    # límits físics del centre del tub
     z_min = d_tubo / 2.0
     z_max = spalla_mm - d_tubo / 2.0
 
+    # primer radi actiu
     r0 = d_aspo_mm / 2.0 + d_tubo / 2.0
 
     theta_step_deg = 4.0
@@ -214,7 +216,7 @@ def build_coil(
 
     add_point(theta, r, z)
 
-    # ENGANXAMENT INICIAL A BASE
+    # enganxament inicial
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
         start_steps = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
         theta_step_start = np.deg2rad(gradi_start_deg) / start_steps
@@ -231,8 +233,9 @@ def build_coil(
     TRANSITION = 1
 
     state = WIND
-    trans_steps_remaining = 0
+
     trans_total_steps = 0
+    trans_steps_remaining = 0
     trans_theta_step = 0.0
     trans_r_start = r
     trans_r_end = r
@@ -255,26 +258,30 @@ def build_coil(
                 add_point(theta, r, z)
 
                 ritardo_deg = ritardo_top_deg if hit_top else ritardo_bottom_deg
+
                 trans_total_steps = max(1, int(np.ceil(max(ritardo_deg, theta_step_deg) / theta_step_deg)))
                 trans_steps_remaining = trans_total_steps
                 trans_theta_step = np.deg2rad(ritardo_deg) / trans_total_steps if ritardo_deg > EPS else 0.0
+
                 trans_r_start = r
                 trans_r_end = r + passo_radiale
                 trans_z_const = z
                 next_direction = -direction
+
                 state = TRANSITION
             else:
                 add_point(theta, r, z)
 
-        elif state == TRANSITION:
+        else:
+            # transició de capa: el guidatubo és a l’extrem
+            # el mandrí segueix girant
+            # el radi canvia progressivament
             done_steps = trans_total_steps - trans_steps_remaining + 1
-
-            theta += trans_theta_step
-
             u = done_steps / trans_total_steps
             u = max(0.0, min(1.0, u))
             u_smooth = 0.5 - 0.5 * np.cos(np.pi * u)
 
+            theta += trans_theta_step
             r_curr = trans_r_start + (trans_r_end - trans_r_start) * u_smooth
             add_point(theta, r_curr, trans_z_const)
 
@@ -294,13 +301,13 @@ def build_coil(
     if lunghezza_visibile_mm > EPS:
         path = trim_polyline(path, lunghezza_visibile_mm)
 
-    # centrat axial
+    # centrat vertical
     path[:, 2] -= spalla_mm / 2.0
 
-    # orientem perquè l'extrem final quedi al costat del guidatubo (ESQUERRA)
+    # orientació final perquè el punt de deposició quedi a la DRETA
     if len(path) >= 1:
         theta_end = np.arctan2(path[-1, 1], path[-1, 0])
-        theta_contact = -np.pi / 2.0
+        theta_contact = np.pi / 2.0
         rot = theta_contact - theta_end
 
         c = np.cos(rot)
@@ -413,10 +420,11 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       }}
     }}
 
+    const curve = new CurvePath(vectors);
+
+    // bobina
     const coilGroup = new THREE.Group();
     scene.add(coilGroup);
-
-    const curve = new CurvePath(vectors);
 
     let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 48, false);
     tubeGeom = tubeGeom.toNonIndexed();
@@ -430,7 +438,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
     coilGroup.add(tubeMesh);
 
-    // MANDRÍ FIX I VERTICAL
+    // mandrí
     const mandrelHeight = {spalla_mm};
 
     const mandrelGeom = new THREE.CylinderGeometry({r_mandrel}, {r_mandrel}, mandrelHeight, 72, 1, false);
@@ -458,7 +466,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     hubMesh.position.set(0, 0, 0);
     scene.add(hubMesh);
 
-    // BASE I SPALLA FIXES
+    // base i spalla
     const flangeRadius = {flange_radius};
     const flangeThickness = 6.0;
 
@@ -480,7 +488,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     topMesh.position.set(0, 0, mandrelHeight / 2.0 + flangeThickness / 2.0);
     scene.add(topMesh);
 
-    // CAPS
+    // caps
     function createCap(position, direction, color) {{
       const geometry = new THREE.CircleGeometry({r_tubo}, 32);
       const material = new THREE.MeshBasicMaterial({{
@@ -520,12 +528,12 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       coilGroup.add(endCap);
     }}
 
-    // GUIDATUBO A L'ALTRE COSTAT: ESQUERRA
+    // GUIDATUBO A LA DRETA DE VERITAT
     const guideGroup = new THREE.Group();
     scene.add(guideGroup);
 
     const guideColumnHeight = mandrelHeight + 180.0;
-    const guideColumnX = -(flangeRadius + 115.0);
+    const guideColumnX = +(flangeRadius + 115.0);
 
     const guideColumnGeom = new THREE.BoxGeometry(18, 18, guideColumnHeight);
     const guideColumnMat = new THREE.MeshStandardMaterial({{
@@ -554,7 +562,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       metalness: 0.28
     }});
     const armMesh = new THREE.Mesh(armGeom, armMat);
-    armMesh.position.set(guideArmLen / 2.0, 0, 0);
+    armMesh.position.set(-guideArmLen / 2.0, 0, 0);
     guideGroup.add(armMesh);
 
     const guideNozzleLen = 32.0;
@@ -568,7 +576,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }});
     const nozzleMesh = new THREE.Mesh(nozzleGeom, nozzleMat);
     nozzleMesh.rotation.z = Math.PI / 2.0;
-    nozzleMesh.position.set(guideArmLen + guideNozzleLen / 2.0, 0, 0);
+    nozzleMesh.position.set(-guideArmLen - guideNozzleLen / 2.0, 0, 0);
     guideGroup.add(nozzleMesh);
 
     const ringGeom = new THREE.TorusGeometry(Math.max({r_tubo} * 0.9, 4.0), 1.1, 12, 28);
@@ -579,10 +587,10 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }});
     const ringMesh = new THREE.Mesh(ringGeom, ringMat);
     ringMesh.rotation.y = Math.PI / 2.0;
-    ringMesh.position.set(guideArmLen + guideNozzleLen, 0, 0);
+    ringMesh.position.set(-guideArmLen - guideNozzleLen, 0, 0);
     guideGroup.add(ringMesh);
 
-    // Tub recte que surt del guidatubo
+    // tub recte que surt del guidatubo
     const feedGeom = new THREE.CylinderGeometry({r_tubo}, {r_tubo}, 1.0, 28, 1, false);
     const feedMesh = new THREE.Mesh(feedGeom, tubeMat);
     scene.add(feedMesh);
@@ -609,7 +617,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
     }}
 
     function getGuideOutletWorld() {{
-      const outlet = new THREE.Vector3(guideArmLen + guideNozzleLen, 0, 0);
+      const outlet = new THREE.Vector3(-guideArmLen - guideNozzleLen, 0, 0);
       return guideGroup.localToWorld(outlet);
     }}
 
@@ -634,7 +642,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       tubeGeom.setDrawRange(0, total);
     }}
 
-    const thetaContact = -Math.PI / 2.0;
+    const thetaContact = Math.PI / 2.0;
 
     function getCurrentPointLocal(t) {{
       const tt = Math.max(0.0005, Math.min(1.0, t));
@@ -645,24 +653,24 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
       const pLocal = getCurrentPointLocal(t);
       const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
 
-      // gira només la bobina per mantenir el punt sota el guidatubo
+      // només gira la bobina; el mandrí i el guidatubo manen
       coilGroup.rotation.z = thetaContact - thetaCurrent;
       coilGroup.updateMatrixWorld(true);
 
       const pWorld = coilGroup.localToWorld(pLocal.clone());
       const rCurrent = Math.sqrt(pWorld.x * pWorld.x + pWorld.y * pWorld.y);
 
-      // guidatubo a l'esquerra i punt tangent al mateix costat
-      guideGroup.position.set(guideColumnX, -rCurrent, pWorld.z);
+      // guidatubo a la dreta
+      guideGroup.position.set(guideColumnX, +rCurrent, pWorld.z);
 
       const outlet = getGuideOutletWorld();
-      const tangentPoint = new THREE.Vector3(0, -rCurrent, pWorld.z);
+      const tangentPoint = new THREE.Vector3(0, +rCurrent, pWorld.z);
       setCylinderBetween(feedMesh, outlet, tangentPoint);
 
       if (endCap) {{
         endCap.position.copy(tangentPoint);
 
-        const tangWorld = new THREE.Vector3(1, 0, 0);
+        const tangWorld = new THREE.Vector3(-1, 0, 0);
         const up = new THREE.Vector3(0, 0, 1);
         const quat = new THREE.Quaternion().setFromUnitVectors(up, tangWorld);
         endCap.quaternion.copy(quat);
@@ -671,7 +679,7 @@ def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, 
 
     updateMachine(progress);
 
-    camera.position.set(700, -980, 290);
+    camera.position.set(-700, 980, 290);
     camera.lookAt(0, 0, 0);
     controls.target.set(0, 0, 0);
 
