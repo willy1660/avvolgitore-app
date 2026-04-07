@@ -140,9 +140,117 @@ else:
 # GEOMETRY / SIMULATION
 # =========================
 
-def smoothstep(x: float) -> float:
-    x = max(0.0, min(1.0, x))
-    return x * x * (3.0 - 2.0 * x)
+function smoothstep(x) {
+    x = Math.max(0.0, Math.min(1.0, x));
+    return x * x * (3.0 - 2.0 * x);
+}
+
+let mode = "axial";
+let turnProgress = 0.0;
+let turnDelay = 0.0;
+let turnStartRadius = radius;
+let turnEndRadius = radius;
+let turnZ = z;
+let layer = 0;
+
+function step() {
+
+    const deg = 2.0 * speed;
+    theta -= THREE.MathUtils.degToRad(deg);
+
+    // =========================
+    // FIRST LAYER (amb retard suau)
+    // =========================
+
+    if (layer === 0) {
+
+        if (mode === "axial") {
+
+            z += dir * passo * (deg / 360.0);
+
+            if (z >= Hs - Rt) {
+                z = Hs - Rt;
+                mode = "turn";
+                turnProgress = 0.0;
+                turnDelay = Math.max(ritT, 0.0);
+                turnStartRadius = radius;
+                turnEndRadius = radius + incremento;
+                turnZ = z;
+            }
+
+            if (z <= Rt) {
+                z = Rt;
+                mode = "turn";
+                turnProgress = 0.0;
+                turnDelay = Math.max(ritB, 0.0);
+                turnStartRadius = radius;
+                turnEndRadius = radius + incremento;
+                turnZ = z;
+            }
+
+        } else {
+
+            if (turnDelay <= 0.0) {
+                radius = turnEndRadius;
+                mode = "axial";
+                dir *= -1;
+                layer = 1;
+            } else {
+
+                turnProgress += deg;
+
+                const s = smoothstep(turnProgress / turnDelay);
+
+                radius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
+                z = turnZ;
+
+                if (turnProgress >= turnDelay) {
+                    radius = turnEndRadius;
+                    mode = "axial";
+                    dir *= -1;
+                    layer = 1;
+                }
+            }
+        }
+
+    }
+
+    // =========================
+    // RESTA CAPES (ràpid)
+    // =========================
+
+    else {
+
+        z += dir * passo * (deg / 360.0);
+
+        if (z >= Hs - Rt) {
+            z = Hs - Rt;
+            radius += incremento;
+            dir = -1;
+        }
+
+        if (z <= Rt) {
+            z = Rt;
+            radius += incremento;
+            dir = 1;
+        }
+    }
+
+    // =========================
+    // GEOMETRIA
+    // =========================
+
+    const p = contactPoint(radius, z);
+    pts.push(p);
+
+    if (pts.length > 2) {
+        if (mesh) scene.remove(mesh);
+        mesh = buildTube(pts);
+        if (mesh) scene.add(mesh);
+    }
+
+    guide.position.copy(guidePoint(radius, z));
+}
 
 def polyline_length(points: np.ndarray) -> float:
     if len(points) < 2:
