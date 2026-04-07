@@ -593,11 +593,12 @@ def viewer(
                 const s = v.dot(line) / lineLen2;
 
                 if (s <= 0.0 || s >= 1.0) continue;
+                if (s>0.6) continue;
 
                 const proj = guideL.clone().add(line.clone().multiplyScalar(s));
                 const perp = proj.distanceTo(p);
 
-                if (perp <= Rt * 1.1) {{
+                if (perp <= Rt * 0.35) {{
                     if (s < bestS) {{
                         bestS = s;
                         best = p.clone();
