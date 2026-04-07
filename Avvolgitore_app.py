@@ -553,7 +553,17 @@ def viewer(
         const rimLight = new THREE.DirectionalLight(0xffffff, 0.6);
         rimLight.position.set(0, 600, 400);
         scene.add(rimLight);
-
+        // =====================
+        // GRID + AXES
+        // =====================
+        
+        const grid = new THREE.GridHelper(2000, 40, 0x444444, 0x222222);
+        grid.rotation.x = Math.PI / 2;
+        scene.add(grid);
+        
+        // eixos subtils
+        const axes = new THREE.AxesHelper(200);
+        scene.add(axes);
         // =====================
         // HELPERS
         // =====================
