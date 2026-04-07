@@ -625,7 +625,7 @@ def viewer(
         let depositedLocalPoints = [];
         let depositedLength = 0.0;
         let finished = false;
-        let lastRebuildCount = -1;
+        let lastCommitCount = -1;
 
         let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
         let guideRadius = R + Rt;
@@ -651,7 +651,19 @@ def viewer(
             buildStaticFinalView();
         }}
 
-        function rebuildAnimatedMeshes(contactWorld) {{
+        function makeDisplayPoints(currentLocalContact) {{
+            if (depositedLocalPoints.length === 0) return [];
+
+            const pts = depositedLocalPoints.map(p => p.clone());
+            const last = pts[pts.length - 1];
+
+            if (currentLocalContact && last.distanceTo(currentLocalContact) > 1e-9) {{
+                pts.push(currentLocalContact.clone());
+            }}
+            return pts;
+        }}
+
+        function rebuildAnimatedMeshes(contactWorld, contactLocal, forceFull=false) {{
             if (rollMesh) {{
                 clearObj(rollMesh, rollGroup);
                 rollMesh = null;
@@ -669,8 +681,10 @@ def viewer(
                 endMarker = null;
             }}
 
-            if (depositedLocalPoints.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(depositedLocalPoints, 12, tubeMat);
+            const displayPoints = makeDisplayPoints(contactLocal);
+
+            if (displayPoints.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(displayPoints, 12, tubeMat);
                 if (rollMesh) rollGroup.add(rollMesh);
             }}
 
@@ -696,10 +710,10 @@ def viewer(
             );
             guideNozzle.visible = true;
 
-            if (depositedLocalPoints.length >= 1) {{
-                startMarker = createMarker(depositedLocalPoints[0], startMat, rollGroup);
+            if (displayPoints.length >= 1) {{
+                startMarker = createMarker(displayPoints[0], startMat, rollGroup);
                 endMarker = createMarker(
-                    depositedLocalPoints[depositedLocalPoints.length - 1],
+                    displayPoints[displayPoints.length - 1],
                     endMat,
                     rollGroup
                 );
@@ -710,12 +724,12 @@ def viewer(
             const prev = depositedLocalPoints[depositedLocalPoints.length - 1];
             const seg = contactLocal.distanceTo(prev);
 
-            if (seg < Math.max(0.55, Rt * 0.06)) return;
+            if (seg < Math.max(0.55, Rt * 0.06)) return false;
 
             if (depositedLength + seg <= maxLen) {{
                 depositedLocalPoints.push(contactLocal.clone());
                 depositedLength += seg;
-                return;
+                return true;
             }}
 
             const remain = maxLen - depositedLength;
@@ -726,6 +740,7 @@ def viewer(
                 depositedLength += prev.distanceTo(finalPoint);
             }}
             finished = true;
+            return true;
         }}
 
         function advanceMechanics() {{
@@ -787,18 +802,20 @@ def viewer(
         function animate() {{
             requestAnimationFrame(animate);
 
+            let currentLocal = null;
+            let currentWorld = null;
+
             if (animEnabled && !finished) {{
                 advanceMechanics();
 
-                const cWorld = contactPointWorld(guideRadius, guideZ);
-                const cLocal = worldToMachineLocal(cWorld, thetaMachine);
+                currentWorld = contactPointWorld(guideRadius, guideZ);
+                currentLocal = worldToMachineLocal(currentWorld, thetaMachine);
 
-                addDepositedPoint(cLocal);
+                const committed = addDepositedPoint(currentLocal);
 
-                if (depositedLocalPoints.length !== lastRebuildCount || finished) {{
-                    rebuildAnimatedMeshes(cWorld);
-                    lastRebuildCount = depositedLocalPoints.length;
-                }}
+                rebuildAnimatedMeshes(currentWorld, currentLocal, committed);
+
+                lastCommitCount = depositedLocalPoints.length;
             }}
 
             controls.update();
