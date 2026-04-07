@@ -849,8 +849,8 @@ with colC:
     incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
     rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
     rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
-    gradi_start = st.number_input(t["gradi_start"], value=00.0, step=1.0)
-    pinza = st.number_input(t["pinza"], value=0.0, step=0.1)
+    
+    
 
 with colD:
     st.markdown(f"#### {t['viewer']}")
@@ -862,7 +862,7 @@ with colD:
         [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
         index=0
     )
-    guide_offset_x = st.number_input(t["guide_offset_x"], value=150.0, step=1.0)
+    
 
 if aspo_mode_label == t["aspo_visible"]:
     aspo_mode = "visible"
