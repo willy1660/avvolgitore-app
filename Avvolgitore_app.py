@@ -39,8 +39,6 @@ TEXTS = {
         "incremento": "Incremento strato (mm)",
         "rit_min": "Ritardo base (°)",
         "rit_max": "Ritardo spalla (°)",
-        "gradi_start": "Gradi iniziali (°)",
-        "pinza": "Lunghezza tratto libero (m)",
         "altezza": "Altezza",
         "animazione": "Animazione",
         "velocita": "Velocità",
@@ -48,7 +46,6 @@ TEXTS = {
         "aspo_visible": "Visibile",
         "aspo_transparent": "Trasparente",
         "aspo_hidden": "Nascosto",
-        "guide_offset_x": "Offset guidatubo X (mm)",
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
@@ -72,8 +69,6 @@ TEXTS = {
         "incremento": "Layer increment (mm)",
         "rit_min": "Bottom delay (°)",
         "rit_max": "Top delay (°)",
-        "gradi_start": "Initial degrees (°)",
-        "pinza": "Free straight length (m)",
         "altezza": "Height",
         "animazione": "Animation",
         "velocita": "Speed",
@@ -81,7 +76,6 @@ TEXTS = {
         "aspo_visible": "Visible",
         "aspo_transparent": "Transparent",
         "aspo_hidden": "Hidden",
-        "guide_offset_x": "Guide offset X (mm)",
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
@@ -251,7 +245,9 @@ def simulate_first_layer(
         "z_end": z,
         "direction_end": direction,
     }
-
+gradi_start = 0.0
+pinza = 0.0
+guide_offset_x = 150.0
 def simulate_winding_hybrid(
     d_aspo: float,
     spalla: float,
@@ -849,9 +845,6 @@ with colC:
     incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
     rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
     rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
-    gradi_start = st.number_input(t["gradi_start"], value=00.0, step=1.0)
-    pinza = st.number_input(t["pinza"], value=0.0, step=0.1)
-
 with colD:
     st.markdown(f"#### {t['viewer']}")
     altezza = st.slider(t["altezza"], 400, 900, 700)
@@ -862,7 +855,6 @@ with colD:
         [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
         index=0
     )
-    guide_offset_x = st.number_input(t["guide_offset_x"], value=150.0, step=1.0)
 
 if aspo_mode_label == t["aspo_visible"]:
     aspo_mode = "visible"
