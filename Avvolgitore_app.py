@@ -126,6 +126,7 @@ def trim_polyline(points: np.ndarray, target_length: float) -> np.ndarray:
 
     p0, p1 = points[idx], points[idx + 1]
     seg_len = np.linalg.norm(p1 - p0)
+
     if seg_len < EPS:
         return points[:idx + 1]
 
@@ -177,13 +178,19 @@ def build_coil(
     ritardo_top_deg = max(0.0, float(ritardo_max_deg))
     gradi_start_deg = max(0.0, float(gradi_start_deg))
 
+    # Centerline limits so tube wall touches base/spalla
     z_min = r_tubo
     z_max = spalla_mm - r_tubo
+
+    # First centerline radius so wall is tangent to spool
     r0 = d_aspo_mm / 2.0 + r_tubo
 
     theta_step_deg = 4.0
     theta_step = np.deg2rad(theta_step_deg)
-    theta_sign = -1.0  # clockwise
+
+    # Clockwise rotation
+    theta_sign = -1.0
+
     dz_per_rad = passo_assiale / (2.0 * np.pi)
 
     theta = 0.0
@@ -200,9 +207,11 @@ def build_coil(
 
     add_point(theta, r, z)
 
+    # Initial engagement at base
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
         n0 = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
         step0 = np.deg2rad(gradi_start_deg) / n0
+
         for _ in range(n0):
             theta += theta_sign * step0
             add_point(theta, r, z_min)
@@ -213,6 +222,7 @@ def build_coil(
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
+        # Normal helical winding
         while True:
             theta += theta_sign * theta_step
             z += z_dir * dz_per_rad * theta_step
@@ -235,6 +245,7 @@ def build_coil(
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
+        # Radial shift with Z fixed
         at_spalla = (z_dir == +1)
         z_const = z_max if at_spalla else z_min
         ritardo_deg = ritardo_top_deg if at_spalla else ritardo_bottom_deg
@@ -302,7 +313,6 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
     r_mandrel = d_aspo_mm / 2.0
     flange_radius = max(r_max_mm + d_tubo * 1.25, r_mandrel + 55.0)
 
-    # Keep it lighter
     tubular_segments = min(3200, max(700, int(len(pts) * 0.42)))
     radial_segments = 18
 
@@ -399,8 +409,12 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
         }}
       }}
 
-      const coilGroup = new THREE.Group();
-      scene.add(coilGroup);
+      // Groups
+      const woundGroup = new THREE.Group();
+      scene.add(woundGroup);
+
+      const machineRotGroup = new THREE.Group();
+      scene.add(machineRotGroup);
 
       const curve = new CurvePath(vectors);
 
@@ -420,7 +434,7 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
       }});
 
       const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
-      coilGroup.add(tubeMesh);
+      woundGroup.add(tubeMesh);
 
       const mandrelHeight = {spalla_mm};
 
@@ -434,7 +448,7 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
       }});
       const mandrelMesh = new THREE.Mesh(mandrelGeom, mandrelMat);
       mandrelMesh.rotation.x = Math.PI / 2;
-      scene.add(mandrelMesh);
+      machineRotGroup.add(mandrelMesh);
 
       const hubRadius = Math.max({r_mandrel} * 0.35, 28.0);
       const hubGeom = new THREE.CylinderGeometry(hubRadius, hubRadius, mandrelHeight, 42);
@@ -445,7 +459,7 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
       }});
       const hubMesh = new THREE.Mesh(hubGeom, hubMat);
       hubMesh.rotation.x = Math.PI / 2;
-      scene.add(hubMesh);
+      machineRotGroup.add(hubMesh);
 
       const flangeRadius = {flange_radius};
       const flangeThickness = 6.0;
@@ -460,12 +474,12 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
       const baseMesh = new THREE.Mesh(flangeGeom, flangeMat);
       baseMesh.rotation.x = Math.PI / 2;
       baseMesh.position.z = -mandrelHeight / 2 - flangeThickness / 2;
-      scene.add(baseMesh);
+      machineRotGroup.add(baseMesh);
 
       const topMesh = new THREE.Mesh(flangeGeom, flangeMat);
       topMesh.rotation.x = Math.PI / 2;
       topMesh.position.z = mandrelHeight / 2 + flangeThickness / 2;
-      scene.add(topMesh);
+      machineRotGroup.add(topMesh);
 
       function createCap(position, direction, color) {{
         const geom = new THREE.CircleGeometry({r_tubo}, 24);
@@ -489,17 +503,17 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
         vectors[1].clone().sub(vectors[0]).multiplyScalar(-1),
         0x00ff00
       );
-      coilGroup.add(startCap);
+      woundGroup.add(startCap);
 
       const endCap = createCap(
         vectors[vectors.length - 1],
         vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]),
         0xff0000
       );
-      coilGroup.add(endCap);
+      woundGroup.add(endCap);
 
-      // Guide column at left
-      const guideColumnX = -(flangeRadius + 120);
+      // GUIDATUBO ON THE OPPOSITE SIDE
+      const guideColumnX = +(flangeRadius + 120);
       const guideColumnHeight = mandrelHeight + 180;
 
       const guideColumnGeom = new THREE.BoxGeometry(18, 18, guideColumnHeight);
@@ -532,7 +546,7 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
         metalness: 0.28
       }});
       const armMesh = new THREE.Mesh(armGeom, armMat);
-      armMesh.position.x = guideArmLen / 2;
+      armMesh.position.x = -guideArmLen / 2;
       guideGroup.add(armMesh);
 
       const guideNozzleLen = 34;
@@ -545,10 +559,10 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
       }});
       const nozzleMesh = new THREE.Mesh(nozzleGeom, nozzleMat);
       nozzleMesh.rotation.z = Math.PI / 2;
-      nozzleMesh.position.x = guideArmLen + guideNozzleLen / 2;
+      nozzleMesh.position.x = -(guideArmLen + guideNozzleLen / 2);
       guideGroup.add(nozzleMesh);
 
-      // Straight feed tube between guide nozzle and tangent/deposition point
+      // Straight feed tube
       const feedGeom = new THREE.CylinderGeometry({r_tubo}, {r_tubo}, 1, 18, 1, false);
       const feedMesh = new THREE.Mesh(feedGeom, tubeMat);
       scene.add(feedMesh);
@@ -572,8 +586,9 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
 
       tubeGeom.setDrawRange(0, isAnimating ? 0 : total);
 
-      // Keep actual contact visually on the left side
-      const thetaContact = -Math.PI / 2;
+      // Contact side opposite to previous version
+      // Positive Y side
+      const thetaContact = Math.PI / 2;
 
       function getCurrentPoint(t) {{
         return curve.getPoint(Math.max(0.0005, Math.min(1.0, t)));
@@ -582,29 +597,28 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
       function updateMachine(t) {{
         const pLocal = getCurrentPoint(t);
 
-        // rotate the wound part so active point stays on left
+        // Rotate wound tube so active point stays tangent on opposite side
         const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
-        coilGroup.rotation.z = thetaContact - thetaCurrent;
-        coilGroup.updateMatrixWorld(true);
+        woundGroup.rotation.z = thetaContact - thetaCurrent;
+        woundGroup.updateMatrixWorld(true);
 
-        // active deposition point in world
-        const pWorld = coilGroup.localToWorld(pLocal.clone());
+        const pWorld = woundGroup.localToWorld(pLocal.clone());
         const rCurrent = Math.sqrt(pWorld.x * pWorld.x + pWorld.y * pWorld.y);
 
-        // guidatubo follows radial + axial position
-        guideGroup.position.set(guideColumnX, -rCurrent, pWorld.z);
+        // Guidatubo at opposite side
+        guideGroup.position.set(guideColumnX, +rCurrent, pWorld.z);
 
-        const outlet = new THREE.Vector3(guideArmLen + guideNozzleLen, 0, 0);
+        const outlet = new THREE.Vector3(-(guideArmLen + guideNozzleLen), 0, 0);
         guideGroup.localToWorld(outlet);
 
-        // contact point stays on left side at current radius and z
-        const tangentPoint = new THREE.Vector3(0, -rCurrent, pWorld.z);
+        // Tangent point also on opposite side
+        const tangentPoint = new THREE.Vector3(0, +rCurrent, pWorld.z);
         setCylinderBetween(feedMesh, outlet, tangentPoint);
       }}
 
       updateMachine(progress);
 
-      // Cosmetic rotation of mandrel/flanges/hub
+      // Clockwise machine rotation
       let mandrelSpin = 0.0;
 
       function animate() {{
@@ -614,13 +628,10 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
           progress += {velocita} * 0.002;
           if (progress > 1.0) progress = 1.0;
           tubeGeom.setDrawRange(0, Math.max(2, Math.floor(progress * total)));
-          mandrelSpin -= {velocita} * 0.06; // clockwise
+          mandrelSpin -= {velocita} * 0.06;
         }}
 
-        mandrelMesh.rotation.z = mandrelSpin;
-        hubMesh.rotation.z = mandrelSpin;
-        baseMesh.rotation.z = mandrelSpin;
-        topMesh.rotation.z = mandrelSpin;
+        machineRotGroup.rotation.z = mandrelSpin;
 
         updateMachine(progress);
         controls.update();
