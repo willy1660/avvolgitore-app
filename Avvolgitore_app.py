@@ -161,98 +161,11 @@ def deposited_point(theta: float, radius: float, z: float) -> np.ndarray:
     y = radius * np.sin(tube_theta)
     return np.array([x, y, z], dtype=float)
 
-def simulate_first_layer(
-    d_aspo: float,
-    spalla: float,
-    d_tubo: float,
-    passo: float,
-    incremento: float,
-    rit_b: float,
-    rit_t: float,
-    gradi_start: float,
-    deg_step: float = 3.0,
-):
-    R = d_aspo / 2.0
-    Rt = d_tubo / 2.0
-    H = spalla
+def tangent_contact_point(radius: float, z: float) -> np.ndarray:
+    # tangència de la recta horitzontal y = radius amb el cercle x²+y²=radius²
+    return np.array([0.0, radius, z], dtype=float)
 
-    theta = np.deg2rad(gradi_start)
-    radius = R + Rt
-    z = Rt
-
-    points = [deposited_point(theta, radius, z)]
-    rad_step = np.deg2rad(deg_step)
-
-    direction = 1
-    mode = "axial"
-    turn_progress = 0.0
-    turn_delay = 0.0
-    turn_start_radius = radius
-    turn_end_radius = radius
-    turn_z = z
-    first_layer_done = False
-
-    for _ in range(300000):
-        prev = points[-1]
-        theta -= rad_step
-
-        if mode == "axial":
-            z += direction * passo * (deg_step / 360.0)
-
-            if z >= H - Rt:
-                z = H - Rt
-                mode = "turn"
-                turn_progress = 0.0
-                turn_delay = max(rit_t, 0.0)
-                turn_start_radius = radius
-                turn_end_radius = radius + incremento
-                turn_z = z
-
-            elif z <= Rt:
-                z = Rt
-                mode = "turn"
-                turn_progress = 0.0
-                turn_delay = max(rit_b, 0.0)
-                turn_start_radius = radius
-                turn_end_radius = radius + incremento
-                turn_z = z
-
-        else:
-            if turn_delay <= 0.0:
-                radius = turn_end_radius
-                mode = "axial"
-                direction *= -1
-                first_layer_done = True
-            else:
-                turn_progress += deg_step
-                s = smoothstep(turn_progress / turn_delay)
-                radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
-                z = turn_z
-
-                if turn_progress >= turn_delay:
-                    radius = turn_end_radius
-                    mode = "axial"
-                    direction *= -1
-                    first_layer_done = True
-
-        new_p = deposited_point(theta, radius, z)
-        seg = float(np.linalg.norm(new_p - prev))
-
-        if seg >= max(0.4, Rt * 0.08):
-            points.append(new_p)
-
-        if first_layer_done:
-            break
-
-    return {
-        "points": np.array(points, dtype=float),
-        "theta_end": theta,
-        "radius_end": radius,
-        "z_end": z,
-        "direction_end": direction,
-    }
-
-def simulate_winding_hybrid(
+def simulate_winding_deposition(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -262,74 +175,140 @@ def simulate_winding_hybrid(
     rit_t: float,
     lunghezza_m: float,
     gradi_start: float,
+    deposition_alpha_first: float = 0.30,
+    deposition_alpha_fast: float = 0.22,
     deg_step_first: float = 3.0,
     deg_step_fast: float = 6.0,
 ):
-    max_len = lunghezza_m * 1000.0
+    """
+    Model de deposició:
+    - el canvi de capa segueix governat per 'incremento'
+    - el punt afegit al rotllo es construeix progressivament
+      cap al punt de contacte tangent
+    - primera capa amb retard
+    - capes següents més ràpides
+    """
+    R = d_aspo / 2.0
     Rt = d_tubo / 2.0
     H = spalla
+    max_len = lunghezza_m * 1000.0
 
-    first = simulate_first_layer(
-        d_aspo=d_aspo,
-        spalla=spalla,
-        d_tubo=d_tubo,
-        passo=passo,
-        incremento=incremento,
-        rit_b=rit_b,
-        rit_t=rit_t,
-        gradi_start=gradi_start,
-        deg_step=deg_step_first,
-    )
+    theta = np.deg2rad(gradi_start)
+    radius = R + Rt
+    z = Rt
 
-    points = first["points"].tolist()
-    deposited_len = polyline_length(first["points"])
+    start_contact = tangent_contact_point(radius, z)
+    points = [start_contact.copy()]
+    deposited_len = 0.0
 
-    if deposited_len >= max_len:
-        pts = np.array(points, dtype=float)
-        return pts, max_len
+    direction = 1
+    mode = "axial"
+    turn_progress = 0.0
+    turn_delay = 0.0
+    turn_start_radius = radius
+    turn_end_radius = radius
+    turn_z = z
+    layer_index = 0
 
-    theta = first["theta_end"]
-    radius = first["radius_end"]
-    z = first["z_end"]
-    direction = first["direction_end"]
-
-    step_deg = deg_step_fast
-    rad_step = np.deg2rad(step_deg)
+    last_contact = start_contact.copy()
 
     for _ in range(500000):
         prev = np.array(points[-1], dtype=float)
+
+        if layer_index == 0:
+            step_deg = deg_step_first
+            alpha_dep = deposition_alpha_first
+        else:
+            step_deg = deg_step_fast
+            alpha_dep = deposition_alpha_fast
+
+        rad_step = np.deg2rad(step_deg)
         theta -= rad_step
-        z += direction * passo * (step_deg / 360.0)
 
-        hit_top = z >= H - Rt
-        hit_bottom = z <= Rt
+        if layer_index == 0:
+            # Primera capa amb retard real
+            if mode == "axial":
+                z += direction * passo * (step_deg / 360.0)
 
-        if hit_top:
-            z = H - Rt
-            radius += incremento
-            direction = -1
-        elif hit_bottom:
-            z = Rt
-            radius += incremento
-            direction = 1
+                if z >= H - Rt:
+                    z = H - Rt
+                    mode = "turn"
+                    turn_progress = 0.0
+                    turn_delay = max(rit_t, 0.0)
+                    turn_start_radius = radius
+                    turn_end_radius = radius + incremento
+                    turn_z = z
 
-        new_p = deposited_point(theta, radius, z)
+                elif z <= Rt:
+                    z = Rt
+                    mode = "turn"
+                    turn_progress = 0.0
+                    turn_delay = max(rit_b, 0.0)
+                    turn_start_radius = radius
+                    turn_end_radius = radius + incremento
+                    turn_z = z
+            else:
+                if turn_delay <= 0.0:
+                    radius = turn_end_radius
+                    mode = "axial"
+                    direction *= -1
+                    layer_index = 1
+                else:
+                    turn_progress += step_deg
+                    s = smoothstep(turn_progress / turn_delay)
+                    radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
+                    z = turn_z
+
+                    if turn_progress >= turn_delay:
+                        radius = turn_end_radius
+                        mode = "axial"
+                        direction *= -1
+                        layer_index = 1
+        else:
+            # Capes posteriors: canvi de capa governat per incremento
+            z += direction * passo * (step_deg / 360.0)
+
+            if z >= H - Rt:
+                z = H - Rt
+                radius += incremento
+                direction = -1
+                layer_index += 1
+
+            elif z <= Rt:
+                z = Rt
+                radius += incremento
+                direction = 1
+                layer_index += 1
+
+        # Punt de contacte geomètric real
+        contact = tangent_contact_point(radius, z)
+
+        # Deposició progressiva: el rotllo es construeix poc a poc
+        # seguint el contacte, no saltant-hi directament.
+        new_p = prev + alpha_dep * (contact - prev)
+
+        # Evita quedar massa frenat si el punt es queda curt
+        dist_contact = np.linalg.norm(contact - new_p)
+        if dist_contact < max(0.5, Rt * 0.05):
+            new_p = contact.copy()
+
         seg = float(np.linalg.norm(new_p - prev))
-
-        if seg < max(0.4, Rt * 0.08):
+        if seg < max(0.35, Rt * 0.06):
+            last_contact = contact.copy()
             continue
 
         if deposited_len + seg >= max_len:
             remain = max_len - deposited_len
             if seg > 1e-9:
-                alpha = remain / seg
-                final_p = prev + alpha * (new_p - prev)
+                alpha_trim = remain / seg
+                final_p = prev + alpha_trim * (new_p - prev)
                 points.append(final_p.tolist())
                 deposited_len += float(np.linalg.norm(final_p - prev))
             break
 
         points.append(new_p.tolist())
         deposited_len += seg
+        last_contact = contact.copy()
 
     pts = np.array(points, dtype=float)
     return pts, deposited_len
@@ -551,9 +530,8 @@ def viewer(
         }}
 
         function guidePointFor(radius, z) {{
-            // Y calculat perquè la recta de sortida sigui tangent a la capa actual
+            // X manual, Y automàtic per tangència
             const yTangent = radius;
-
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
                 yTangent,
@@ -562,19 +540,11 @@ def viewer(
         }}
 
         function tangentPointFor(radius, z) {{
-            // Tangència de la recta horitzontal y = radius amb el cercle x²+y²=radius²
             return new THREE.Vector3(
                 0.0,
                 radius,
                 z
             );
-        }}
-
-        function currentDepositedPoint(thetaMachine, radius, z) {{
-            const tubeTheta = -thetaMachine + Math.PI;
-            const x = radius * Math.cos(tubeTheta);
-            const y = radius * Math.sin(tubeTheta);
-            return new THREE.Vector3(x, y, z);
         }}
 
         function buildTubeMeshFromPoints(points, radialSegments = 12) {{
@@ -596,9 +566,11 @@ def viewer(
         function buildFreePathPoints(curRadius, curZ) {{
             const guideP = guidePointFor(curRadius, curZ);
             const tangentP = tangentPointFor(curRadius, curZ);
-
-            // tram recte pur des del guidatubo fins a tangència
             return [guideP, tangentP];
+        }}
+
+        function currentContactPoint(radius, z) {{
+            return tangentPointFor(radius, z);
         }}
 
         // =====================
@@ -653,10 +625,13 @@ def viewer(
         let turnZ = guideZ;
         let layerIndex = 0;
 
+        const alphaFirst = 0.30;
+        const alphaFast = 0.22;
+
         machine.rotation.z = thetaMachine;
 
         if (animEnabled) {{
-            depositedPoints.push(currentDepositedPoint(thetaMachine, guideRadius, guideZ));
+            depositedPoints.push(currentContactPoint(guideRadius, guideZ));
             guide.position.copy(guidePointFor(guideRadius, guideZ));
         }} else {{
             buildStaticFinalView();
@@ -701,7 +676,7 @@ def viewer(
             const prev = depositedPoints[depositedPoints.length - 1];
             const seg = newPoint.distanceTo(prev);
 
-            if (seg < Math.max(0.8, Rt * 0.10)) {{
+            if (seg < Math.max(0.35, Rt * 0.06)) {{
                 return;
             }}
 
@@ -736,7 +711,6 @@ def viewer(
             thetaMachine -= radPerFrame;
             machine.rotation.z = thetaMachine;
 
-            // Primera capa: completa amb retard
             if (layerIndex === 0) {{
                 if (mode === "axial") {{
                     guideZ += direction * passo * (degPerFrame / 360.0);
@@ -779,7 +753,6 @@ def viewer(
                     }}
                 }}
             }} else {{
-                // Capes següents: model ràpid
                 guideZ += direction * passo * (degPerFrame / 360.0);
 
                 if (guideZ >= Hs - Rt) {{
@@ -802,8 +775,17 @@ def viewer(
             if (animEnabled && !finished) {{
                 advanceMechanics();
 
-                const rawPoint = currentDepositedPoint(thetaMachine, guideRadius, guideZ);
-                addDepositedPoint(rawPoint);
+                const contact = currentContactPoint(guideRadius, guideZ);
+                const prev = depositedPoints[depositedPoints.length - 1];
+                const alphaDep = layerIndex === 0 ? alphaFirst : alphaFast;
+
+                let newPoint = prev.clone().lerp(contact, alphaDep);
+
+                if (newPoint.distanceTo(contact) < Math.max(0.5, Rt * 0.05)) {{
+                    newPoint = contact.clone();
+                }}
+
+                addDepositedPoint(newPoint);
 
                 guide.visible = true;
                 guide.position.copy(guidePointFor(guideRadius, guideZ));
@@ -883,7 +865,7 @@ else:
 
 d_tubo = d_rame + 2.0 * spessore
 
-points, deposited_len_mm = simulate_winding_hybrid(
+points, deposited_len_mm = simulate_winding_deposition(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
@@ -893,6 +875,8 @@ points, deposited_len_mm = simulate_winding_hybrid(
     rit_t=rit_t,
     lunghezza_m=lunghezza,
     gradi_start=gradi_start,
+    deposition_alpha_first=0.30,
+    deposition_alpha_fast=0.22,
     deg_step_first=3.0,
     deg_step_fast=6.0,
 )
