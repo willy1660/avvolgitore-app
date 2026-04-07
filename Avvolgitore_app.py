@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import math
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
@@ -169,15 +170,15 @@ def compute_contact_point_python(
     target_p: np.ndarray,
     deposited_points: list,
     d_tubo: float,
-    search_back: int = 2200,
+    search_back: int = 2600,
 ):
     """
-    Contacte físic simplificat:
-    - primera capa: target ideal sobre l'aspo
-    - capes superiors: primer punt de la capa existent que intercepta aproximadament
-      la recta guide -> target
+    Contacte físic simplificat però estable:
+    - primera capa: punt ideal sobre l'aspo
+    - capes següents: primer punt existent que talla aproximadament
+      la recta guide -> target i que és molt proper al target ideal
     """
-    if len(deposited_points) < 30:
+    if len(deposited_points) < 40:
         return target_p.copy()
 
     pts = np.array(deposited_points[-search_back:], dtype=float)
@@ -189,8 +190,8 @@ def compute_contact_point_python(
     if line_len2 < 1e-9:
         return target_p.copy()
 
-    # proximitat axial per evitar tocar voltes llunyanes
-    zmask = np.abs(pts[:, 2] - target_p[2]) <= d_tubo * 0.9
+    # Només busquem al voltant del target ideal per evitar salts estranys.
+    zmask = np.abs(pts[:, 2] - target_p[2]) <= d_tubo * 0.85
     pts = pts[zmask]
     if len(pts) == 0:
         return target_p.copy()
@@ -199,15 +200,19 @@ def compute_contact_point_python(
     best_s = None
 
     for i, p in enumerate(pts):
+        # Ha d'estar molt a prop del punt ideal
+        if np.linalg.norm(p - target_p) > d_tubo * 1.15:
+            continue
+
         v = p - guide_p
-        s = float(np.dot(v, line) / line_len2)  # 0..1 sobre el segment
+        s = float(np.dot(v, line) / line_len2)
         if s <= 0.0 or s >= 1.0:
             continue
 
         proj = guide_p + s * line
         perp = float(np.linalg.norm(p - proj))
 
-        if perp <= d_tubo * 0.75:
+        if perp <= d_tubo * 0.55:
             if best_s is None or s < best_s:
                 best_s = s
                 best_idx = i
@@ -216,6 +221,26 @@ def compute_contact_point_python(
         return pts[best_idx].copy()
 
     return target_p.copy()
+
+def append_segmented_point(points_list: list, point: np.ndarray, max_seg: float):
+    prev = np.array(points_list[-1], dtype=float)
+    seg = float(np.linalg.norm(point - prev))
+
+    if seg <= max_seg:
+        points_list.append(point.tolist())
+        return seg
+
+    steps = max(2, int(math.ceil(seg / max_seg)))
+    total = 0.0
+    last = prev.copy()
+
+    for i in range(1, steps + 1):
+        p = prev + (point - prev) * (i / steps)
+        points_list.append(p.tolist())
+        total += float(np.linalg.norm(p - last))
+        last = p
+
+    return total
 
 def simulate_winding_deposition_hybrid(
     d_aspo: float,
@@ -230,8 +255,6 @@ def simulate_winding_deposition_hybrid(
     guide_offset_x: float,
     deg_step_first: float = 3.0,
     deg_step_fast: float = 6.0,
-    alpha_first: float = 0.34,
-    alpha_fast: float = 0.22,
 ):
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
@@ -258,8 +281,6 @@ def simulate_winding_deposition_hybrid(
         prev = np.array(deposited_points[-1], dtype=float)
 
         step_deg = deg_step_first if layer_index == 0 else deg_step_fast
-        alpha_dep = alpha_first if layer_index == 0 else alpha_fast
-
         theta -= np.deg2rad(step_deg)
 
         if layer_index == 0:
@@ -323,13 +344,7 @@ def simulate_winding_deposition_hybrid(
             d_tubo=d_tubo,
         )
 
-        new_p = prev + alpha_dep * (contact_p - prev)
-
-        if np.linalg.norm(new_p - contact_p) < Rt * 0.05:
-            new_p = contact_p.copy()
-
-        seg = float(np.linalg.norm(new_p - prev))
-
+        seg = float(np.linalg.norm(contact_p - prev))
         if seg < max(0.4, Rt * 0.08):
             continue
 
@@ -337,13 +352,19 @@ def simulate_winding_deposition_hybrid(
             remain = max_len - deposited_len
             if seg > 1e-9:
                 trim = remain / seg
-                final_p = prev + trim * (new_p - prev)
-                deposited_points.append(final_p.tolist())
-                deposited_len += float(np.linalg.norm(final_p - prev))
+                final_p = prev + trim * (contact_p - prev)
+                deposited_len += append_segmented_point(
+                    deposited_points,
+                    final_p,
+                    max_seg=max(1.2, Rt * 0.65)
+                )
             break
 
-        deposited_points.append(new_p.tolist())
-        deposited_len += seg
+        deposited_len += append_segmented_point(
+            deposited_points,
+            contact_p,
+            max_seg=max(1.2, Rt * 0.65)
+        )
 
     pts = np.array(deposited_points, dtype=float)
     return pts, deposited_len
@@ -454,7 +475,6 @@ def viewer(
         const maxLen = {float(lunghezza)} * 1000.0;
         const speed = {float(vel)};
         const animEnabled = {anim_js};
-        const straightLen = Math.max(50.0, {float(pinza)} * 1000.0);
         const guideOffsetX = {float(guide_offset_x)};
         const finalPointsRaw = {final_points_json};
         const aspoMode = {aspo_mode_json};
@@ -606,9 +626,9 @@ def viewer(
         }}
 
         function computeContactPoint(guideP, targetP) {{
-            if (depositedPoints.length < 30) return targetP.clone();
+            if (depositedPoints.length < 40) return targetP.clone();
 
-            const recentCount = Math.min(2200, depositedPoints.length);
+            const recentCount = Math.min(2600, depositedPoints.length);
             const line = targetP.clone().sub(guideP);
             const lineLen2 = line.lengthSq();
             if (lineLen2 < 1e-9) return targetP.clone();
@@ -619,7 +639,9 @@ def viewer(
             for (let i = depositedPoints.length - recentCount; i < depositedPoints.length; i += 2) {{
                 if (i < 0) continue;
                 const p = depositedPoints[i];
-                if (Math.abs(p.z - targetP.z) > Rt * 1.8) continue;
+
+                if (Math.abs(p.z - targetP.z) > Rt * 1.7) continue;
+                if (p.distanceTo(targetP) > Rt * 2.3) continue;
 
                 const v = p.clone().sub(guideP);
                 const s = v.dot(line) / lineLen2;
@@ -628,7 +650,7 @@ def viewer(
                 const proj = guideP.clone().add(line.clone().multiplyScalar(s));
                 const perp = proj.distanceTo(p);
 
-                if (perp <= Rt * 1.5) {{
+                if (perp <= Rt * 1.1) {{
                     if (s < bestS) {{
                         bestS = s;
                         best = p.clone();
@@ -637,6 +659,49 @@ def viewer(
             }}
 
             return best ? best : targetP.clone();
+        }}
+
+        function appendSegmentedPoint(targetPoint) {{
+            const prev = depositedPoints[depositedPoints.length - 1];
+            const seg = targetPoint.distanceTo(prev);
+
+            if (seg < Math.max(0.8, Rt * 0.10)) {{
+                return seg;
+            }}
+
+            const maxSeg = Math.max(1.2, Rt * 0.65);
+            const steps = Math.max(1, Math.ceil(seg / maxSeg));
+
+            let added = 0.0;
+            let last = prev.clone();
+
+            for (let i = 1; i <= steps; i++) {{
+                const p = prev.clone().lerp(targetPoint, i / steps);
+
+                if (depositedPoints.length > 0 && depositedLength >= maxLen) {{
+                    break;
+                }}
+
+                const s = p.distanceTo(last);
+                if (depositedLength + s > maxLen) {{
+                    const remain = maxLen - depositedLength;
+                    if (s > 1e-9) {{
+                        const trim = remain / s;
+                        const pf = last.clone().lerp(p, trim);
+                        depositedPoints.push(pf);
+                        depositedLength += last.distanceTo(pf);
+                        finished = true;
+                    }}
+                    return seg;
+                }}
+
+                depositedPoints.push(p);
+                depositedLength += s;
+                added += s;
+                last = p;
+            }}
+
+            return added;
         }}
 
         // =====================
@@ -735,47 +800,6 @@ def viewer(
             }}
         }}
 
-        function addDepositedPoint(guideP, contactPoint) {{
-            const prev = depositedPoints[depositedPoints.length - 1];
-
-            const alpha = (layerIndex === 0) ? 0.34 : 0.22;
-            const newPoint = prev.clone().lerp(contactPoint, alpha);
-
-            if (newPoint.distanceTo(contactPoint) < Rt * 0.05) {{
-                newPoint.copy(contactPoint);
-            }}
-
-            const seg = newPoint.distanceTo(prev);
-
-            if (seg < Math.max(0.8, Rt * 0.10)) {{
-                return newPoint;
-            }}
-
-            if (depositedLength + seg <= maxLen) {{
-                depositedPoints.push(newPoint.clone());
-                depositedLength += seg;
-                return newPoint;
-            }}
-
-            let lo = 0.0;
-            let hi = 1.0;
-
-            for (let i = 0; i < 28; i++) {{
-                const mid = 0.5 * (lo + hi);
-                const candidate = prev.clone().lerp(newPoint, mid);
-                const trialLen = depositedLength + prev.distanceTo(candidate);
-
-                if (trialLen < maxLen) lo = mid;
-                else hi = mid;
-            }}
-
-            const finalPoint = prev.clone().lerp(newPoint, lo);
-            depositedPoints.push(finalPoint);
-            depositedLength += prev.distanceTo(finalPoint);
-            finished = true;
-            return finalPoint;
-        }}
-
         function advanceMechanics() {{
             const degPerFrame = 2.0 * speed;
             const radPerFrame = THREE.MathUtils.degToRad(degPerFrame);
@@ -844,13 +868,17 @@ def viewer(
         function animate() {{
             requestAnimationFrame(animate);
 
+            let guideP = null;
+            let contactP = null;
+
             if (animEnabled && !finished) {{
                 advanceMechanics();
 
-                const guideP = guidePointFor(guideRadius, guideZ);
+                guideP = guidePointFor(guideRadius, guideZ);
                 const targetIdeal = currentDepositedPoint(thetaMachine, guideRadius, guideZ);
-                const contactP = computeContactPoint(guideP, targetIdeal);
-                addDepositedPoint(guideP, contactP);
+                contactP = computeContactPoint(guideP, targetIdeal);
+
+                appendSegmentedPoint(contactP);
 
                 guide.visible = true;
                 guide.position.copy(guideP);
