@@ -1,5 +1,6 @@
 import os
 import glob
+import json
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
@@ -43,11 +44,17 @@ TEXTS = {
         "altezza": "Altezza",
         "animazione": "Animazione",
         "velocita": "Velocità",
+        "aspo_mode": "Aspo",
+        "aspo_visible": "Visibile",
+        "aspo_transparent": "Trasparente",
+        "aspo_hidden": "Nascosto",
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
-        "metric4": "Diametro esterno",
-        "warning": "⚠️ Diametro esterno superiore a 750 mm."
+        "metric4": "Diametro radiale max",
+        "metric5": "Ingombro max XY",
+        "metric6": "Lunghezza avvolta",
+        "warning": "⚠️ Ingombro max XY superiore a 750 mm."
     },
     "EN": {
         "title": "Coiling",
@@ -69,11 +76,17 @@ TEXTS = {
         "altezza": "Height",
         "animazione": "Animation",
         "velocita": "Speed",
+        "aspo_mode": "Spool",
+        "aspo_visible": "Visible",
+        "aspo_transparent": "Transparent",
+        "aspo_hidden": "Hidden",
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
-        "metric4": "Outer diameter",
-        "warning": "⚠️ Outer diameter exceeds 750 mm."
+        "metric4": "Max radial diameter",
+        "metric5": "Max XY span",
+        "metric6": "Wound length",
+        "warning": "⚠️ Max XY span exceeds 750 mm."
     }
 }
 
@@ -128,18 +141,19 @@ else:
     st.markdown(f"## {t['title']}")
 
 # =========================
-# METRICS SIMULATION
-# Kinematic model:
-# - axial pitch imposed by machine
-# - radial step imposed by machine
-# - smooth turn during delay
+# GEOMETRY / SIMULATION
 # =========================
 
 def smoothstep(x: float) -> float:
     x = max(0.0, min(1.0, x))
     return x * x * (3.0 - 2.0 * x)
 
-def simulate_outer_diameter(
+def polyline_length(points: np.ndarray) -> float:
+    if len(points) < 2:
+        return 0.0
+    return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
+
+def simulate_winding_points(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -149,6 +163,7 @@ def simulate_outer_diameter(
     rit_t: float,
     lunghezza_m: float,
     gradi_start: float,
+    deg_step: float = 3.0,
 ):
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
@@ -170,7 +185,6 @@ def simulate_outer_diameter(
     turn_end_radius = radius
     turn_z = z
 
-    deg_step = 3.0
     rad_step = np.deg2rad(deg_step)
 
     def deposited_point(cur_theta, cur_radius, cur_z):
@@ -235,16 +249,50 @@ def simulate_outer_diameter(
                 alpha = remain / seg
                 final_p = prev + alpha * (new_p - prev)
                 points.append(final_p)
+                deposited_len += float(np.linalg.norm(final_p - prev))
             break
 
         points.append(new_p)
         deposited_len += seg
 
-    pts = np.array(points)
-    radial = np.sqrt(pts[:, 0] ** 2 + pts[:, 1] ** 2)
-    max_centerline_r = float(np.max(radial)) if len(radial) else (R + Rt)
-    outer_diameter = 2.0 * (max_centerline_r + Rt)
-    return outer_diameter
+    return np.array(points, dtype=float), deposited_len
+
+def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
+    if len(points) < 2:
+        return float(d_tubo)
+
+    xy = points[:, :2]
+
+    # downsample only if very dense
+    max_samples = 1200
+    if len(xy) > max_samples:
+        idx = np.linspace(0, len(xy) - 1, max_samples).astype(int)
+        xy = xy[idx]
+
+    diff = xy[:, None, :] - xy[None, :, :]
+    dist2 = np.sum(diff * diff, axis=2)
+    max_centerline_span = float(np.sqrt(np.max(dist2)))
+    return max_centerline_span + d_tubo
+
+def compute_metrics(points: np.ndarray, d_tubo: float):
+    if len(points) == 0:
+        return {
+            "diam_radiale": 0.0,
+            "max_xy_span": 0.0,
+            "wound_length_m": 0.0,
+        }
+
+    radial = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
+    max_centerline_r = float(np.max(radial))
+    diam_radiale = 2.0 * (max_centerline_r + d_tubo / 2.0)
+    max_xy_span = compute_max_xy_span(points, d_tubo)
+    wound_length_m = polyline_length(points) / 1000.0
+
+    return {
+        "diam_radiale": diam_radiale,
+        "max_xy_span": max_xy_span,
+        "wound_length_m": wound_length_m,
+    }
 
 # =========================
 # VIEWER
@@ -263,9 +311,13 @@ def viewer(
     anim,
     vel,
     gradi_start,
-    pinza
+    pinza,
+    final_points,
+    aspo_mode,
 ):
     anim_js = "true" if anim else "false"
+    final_points_json = json.dumps(final_points)
+    aspo_mode_json = json.dumps(aspo_mode)
 
     return f"""
     <div id="viewer_root" style="width:100%;height:{altezza}px;background:#000;"></div>
@@ -287,7 +339,7 @@ def viewer(
         const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
         camera.position.set(-520, -760, 420);
 
-        const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+        const renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: false }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(W, Hview);
         host.appendChild(renderer.domElement);
@@ -296,10 +348,6 @@ def viewer(
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.target.set(0, 0, {spalla}/2);
-
-        // =====================
-        // PARAMS
-        // =====================
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
@@ -312,20 +360,24 @@ def viewer(
         const speed = {float(vel)};
         const animEnabled = {anim_js};
         const straightLen = Math.max(50.0, {float(pinza)} * 1000.0);
+        const finalPointsRaw = {final_points_json};
+        const aspoMode = {aspo_mode_json};
 
-        // guidatubo position
-        const guideX = -(R + 80.0);
+        // guide fixed at left tangent side
+        const guideOffsetX = 80.0;
         let guideRadius = R + Rt;
         let guideZ = Rt;
 
-        // =====================
-        // MATERIALS
-        // =====================
+        function guidePointFor(radius, z) {{
+            return new THREE.Vector3(-(radius + guideOffsetX), 0.0, z);
+        }}
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0xff3333,
             roughness: 0.55,
-            metalness: 0.08
+            metalness: 0.08,
+            transparent: aspoMode === "transparent",
+            opacity: aspoMode === "transparent" ? 0.22 : 1.0
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
@@ -340,8 +392,20 @@ def viewer(
             metalness: 0.15
         }});
 
+        const startMat = new THREE.MeshStandardMaterial({{
+            color: 0x00ff88,
+            roughness: 0.45,
+            metalness: 0.12
+        }});
+
+        const endMat = new THREE.MeshStandardMaterial({{
+            color: 0xffcc00,
+            roughness: 0.45,
+            metalness: 0.12
+        }});
+
         // =====================
-        // ASP0
+        // ASPO
         // =====================
 
         const machine = new THREE.Group();
@@ -374,6 +438,8 @@ def viewer(
         top.position.z = Hs;
         machine.add(top);
 
+        machine.visible = aspoMode !== "hidden";
+
         // =====================
         // GUIDATUBO
         // =====================
@@ -385,25 +451,26 @@ def viewer(
         scene.add(guide);
 
         // =====================
-        // TUBE MODEL
+        // LIGHTS
         // =====================
 
-        let depositedPoints = [];
-        let depositedLength = 0.0;
-        let finished = false;
+        scene.add(new THREE.AmbientLight(0xffffff, 0.82));
 
-        let rollMesh = null;
-        let freeMesh = null;
-        let lastRebuildCount = 0;
-        let lastFreeKey = "";
+        const dLight = new THREE.DirectionalLight(0xffffff, 0.72);
+        dLight.position.set(500, -500, 800);
+        scene.add(dLight);
+
+        const dLight2 = new THREE.DirectionalLight(0xffffff, 0.32);
+        dLight2.position.set(-600, 200, 300);
+        scene.add(dLight2);
+
+        // =====================
+        // HELPERS
+        // =====================
 
         function smoothstep(x) {{
             x = Math.max(0.0, Math.min(1.0, x));
             return x * x * (3.0 - 2.0 * x);
-        }}
-
-        function currentGuidePoint() {{
-            return new THREE.Vector3(guideX, guideRadius, guideZ);
         }}
 
         function currentDepositedPoint(thetaMachine) {{
@@ -413,57 +480,108 @@ def viewer(
             return new THREE.Vector3(x, y, guideZ);
         }}
 
-        function buildStraightTube(startPoint, endPoint) {{
-            const dir = new THREE.Vector3().subVectors(endPoint, startPoint);
-            const len = dir.length();
-
-            if (len < 1e-6) return null;
-
-            const geo = new THREE.CylinderGeometry(Rt, Rt, len, 12);
-            const mesh = new THREE.Mesh(geo, tubeMat);
-
-            mesh.position.copy(startPoint.clone().add(endPoint).multiplyScalar(0.5));
-            mesh.quaternion.setFromUnitVectors(
-                new THREE.Vector3(0, 1, 0),
-                dir.clone().normalize()
-            );
-
-            return mesh;
+        function createMarker(point, material) {{
+            const g = new THREE.SphereGeometry(Math.max(4, Rt * 0.9), 18, 18);
+            const m = new THREE.Mesh(g, material);
+            m.position.copy(point);
+            scene.add(m);
+            return m;
         }}
 
-        function rebuildMeshes(guidePoint, depositedPoint) {{
-            if (depositedPoints.length >= 2) {{
-                if (rollMesh) {{
-                    scene.remove(rollMesh);
-                    rollMesh.geometry.dispose();
-                    rollMesh.material.dispose();
-                    rollMesh = null;
-                }}
+        function buildTubeMeshFromPoints(points, radialSegments = 12) {{
+            if (!points || points.length < 2) return null;
+            const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.1);
+            const tubularSegments = Math.max(32, Math.min(2600, points.length * 2));
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
+            return new THREE.Mesh(geo, tubeMat);
+        }}
 
-                const rollCurve = new THREE.CatmullRomCurve3(depositedPoints, false, "centripetal", 0.1);
-                const rollSegs = Math.max(32, Math.min(2200, depositedPoints.length * 2));
-                const rollGeo = new THREE.TubeGeometry(rollCurve, rollSegs, Rt, 12, false);
-                rollMesh = new THREE.Mesh(rollGeo, tubeMat);
-                scene.add(rollMesh);
+        function shortestAngleDelta(a0, a1) {{
+            let d = a1 - a0;
+            while (d > Math.PI) d -= 2.0 * Math.PI;
+            while (d < -Math.PI) d += 2.0 * Math.PI;
+            return d;
+        }}
+
+        function buildFreePathPoints(curRadius, curZ, thetaMachine) {{
+            const gPt = guidePointFor(curRadius, curZ);
+            const tangentPt = new THREE.Vector3(-curRadius, 0.0, curZ);
+
+            const tubeTheta = -thetaMachine + Math.PI;
+            const delta = shortestAngleDelta(Math.PI, tubeTheta);
+
+            const arcPts = [];
+            const nArc = Math.max(12, Math.ceil(Math.abs(delta) / (Math.PI / 18.0)));
+            for (let i = 0; i <= nArc; i++) {{
+                const u = i / nArc;
+                const a = Math.PI + delta * u;
+                arcPts.push(new THREE.Vector3(
+                    curRadius * Math.cos(a),
+                    curRadius * Math.sin(a),
+                    curZ
+                ));
             }}
 
-            const freeStart = new THREE.Vector3(
-                guidePoint.x + straightLen,
-                guidePoint.y,
-                guidePoint.z
-            );
-            const freeEnd = guidePoint.clone();
+            const pts = [gPt, tangentPt, ...arcPts];
+            return pts;
+        }}
 
+        let rollMesh = null;
+        let freeMesh = null;
+        let startMarker = null;
+        let endMarker = null;
+        let depositedPoints = [];
+        let depositedLength = 0.0;
+        let finished = false;
+        let lastRebuildCount = -1;
+
+        function clearMesh(obj) {{
+            if (!obj) return;
+            scene.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) obj.material.dispose();
+        }}
+
+        function rebuildAnimatedMeshes(thetaMachine) {{
+            if (rollMesh) {{
+                clearMesh(rollMesh);
+                rollMesh = null;
+            }}
             if (freeMesh) {{
-                scene.remove(freeMesh);
-                freeMesh.geometry.dispose();
-                freeMesh.material.dispose();
+                clearMesh(freeMesh);
                 freeMesh = null;
             }}
 
-            freeMesh = buildStraightTube(freeStart, freeEnd);
-            if (freeMesh) {{
-                scene.add(freeMesh);
+            if (depositedPoints.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(depositedPoints, 12);
+                if (rollMesh) scene.add(rollMesh);
+            }}
+
+            const freePts = buildFreePathPoints(guideRadius, guideZ, thetaMachine);
+            if (freePts.length >= 2) {{
+                freeMesh = buildTubeMeshFromPoints(freePts, 12);
+                if (freeMesh) scene.add(freeMesh);
+            }}
+
+            if (startMarker) scene.remove(startMarker);
+            if (endMarker) scene.remove(endMarker);
+
+            if (depositedPoints.length >= 1) {{
+                startMarker = createMarker(depositedPoints[0], startMat);
+                endMarker = createMarker(depositedPoints[depositedPoints.length - 1], endMat);
+            }}
+        }}
+
+        function buildStaticFinalView() {{
+            guide.visible = false;
+
+            const finalPoints = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+            if (finalPoints.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(finalPoints, 12);
+                if (rollMesh) scene.add(rollMesh);
+
+                startMarker = createMarker(finalPoints[0], startMat);
+                endMarker = createMarker(finalPoints[finalPoints.length - 1], endMat);
             }}
         }}
 
@@ -474,17 +592,13 @@ def viewer(
         let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
         machine.rotation.z = thetaMachine;
 
-        depositedPoints.push(currentDepositedPoint(thetaMachine));
-
-        // =====================
-        // LIGHTS
-        // =====================
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-
-        const dLight = new THREE.DirectionalLight(0xffffff, 0.7);
-        dLight.position.set(500, -500, 800);
-        scene.add(dLight);
+        if (animEnabled) {{
+            depositedPoints.push(currentDepositedPoint(thetaMachine));
+            const g0 = guidePointFor(guideRadius, guideZ);
+            guide.position.copy(g0);
+        }} else {{
+            buildStaticFinalView();
+        }}
 
         // =====================
         // MOTION STATE MACHINE
@@ -502,12 +616,10 @@ def viewer(
             const degPerFrame = 2.0 * speed;
             const radPerFrame = THREE.MathUtils.degToRad(degPerFrame);
 
-            // aspo horari
             thetaMachine -= radPerFrame;
             machine.rotation.z = thetaMachine;
 
             if (mode === "axial") {{
-                // passo = mm per revolució
                 guideZ += direction * passo * (degPerFrame / 360.0);
 
                 if (guideZ >= Hs - Rt) {{
@@ -547,27 +659,18 @@ def viewer(
             }}
         }}
 
-        function addDepositedPoint(newPoint, guidePoint) {{
+        function addDepositedPoint(newPoint) {{
             const prev = depositedPoints[depositedPoints.length - 1];
             const seg = newPoint.distanceTo(prev);
 
             if (seg < Math.max(0.8, Rt * 0.10)) {{
-                return newPoint;
+                return;
             }}
 
-            const freeStart = new THREE.Vector3(
-                guidePoint.x + straightLen,
-                guidePoint.y,
-                guidePoint.z
-            );
-
-            const freeLen = newPoint.distanceTo(freeStart) + freeStart.distanceTo(guidePoint);
-            const totalIfAccepted = depositedLength + seg + freeLen;
-
-            if (totalIfAccepted <= maxLen) {{
+            if (depositedLength + seg <= maxLen) {{
                 depositedPoints.push(newPoint.clone());
                 depositedLength += seg;
-                return newPoint;
+                return;
             }}
 
             let lo = 0.0;
@@ -576,14 +679,9 @@ def viewer(
             for (let i = 0; i < 28; i++) {{
                 const mid = 0.5 * (lo + hi);
                 const candidate = prev.clone().lerp(newPoint, mid);
+                const trialLen = depositedLength + prev.distanceTo(candidate);
 
-                const candFreeLen = candidate.distanceTo(freeStart) + freeStart.distanceTo(guidePoint);
-                const totalCandidate =
-                    depositedLength +
-                    prev.distanceTo(candidate) +
-                    candFreeLen;
-
-                if (totalCandidate < maxLen) lo = mid;
+                if (trialLen < maxLen) lo = mid;
                 else hi = mid;
             }}
 
@@ -591,7 +689,6 @@ def viewer(
             depositedPoints.push(finalPoint);
             depositedLength += prev.distanceTo(finalPoint);
             finished = true;
-            return finalPoint;
         }}
 
         function animate() {{
@@ -599,32 +696,18 @@ def viewer(
 
             if (animEnabled && !finished) {{
                 advanceMechanics();
+                const rawPoint = currentDepositedPoint(thetaMachine);
+                addDepositedPoint(rawPoint);
             }}
 
-            const guidePoint = currentGuidePoint();
-            const depositedPointRaw = currentDepositedPoint(thetaMachine);
-            const depositedPoint = (!finished && animEnabled)
-                ? addDepositedPoint(depositedPointRaw, guidePoint)
-                : depositedPoints[depositedPoints.length - 1];
+            if (animEnabled) {{
+                guide.visible = true;
+                guide.position.copy(guidePointFor(guideRadius, guideZ));
 
-            guide.position.copy(guidePoint);
-
-            const freeKey = [
-                guidePoint.x.toFixed(3),
-                guidePoint.y.toFixed(3),
-                guidePoint.z.toFixed(3)
-            ].join("|");
-
-            if (
-                rollMesh === null ||
-                freeMesh === null ||
-                depositedPoints.length !== lastRebuildCount ||
-                freeKey !== lastFreeKey ||
-                finished
-            ) {{
-                rebuildMeshes(guidePoint, depositedPoint);
-                lastRebuildCount = depositedPoints.length;
-                lastFreeKey = freeKey;
+                if (depositedPoints.length !== lastRebuildCount || finished) {{
+                    rebuildAnimatedMeshes(thetaMachine);
+                    lastRebuildCount = depositedPoints.length;
+                }}
             }}
 
             controls.update();
@@ -652,38 +735,50 @@ colA, colB, colC, colD = st.columns(4)
 
 with colA:
     st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0)
-    spalla = st.number_input(t["spalla"], value=95.0)
+    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=1.0)
+    spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
 
 with colB:
     st.markdown(f"#### {t['tubo']}")
     rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore = st.number_input(t["isolamento"], value=7.0)
-    lunghezza = st.number_input(t["lunghezza"], value=30.0)
+    spessore = st.number_input(t["isolamento"], value=7.0, step=0.1)
+    lunghezza = st.number_input(t["lunghezza"], value=30.0, step=0.1)
     d_rame = COPPER_SIZES_MM[rame]
 
 with colC:
     st.markdown(f"#### {t['avvolg']}")
-    passo = st.number_input(t["passo_assiale"], value=20.0)
-    incremento = st.number_input(t["incremento"], value=20.0)
-    rit_b = st.number_input(t["rit_min"], value=180.0)
-    rit_t = st.number_input(t["rit_max"], value=180.0)
-    gradi_start = st.number_input(t["gradi_start"], value=30.0)
-    pinza = st.number_input(t["pinza"], value=0.3)
+    passo = st.number_input(t["passo_assiale"], value=20.0, step=0.1)
+    incremento = st.number_input(t["incremento"], value=20.0, step=0.1)
+    rit_b = st.number_input(t["rit_min"], value=180.0, step=1.0)
+    rit_t = st.number_input(t["rit_max"], value=180.0, step=1.0)
+    gradi_start = st.number_input(t["gradi_start"], value=30.0, step=1.0)
+    pinza = st.number_input(t["pinza"], value=0.3, step=0.05)
 
 with colD:
     st.markdown(f"#### {t['viewer']}")
     altezza = st.slider(t["altezza"], 400, 900, 700)
     anim = st.checkbox(t["animazione"], True)
     vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
+    aspo_mode_label = st.selectbox(
+        t["aspo_mode"],
+        [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
+        index=0
+    )
+
+if aspo_mode_label == t["aspo_visible"]:
+    aspo_mode = "visible"
+elif aspo_mode_label == t["aspo_transparent"]:
+    aspo_mode = "transparent"
+else:
+    aspo_mode = "hidden"
 
 # =========================
 # BUILD
 # =========================
 
-d_tubo = d_rame + 2 * spessore
+d_tubo = d_rame + 2.0 * spessore
 
-diam_esterno = simulate_outer_diameter(
+points, deposited_len_mm = simulate_winding_points(
     diametro_aspo,
     spalla,
     d_tubo,
@@ -694,6 +789,8 @@ diam_esterno = simulate_outer_diameter(
     lunghezza,
     gradi_start,
 )
+
+metrics = compute_metrics(points, d_tubo)
 
 components.html(
     viewer(
@@ -710,6 +807,8 @@ components.html(
         vel,
         gradi_start,
         pinza,
+        points.tolist(),
+        aspo_mode,
     ),
     height=altezza
 )
@@ -720,12 +819,14 @@ components.html(
 
 st.divider()
 
-m1, m2, m3, m4 = st.columns(4)
+m1, m2, m3, m4, m5, m6 = st.columns(6)
 
 m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
-m2.metric(t["metric2"], f"{passo:.2f} mm/rev")
+m2.metric(t["metric2"], f"{passo:.2f} mm")
 m3.metric(t["metric3"], f"{incremento:.2f} mm")
-m4.metric(t["metric4"], f"{diam_esterno:.1f} mm")
+m4.metric(t["metric4"], f"{metrics['diam_radiale']:.1f} mm")
+m5.metric(t["metric5"], f"{metrics['max_xy_span']:.1f} mm")
+m6.metric(t["metric6"], f"{metrics['wound_length_m']:.3f} m")
 
-if diam_esterno > 750:
+if metrics["max_xy_span"] > 750:
     st.warning(t["warning"])
