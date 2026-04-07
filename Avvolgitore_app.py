@@ -501,7 +501,7 @@ def viewer(
         mandrel.position.z = Hs / 2.0;
         machine.add(mandrel);
 
-        const flangeR = R + 300.0;
+        const flangeR = R + 150.0;
         const flangeTh = 2.0;
 
         const base = new THREE.Mesh(
@@ -531,7 +531,7 @@ def viewer(
         // =====================
 
         const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(30, 20, 20),
+            new THREE.BoxGeometry(80, 60, 60),
             blueMat
         );
         scene.add(guide);
