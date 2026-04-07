@@ -148,8 +148,6 @@ def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, r
 
 def viewer(points, d_aspo, spalla):
 
-    pts = json.dumps(points.tolist())
-
     return f"""
     <div id="viewer" style="width:100%;height:700px;"></div>
 
@@ -160,105 +158,164 @@ def viewer(points, d_aspo, spalla):
     setTimeout(() => {{
 
         const container = document.getElementById("viewer");
-        if (!container) return;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111111);
+        scene.background = new THREE.Color(0x0a0a0a);
 
-        const width = Math.max(container.clientWidth, 300);
-        const height = Math.max(container.clientHeight, 300);
+        const w = container.clientWidth;
+        const h = container.clientHeight;
 
-        const camera = new THREE.PerspectiveCamera(45, width/height, 0.1, 10000);
-        camera.position.set(800,-900,400);
+        const camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 10000);
+        camera.position.set(700, -900, 400);
 
-        const renderer = new THREE.WebGLRenderer({{antialias:true}});
-        renderer.setSize(width, height);
+        const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+        renderer.setSize(w, h);
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
         // =====================
-        // TEST CUBE (DEBUG)
+        // MACHINE GROUP
         // =====================
 
-        const cube = new THREE.Mesh(
-            new THREE.BoxGeometry(100,100,100),
-            new THREE.MeshNormalMaterial()
-        );
-        scene.add(cube);
+        const machine = new THREE.Group();
+        scene.add(machine);
 
         // =====================
-        // PATH
+        // MANDRÍ
         // =====================
 
-        const raw = {pts};
-        const material = new THREE.LineBasicMaterial({{color:0xffffff}});
-        const geometry = new THREE.BufferGeometry();
-
-        const verts = new Float32Array(raw.flat());
-        geometry.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-
-        const line = new THREE.Line(geometry, material);
-        scene.add(line);
-
-        // =====================
-        // MANDREL
-        // =====================
+        const r = {d_aspo}/2;
+        const h_m = {spalla};
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry({d_aspo/2},{d_aspo/2},{spalla},32),
-            new THREE.MeshBasicMaterial({{color:0x444444, wireframe:true}})
+            new THREE.CylinderGeometry(r, r, h_m, 64),
+            new THREE.MeshStandardMaterial({{
+                color: 0x666666,
+                roughness: 0.7,
+                metalness: 0.4
+            }})
         );
 
         mandrel.rotation.x = Math.PI/2;
-        scene.add(mandrel);
+        machine.add(mandrel);
+
+        // =====================
+        // BASE (inferior)
+        // =====================
+
+        const flange_r = r + 60;
+        const flange_th = 6;
+
+        const base = new THREE.Mesh(
+            new THREE.CylinderGeometry(flange_r, flange_r, flange_th, 64),
+            new THREE.MeshStandardMaterial({{
+                color: 0x2e69b9
+            }})
+        );
+
+        base.rotation.x = Math.PI/2;
+        base.position.z = -h_m/2 - flange_th/2;
+        machine.add(base);
+
+        // =====================
+        // SPALLA (superior)
+        // =====================
+
+        const top = new THREE.Mesh(
+            new THREE.CylinderGeometry(flange_r, flange_r, flange_th, 64),
+            new THREE.MeshStandardMaterial({{
+                color: 0x2e69b9
+            }})
+        );
+
+        top.rotation.x = Math.PI/2;
+        top.position.z = h_m/2 + flange_th/2;
+        machine.add(top);
 
         // =====================
         // GUIDATUBO (FIX)
         // =====================
 
-        const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(20,20,20),
-            new THREE.MeshBasicMaterial({{color:0xff0000}})
+        const guideGroup = new THREE.Group();
+        scene.add(guideGroup);
+
+        const baseX = r + 120;
+
+        // columna
+        const column = new THREE.Mesh(
+            new THREE.BoxGeometry(20, 20, h_m + 200),
+            new THREE.MeshStandardMaterial({{ color: 0x555555 }})
         );
 
-        scene.add(guide);
+        column.position.set(baseX, 0, 0);
+        scene.add(column);
 
-        const baseX = {d_aspo/2 + 120};
+        // carro (on surt el tub)
+        const carriage = new THREE.Mesh(
+            new THREE.BoxGeometry(30, 20, 20),
+            new THREE.MeshStandardMaterial({{ color: 0xcccccc }})
+        );
 
-        let i = 0;
+        carriage.position.set(baseX, 0, 0);
+        guideGroup.add(carriage);
+
+        // braç cap al mandrí
+        const arm_len = baseX - 40;
+
+        const arm = new THREE.Mesh(
+            new THREE.BoxGeometry(arm_len, 10, 10),
+            new THREE.MeshStandardMaterial({{ color: 0x999999 }})
+        );
+
+        arm.position.set(-arm_len/2, 0, 0);
+        guideGroup.add(arm);
+
+        // nozzle
+        const nozzle = new THREE.Mesh(
+            new THREE.CylinderGeometry(6, 6, 30, 16),
+            new THREE.MeshStandardMaterial({{ color: 0xdddddd }})
+        );
+
+        nozzle.rotation.z = Math.PI/2;
+        nozzle.position.set(-arm_len - 15, 0, 0);
+        guideGroup.add(nozzle);
+
+        // =====================
+        // LIGHT
+        // =====================
+
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x222222));
+
+        const dlight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dlight.position.set(500, -500, 800);
+        scene.add(dlight);
+
+        // =====================
+        // ANIMATION
+        // =====================
 
         function animate(){{
             requestAnimationFrame(animate);
 
-            cube.rotation.x += 0.01;
-            cube.rotation.y += 0.01;
-
-            if(i < raw.length){{
-                const p = raw[i];
-
-                const r = Math.sqrt(p[0]*p[0] + p[1]*p[1]);
-
-                guide.position.set(baseX + (r - {d_aspo/2}), 0, p[2]);
-
-                i++;
-            }}
+            // gir mandrí
+            machine.rotation.z += 0.02;
 
             controls.update();
-            renderer.render(scene,camera);
+            renderer.render(scene, camera);
         }}
 
         animate();
 
         window.addEventListener("resize", () => {{
-            const w = Math.max(container.clientWidth, 300);
-            const h = Math.max(container.clientHeight, 300);
+            const w = container.clientWidth;
+            const h = container.clientHeight;
             camera.aspect = w/h;
             camera.updateProjectionMatrix();
-            renderer.setSize(w, h);
+            renderer.setSize(w,h);
         }});
 
-    }}, 100);
+    }}, 50);
     </script>
     """
 
