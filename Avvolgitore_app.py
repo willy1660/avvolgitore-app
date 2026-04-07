@@ -533,18 +533,26 @@ def viewer(
         scene.add(guide);
 
         // =====================
-        // LIGHTS
+        // LIGHTS PRO
         // =====================
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.82));
-
-        const dLight1 = new THREE.DirectionalLight(0xffffff, 0.72);
-        dLight1.position.set(500, -500, 800);
-        scene.add(dLight1);
-
-        const dLight2 = new THREE.DirectionalLight(0xffffff, 0.30);
-        dLight2.position.set(-600, 250, 300);
-        scene.add(dLight2);
+        
+        // ambient molt suau
+        scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+        
+        // key light (principal)
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        keyLight.position.set(600, -600, 800);
+        scene.add(keyLight);
+        
+        // fill light (suavitzar ombres)
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
+        fillLight.position.set(-400, 200, 300);
+        scene.add(fillLight);
+        
+        // rim light (contorn volum)
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        rimLight.position.set(0, 600, 400);
+        scene.add(rimLight);
 
         // =====================
         // HELPERS
