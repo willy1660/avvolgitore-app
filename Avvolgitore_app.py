@@ -177,48 +177,35 @@ def build_coil(
     ritardo_top_deg = max(0.0, float(ritardo_max_deg))
     gradi_start_deg = max(0.0, float(gradi_start_deg))
 
-    # Centerline limits so wall touches base/spalla
     z_min = r_tubo
     z_max = spalla_mm - r_tubo
-
-    # First centerline radius so wall is tangent to mandrel
     r0 = d_aspo_mm / 2.0 + r_tubo
 
-    # Angular resolution
     theta_step_deg = 4.0
     theta_step = np.deg2rad(theta_step_deg)
-
-    # Clockwise winding => theta decreases
-    theta_sign = -1.0
-
+    theta_sign = -1.0  # clockwise
     dz_per_rad = passo_assiale / (2.0 * np.pi)
 
     theta = 0.0
     z = z_min
     r = r0
-
-    # +1 = towards spalla, -1 = towards base
     z_dir = +1
 
     points = []
-    state_marks = []
 
-    def add_point(theta_val, r_val, z_val, state_name):
+    def add_point(theta_val, r_val, z_val):
         x = r_val * np.cos(theta_val)
         y = r_val * np.sin(theta_val)
         points.append([x, y, z_val])
-        state_marks.append(state_name)
 
-    add_point(theta, r, z, "start")
+    add_point(theta, r, z)
 
-    # Initial start degrees: keep at base with clockwise rotation
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
         n0 = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
         step0 = np.deg2rad(gradi_start_deg) / n0
-
         for _ in range(n0):
             theta += theta_sign * step0
-            add_point(theta, r, z_min, "start_wrap")
+            add_point(theta, r, z_min)
             if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
                 break
 
@@ -226,34 +213,28 @@ def build_coil(
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # =========================
-        # NORMAL HELICAL WINDING
-        # =========================
         while True:
             theta += theta_sign * theta_step
             z += z_dir * dz_per_rad * theta_step
 
             if z_dir == +1 and z >= z_max:
                 z = z_max
-                add_point(theta, r, z, "reach_spalla")
+                add_point(theta, r, z)
                 break
 
             if z_dir == -1 and z <= z_min:
                 z = z_min
-                add_point(theta, r, z, "reach_base")
+                add_point(theta, r, z)
                 break
 
-            add_point(theta, r, z, "helical")
+            add_point(theta, r, z)
 
             if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
                 break
 
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visible_mm:
+        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # =========================
-        # RADIAL SHIFT WITH Z FIXED
-        # =========================
         at_spalla = (z_dir == +1)
         z_const = z_max if at_spalla else z_min
         ritardo_deg = ritardo_top_deg if at_spalla else ritardo_bottom_deg
@@ -269,21 +250,19 @@ def build_coil(
                 theta += theta_sign * step_shift
                 u = smoothstep01(i / n_shift)
                 r_curr = r_old + (r_new - r_old) * u
-                add_point(theta, r_curr, z_const, "radial_shift")
+                add_point(theta, r_curr, z_const)
 
                 if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
                     break
         else:
-            # Instant radial change, still keep a point at the edge
             r = r_new
-            add_point(theta, r, z_const, "radial_shift_instant")
+            add_point(theta, r, z_const)
 
         r = r_new
 
         if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        # Reverse axial direction after layer change
         z_dir *= -1
 
     path = np.array(points, dtype=float)
@@ -291,7 +270,6 @@ def build_coil(
     if lunghezza_visibile_mm > EPS and len(path) > 1:
         path = trim_polyline(path, lunghezza_visibile_mm)
 
-    # Center coil vertically in viewer
     if len(path) > 0:
         path[:, 2] -= spalla_mm / 2.0
 
