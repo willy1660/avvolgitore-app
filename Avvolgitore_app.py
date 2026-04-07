@@ -39,7 +39,7 @@ TEXTS = {
         "rit_min": "Ritardo base (°)",
         "rit_max": "Ritardo spalla (°)",
         "gradi_start": "Gradi iniziali (°)",
-        "pinza": "Lunghezza pinza (m)",
+        "pinza": "Lunghezza tratto libero (m)",
         "altezza": "Altezza",
         "animazione": "Animazione",
         "velocita": "Velocità",
@@ -65,7 +65,7 @@ TEXTS = {
         "rit_min": "Bottom delay (°)",
         "rit_max": "Top delay (°)",
         "gradi_start": "Initial degrees (°)",
-        "pinza": "Clamp length (m)",
+        "pinza": "Free straight length (m)",
         "altezza": "Height",
         "animazione": "Animation",
         "velocita": "Speed",
@@ -129,10 +129,15 @@ else:
 
 # =========================
 # METRICS SIMULATION
-# Approx local packing:
-# - first layer against mandrel
-# - following layers against previous deposited points
+# Kinematic model:
+# - axial pitch imposed by machine
+# - radial step imposed by machine
+# - smooth turn during delay
 # =========================
+
+def smoothstep(x: float) -> float:
+    x = max(0.0, min(1.0, x))
+    return x * x * (3.0 - 2.0 * x)
 
 def simulate_outer_diameter(
     d_aspo: float,
@@ -143,145 +148,100 @@ def simulate_outer_diameter(
     rit_b: float,
     rit_t: float,
     lunghezza_m: float,
+    gradi_start: float,
 ):
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
     H = spalla
     max_len = lunghezza_m * 1000.0
 
-    guideX = -(R + 80.0)
-    guideRadius = R + Rt
-    guideZ = Rt
-    theta = 0.0
+    theta = np.deg2rad(gradi_start)
+    radius = R + Rt
+    z = Rt
 
-    deposited = []
+    points = []
     deposited_len = 0.0
 
     direction = 1
     mode = "axial"
     turn_progress = 0.0
     turn_delay = 0.0
-    turn_start_radius = guideRadius
-    turn_end_radius = guideRadius
-    turn_z = guideZ
+    turn_start_radius = radius
+    turn_end_radius = radius
+    turn_z = z
 
     deg_step = 3.0
     rad_step = np.deg2rad(deg_step)
 
-    def smoothstep(x):
-        x = max(0.0, min(1.0, x))
-        return x * x * (3.0 - 2.0 * x)
+    def deposited_point(cur_theta, cur_radius, cur_z):
+        tube_theta = -cur_theta + np.pi
+        x = cur_radius * np.cos(tube_theta)
+        y = cur_radius * np.sin(tube_theta)
+        return np.array([x, y, cur_z], dtype=float)
 
-    def guide_point():
-        return np.array([guideX, guideRadius, guideZ], dtype=float)
+    p0 = deposited_point(theta, radius, z)
+    points.append(p0)
 
-    def mandrel_contact():
-        tube_theta = -theta + np.pi
-        x = guideRadius * np.cos(tube_theta)
-        y = guideRadius * np.sin(tube_theta)
-        return np.array([x, y, guideZ], dtype=float)
-
-    def contact_with_previous(gp, pts):
-        if len(pts) < 8:
-            return mandrel_contact()
-
-        best = None
-        best_err = 1e18
-        search_n = min(300, len(pts))
-
-        # recta de sortida: +X
-        for p in pts[-search_n:]:
-            if p[0] < gp[0]:
-                continue
-
-            cand = np.array([p[0], gp[1], gp[2]], dtype=float)
-            dist = np.linalg.norm(cand - p)
-            err = abs(dist - 2.0 * Rt)
-
-            if err < best_err:
-                best_err = err
-                best = cand
-
-        if best is None:
-            return mandrel_contact()
-
-        min_rad = R + Rt
-        cand_r = np.hypot(best[0], best[1])
-        if cand_r < min_rad:
-            scale = min_rad / max(cand_r, 1e-9)
-            best[0] *= scale
-            best[1] *= scale
-
-        return best
-
-    # punt inicial
-    first_gp = guide_point()
-    first_cp = mandrel_contact()
-    deposited.append(first_cp)
-
-    for _ in range(250000):
-        prev = deposited[-1]
-
-        theta += rad_step
+    for _ in range(300000):
+        prev = points[-1]
+        theta -= rad_step
 
         if mode == "axial":
-            guideZ += direction * passo * (deg_step / 360.0)
+            z += direction * passo * (deg_step / 360.0)
 
-            if guideZ >= H - Rt:
-                guideZ = H - Rt
+            if z >= H - Rt:
+                z = H - Rt
                 mode = "turn"
                 turn_progress = 0.0
                 turn_delay = max(rit_t, 0.0)
-                turn_start_radius = guideRadius
-                turn_end_radius = guideRadius + incremento
-                turn_z = guideZ
+                turn_start_radius = radius
+                turn_end_radius = radius + incremento
+                turn_z = z
 
-            elif guideZ <= Rt:
-                guideZ = Rt
+            elif z <= Rt:
+                z = Rt
                 mode = "turn"
                 turn_progress = 0.0
                 turn_delay = max(rit_b, 0.0)
-                turn_start_radius = guideRadius
-                turn_end_radius = guideRadius + incremento
-                turn_z = guideZ
+                turn_start_radius = radius
+                turn_end_radius = radius + incremento
+                turn_z = z
 
         else:
             if turn_delay <= 0.0:
-                guideRadius = turn_end_radius
+                radius = turn_end_radius
                 mode = "axial"
                 direction *= -1
             else:
                 turn_progress += deg_step
                 s = smoothstep(turn_progress / turn_delay)
-                guideRadius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
-                guideZ = turn_z
+                radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
+                z = turn_z
 
                 if turn_progress >= turn_delay:
-                    guideRadius = turn_end_radius
+                    radius = turn_end_radius
                     mode = "axial"
                     direction *= -1
 
-        gp = guide_point()
-        cp = contact_with_previous(gp, deposited)
+        new_p = deposited_point(theta, radius, z)
+        seg = float(np.linalg.norm(new_p - prev))
 
-        seg = float(np.linalg.norm(cp - prev))
-        if seg < max(0.6, Rt * 0.08):
+        if seg < max(0.4, Rt * 0.08):
             continue
 
-        free_len = float(np.linalg.norm(gp - cp))
-        if deposited_len + seg + free_len >= max_len:
-            remain = max_len - (deposited_len + free_len)
-            if remain > 0 and seg > 1e-9:
+        if deposited_len + seg >= max_len:
+            remain = max_len - deposited_len
+            if seg > 1e-9:
                 alpha = remain / seg
-                final_p = prev + alpha * (cp - prev)
-                deposited.append(final_p)
+                final_p = prev + alpha * (new_p - prev)
+                points.append(final_p)
             break
 
-        deposited.append(cp)
+        points.append(new_p)
         deposited_len += seg
 
-    dep = np.array(deposited)
-    radial = np.sqrt(dep[:, 0] ** 2 + dep[:, 1] ** 2)
+    pts = np.array(points)
+    radial = np.sqrt(pts[:, 0] ** 2 + pts[:, 1] ** 2)
     max_centerline_r = float(np.max(radial)) if len(radial) else (R + Rt)
     outer_diameter = 2.0 * (max_centerline_r + Rt)
     return outer_diameter
@@ -290,7 +250,21 @@ def simulate_outer_diameter(
 # VIEWER
 # =========================
 
-def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, altezza, anim, vel):
+def viewer(
+    d_aspo,
+    spalla,
+    d_tubo,
+    passo,
+    incremento,
+    rit_b,
+    rit_t,
+    lunghezza,
+    altezza,
+    anim,
+    vel,
+    gradi_start,
+    pinza
+):
     anim_js = "true" if anim else "false"
 
     return f"""
@@ -337,8 +311,9 @@ def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, a
         const maxLen = {float(lunghezza)} * 1000.0;
         const speed = {float(vel)};
         const animEnabled = {anim_js};
+        const straightLen = Math.max(50.0, {float(pinza)} * 1000.0);
 
-        // Guidatubo
+        // guidatubo position
         const guideX = -(R + 80.0);
         let guideRadius = R + Rt;
         let guideZ = Rt;
@@ -410,13 +385,15 @@ def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, a
         scene.add(guide);
 
         // =====================
-        // DEPOSITION MODEL
+        // TUBE MODEL
         // =====================
 
         let depositedPoints = [];
         let depositedLength = 0.0;
         let finished = false;
-        let tubeMesh = null;
+
+        let rollMesh = null;
+        let freeMesh = null;
         let lastRebuildCount = 0;
 
         function smoothstep(x) {{
@@ -428,92 +405,58 @@ def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, a
             return new THREE.Vector3(guideX, guideRadius, guideZ);
         }}
 
-        function mandrelContact(thetaMachine) {{
-            const thetaTube = -thetaMachine + Math.PI;
-            const x = guideRadius * Math.cos(thetaTube);
-            const y = guideRadius * Math.sin(thetaTube);
+        function currentDepositedPoint(thetaMachine) {{
+            const tubeTheta = -thetaMachine + Math.PI;
+            const x = guideRadius * Math.cos(tubeTheta);
+            const y = guideRadius * Math.sin(tubeTheta);
             return new THREE.Vector3(x, y, guideZ);
         }}
 
-        // 1a capa contra mandrí, després contra capa anterior
-        function contactWithPrevious(guidePoint, thetaMachine) {{
-            if (depositedPoints.length < 8) {{
-                return mandrelContact(thetaMachine);
-            }}
-
-            let best = null;
-            let bestErr = 1e18;
-            const searchN = Math.min(300, depositedPoints.length);
-
-            for (let i = depositedPoints.length - searchN; i < depositedPoints.length; i++) {{
-                const p = depositedPoints[i];
-
-                // recta de sortida: normal a la cara del guidatubo = +X
-                if (p.x < guidePoint.x) continue;
-
-                const cand = new THREE.Vector3(p.x, guidePoint.y, guidePoint.z);
-                const dist = cand.distanceTo(p);
-                const err = Math.abs(dist - 2.0 * Rt);
-
-                if (err < bestErr) {{
-                    bestErr = err;
-                    best = cand;
+        function rebuildMeshes(guidePoint, depositedPoint) {{
+            if (depositedPoints.length >= 2) {{
+                if (rollMesh) {{
+                    scene.remove(rollMesh);
+                    rollMesh.geometry.dispose();
+                    rollMesh.material.dispose();
+                    rollMesh = null;
                 }}
+
+                const rollCurve = new THREE.CatmullRomCurve3(depositedPoints, false, "centripetal", 0.1);
+                const rollSegs = Math.max(32, Math.min(2200, depositedPoints.length * 2));
+                const rollGeo = new THREE.TubeGeometry(rollCurve, rollSegs, Rt, 12, false);
+                rollMesh = new THREE.Mesh(rollGeo, tubeMat);
+                scene.add(rollMesh);
             }}
 
-            if (!best) {{
-                return mandrelContact(thetaMachine);
-            }}
-
-            // Evita penetració dins del mandrí
-            const candR = Math.sqrt(best.x * best.x + best.y * best.y);
-            const minR = R + Rt;
-            if (candR < minR) {{
-                const scale = minR / Math.max(candR, 1e-9);
-                best.x *= scale;
-                best.y *= scale;
-            }}
-
-            return best;
-        }}
-
-        function rebuildTubeMesh(guidePoint) {{
-            if (depositedPoints.length < 2) return;
-
-            const displayPoints = depositedPoints.slice();
-
-            // tram final recte, normal a la cara del guidatubo
-            const straightLen = Math.max(50.0, Rt * 6.0);
             const preGuide = new THREE.Vector3(
                 guidePoint.x + straightLen,
                 guidePoint.y,
                 guidePoint.z
             );
 
-            displayPoints.push(preGuide);
-            displayPoints.push(guidePoint.clone());
+            const freePts = [depositedPoint.clone(), preGuide, guidePoint.clone()];
 
-            if (tubeMesh) {{
-                scene.remove(tubeMesh);
-                tubeMesh.geometry.dispose();
-                tubeMesh.material.dispose();
-                tubeMesh = null;
+            if (freeMesh) {{
+                scene.remove(freeMesh);
+                freeMesh.geometry.dispose();
+                freeMesh.material.dispose();
+                freeMesh = null;
             }}
 
-            const curve = new THREE.CatmullRomCurve3(displayPoints, false, "centripetal", 0.1);
-            const tubularSegments = Math.max(32, Math.min(1800, displayPoints.length * 2));
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, 12, false);
-
-            tubeMesh = new THREE.Mesh(geo, tubeMat);
-            scene.add(tubeMesh);
+            const freeCurve = new THREE.CatmullRomCurve3(freePts, false, "centripetal", 0.1);
+            const freeGeo = new THREE.TubeGeometry(freeCurve, 48, Rt, 12, false);
+            freeMesh = new THREE.Mesh(freeGeo, tubeMat);
+            scene.add(freeMesh);
         }}
 
         // =====================
         // INITIAL STATE
         // =====================
 
-        let thetaMachine = 0.0;
-        depositedPoints.push(mandrelContact(thetaMachine));
+        let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
+        machine.rotation.z = thetaMachine;
+
+        depositedPoints.push(currentDepositedPoint(thetaMachine));
 
         // =====================
         // LIGHTS
@@ -591,17 +534,23 @@ def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, a
             const seg = newPoint.distanceTo(prev);
 
             if (seg < Math.max(0.8, Rt * 0.10)) {{
-                return;
+                return newPoint;
             }}
 
-            // longitud real = diposició + tram lliure recte
-            const freeLen = guidePoint.distanceTo(newPoint);
+            const preGuide = new THREE.Vector3(
+                guidePoint.x + straightLen,
+                guidePoint.y,
+                guidePoint.z
+            );
+
+            // longitud real total = rotllo dipositat + tram lliure fins guidatubo
+            const freeLen = newPoint.distanceTo(preGuide) + preGuide.distanceTo(guidePoint);
             const totalIfAccepted = depositedLength + seg + freeLen;
 
             if (totalIfAccepted <= maxLen) {{
                 depositedPoints.push(newPoint.clone());
                 depositedLength += seg;
-                return;
+                return newPoint;
             }}
 
             // trim exacte
@@ -611,10 +560,12 @@ def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, a
             for (let i = 0; i < 28; i++) {{
                 const mid = 0.5 * (lo + hi);
                 const candidate = prev.clone().lerp(newPoint, mid);
+
+                const candFreeLen = candidate.distanceTo(preGuide) + preGuide.distanceTo(guidePoint);
                 const totalCandidate =
                     depositedLength +
                     prev.distanceTo(candidate) +
-                    guidePoint.distanceTo(candidate);
+                    candFreeLen;
 
                 if (totalCandidate < maxLen) lo = mid;
                 else hi = mid;
@@ -624,36 +575,34 @@ def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, a
             depositedPoints.push(finalPoint);
             depositedLength += prev.distanceTo(finalPoint);
             finished = true;
+            return finalPoint;
         }}
 
         function animate() {{
             requestAnimationFrame(animate);
 
+            const guidePoint = currentGuidePoint();
+
             if (animEnabled && !finished) {{
                 advanceMechanics();
+            }}
 
-                const guidePoint = currentGuidePoint();
-                const contactPoint = contactWithPrevious(guidePoint, thetaMachine);
+            const currentGuide = currentGuidePoint();
+            const depositedPointRaw = currentDepositedPoint(thetaMachine);
+            const depositedPoint = (!finished && animEnabled)
+                ? addDepositedPoint(depositedPointRaw, currentGuide)
+                : depositedPoints[depositedPoints.length - 1];
 
-                guide.position.copy(guidePoint);
-                addDepositedPoint(contactPoint, guidePoint);
+            guide.position.copy(currentGuide);
 
-                if (
-                    tubeMesh === null ||
-                    depositedPoints.length !== lastRebuildCount ||
-                    finished
-                ) {{
-                    rebuildTubeMesh(guidePoint);
-                    lastRebuildCount = depositedPoints.length;
-                }}
-            }} else {{
-                const guidePoint = currentGuidePoint();
-                guide.position.copy(guidePoint);
-
-                if (tubeMesh === null && depositedPoints.length >= 2) {{
-                    rebuildTubeMesh(guidePoint);
-                    lastRebuildCount = depositedPoints.length;
-                }}
+            if (
+                rollMesh === null ||
+                freeMesh === null ||
+                depositedPoints.length !== lastRebuildCount ||
+                finished
+            ) {{
+                rebuildMeshes(currentGuide, depositedPoint);
+                lastRebuildCount = depositedPoints.length;
             }}
 
             controls.update();
@@ -720,7 +669,8 @@ diam_esterno = simulate_outer_diameter(
     incremento,
     rit_b,
     rit_t,
-    lunghezza
+    lunghezza,
+    gradi_start,
 )
 
 components.html(
@@ -735,7 +685,9 @@ components.html(
         lunghezza,
         altezza,
         anim,
-        vel
+        vel,
+        gradi_start,
+        pinza,
     ),
     height=altezza
 )
