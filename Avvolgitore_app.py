@@ -229,12 +229,8 @@ def simulate_winding_continuous(
                 turn_progress += deg_step
                 s = smoothstep(turn_progress / turn_delay)
 
-                # canvi radial progressiu
                 radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
 
-                # z queda recolzat a l’extrem, però amb una
-                # petita relaxació perquè no es vegi tan "clavat"
-                # i recordi més el suport sobre la capa anterior.
                 edge_blend = 0.06 * passo * np.sin(np.pi * s)
                 if turn_z >= H - Rt - 1e-9:
                     z = turn_z - edge_blend
@@ -550,9 +546,29 @@ def viewer(
 
         function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
             if (!points || points.length < 2) return null;
-            const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.1);
-            const tubularSegments = Math.max(24, Math.min(2200, points.length * 2));
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
+
+            const path = new THREE.CurvePath();
+            let totalLen = 0.0;
+
+            for (let i = 0; i < points.length - 1; i++) {{
+                const p0 = points[i];
+                const p1 = points[i + 1];
+                const segLen = p0.distanceTo(p1);
+
+                if (segLen > 1e-9) {{
+                    path.add(new THREE.LineCurve3(p0.clone(), p1.clone()));
+                    totalLen += segLen;
+                }}
+            }}
+
+            if (path.curves.length === 0) return null;
+
+            const tubularSegments = Math.max(
+                24,
+                Math.min(4000, Math.floor(totalLen / Math.max(0.8, Rt * 0.35)))
+            );
+
+            const geo = new THREE.TubeGeometry(path, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
         }}
 
@@ -694,7 +710,7 @@ def viewer(
             const prev = depositedLocalPoints[depositedLocalPoints.length - 1];
             const seg = contactLocal.distanceTo(prev);
 
-            if (seg < Math.max(0.8, Rt * 0.10)) return;
+            if (seg < Math.max(0.55, Rt * 0.06)) return;
 
             if (depositedLength + seg <= maxLen) {{
                 depositedLocalPoints.push(contactLocal.clone());
