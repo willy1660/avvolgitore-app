@@ -496,6 +496,8 @@ def viewer(
     aspo_mode,
     guide_offset_x,
 ):
+    import json
+
     anim_js = "true" if anim else "false"
     final_points_json = json.dumps(final_points)
     aspo_mode_json = json.dumps(aspo_mode)
@@ -508,6 +510,7 @@ def viewer(
 
     <script>
     (() => {{
+
         const host = document.getElementById("viewer_root");
         host.innerHTML = "";
 
@@ -528,16 +531,13 @@ def viewer(
             antialias: true,
             powerPreference: "high-performance"
         }});
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(W, Hview);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.08;
         controls.target.set(0, 0, {spalla}/2);
-        controls.maxDistance = 4000;
-        controls.minDistance = 200;
 
         // =====================
         // PARAMS
@@ -550,30 +550,24 @@ def viewer(
         const incremento = {float(incremento)};
         const ritB = {float(rit_b)};
         const ritT = {float(rit_t)};
-        const maxLen = {float(lunghezza)} * 1000.0;
         const speed = {float(vel)};
         const animEnabled = {anim_js};
         const guideOffsetX = {float(guide_offset_x)};
         const finalPointsRaw = {final_points_json};
-        const aspoMode = {aspo_mode_json};
 
         // =====================
-        // LIGHTING PRO
+        // LIGHTS
         // =====================
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.35));
 
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        keyLight.position.set(600, -600, 800);
-        scene.add(keyLight);
+        const d1 = new THREE.DirectionalLight(0xffffff, 1.0);
+        d1.position.set(600, -600, 800);
+        scene.add(d1);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
-        fillLight.position.set(-400, 200, 300);
-        scene.add(fillLight);
-
-        const rimLight = new THREE.DirectionalLight(0xffffff, 0.6);
-        rimLight.position.set(0, 600, 400);
-        scene.add(rimLight);
+        const d2 = new THREE.DirectionalLight(0xffffff, 0.4);
+        d2.position.set(-400, 200, 300);
+        scene.add(d2);
 
         // =====================
         // GRID
@@ -590,9 +584,7 @@ def viewer(
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0xff3333,
             roughness: 0.35,
-            metalness: 0.25,
-            transparent: aspoMode === "transparent",
-            opacity: aspoMode === "transparent" ? 0.18 : 1.0
+            metalness: 0.25
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
@@ -615,34 +607,15 @@ def viewer(
         scene.add(machine);
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, Hs, 96),
+            new THREE.CylinderGeometry(R, R, Hs, 64),
             redMat
         );
         mandrel.rotation.x = Math.PI / 2;
         mandrel.position.z = Hs / 2;
         machine.add(mandrel);
 
-        const flangeR = R + 150;
-
-        const base = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, 4, 96),
-            redMat
-        );
-        base.rotation.x = Math.PI / 2;
-        machine.add(base);
-
-        const top = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, 4, 96),
-            redMat
-        );
-        top.rotation.x = Math.PI / 2;
-        top.position.z = Hs;
-        machine.add(top);
-
-        machine.visible = aspoMode !== "hidden";
-
         // =====================
-        // GUIDATUBO
+        // GUIDE
         // =====================
 
         const guide = new THREE.Mesh(
@@ -652,19 +625,20 @@ def viewer(
         scene.add(guide);
 
         // =====================
-        // UTILITIES
+        // UTILS
         // =====================
+
+        function smoothstep(x) {{
+            x = Math.max(0.0, Math.min(1.0, x));
+            return x * x * (3.0 - 2.0 * x);
+        }}
 
         function contactPoint(radius, z) {{
             return new THREE.Vector3(0, radius, z);
         }}
 
         function guidePoint(radius, z) {{
-            return new THREE.Vector3(
-                -(radius + guideOffsetX),
-                radius,
-                z
-            );
+            return new THREE.Vector3(-(radius + guideOffsetX), radius, z);
         }}
 
         function buildTube(points) {{
@@ -675,20 +649,7 @@ def viewer(
         }}
 
         // =====================
-        // STATIC MODE
-        // =====================
-
-        let mesh = null;
-
-        if (!animEnabled) {{
-            const pts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-            mesh = buildTube(pts);
-            if (mesh) scene.add(mesh);
-            guide.visible = false;
-        }}
-
-        // =====================
-        // ANIMATION
+        // STATE
         // =====================
 
         let theta = THREE.MathUtils.degToRad({float(gradi_start)});
@@ -696,25 +657,83 @@ def viewer(
         let z = Rt;
         let dir = 1;
 
+        let mode = "axial";
+        let turnProgress = 0.0;
+        let turnDelay = 0.0;
+        let turnStartRadius = radius;
+        let turnEndRadius = radius;
+        let turnZ = z;
+        let layer = 0;
+
         let pts = [];
-        let len = 0;
+        let mesh = null;
+
+        // =====================
+        // STEP (CORREGIT)
+        // =====================
 
         function step() {{
+
             const deg = 2.0 * speed;
             theta -= THREE.MathUtils.degToRad(deg);
 
-            z += dir * passo * (deg / 360.0);
+            if (layer === 0) {{
 
-            if (z >= Hs - Rt) {{
-                z = Hs - Rt;
-                radius += incremento;
-                dir = -1;
-            }}
+                if (mode === "axial") {{
 
-            if (z <= Rt) {{
-                z = Rt;
-                radius += incremento;
-                dir = 1;
+                    z += dir * passo * (deg / 360.0);
+
+                    if (z >= Hs - Rt) {{
+                        z = Hs - Rt;
+                        mode = "turn";
+                        turnProgress = 0;
+                        turnDelay = Math.max(ritT, 0.0);
+                        turnStartRadius = radius;
+                        turnEndRadius = radius + incremento;
+                        turnZ = z;
+                    }}
+
+                    if (z <= Rt) {{
+                        z = Rt;
+                        mode = "turn";
+                        turnProgress = 0;
+                        turnDelay = Math.max(ritB, 0.0);
+                        turnStartRadius = radius;
+                        turnEndRadius = radius + incremento;
+                        turnZ = z;
+                    }}
+
+                }} else {{
+
+                    turnProgress += deg;
+                    const s = smoothstep(turnProgress / turnDelay);
+
+                    radius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
+                    z = turnZ;
+
+                    if (turnProgress >= turnDelay) {{
+                        radius = turnEndRadius;
+                        mode = "axial";
+                        dir *= -1;
+                        layer = 1;
+                    }}
+                }}
+
+            }} else {{
+
+                z += dir * passo * (deg / 360.0);
+
+                if (z >= Hs - Rt) {{
+                    z = Hs - Rt;
+                    radius += incremento;
+                    dir = -1;
+                }}
+
+                if (z <= Rt) {{
+                    z = Rt;
+                    radius += incremento;
+                    dir = 1;
+                }}
             }}
 
             const p = contactPoint(radius, z);
@@ -729,6 +748,10 @@ def viewer(
             guide.position.copy(guidePoint(radius, z));
         }}
 
+        // =====================
+        // ANIMATE
+        // =====================
+
         function animate() {{
             requestAnimationFrame(animate);
 
@@ -739,6 +762,10 @@ def viewer(
         }}
 
         animate();
+
+        // =====================
+        // RESIZE
+        // =====================
 
         window.addEventListener("resize", () => {{
             const nw = host.clientWidth;
@@ -751,48 +778,6 @@ def viewer(
     }})();
     </script>
     """
-
-# =========================
-# UI
-# =========================
-
-colA, colB, colC, colD = st.columns(4)
-
-with colA:
-    st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=10.0)
-    spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
-
-with colB:
-    st.markdown(f"#### {t['tubo']}")
-    rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore = st.number_input(t["isolamento"], value=7.0, step=1.0)
-    lunghezza = st.number_input(t["lunghezza"], value=50.0, step=5.0)
-    d_rame = COPPER_SIZES_MM[rame]
-
-with colC:
-    st.markdown(f"#### {t['avvolg']}")
-    passo = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
-    incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
-    rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
-    rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
-with colD:
-    st.markdown(f"#### {t['viewer']}")
-    altezza = st.slider(t["altezza"], 400, 900, 700)
-    anim = st.checkbox(t["animazione"], True)
-    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
-    aspo_mode_label = st.selectbox(
-        t["aspo_mode"],
-        [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
-        index=0
-    )
-
-if aspo_mode_label == t["aspo_visible"]:
-    aspo_mode = "visible"
-elif aspo_mode_label == t["aspo_transparent"]:
-    aspo_mode = "transparent"
-else:
-    aspo_mode = "hidden"
 
 # =========================
 # BUILD
