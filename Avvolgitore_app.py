@@ -502,7 +502,7 @@ def viewer(
         machine.add(mandrel);
 
         const flangeR = R + 150.0;
-        const flangeTh = 2.0;
+        const flangeTh = 4.0;
 
         const base = new THREE.Mesh(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
