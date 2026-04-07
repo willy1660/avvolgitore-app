@@ -5,10 +5,6 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
-# =========================
-# CONSTANTS
-# =========================
-
 COPPER_SIZES_MM = {
     "1/4": 6.35,
     "3/8": 9.52,
@@ -17,10 +13,6 @@ COPPER_SIZES_MM = {
     "3/4": 19.05,
     "7/8": 22.23,
 }
-
-# =========================
-# GEOMETRY (per mètriques)
-# =========================
 
 def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza):
     pts = []
@@ -69,7 +61,7 @@ def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, r
     return pts
 
 # =========================
-# VIEWER FINAL
+# VIEWER CORRECTE
 # =========================
 
 def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
@@ -93,7 +85,7 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
         scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(40, w/h, 0.1, 10000);
-        camera.position.set(-500, -700, 250);
+        camera.position.set(-500, -700, 400);
 
         const renderer = new THREE.WebGLRenderer({{antialias:true}});
         renderer.setSize(w,h);
@@ -101,20 +93,15 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-        // =====================
         // PARAMS
-        // =====================
-
         const R = {d_aspo}/2;
         const H = {spalla};
         const Rt = {d_tubo}/2;
 
-        // 🔥 POSICIÓ CORRECTA
+        // GUIDATUBO
         const guideY = (R + Rt);
-        const guideZ = -H/2 + Rt;
-
-        // 🔥 OFFSET X PER NO COL·LISIÓ
         const guideX = -(R + 80);
+        const guideZ = Rt;   // 🔥 BASE = 0
 
         // =====================
         // ASPO
@@ -127,6 +114,7 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
             red
         );
         mandrel.rotation.x = Math.PI/2;
+        mandrel.position.z = H/2;
         scene.add(mandrel);
 
         const base = new THREE.Mesh(
@@ -134,7 +122,7 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
             red
         );
         base.rotation.x = Math.PI/2;
-        base.position.z = -H/2 - 3;
+        base.position.z = 0;
         scene.add(base);
 
         const top = new THREE.Mesh(
@@ -142,7 +130,7 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
             red
         );
         top.rotation.x = Math.PI/2;
-        top.position.z = H/2 + 3;
+        top.position.z = H;
         scene.add(top);
 
         // =====================
@@ -156,10 +144,7 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
         guide.position.set(guideX, guideY, guideZ);
         scene.add(guide);
 
-        // =====================
         // LIGHT
-        // =====================
-
         scene.add(new THREE.AmbientLight(0xffffff,0.8));
 
         const light = new THREE.DirectionalLight(0xffffff,0.6);
@@ -170,7 +155,7 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
             requestAnimationFrame(animate);
 
             if ({'true' if anim else 'false'}) {{
-                mandrel.rotation.z -= 0.01 * {vel};
+                mandrel.rotation.y -= 0.01 * {vel};   // 🔥 EIX CORRECTE
             }}
 
             controls.update();
@@ -184,7 +169,7 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
     """
 
 # =========================
-# UI ORIGINAL
+# UI
 # =========================
 
 colA, colB, colC, colD = st.columns(4)
@@ -212,20 +197,14 @@ with colD:
     anim = st.checkbox("Animazione", False)
     vel = st.slider("Velocità", 0.1, 5.0, 1.0)
 
-# =========================
 # BUILD
-# =========================
-
 pts = build_coil(diametro_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza)
 
 d_tubo = d_rame + 2*spessore
 
 components.html(viewer(diametro_aspo, spalla, d_tubo, altezza, anim, vel), height=altezza)
 
-# =========================
 # METRICS
-# =========================
-
 st.divider()
 
 m1, m2, m3, m4 = st.columns(4)
