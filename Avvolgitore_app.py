@@ -374,16 +374,6 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
 # VIEWER
 # =========================
 
-# (TOT el teu codi és igual fins al viewer... NO CANVIO RES ABANS)
-
-# =========================
-# VIEWER
-# =========================
-
-# =========================
-# VIEWER
-# =========================
-
 def viewer(
     d_aspo,
     spalla,
@@ -414,7 +404,6 @@ def viewer(
 
     <script>
     (() => {{
-
         const host = document.getElementById("viewer_root");
         host.innerHTML = "";
 
@@ -434,15 +423,14 @@ def viewer(
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        // =====================
-        // PARAMS
-        // =====================
-
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
+        const passo = {float(passo)};
+        const incremento = {float(incremento)};
         const speed = {float(vel)};
         const animEnabled = {anim_js};
+        const guideOffsetX = {float(guide_offset_x)};
 
         // =====================
         // LIGHT
@@ -470,9 +458,10 @@ def viewer(
         // STATE
         // =====================
 
-        let theta = 0;
+        let theta = THREE.MathUtils.degToRad({float(gradi_start)});
         let radius = R + Rt;
         let z = Rt;
+        let direction = 1;
 
         let pts = [];
         let mesh = null;
@@ -489,6 +478,18 @@ def viewer(
         pts.push(depositedPoint(theta, radius, z));
 
         // =====================
+        // GUIDATUBO (correcte)
+        // =====================
+
+        function guidePoint() {{
+            return new THREE.Vector3(
+                -(radius + guideOffsetX),
+                radius,
+                z
+            );
+        }}
+
+        // =====================
         // 🔥 DEPOSICIÓ REAL
         // =====================
 
@@ -498,11 +499,28 @@ def viewer(
 
             theta -= 0.05 * speed;
 
+            // moviment axial
+            z += direction * passo / 120;
+
+            if (z >= Hs - Rt) {{
+                z = Hs - Rt;
+                radius += incremento;
+                direction = -1;
+            }}
+
+            if (z <= Rt) {{
+                z = Rt;
+                radius += incremento;
+                direction = 1;
+            }}
+
             const target = depositedPoint(theta, radius, z);
 
-            const alpha = 0.25;
+            // 👉 DEPOSICIÓ REAL
+            const alpha = 0.22;
             let newP = prev.clone().lerp(target, alpha);
 
+            // snap final
             if (newP.distanceTo(target) < Rt * 0.05) {{
                 newP.copy(target);
             }}
@@ -532,10 +550,6 @@ def viewer(
 
             scene.add(mesh);
         }}
-
-        // =====================
-        // LOOP
-        // =====================
 
         function animate() {{
             requestAnimationFrame(animate);
