@@ -23,7 +23,6 @@ lang = st.session_state.lang
 
 TEXTS = {
     "IT": {
-        "title": "Avvolgimento",
         "bobina": "🟦 Bobina",
         "tubo": "🟩 Tubo",
         "avvolg": "🟧 Avvolgimento",
@@ -37,18 +36,11 @@ TEXTS = {
         "incremento": "Incremento strato (mm)",
         "rit_min": "Ritardo base (°)",
         "rit_max": "Ritardo spalla (°)",
-        "gradi_start": "Gradi iniziali (°)",
-        "pinza": "Lunghezza pinza (m)",
         "altezza": "Altezza",
         "animazione": "Animazione",
-        "velocita": "Velocità",
-        "metric1": "Diametro tubo",
-        "metric2": "Passo assiale",
-        "metric3": "Incremento strato",
-        "metric4": "Diametro esterno",
+        "velocita": "Velocità"
     },
     "EN": {
-        "title": "Coiling",
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Winding",
@@ -62,15 +54,9 @@ TEXTS = {
         "incremento": "Layer increment (mm)",
         "rit_min": "Bottom delay (°)",
         "rit_max": "Top delay (°)",
-        "gradi_start": "Initial degrees (°)",
-        "pinza": "Clamp length (m)",
         "altezza": "Height",
         "animazione": "Animation",
-        "velocita": "Speed",
-        "metric1": "Tube diameter",
-        "metric2": "Axial pitch",
-        "metric3": "Layer increment",
-        "metric4": "Outer diameter",
+        "velocita": "Speed"
     }
 }
 
@@ -86,63 +72,10 @@ COPPER_SIZES_MM = {
 }
 
 # =========================
-# GEOMETRY (governat per màquina)
+# VIEWER (HARDWARE ONLY)
 # =========================
 
-def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t):
-    d_tubo = d_rame + 2*spessore
-    r = d_aspo/2 + d_tubo/2
-
-    z_min, z_max = -spalla/2, spalla/2
-    z = z_min
-
-    theta = 0
-    dir = 1
-    delay = 0
-    pending = False
-
-    pts = []
-
-    for _ in range(40000):
-        theta -= np.deg2rad(4)  # sentit corregit
-
-        if delay > 0:
-            delay -= 4
-        else:
-            if pending:
-                r += incremento
-                pending = False
-
-            z += dir * (passo/(2*np.pi)) * np.deg2rad(4)
-
-            if z >= z_max:
-                z = z_max
-                delay = rit_t
-                pending = True
-                dir = -1
-
-            elif z <= z_min:
-                z = z_min
-                delay = rit_b
-                pending = True
-                dir = 1
-
-        x = r*np.cos(theta)
-        y = r*np.sin(theta)
-
-        pts.append([x,y,z])
-
-        if len(pts)>2:
-            if np.sum(np.linalg.norm(np.diff(np.array(pts),axis=0),axis=1)) > lunghezza*1000:
-                break
-
-    return np.array(pts)
-
-# =========================
-# VIEWER
-# =========================
-
-def viewer(points, d_aspo, spalla, d_tubo, altezza, anim, vel):
+def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
 
     return f"""
     <div id="viewer" style="width:100%;height:{altezza}px;"></div>
@@ -151,155 +84,145 @@ def viewer(points, d_aspo, spalla, d_tubo, altezza, anim, vel):
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xe6e6e6);
+    setTimeout(() => {{
 
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 10000);
-    camera.position.set(-400, -900, 300);
+        const container = document.getElementById("viewer");
 
-    const renderer = new THREE.WebGLRenderer({{antialias:true}});
-    renderer.setSize(window.innerWidth, {altezza});
-    document.getElementById("viewer").appendChild(renderer.domElement);
+        const w = container.clientWidth;
+        const h = container.clientHeight;
 
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
 
-    // =====================
-    // ASPO (VERMELL)
-    // =====================
+        const camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 10000);
+        camera.position.set(-400, -900, 300);
 
-    const machine = new THREE.Group();
-    scene.add(machine);
+        const renderer = new THREE.WebGLRenderer({{antialias:true}});
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(w, h);
+        container.appendChild(renderer.domElement);
 
-    const r = {d_aspo}/2;
-    const h = {spalla};
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-    const redMat = new THREE.MeshStandardMaterial({{color:0xff3333}});
+        // =====================
+        // ASPO
+        // =====================
 
-    const mandrel = new THREE.Mesh(
-        new THREE.CylinderGeometry(r, r, h, 64),
-        redMat
-    );
-    mandrel.rotation.x = Math.PI/2;
-    machine.add(mandrel);
+        const machine = new THREE.Group();
+        scene.add(machine);
 
-    // discos (spalla)
-    const flangeR = r + 120;
+        const r = {d_aspo}/2;
+        const h_m = {spalla};
 
-    const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(flangeR, flangeR, 6, 64),
-        redMat
-    );
-    base.rotation.x = Math.PI/2;
-    base.position.z = -h/2 - 3;
-    machine.add(base);
+        const red = new THREE.MeshStandardMaterial({{color:0xff3333}});
 
-    const top = new THREE.Mesh(
-        new THREE.CylinderGeometry(flangeR, flangeR, 6, 64),
-        redMat
-    );
-    top.rotation.x = Math.PI/2;
-    top.position.z = h/2 + 3;
-    machine.add(top);
+        const mandrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(r, r, h_m, 64),
+            red
+        );
+        mandrel.rotation.x = Math.PI/2;
+        machine.add(mandrel);
 
-    // =====================
-    // GUIA TUBO
-    // =====================
+        const flangeR = r + 120;
 
-    const rTube = {d_tubo}/2;
+        const base = new THREE.Mesh(
+            new THREE.CylinderGeometry(flangeR, flangeR, 6, 64),
+            red
+        );
+        base.rotation.x = Math.PI/2;
+        base.position.z = -h_m/2 - 3;
+        machine.add(base);
 
-    // posició tangent
-    const guideX = -(r + rTube);
+        const top = new THREE.Mesh(
+            new THREE.CylinderGeometry(flangeR, flangeR, 6, 64),
+            red
+        );
+        top.rotation.x = Math.PI/2;
+        top.position.z = h_m/2 + 3;
+        machine.add(top);
 
-    // =====================
-    // EIX HORITZONTAL (GROC)
-    // =====================
+        // =====================
+        // GUIDATUBO
+        // =====================
 
-    const yellow = new THREE.Mesh(
-        new THREE.BoxGeometry(150, 20, 20),
-        new THREE.MeshStandardMaterial({{color:0xffff00}})
-    );
-    yellow.position.set(guideX - 100, 0, -h/2 - 10);
-    scene.add(yellow);
+        const rTube = {d_tubo}/2;
+        const guideX = -(r + rTube);
 
-    // =====================
-    // COLUMNA (NEGRE)
-    // =====================
+        // base groga
+        const yellow = new THREE.Mesh(
+            new THREE.BoxGeometry(150, 20, 20),
+            new THREE.MeshStandardMaterial({{color:0xffff00}})
+        );
+        yellow.position.set(guideX - 100, 0, -h_m/2 - 10);
+        scene.add(yellow);
 
-    const column = new THREE.Mesh(
-        new THREE.BoxGeometry(20, 20, h + 150),
-        new THREE.MeshStandardMaterial({{color:0x111111}})
-    );
-    column.position.set(guideX - 20, 0, 0);
-    scene.add(column);
+        // columna negra
+        const column = new THREE.Mesh(
+            new THREE.BoxGeometry(20, 20, h_m + 150),
+            new THREE.MeshStandardMaterial({{color:0x111111}})
+        );
+        column.position.set(guideX - 20, 0, 0);
+        scene.add(column);
 
-    // =====================
-    // GUIDATUBO (BLAU)
-    // =====================
+        // carro
+        const guide = new THREE.Group();
+        scene.add(guide);
 
-    const guide = new THREE.Group();
-    scene.add(guide);
+        const block = new THREE.Mesh(
+            new THREE.BoxGeometry(30, 20, 20),
+            new THREE.MeshStandardMaterial({{color:0x0044ff}})
+        );
+        guide.add(block);
 
-    // carro blau
-    const block = new THREE.Mesh(
-        new THREE.BoxGeometry(30, 20, 20),
-        new THREE.MeshStandardMaterial({{color:0x0044ff}})
-    );
-    guide.add(block);
+        const arm = new THREE.Mesh(
+            new THREE.CylinderGeometry(5,5,100,16),
+            new THREE.MeshStandardMaterial({{color:0xaaaaaa}})
+        );
+        arm.rotation.z = Math.PI/2;
+        arm.position.x = 50;
+        guide.add(arm);
 
-    // braç cap a l’aspo
-    const armLen = Math.abs(guideX - (guideX - 20));
+        const nozzle = new THREE.Mesh(
+            new THREE.CylinderGeometry(6,6,20,16),
+            new THREE.MeshStandardMaterial({{color:0xffffff}})
+        );
+        nozzle.rotation.z = Math.PI/2;
+        nozzle.position.x = 100;
+        guide.add(nozzle);
 
-    const arm = new THREE.Mesh(
-        new THREE.CylinderGeometry(5,5,100,16),
-        new THREE.MeshStandardMaterial({{color:0xaaaaaa}})
-    );
-    arm.rotation.z = Math.PI/2;
-    arm.position.x = 50;
-    guide.add(arm);
+        guide.position.set(guideX - 100, 0, 0);
 
-    // nozzle
-    const nozzle = new THREE.Mesh(
-        new THREE.CylinderGeometry(6,6,20,16),
-        new THREE.MeshStandardMaterial({{color:0xffffff}})
-    );
-    nozzle.rotation.z = Math.PI/2;
-    nozzle.position.x = 100;
-    guide.add(nozzle);
+        // =====================
+        // LIGHT
+        // =====================
 
-    // posició inicial
-    guide.position.set(guideX - 100, 0, 0);
+        scene.add(new THREE.AmbientLight(0xffffff,0.8));
 
-    // =====================
-    // LIGHT
-    // =====================
+        const light = new THREE.DirectionalLight(0xffffff,0.6);
+        light.position.set(500,-500,800);
+        scene.add(light);
 
-    scene.add(new THREE.AmbientLight(0xffffff,0.8));
+        // =====================
+        // ANIMATION
+        // =====================
 
-    const dlight = new THREE.DirectionalLight(0xffffff,0.6);
-    dlight.position.set(500,-500,800);
-    scene.add(dlight);
+        let t = 0;
 
-    // =====================
-    // ANIMATION
-    // =====================
+        function animate(){{
+            requestAnimationFrame(animate);
 
-    let t = 0;
+            machine.rotation.z -= 0.01 * {vel if anim else 0};
 
-    function animate(){{
-        requestAnimationFrame(animate);
+            t += 0.02;
+            guide.position.z = Math.sin(t) * (h_m/2);
 
-        // gir aspo (correcte)
-        machine.rotation.z -= 0.01 * {vel if anim else 0};
+            controls.update();
+            renderer.render(scene,camera);
+        }}
 
-        // moviment vertical guidatubo (simulació)
-        t += 0.02;
-        guide.position.z = Math.sin(t) * (h/2);
+        animate();
 
-        controls.update();
-        renderer.render(scene,camera);
-    }}
-
-    animate();
+    }}, 50);
     </script>
     """
 
@@ -318,7 +241,6 @@ with colB:
     st.markdown(f"#### {t['tubo']}")
     rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
     spessore = st.number_input(t["isolamento"], value=7.0)
-    lunghezza = st.number_input(t["lunghezza"], value=30.0)
     d_rame = COPPER_SIZES_MM[rame]
 
 with colC:
@@ -334,17 +256,9 @@ with colD:
     anim = st.checkbox(t["animazione"], True)
     vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
 
-pts = build_coil(diametro_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t)
+d_tubo = d_rame + 2*spessore
 
-components.html(viewer(pts, diametro_aspo, spalla, d_rame+2*spessore, altezza, anim, vel), height=altezza)
-
-st.divider()
-
-m1, m2, m3, m4 = st.columns(4)
-
-m1.metric(t["metric1"], f"{d_rame+2*spessore:.2f} mm")
-m2.metric(t["metric2"], f"{passo:.2f} mm")
-m3.metric(t["metric3"], f"{incremento:.2f} mm")
-
-rmax = np.max(np.sqrt(pts[:,0]**2 + pts[:,1]**2))
-m4.metric(t["metric4"], f"{2*rmax:.1f} mm")
+components.html(
+    viewer(diametro_aspo, spalla, d_tubo, altezza, anim, vel),
+    height=altezza
+)
