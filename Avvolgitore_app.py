@@ -144,8 +144,6 @@ def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, r
 
 def viewer(points, d_aspo, spalla, d_tubo, altezza, anim, vel):
 
-    pts = json.dumps(points.tolist())
-
     return f"""
     <div id="viewer" style="width:100%;height:{altezza}px;"></div>
 
@@ -153,8 +151,6 @@ def viewer(points, d_aspo, spalla, d_tubo, altezza, anim, vel):
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-    const pts = {pts};
-
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xe6e6e6);
 
@@ -167,58 +163,139 @@ def viewer(points, d_aspo, spalla, d_tubo, altezza, anim, vel):
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
+    // =====================
+    // ASPO (VERMELL)
+    // =====================
+
     const machine = new THREE.Group();
     scene.add(machine);
 
     const r = {d_aspo}/2;
+    const h = {spalla};
 
-    // ASP0 VERMELL
-    const mat = new THREE.MeshStandardMaterial({{color:0xff3333}});
+    const redMat = new THREE.MeshStandardMaterial({{color:0xff3333}});
 
     const mandrel = new THREE.Mesh(
-        new THREE.CylinderGeometry(r, r, {spalla}, 64),
-        mat
+        new THREE.CylinderGeometry(r, r, h, 64),
+        redMat
     );
     mandrel.rotation.x = Math.PI/2;
     machine.add(mandrel);
 
-    // GUIDATUBO POSICIÓ CORRECTA
-    const rTube = {d_tubo}/2;
-    const nozzleX = -(r + rTube);
+    // discos (spalla)
+    const flangeR = r + 120;
 
-    const guide = new THREE.Mesh(
-        new THREE.BoxGeometry(30,20,20),
-        new THREE.MeshStandardMaterial({{color:0x0000ff}})
+    const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(flangeR, flangeR, 6, 64),
+        redMat
     );
-    guide.position.set(nozzleX,0,0);
+    base.rotation.x = Math.PI/2;
+    base.position.z = -h/2 - 3;
+    machine.add(base);
+
+    const top = new THREE.Mesh(
+        new THREE.CylinderGeometry(flangeR, flangeR, 6, 64),
+        redMat
+    );
+    top.rotation.x = Math.PI/2;
+    top.position.z = h/2 + 3;
+    machine.add(top);
+
+    // =====================
+    // GUIA TUBO
+    // =====================
+
+    const rTube = {d_tubo}/2;
+
+    // posició tangent
+    const guideX = -(r + rTube);
+
+    // =====================
+    // EIX HORITZONTAL (GROC)
+    // =====================
+
+    const yellow = new THREE.Mesh(
+        new THREE.BoxGeometry(150, 20, 20),
+        new THREE.MeshStandardMaterial({{color:0xffff00}})
+    );
+    yellow.position.set(guideX - 100, 0, -h/2 - 10);
+    scene.add(yellow);
+
+    // =====================
+    // COLUMNA (NEGRE)
+    // =====================
+
+    const column = new THREE.Mesh(
+        new THREE.BoxGeometry(20, 20, h + 150),
+        new THREE.MeshStandardMaterial({{color:0x111111}})
+    );
+    column.position.set(guideX - 20, 0, 0);
+    scene.add(column);
+
+    // =====================
+    // GUIDATUBO (BLAU)
+    // =====================
+
+    const guide = new THREE.Group();
     scene.add(guide);
 
-    // TUB
-    const pts3 = pts.map(p => new THREE.Vector3(p[0],p[1],p[2]));
+    // carro blau
+    const block = new THREE.Mesh(
+        new THREE.BoxGeometry(30, 20, 20),
+        new THREE.MeshStandardMaterial({{color:0x0044ff}})
+    );
+    guide.add(block);
 
-    // OFFSET REAL DEL TUB
-    for (let i=0;i<pts3.length;i++){{
-        let v=pts3[i];
-        let rr=Math.sqrt(v.x*v.x+v.y*v.y);
-        let f=(rr+{d_tubo}/2)/rr;
-        v.x*=f;
-        v.y*=f;
-    }}
+    // braç cap a l’aspo
+    const armLen = Math.abs(guideX - (guideX - 20));
 
-    const curve = new THREE.CatmullRomCurve3(pts3);
-    const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 1200, {d_tubo}/2, 12, false),
+    const arm = new THREE.Mesh(
+        new THREE.CylinderGeometry(5,5,100,16),
+        new THREE.MeshStandardMaterial({{color:0xaaaaaa}})
+    );
+    arm.rotation.z = Math.PI/2;
+    arm.position.x = 50;
+    guide.add(arm);
+
+    // nozzle
+    const nozzle = new THREE.Mesh(
+        new THREE.CylinderGeometry(6,6,20,16),
         new THREE.MeshStandardMaterial({{color:0xffffff}})
     );
-    machine.add(tube);
+    nozzle.rotation.z = Math.PI/2;
+    nozzle.position.x = 100;
+    guide.add(nozzle);
+
+    // posició inicial
+    guide.position.set(guideX - 100, 0, 0);
+
+    // =====================
+    // LIGHT
+    // =====================
 
     scene.add(new THREE.AmbientLight(0xffffff,0.8));
+
+    const dlight = new THREE.DirectionalLight(0xffffff,0.6);
+    dlight.position.set(500,-500,800);
+    scene.add(dlight);
+
+    // =====================
+    // ANIMATION
+    // =====================
+
+    let t = 0;
 
     function animate(){{
         requestAnimationFrame(animate);
 
-        machine.rotation.z -= 0.01*{vel if anim else 0};
+        // gir aspo (correcte)
+        machine.rotation.z -= 0.01 * {vel if anim else 0};
 
+        // moviment vertical guidatubo (simulació)
+        t += 0.02;
+        guide.position.z = Math.sin(t) * (h/2);
+
+        controls.update();
         renderer.render(scene,camera);
     }}
 
