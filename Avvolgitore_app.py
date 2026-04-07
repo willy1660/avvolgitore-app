@@ -48,7 +48,7 @@ TEXTS = {
         "aspo_visible": "Visibile",
         "aspo_transparent": "Trasparente",
         "aspo_hidden": "Nascosto",
-        "guide_offset_x": "Offset guidatubo X (mm)",
+        "guide_offset_x": "Offset guidatubo (mm)",
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
@@ -81,7 +81,7 @@ TEXTS = {
         "aspo_visible": "Visible",
         "aspo_transparent": "Transparent",
         "aspo_hidden": "Hidden",
-        "guide_offset_x": "Guide offset X (mm)",
+        "guide_offset_x": "Guide offset (mm)",
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
@@ -440,7 +440,6 @@ def viewer(
         const maxLen = {float(lunghezza)} * 1000.0;
         const speed = {float(vel)};
         const animEnabled = {anim_js};
-        const straightLen = Math.max(50.0, {float(pinza)} * 1000.0);
         const guideOffsetX = {float(guide_offset_x)};
         const finalPointsRaw = {final_points_json};
         const aspoMode = {aspo_mode_json};
@@ -467,6 +466,12 @@ def viewer(
             color: 0xffffff,
             roughness: 0.65,
             metalness: 0.15
+        }});
+
+        const freeTubeMat = new THREE.MeshStandardMaterial({{
+            color: 0x9fe7ff,
+            roughness: 0.55,
+            metalness: 0.08
         }});
 
         const startMat = new THREE.MeshStandardMaterial({{
@@ -550,39 +555,34 @@ def viewer(
             return x * x * (3.0 - 2.0 * x);
         }}
 
-        function guidePointFor(radius, z) {{
-            // Y calculat perquè la recta de sortida sigui tangent a la capa actual
-            const yTangent = radius;
-
-            return new THREE.Vector3(
-                -(radius + guideOffsetX),
-                yTangent,
-                z
-            );
-        }}
-
-        function tangentPointFor(radius, z) {{
-            // Tangència de la recta horitzontal y = radius amb el cercle x²+y²=radius²
-            return new THREE.Vector3(
-                0.0,
-                radius,
-                z
-            );
-        }}
-
         function currentDepositedPoint(thetaMachine, radius, z) {{
             const tubeTheta = -thetaMachine + Math.PI;
-            const x = radius * Math.cos(tubeTheta);
-            const y = radius * Math.sin(tubeTheta);
-            return new THREE.Vector3(x, y, z);
+            return new THREE.Vector3(
+                radius * Math.cos(tubeTheta),
+                radius * Math.sin(tubeTheta),
+                z
+            );
         }}
 
-        function buildTubeMeshFromPoints(points, radialSegments = 12) {{
+        // guidatubo sobre la tangent del punt de contacte
+        function guidePointFor(contactPoint) {{
+            const tx = -contactPoint.y;
+            const ty =  contactPoint.x;
+            const len = Math.sqrt(tx*tx + ty*ty) + 1e-9;
+
+            return new THREE.Vector3(
+                contactPoint.x + (tx / len) * guideOffsetX,
+                contactPoint.y + (ty / len) * guideOffsetX,
+                contactPoint.z
+            );
+        }}
+
+        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
             if (!points || points.length < 2) return null;
             const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.1);
-            const tubularSegments = Math.max(32, Math.min(2600, points.length * 2));
+            const tubularSegments = Math.max(24, Math.min(2200, points.length * 2));
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
-            return new THREE.Mesh(geo, tubeMat);
+            return new THREE.Mesh(geo, material);
         }}
 
         function createMarker(point, material) {{
@@ -593,12 +593,16 @@ def viewer(
             return m;
         }}
 
-        function buildFreePathPoints(curRadius, curZ) {{
-            const guideP = guidePointFor(curRadius, curZ);
-            const tangentP = tangentPointFor(curRadius, curZ);
+        function buildFreePathPoints(guideP, contactP) {{
+            // tram recte pur
+            return [guideP, contactP];
+        }}
 
-            // tram recte pur des del guidatubo fins a tangència
-            return [guideP, tangentP];
+        function clearObj(obj) {{
+            if (!obj) return;
+            scene.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) obj.material.dispose();
         }}
 
         // =====================
@@ -610,24 +614,17 @@ def viewer(
         let startMarker = null;
         let endMarker = null;
 
-        function clearObj(obj) {{
-            if (!obj) return;
-            scene.remove(obj);
-            if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) obj.material.dispose();
-        }}
-
         function buildStaticFinalView() {{
             guide.visible = false;
 
-            const finalPoints = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+            const finalPts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-            if (finalPoints.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(finalPoints, 12);
+            if (finalPts.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(finalPts, 12, tubeMat);
                 if (rollMesh) scene.add(rollMesh);
 
-                startMarker = createMarker(finalPoints[0], startMat);
-                endMarker = createMarker(finalPoints[finalPoints.length - 1], endMat);
+                startMarker = createMarker(finalPts[0], startMat);
+                endMarker = createMarker(finalPts[finalPts.length - 1], endMat);
             }}
         }}
 
@@ -656,13 +653,14 @@ def viewer(
         machine.rotation.z = thetaMachine;
 
         if (animEnabled) {{
-            depositedPoints.push(currentDepositedPoint(thetaMachine, guideRadius, guideZ));
-            guide.position.copy(guidePointFor(guideRadius, guideZ));
+            const p0 = currentDepositedPoint(thetaMachine, guideRadius, guideZ);
+            depositedPoints.push(p0);
+            guide.position.copy(guidePointFor(p0));
         }} else {{
             buildStaticFinalView();
         }}
 
-        function rebuildAnimatedMeshes() {{
+        function rebuildAnimatedMeshes(contactP) {{
             if (rollMesh) {{
                 clearObj(rollMesh);
                 rollMesh = null;
@@ -681,15 +679,19 @@ def viewer(
             }}
 
             if (depositedPoints.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(depositedPoints, 12);
+                rollMesh = buildTubeMeshFromPoints(depositedPoints, 12, tubeMat);
                 if (rollMesh) scene.add(rollMesh);
             }}
 
-            const freePts = buildFreePathPoints(guideRadius, guideZ);
+            const guideP = guidePointFor(contactP);
+            const freePts = buildFreePathPoints(guideP, contactP);
             if (freePts.length >= 2) {{
-                freeMesh = buildTubeMeshFromPoints(freePts, 12);
+                freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
                 if (freeMesh) scene.add(freeMesh);
             }}
+
+            guide.position.copy(guideP);
+            guide.visible = true;
 
             if (depositedPoints.length >= 1) {{
                 startMarker = createMarker(depositedPoints[0], startMat);
@@ -697,35 +699,25 @@ def viewer(
             }}
         }}
 
-        function addDepositedPoint(newPoint) {{
+        function addDepositedPoint(contactPoint) {{
             const prev = depositedPoints[depositedPoints.length - 1];
-            const seg = newPoint.distanceTo(prev);
+            const seg = contactPoint.distanceTo(prev);
 
-            if (seg < Math.max(0.8, Rt * 0.10)) {{
-                return;
-            }}
+            if (seg < Math.max(0.8, Rt * 0.10)) return;
 
             if (depositedLength + seg <= maxLen) {{
-                depositedPoints.push(newPoint.clone());
+                depositedPoints.push(contactPoint.clone());
                 depositedLength += seg;
                 return;
             }}
 
-            let lo = 0.0;
-            let hi = 1.0;
-
-            for (let i = 0; i < 28; i++) {{
-                const mid = 0.5 * (lo + hi);
-                const candidate = prev.clone().lerp(newPoint, mid);
-                const trialLen = depositedLength + prev.distanceTo(candidate);
-
-                if (trialLen < maxLen) lo = mid;
-                else hi = mid;
+            const remain = maxLen - depositedLength;
+            if (seg > 1e-9 && remain > 0) {{
+                const trim = remain / seg;
+                const finalPoint = prev.clone().lerp(contactPoint, trim);
+                depositedPoints.push(finalPoint);
+                depositedLength += prev.distanceTo(finalPoint);
             }}
-
-            const finalPoint = prev.clone().lerp(newPoint, lo);
-            depositedPoints.push(finalPoint);
-            depositedLength += prev.distanceTo(finalPoint);
             finished = true;
         }}
 
@@ -736,7 +728,6 @@ def viewer(
             thetaMachine -= radPerFrame;
             machine.rotation.z = thetaMachine;
 
-            // Primera capa: completa amb retard
             if (layerIndex === 0) {{
                 if (mode === "axial") {{
                     guideZ += direction * passo * (degPerFrame / 360.0);
@@ -779,7 +770,6 @@ def viewer(
                     }}
                 }}
             }} else {{
-                // Capes següents: model ràpid
                 guideZ += direction * passo * (degPerFrame / 360.0);
 
                 if (guideZ >= Hs - Rt) {{
@@ -802,14 +792,11 @@ def viewer(
             if (animEnabled && !finished) {{
                 advanceMechanics();
 
-                const rawPoint = currentDepositedPoint(thetaMachine, guideRadius, guideZ);
-                addDepositedPoint(rawPoint);
-
-                guide.visible = true;
-                guide.position.copy(guidePointFor(guideRadius, guideZ));
+                const contactP = currentDepositedPoint(thetaMachine, guideRadius, guideZ);
+                addDepositedPoint(contactP);
 
                 if (depositedPoints.length !== lastRebuildCount || finished) {{
-                    rebuildAnimatedMeshes();
+                    rebuildAnimatedMeshes(contactP);
                     lastRebuildCount = depositedPoints.length;
                 }}
             }}
