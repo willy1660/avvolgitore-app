@@ -159,75 +159,87 @@ def viewer(points, d_aspo, spalla):
     <script>
     setTimeout(() => {{
 
+        const container = document.getElementById("viewer");
+        if (!container) return;
+
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+        scene.background = new THREE.Color(0x111111);
 
-        const c = document.getElementById("viewer");
-        const w = c.clientWidth;
-        const h = c.clientHeight;
+        const width = Math.max(container.clientWidth, 300);
+        const height = Math.max(container.clientHeight, 300);
 
-        const camera = new THREE.PerspectiveCamera(45, w/h, 1, 10000);
-        camera.position.set(700,-900,300);
+        const camera = new THREE.PerspectiveCamera(45, width/height, 0.1, 10000);
+        camera.position.set(800,-900,400);
 
         const renderer = new THREE.WebGLRenderer({{antialias:true}});
-        renderer.setSize(w,h);
-        c.appendChild(renderer.domElement);
+        renderer.setSize(width, height);
+        container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-        const machine = new THREE.Group();
-        scene.add(machine);
+        // =====================
+        // TEST CUBE (DEBUG)
+        // =====================
+
+        const cube = new THREE.Mesh(
+            new THREE.BoxGeometry(100,100,100),
+            new THREE.MeshNormalMaterial()
+        );
+        scene.add(cube);
+
+        // =====================
+        // PATH
+        // =====================
 
         const raw = {pts};
-        const vecs = raw.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+        const material = new THREE.LineBasicMaterial({{color:0xffffff}});
+        const geometry = new THREE.BufferGeometry();
 
-        class C extends THREE.Curve {{
-            constructor(p){{super();this.p=p}}
-            getPoint(t){{
-                const f=t*(this.p.length-1);
-                const i=Math.floor(f);
-                return new THREE.Vector3().lerpVectors(this.p[i],this.p[i+1],f-i);
-            }}
-        }}
+        const verts = new Float32Array(raw.flat());
+        geometry.setAttribute('position', new THREE.BufferAttribute(verts, 3));
 
-        const curve = new C(vecs);
-        const tube = new THREE.Mesh(
-            new THREE.TubeGeometry(curve,2000,6,16,false),
-            new THREE.MeshStandardMaterial({{color:0xdddddd}})
-        );
+        const line = new THREE.Line(geometry, material);
+        scene.add(line);
 
-        machine.add(tube);
+        // =====================
+        // MANDREL
+        // =====================
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry({d_aspo/2},{d_aspo/2},{spalla},64),
-            new THREE.MeshStandardMaterial({{color:0x555555,transparent:true,opacity:0.4}})
+            new THREE.CylinderGeometry({d_aspo/2},{d_aspo/2},{spalla},32),
+            new THREE.MeshBasicMaterial({{color:0x444444, wireframe:true}})
         );
+
         mandrel.rotation.x = Math.PI/2;
-        machine.add(mandrel);
+        scene.add(mandrel);
+
+        // =====================
+        // GUIDATUBO (FIX)
+        // =====================
 
         const guide = new THREE.Mesh(
             new THREE.BoxGeometry(20,20,20),
-            new THREE.MeshStandardMaterial({{color:0xffffff}})
+            new THREE.MeshBasicMaterial({{color:0xff0000}})
         );
+
         scene.add(guide);
 
         const baseX = {d_aspo/2 + 120};
-
-        scene.add(new THREE.HemisphereLight(0xffffff,0x444444));
 
         let i = 0;
 
         function animate(){{
             requestAnimationFrame(animate);
 
-            machine.rotation.z += 0.02;
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
 
-            if(i < vecs.length){{
-                const p = vecs[i];
+            if(i < raw.length){{
+                const p = raw[i];
 
-                const r = Math.sqrt(p.x*p.x + p.y*p.y);
+                const r = Math.sqrt(p[0]*p[0] + p[1]*p[1]);
 
-                guide.position.set(baseX + (r - {d_aspo/2}), 0, p.z);
+                guide.position.set(baseX + (r - {d_aspo/2}), 0, p[2]);
 
                 i++;
             }}
@@ -238,7 +250,15 @@ def viewer(points, d_aspo, spalla):
 
         animate();
 
-    }},100);
+        window.addEventListener("resize", () => {{
+            const w = Math.max(container.clientWidth, 300);
+            const h = Math.max(container.clientHeight, 300);
+            camera.aspect = w/h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }});
+
+    }}, 100);
     </script>
     """
 
