@@ -395,6 +395,7 @@ def viewer(
         let rollMesh = null;
         let freeMesh = null;
         let lastRebuildCount = 0;
+        let lastFreeKey = "";
 
         function smoothstep(x) {{
             x = Math.max(0.0, Math.min(1.0, x));
@@ -410,6 +411,24 @@ def viewer(
             const x = guideRadius * Math.cos(tubeTheta);
             const y = guideRadius * Math.sin(tubeTheta);
             return new THREE.Vector3(x, y, guideZ);
+        }}
+
+        function buildStraightTube(startPoint, endPoint) {{
+            const dir = new THREE.Vector3().subVectors(endPoint, startPoint);
+            const len = dir.length();
+
+            if (len < 1e-6) return null;
+
+            const geo = new THREE.CylinderGeometry(Rt, Rt, len, 12);
+            const mesh = new THREE.Mesh(geo, tubeMat);
+
+            mesh.position.copy(startPoint.clone().add(endPoint).multiplyScalar(0.5));
+            mesh.quaternion.setFromUnitVectors(
+                new THREE.Vector3(0, 1, 0),
+                dir.clone().normalize()
+            );
+
+            return mesh;
         }}
 
         function rebuildMeshes(guidePoint, depositedPoint) {{
@@ -428,13 +447,12 @@ def viewer(
                 scene.add(rollMesh);
             }}
 
-            const preGuide = new THREE.Vector3(
+            const freeStart = new THREE.Vector3(
                 guidePoint.x + straightLen,
                 guidePoint.y,
                 guidePoint.z
             );
-
-            const freePts = [depositedPoint.clone(), preGuide, guidePoint.clone()];
+            const freeEnd = guidePoint.clone();
 
             if (freeMesh) {{
                 scene.remove(freeMesh);
@@ -443,10 +461,10 @@ def viewer(
                 freeMesh = null;
             }}
 
-            const freeCurve = new THREE.CatmullRomCurve3(freePts, false, "centripetal", 0.1);
-            const freeGeo = new THREE.TubeGeometry(freeCurve, 48, Rt, 12, false);
-            freeMesh = new THREE.Mesh(freeGeo, tubeMat);
-            scene.add(freeMesh);
+            freeMesh = buildStraightTube(freeStart, freeEnd);
+            if (freeMesh) {{
+                scene.add(freeMesh);
+            }}
         }}
 
         // =====================
@@ -537,14 +555,13 @@ def viewer(
                 return newPoint;
             }}
 
-            const preGuide = new THREE.Vector3(
+            const freeStart = new THREE.Vector3(
                 guidePoint.x + straightLen,
                 guidePoint.y,
                 guidePoint.z
             );
 
-            // longitud real total = rotllo dipositat + tram lliure fins guidatubo
-            const freeLen = newPoint.distanceTo(preGuide) + preGuide.distanceTo(guidePoint);
+            const freeLen = newPoint.distanceTo(freeStart) + freeStart.distanceTo(guidePoint);
             const totalIfAccepted = depositedLength + seg + freeLen;
 
             if (totalIfAccepted <= maxLen) {{
@@ -553,7 +570,6 @@ def viewer(
                 return newPoint;
             }}
 
-            // trim exacte
             let lo = 0.0;
             let hi = 1.0;
 
@@ -561,7 +577,7 @@ def viewer(
                 const mid = 0.5 * (lo + hi);
                 const candidate = prev.clone().lerp(newPoint, mid);
 
-                const candFreeLen = candidate.distanceTo(preGuide) + preGuide.distanceTo(guidePoint);
+                const candFreeLen = candidate.distanceTo(freeStart) + freeStart.distanceTo(guidePoint);
                 const totalCandidate =
                     depositedLength +
                     prev.distanceTo(candidate) +
@@ -581,28 +597,34 @@ def viewer(
         function animate() {{
             requestAnimationFrame(animate);
 
-            const guidePoint = currentGuidePoint();
-
             if (animEnabled && !finished) {{
                 advanceMechanics();
             }}
 
-            const currentGuide = currentGuidePoint();
+            const guidePoint = currentGuidePoint();
             const depositedPointRaw = currentDepositedPoint(thetaMachine);
             const depositedPoint = (!finished && animEnabled)
-                ? addDepositedPoint(depositedPointRaw, currentGuide)
+                ? addDepositedPoint(depositedPointRaw, guidePoint)
                 : depositedPoints[depositedPoints.length - 1];
 
-            guide.position.copy(currentGuide);
+            guide.position.copy(guidePoint);
+
+            const freeKey = [
+                guidePoint.x.toFixed(3),
+                guidePoint.y.toFixed(3),
+                guidePoint.z.toFixed(3)
+            ].join("|");
 
             if (
                 rollMesh === null ||
                 freeMesh === null ||
                 depositedPoints.length !== lastRebuildCount ||
+                freeKey !== lastFreeKey ||
                 finished
             ) {{
-                rebuildMeshes(currentGuide, depositedPoint);
+                rebuildMeshes(guidePoint, depositedPoint);
                 lastRebuildCount = depositedPoints.length;
+                lastFreeKey = freeKey;
             }}
 
             controls.update();
@@ -701,7 +723,7 @@ st.divider()
 m1, m2, m3, m4 = st.columns(4)
 
 m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
-m2.metric(t["metric2"], f"{passo:.2f} mm")
+m2.metric(t["metric2"], f"{passo:.2f} mm/rev")
 m3.metric(t["metric3"], f"{incremento:.2f} mm")
 m4.metric(t["metric4"], f"{diam_esterno:.1f} mm")
 
