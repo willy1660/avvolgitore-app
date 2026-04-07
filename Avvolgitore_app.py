@@ -501,7 +501,7 @@ def viewer(
         mandrel.position.z = Hs / 2.0;
         machine.add(mandrel);
 
-        const flangeR = R + 300.0;
+        const flangeR = R + 200.0;
         const flangeTh = 2.0;
 
         const base = new THREE.Mesh(
@@ -531,7 +531,7 @@ def viewer(
         // =====================
 
         const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(30, 20, 20),
+            new THREE.BoxGeometry(50, 20, 20),
             blueMat
         );
         scene.add(guide);
@@ -833,36 +833,36 @@ colA, colB, colC, colD = st.columns(4)
 
 with colA:
     st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=1.0)
+    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=10)
     spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
 
 with colB:
     st.markdown(f"#### {t['tubo']}")
     rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore = st.number_input(t["isolamento"], value=7.0, step=0.1)
-    lunghezza = st.number_input(t["lunghezza"], value=30.0, step=0.1)
+    spessore = st.number_input(t["isolamento"], value=7.0, step=0.5)
+    lunghezza = st.number_input(t["lunghezza"], value=50.0, step=5)
     d_rame = COPPER_SIZES_MM[rame]
 
 with colC:
     st.markdown(f"#### {t['avvolg']}")
-    passo = st.number_input(t["passo_assiale"], value=20.0, step=0.1)
-    incremento = st.number_input(t["incremento"], value=20.0, step=0.1)
-    rit_b = st.number_input(t["rit_min"], value=180.0, step=1.0)
-    rit_t = st.number_input(t["rit_max"], value=180.0, step=1.0)
-    gradi_start = st.number_input(t["gradi_start"], value=30.0, step=1.0)
-    pinza = st.number_input(t["pinza"], value=0.3, step=0.05)
+    passo = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
+    incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
+    rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
+    rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
+    gradi_start = st.number_input(t["gradi_start"], value=00.0, step=1.0)
+    pinza = st.number_input(t["pinza"], value=0, step=0.1)
 
 with colD:
     st.markdown(f"#### {t['viewer']}")
-    altezza = st.slider(t["altezza"], 400, 900, 700)
+    altezza = st.slider(t["altezza"], 500, 900, 700)
     anim = st.checkbox(t["animazione"], True)
-    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
+    vel = st.slider(t["velocita"], 0.1, 2.0, 1.0)
     aspo_mode_label = st.selectbox(
         t["aspo_mode"],
         [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
         index=0
     )
-    guide_offset_x = st.number_input(t["guide_offset_x"], value=80.0, step=1.0)
+    guide_offset_x = st.number_input(t["guide_offset_x"], value=200.0, step=20)
 
 if aspo_mode_label == t["aspo_visible"]:
     aspo_mode = "visible"
