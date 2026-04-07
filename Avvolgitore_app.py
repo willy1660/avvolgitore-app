@@ -102,741 +102,230 @@ COPPER_SIZES_MM = {
 }
 
 # =========================
-# LOGO
+# UTILS
 # =========================
 
-def find_logo():
-    candidates = [
-        "New Logo PDM – rame.png",
-        "New Logo PDM - rame.png",
-        "new_logo_pdm_rame.png",
-        "logo.png",
-        "logo.svg",
-        "logo.jpg",
-        "logo.jpeg",
-        "logo.webp",
-    ]
-    for name in candidates:
-        if os.path.exists(name):
-            return name
-    for pattern in ("*.png", "*.svg", "*.jpg", "*.jpeg", "*.webp"):
-        files = glob.glob(pattern)
-        if files:
-            return files[0]
-    return None
+def smoothstep(x):
+    x = max(0.0, min(1.0, x))
+    return x * x * (3.0 - 2.0 * x)
 
-logo_path = find_logo()
-
-if logo_path:
-    c1, c2 = st.columns([1, 5])
-    with c1:
-        st.image(logo_path, use_container_width=True)
-    with c2:
-        st.markdown(f"## {t['title']}")
-else:
-    st.markdown(f"## {t['title']}")
-
-# =========================
-# GEOMETRY / SIMULATION
-# =========================
-
-function smoothstep(x) {
-    x = Math.max(0.0, Math.min(1.0, x));
-    return x * x * (3.0 - 2.0 * x);
-}
-
-let mode = "axial";
-let turnProgress = 0.0;
-let turnDelay = 0.0;
-let turnStartRadius = radius;
-let turnEndRadius = radius;
-let turnZ = z;
-let layer = 0;
-
-function step() {
-
-    const deg = 2.0 * speed;
-    theta -= THREE.MathUtils.degToRad(deg);
-
-    // =========================
-    // FIRST LAYER (amb retard suau)
-    // =========================
-
-    if (layer === 0) {
-
-        if (mode === "axial") {
-
-            z += dir * passo * (deg / 360.0);
-
-            if (z >= Hs - Rt) {
-                z = Hs - Rt;
-                mode = "turn";
-                turnProgress = 0.0;
-                turnDelay = Math.max(ritT, 0.0);
-                turnStartRadius = radius;
-                turnEndRadius = radius + incremento;
-                turnZ = z;
-            }
-
-            if (z <= Rt) {
-                z = Rt;
-                mode = "turn";
-                turnProgress = 0.0;
-                turnDelay = Math.max(ritB, 0.0);
-                turnStartRadius = radius;
-                turnEndRadius = radius + incremento;
-                turnZ = z;
-            }
-
-        } else {
-
-            if (turnDelay <= 0.0) {
-                radius = turnEndRadius;
-                mode = "axial";
-                dir *= -1;
-                layer = 1;
-            } else {
-
-                turnProgress += deg;
-
-                const s = smoothstep(turnProgress / turnDelay);
-
-                radius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
-                z = turnZ;
-
-                if (turnProgress >= turnDelay) {
-                    radius = turnEndRadius;
-                    mode = "axial";
-                    dir *= -1;
-                    layer = 1;
-                }
-            }
-        }
-
-    }
-
-    // =========================
-    // RESTA CAPES (ràpid)
-    // =========================
-
-    else {
-
-        z += dir * passo * (deg / 360.0);
-
-        if (z >= Hs - Rt) {
-            z = Hs - Rt;
-            radius += incremento;
-            dir = -1;
-        }
-
-        if (z <= Rt) {
-            z = Rt;
-            radius += incremento;
-            dir = 1;
-        }
-    }
-
-    // =========================
-    // GEOMETRIA
-    // =========================
-
-    const p = contactPoint(radius, z);
-    pts.push(p);
-
-    if (pts.length > 2) {
-        if (mesh) scene.remove(mesh);
-        mesh = buildTube(pts);
-        if (mesh) scene.add(mesh);
-    }
-
-    guide.position.copy(guidePoint(radius, z));
-}
-
-def polyline_length(points: np.ndarray) -> float:
+def polyline_length(points):
     if len(points) < 2:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
-def deposited_point(theta: float, radius: float, z: float) -> np.ndarray:
-    tube_theta = -theta + np.pi
-    x = radius * np.cos(tube_theta)
-    y = radius * np.sin(tube_theta)
-    return np.array([x, y, z], dtype=float)
+# =========================
+# SIMULATION
+# =========================
 
-def simulate_first_layer(
-    d_aspo: float,
-    spalla: float,
-    d_tubo: float,
-    passo: float,
-    incremento: float,
-    rit_b: float,
-    rit_t: float,
-    gradi_start: float,
-    deg_step: float = 3.0,
-):
-    R = d_aspo / 2.0
-    Rt = d_tubo / 2.0
+def simulate(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza):
+    R = d_aspo / 2
+    Rt = d_tubo / 2
     H = spalla
 
-    theta = np.deg2rad(gradi_start)
+    theta = 0
     radius = R + Rt
     z = Rt
-
-    points = [deposited_point(theta, radius, z)]
-    rad_step = np.deg2rad(deg_step)
-
     direction = 1
+
     mode = "axial"
-    turn_progress = 0.0
-    turn_delay = 0.0
-    turn_start_radius = radius
-    turn_end_radius = radius
-    turn_z = z
-    first_layer_done = False
+    turnProgress = 0
+    turnDelay = 0
+    turnStart = radius
+    turnEnd = radius
+    turnZ = z
+    layer = 0
 
-    for _ in range(300000):
-        prev = points[-1]
-        theta -= rad_step
+    pts = []
+    total_len = lunghezza * 1000
+    current_len = 0
 
-        if mode == "axial":
-            z += direction * passo * (deg_step / 360.0)
+    for _ in range(200000):
+
+        deg = 2
+        theta -= np.deg2rad(deg)
+
+        if layer == 0:
+
+            if mode == "axial":
+                z += direction * passo * (deg / 360)
+
+                if z >= H - Rt:
+                    z = H - Rt
+                    mode = "turn"
+                    turnProgress = 0
+                    turnDelay = rit_t
+                    turnStart = radius
+                    turnEnd = radius + incremento
+                    turnZ = z
+
+                if z <= Rt:
+                    z = Rt
+                    mode = "turn"
+                    turnProgress = 0
+                    turnDelay = rit_b
+                    turnStart = radius
+                    turnEnd = radius + incremento
+                    turnZ = z
+
+            else:
+                turnProgress += deg
+                s = smoothstep(turnProgress / max(turnDelay, 1e-6))
+                radius = turnStart + s * (turnEnd - turnStart)
+                z = turnZ
+
+                if turnProgress >= turnDelay:
+                    radius = turnEnd
+                    mode = "axial"
+                    direction *= -1
+                    layer = 1
+
+        else:
+            z += direction * passo * (deg / 360)
 
             if z >= H - Rt:
                 z = H - Rt
-                mode = "turn"
-                turn_progress = 0.0
-                turn_delay = max(rit_t, 0.0)
-                turn_start_radius = radius
-                turn_end_radius = radius + incremento
-                turn_z = z
+                radius += incremento
+                direction = -1
 
-            elif z <= Rt:
+            if z <= Rt:
                 z = Rt
-                mode = "turn"
-                turn_progress = 0.0
-                turn_delay = max(rit_b, 0.0)
-                turn_start_radius = radius
-                turn_end_radius = radius + incremento
-                turn_z = z
+                radius += incremento
+                direction = 1
 
-        else:
-            if turn_delay <= 0.0:
-                radius = turn_end_radius
-                mode = "axial"
-                direction *= -1
-                first_layer_done = True
-            else:
-                turn_progress += deg_step
-                s = smoothstep(turn_progress / turn_delay)
-                radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
-                z = turn_z
+        x = radius * np.cos(-theta + np.pi)
+        y = radius * np.sin(-theta + np.pi)
 
-                if turn_progress >= turn_delay:
-                    radius = turn_end_radius
-                    mode = "axial"
-                    direction *= -1
-                    first_layer_done = True
+        p = np.array([x, y, z])
 
-        new_p = deposited_point(theta, radius, z)
-        seg = float(np.linalg.norm(new_p - prev))
+        if len(pts) > 0:
+            seg = np.linalg.norm(p - pts[-1])
+            current_len += seg
+            if current_len > total_len:
+                break
 
-        if seg >= max(0.4, Rt * 0.08):
-            points.append(new_p)
+        pts.append(p)
 
-        if first_layer_done:
-            break
-
-    return {
-        "points": np.array(points, dtype=float),
-        "theta_end": theta,
-        "radius_end": radius,
-        "z_end": z,
-        "direction_end": direction,
-    }
-gradi_start = 0.0
-pinza = 0.0
-guide_offset_x = 150.0
-def simulate_winding_hybrid(
-    d_aspo: float,
-    spalla: float,
-    d_tubo: float,
-    passo: float,
-    incremento: float,
-    rit_b: float,
-    rit_t: float,
-    lunghezza_m: float,
-    gradi_start: float,
-    deg_step_first: float = 3.0,
-    deg_step_fast: float = 6.0,
-):
-    max_len = lunghezza_m * 1000.0
-    Rt = d_tubo / 2.0
-    H = spalla
-
-    first = simulate_first_layer(
-        d_aspo=d_aspo,
-        spalla=spalla,
-        d_tubo=d_tubo,
-        passo=passo,
-        incremento=incremento,
-        rit_b=rit_b,
-        rit_t=rit_t,
-        gradi_start=gradi_start,
-        deg_step=deg_step_first,
-    )
-
-    points = first["points"].tolist()
-    deposited_len = polyline_length(first["points"])
-
-    if deposited_len >= max_len:
-        pts = np.array(points, dtype=float)
-        return pts, max_len
-
-    theta = first["theta_end"]
-    radius = first["radius_end"]
-    z = first["z_end"]
-    direction = first["direction_end"]
-
-    step_deg = deg_step_fast
-    rad_step = np.deg2rad(step_deg)
-
-    for _ in range(500000):
-        prev = np.array(points[-1], dtype=float)
-        theta -= rad_step
-        z += direction * passo * (step_deg / 360.0)
-
-        hit_top = z >= H - Rt
-        hit_bottom = z <= Rt
-
-        if hit_top:
-            z = H - Rt
-            radius += incremento
-            direction = -1
-        elif hit_bottom:
-            z = Rt
-            radius += incremento
-            direction = 1
-
-        new_p = deposited_point(theta, radius, z)
-        seg = float(np.linalg.norm(new_p - prev))
-
-        if seg < max(0.4, Rt * 0.08):
-            continue
-
-        if deposited_len + seg >= max_len:
-            remain = max_len - deposited_len
-            if seg > 1e-9:
-                alpha = remain / seg
-                final_p = prev + alpha * (new_p - prev)
-                points.append(final_p.tolist())
-                deposited_len += float(np.linalg.norm(final_p - prev))
-            break
-
-        points.append(new_p.tolist())
-        deposited_len += seg
-
-    pts = np.array(points, dtype=float)
-    return pts, deposited_len
-
-def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
-    if len(points) < 2:
-        return float(d_tubo)
-
-    xy = points[:, :2]
-
-    max_samples = 1200
-    if len(xy) > max_samples:
-        idx = np.linspace(0, len(xy) - 1, max_samples).astype(int)
-        xy = xy[idx]
-
-    diff = xy[:, None, :] - xy[None, :, :]
-    dist2 = np.sum(diff * diff, axis=2)
-    max_centerline_span = float(np.sqrt(np.max(dist2)))
-    return max_centerline_span + d_tubo
-
-def compute_metrics(points: np.ndarray, d_tubo: float):
-    if len(points) == 0:
-        return {
-            "diam_radiale": 0.0,
-            "max_xy_span": 0.0,
-            "wound_length_m": 0.0,
-        }
-
-    radial = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
-    max_centerline_r = float(np.max(radial))
-    diam_radiale = 2.0 * (max_centerline_r + d_tubo / 2.0)
-    max_xy_span = compute_max_xy_span(points, d_tubo)
-    wound_length_m = polyline_length(points) / 1000.0
-
-    return {
-        "diam_radiale": diam_radiale,
-        "max_xy_span": max_xy_span,
-        "wound_length_m": wound_length_m,
-    }
-
-# =========================
-# VIEWER
-# =========================
-
-def viewer(
-    d_aspo,
-    spalla,
-    d_tubo,
-    passo,
-    incremento,
-    rit_b,
-    rit_t,
-    lunghezza,
-    altezza,
-    anim,
-    vel,
-    gradi_start,
-    pinza,
-    final_points,
-    aspo_mode,
-    guide_offset_x,
-):
-    import json
-
-    anim_js = "true" if anim else "false"
-    final_points_json = json.dumps(final_points)
-    aspo_mode_json = json.dumps(aspo_mode)
-
-    return f"""
-    <div id="viewer_root" style="width:100%;height:{altezza}px;"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
-
-    <script>
-    (() => {{
-
-        const host = document.getElementById("viewer_root");
-        host.innerHTML = "";
-
-        const W = Math.max(host.clientWidth, 600);
-        const Hview = Math.max(host.clientHeight, 400);
-
-        // =====================
-        // SCENE
-        // =====================
-
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f1115);
-
-        const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
-        camera.position.set(-900, -900, 600);
-
-        const renderer = new THREE.WebGLRenderer({{
-            antialias: true,
-            powerPreference: "high-performance"
-        }});
-        renderer.setSize(W, Hview);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        host.appendChild(renderer.domElement);
-
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.target.set(0, 0, {spalla}/2);
-
-        // =====================
-        // PARAMS
-        // =====================
-
-        const R = {float(d_aspo)} / 2.0;
-        const Rt = {float(d_tubo)} / 2.0;
-        const Hs = {float(spalla)};
-        const passo = {float(passo)};
-        const incremento = {float(incremento)};
-        const ritB = {float(rit_b)};
-        const ritT = {float(rit_t)};
-        const speed = {float(vel)};
-        const animEnabled = {anim_js};
-        const guideOffsetX = {float(guide_offset_x)};
-        const finalPointsRaw = {final_points_json};
-
-        // =====================
-        // LIGHTS
-        // =====================
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-
-        const d1 = new THREE.DirectionalLight(0xffffff, 1.0);
-        d1.position.set(600, -600, 800);
-        scene.add(d1);
-
-        const d2 = new THREE.DirectionalLight(0xffffff, 0.4);
-        d2.position.set(-400, 200, 300);
-        scene.add(d2);
-
-        // =====================
-        // GRID
-        // =====================
-
-        const grid = new THREE.GridHelper(2000, 40, 0x444444, 0x222222);
-        grid.rotation.x = Math.PI / 2;
-        scene.add(grid);
-
-        // =====================
-        // MATERIALS
-        // =====================
-
-        const redMat = new THREE.MeshStandardMaterial({{
-            color: 0xff3333,
-            roughness: 0.35,
-            metalness: 0.25
-        }});
-
-        const blueMat = new THREE.MeshStandardMaterial({{
-            color: 0x0044ff,
-            roughness: 0.35,
-            metalness: 0.25
-        }});
-
-        const tubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xffffff,
-            roughness: 0.5,
-            metalness: 0.2
-        }});
-
-        // =====================
-        // MACHINE
-        // =====================
-
-        const machine = new THREE.Group();
-        scene.add(machine);
-
-        const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, Hs, 64),
-            redMat
-        );
-        mandrel.rotation.x = Math.PI / 2;
-        mandrel.position.z = Hs / 2;
-        machine.add(mandrel);
-
-        // =====================
-        // GUIDE
-        // =====================
-
-        const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(80, 60, 60),
-            blueMat
-        );
-        scene.add(guide);
-
-        // =====================
-        // UTILS
-        // =====================
-
-        function smoothstep(x) {{
-            x = Math.max(0.0, Math.min(1.0, x));
-            return x * x * (3.0 - 2.0 * x);
-        }}
-
-        function contactPoint(radius, z) {{
-            return new THREE.Vector3(0, radius, z);
-        }}
-
-        function guidePoint(radius, z) {{
-            return new THREE.Vector3(-(radius + guideOffsetX), radius, z);
-        }}
-
-        function buildTube(points) {{
-            if (points.length < 2) return null;
-            const curve = new THREE.CatmullRomCurve3(points);
-            const geo = new THREE.TubeGeometry(curve, points.length * 2, Rt, 12, false);
-            return new THREE.Mesh(geo, tubeMat);
-        }}
-
-        // =====================
-        // STATE
-        // =====================
-
-        let theta = THREE.MathUtils.degToRad({float(gradi_start)});
-        let radius = R + Rt;
-        let z = Rt;
-        let dir = 1;
-
-        let mode = "axial";
-        let turnProgress = 0.0;
-        let turnDelay = 0.0;
-        let turnStartRadius = radius;
-        let turnEndRadius = radius;
-        let turnZ = z;
-        let layer = 0;
-
-        let pts = [];
-        let mesh = null;
-
-        // =====================
-        // STEP (CORREGIT)
-        // =====================
-
-        function step() {{
-
-            const deg = 2.0 * speed;
-            theta -= THREE.MathUtils.degToRad(deg);
-
-            if (layer === 0) {{
-
-                if (mode === "axial") {{
-
-                    z += dir * passo * (deg / 360.0);
-
-                    if (z >= Hs - Rt) {{
-                        z = Hs - Rt;
-                        mode = "turn";
-                        turnProgress = 0;
-                        turnDelay = Math.max(ritT, 0.0);
-                        turnStartRadius = radius;
-                        turnEndRadius = radius + incremento;
-                        turnZ = z;
-                    }}
-
-                    if (z <= Rt) {{
-                        z = Rt;
-                        mode = "turn";
-                        turnProgress = 0;
-                        turnDelay = Math.max(ritB, 0.0);
-                        turnStartRadius = radius;
-                        turnEndRadius = radius + incremento;
-                        turnZ = z;
-                    }}
-
-                }} else {{
-
-                    turnProgress += deg;
-                    const s = smoothstep(turnProgress / turnDelay);
-
-                    radius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
-                    z = turnZ;
-
-                    if (turnProgress >= turnDelay) {{
-                        radius = turnEndRadius;
-                        mode = "axial";
-                        dir *= -1;
-                        layer = 1;
-                    }}
-                }}
-
-            }} else {{
-
-                z += dir * passo * (deg / 360.0);
-
-                if (z >= Hs - Rt) {{
-                    z = Hs - Rt;
-                    radius += incremento;
-                    dir = -1;
-                }}
-
-                if (z <= Rt) {{
-                    z = Rt;
-                    radius += incremento;
-                    dir = 1;
-                }}
-            }}
-
-            const p = contactPoint(radius, z);
-            pts.push(p);
-
-            if (pts.length > 2) {{
-                if (mesh) scene.remove(mesh);
-                mesh = buildTube(pts);
-                if (mesh) scene.add(mesh);
-            }}
-
-            guide.position.copy(guidePoint(radius, z));
-        }}
-
-        // =====================
-        // ANIMATE
-        // =====================
-
-        function animate() {{
-            requestAnimationFrame(animate);
-
-            if (animEnabled) step();
-
-            controls.update();
-            renderer.render(scene, camera);
-        }}
-
-        animate();
-
-        // =====================
-        // RESIZE
-        // =====================
-
-        window.addEventListener("resize", () => {{
-            const nw = host.clientWidth;
-            const nh = host.clientHeight;
-            camera.aspect = nw / nh;
-            camera.updateProjectionMatrix();
-            renderer.setSize(nw, nh);
-        }});
-
-    }})();
-    </script>
-    """
-
-# =========================
-# BUILD
-# =========================
-
-d_tubo = d_rame + 2.0 * spessore
-
-points, deposited_len_mm = simulate_winding_hybrid(
-    d_aspo=diametro_aspo,
-    spalla=spalla,
-    d_tubo=d_tubo,
-    passo=passo,
-    incremento=incremento,
-    rit_b=rit_b,
-    rit_t=rit_t,
-    lunghezza_m=lunghezza,
-    gradi_start=gradi_start,
-    deg_step_first=3.0,
-    deg_step_fast=6.0,
-)
-
-metrics = compute_metrics(points, d_tubo)
-
-components.html(
-    viewer(
-        diametro_aspo,
-        spalla,
-        d_tubo,
-        passo,
-        incremento,
-        rit_b,
-        rit_t,
-        lunghezza,
-        altezza,
-        anim,
-        vel,
-        gradi_start,
-        pinza,
-        points.tolist(),
-        aspo_mode,
-        guide_offset_x,
-    ),
-    height=altezza
-)
+    return np.array(pts)
 
 # =========================
 # METRICS
 # =========================
 
-st.divider()
+def compute_metrics(points, d_tubo):
+    radial = np.sqrt(points[:,0]**2 + points[:,1]**2)
+    diam = 2*(np.max(radial) + d_tubo/2)
+    xy = points[:,:2]
+    span = np.max(np.linalg.norm(xy[:,None,:]-xy[None,:,:], axis=2))
+    return diam, span, polyline_length(points)/1000
 
-m1, m2, m3, m4, m5, m6 = st.columns(6)
+# =========================
+# VIEWER
+# =========================
 
-m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
-m2.metric(t["metric2"], f"{passo:.2f} mm")
-m3.metric(t["metric3"], f"{incremento:.2f} mm")
-m4.metric(t["metric4"], f"{metrics['diam_radiale']:.1f} mm")
-m5.metric(t["metric5"], f"{metrics['max_xy_span']:.1f} mm")
-m6.metric(t["metric6"], f"{metrics['wound_length_m']:.3f} m")
+def viewer(points, d_aspo, spalla, d_tubo, altezza):
+    pts_json = json.dumps(points.tolist())
 
-if metrics["max_xy_span"] > 750:
+    return f"""
+    <div id="v" style="width:100%;height:{altezza}px;"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+    (()=>{{
+        const pts = {pts_json}.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+
+        const scene=new THREE.Scene();
+        scene.background=new THREE.Color(0x0f1115);
+
+        const camera=new THREE.PerspectiveCamera(40,1,0.1,10000);
+        camera.position.set(-900,-900,600);
+
+        const renderer=new THREE.WebGLRenderer({{antialias:true}});
+        const host=document.getElementById("v");
+        renderer.setSize(host.clientWidth,host.clientHeight);
+        host.appendChild(renderer.domElement);
+
+        const controls=new THREE.OrbitControls(camera,renderer.domElement);
+        controls.target.set(0,0,{spalla}/2);
+
+        scene.add(new THREE.AmbientLight(0xffffff,0.4));
+        const l=new THREE.DirectionalLight(0xffffff,1);
+        l.position.set(500,-500,800);
+        scene.add(l);
+
+        const grid=new THREE.GridHelper(2000,40);
+        grid.rotation.x=Math.PI/2;
+        scene.add(grid);
+
+        if(pts.length>2){{
+            const curve=new THREE.CatmullRomCurve3(pts);
+            const geo=new THREE.TubeGeometry(curve,pts.length*2,{d_tubo}/2,12,false);
+            const mat=new THREE.MeshStandardMaterial({{color:0xffffff}});
+            scene.add(new THREE.Mesh(geo,mat));
+        }}
+
+        function animate(){{
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene,camera);
+        }}
+        animate();
+    }})();
+    </script>
+    """
+
+# =========================
+# UI
+# =========================
+
+st.markdown(f"## {t['title']}")
+
+colA, colB, colC, colD = st.columns(4)
+
+with colA:
+    st.markdown(f"#### {t['bobina']}")
+    d_aspo = st.number_input(t["diam_aspo"], value=450.0)
+    spalla = st.number_input(t["spalla"], value=95.0)
+
+with colB:
+    st.markdown(f"#### {t['tubo']}")
+    rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
+    spessore = st.number_input(t["isolamento"], value=7.0)
+    lunghezza = st.number_input(t["lunghezza"], value=50.0)
+
+with colC:
+    st.markdown(f"#### {t['avvolg']}")
+    passo = st.number_input(t["passo_assiale"], value=20.0)
+    incremento = st.number_input(t["incremento"], value=20.0)
+    rit_b = st.number_input(t["rit_min"], value=360.0)
+    rit_t = st.number_input(t["rit_max"], value=360.0)
+
+with colD:
+    st.markdown(f"#### {t['viewer']}")
+    altezza = st.slider(t["altezza"], 400, 900, 700)
+
+d_tubo = COPPER_SIZES_MM[rame] + 2*spessore
+
+points = simulate(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza)
+
+components.html(viewer(points, d_aspo, spalla, d_tubo, altezza), height=altezza)
+
+# =========================
+# METRICS
+# =========================
+
+diam, span, length = compute_metrics(points, d_tubo)
+
+m1,m2,m3,m4,m5,m6 = st.columns(6)
+
+m1.metric(t["metric1"], f"{d_tubo:.1f} mm")
+m2.metric(t["metric2"], f"{passo:.1f}")
+m3.metric(t["metric3"], f"{incremento:.1f}")
+m4.metric(t["metric4"], f"{diam:.1f}")
+m5.metric(t["metric5"], f"{span:.1f}")
+m6.metric(t["metric6"], f"{length:.2f} m")
+
+if span > 750:
     st.warning(t["warning"])
