@@ -228,7 +228,8 @@ def simulate_winding_continuous(
             else:
                 turn_progress += deg_step
                 s = smoothstep(turn_progress / turn_delay)
-                radius = turn_start_radius + s * (turn_end_radius - turnStart_radius) if False else turn_start_radius + s * (turn_end_radius - turn_start_radius)
+
+                radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
 
                 edge_blend = 0.06 * passo * np.sin(np.pi * s)
                 if turn_z >= H - Rt - 1e-9:
@@ -364,27 +365,19 @@ def viewer(
         controls.dampingFactor = 0.08;
         controls.target.set(0, 0, {spalla}/2);
 
-        // =====================
-        // PARAMS
-        // =====================
-
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
         const passo = {float(passo)};
         const incremento = {float(incremento)};
-        const ritB = {float(rit_b)};
-        const ritT = {float(rit_t)};
         const maxLen = {float(lunghezza)} * 1000.0;
         const speed = {float(vel)};
         const animEnabled = {anim_js};
         const guideOffsetX = {float(guide_offset_x)};
         const finalPointsRaw = {final_points_json};
         const aspoMode = {aspo_mode_json};
-
-        // =====================
-        // MATERIALS
-        // =====================
+        const ritB = {float(rit_b)};
+        const ritT = {float(rit_t)};
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0x6b7076,
@@ -406,12 +399,6 @@ def viewer(
             metalness: 0.08
         }});
 
-        const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xb8bec6,
-            roughness: 0.78,
-            metalness: 0.04
-        }});
-
         const startMat = new THREE.MeshStandardMaterial({{
             color: 0x3f7f56,
             roughness: 0.80,
@@ -424,9 +411,13 @@ def viewer(
             metalness: 0.06
         }});
 
-        // =====================
-        // ASPO GROUP
-        // =====================
+        const lineMat = new THREE.LineBasicMaterial({{
+            color: 0xd6d9dd
+        }});
+
+        const freeLineMat = new THREE.LineBasicMaterial({{
+            color: 0xb8bec6
+        }});
 
         const machine = new THREE.Group();
         scene.add(machine);
@@ -463,10 +454,6 @@ def viewer(
         const rollGroup = new THREE.Group();
         machine.add(rollGroup);
 
-        // =====================
-        // GUIDATUBO (en world, no gira)
-        // =====================
-
         const guide = new THREE.Mesh(
             new THREE.BoxGeometry(80, 60, 60),
             blueMat
@@ -494,10 +481,6 @@ def viewer(
         guideNozzle.rotation.z = Math.PI / 2;
         scene.add(guideNozzle);
 
-        // =====================
-        // LIGHTS
-        // =====================
-
         scene.add(new THREE.AmbientLight(0xffffff, 0.72));
 
         const dLight1 = new THREE.DirectionalLight(0xffffff, 0.62);
@@ -512,10 +495,6 @@ def viewer(
         dLight3.position.set(0, -900, 500);
         scene.add(dLight3);
 
-        // =====================
-        // HELPERS
-        // =====================
-
         function smoothstep(x) {{
             x = Math.max(0.0, Math.min(1.0, x));
             return x * x * (3.0 - 2.0 * x);
@@ -526,11 +505,7 @@ def viewer(
         }}
 
         function guidePointWorld(radius, z) {{
-            return new THREE.Vector3(
-                -(radius + guideOffsetX),
-                radius,
-                z
-            );
+            return new THREE.Vector3(-(radius + guideOffsetX), radius, z);
         }}
 
         function worldToMachineLocal(pWorld, thetaMachine) {{
@@ -545,7 +520,6 @@ def viewer(
 
         function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
             if (!points || points.length < 2) return null;
-
             const path = new THREE.CurvePath();
             let totalLen = 0.0;
 
@@ -553,7 +527,6 @@ def viewer(
                 const p0 = points[i];
                 const p1 = points[i + 1];
                 const segLen = p0.distanceTo(p1);
-
                 if (segLen > 1e-9) {{
                     path.add(new THREE.LineCurve3(p0.clone(), p1.clone()));
                     totalLen += segLen;
@@ -564,11 +537,26 @@ def viewer(
 
             const tubularSegments = Math.max(
                 40,
-                Math.min(6000, Math.floor(totalLen / Math.max(0.35, Rt * 0.16)))
+                Math.min(3000, Math.floor(totalLen / Math.max(0.8, Rt * 0.50)))
             );
 
             const geo = new THREE.TubeGeometry(path, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
+        }}
+
+        function makeLine(points, material, parentObj) {{
+            if (!points || points.length < 2) return null;
+            const arr = new Float32Array(points.length * 3);
+            for (let i = 0; i < points.length; i++) {{
+                arr[i * 3 + 0] = points[i].x;
+                arr[i * 3 + 1] = points[i].y;
+                arr[i * 3 + 2] = points[i].z;
+            }}
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+            const line = new THREE.Line(geo, material);
+            parentObj.add(line);
+            return line;
         }}
 
         function createMarker(point, material, parentObj = scene) {{
@@ -589,15 +577,11 @@ def viewer(
             if (!obj) return;
             parentObj.remove(obj);
             if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) obj.material.dispose();
         }}
 
-        // =====================
-        // STATIC FINAL VIEW
-        // =====================
-
         let rollMesh = null;
-        let freeMesh = null;
+        let rollLine = null;
+        let freeLine = null;
         let startMarker = null;
         let endMarker = null;
 
@@ -607,7 +591,6 @@ def viewer(
             guideNozzle.visible = false;
 
             const finalPts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
             if (finalPts.length >= 2) {{
                 rollMesh = buildTubeMeshFromPoints(finalPts, 12, tubeMat);
                 if (rollMesh) scene.add(rollMesh);
@@ -617,10 +600,6 @@ def viewer(
             }}
         }}
 
-        // =====================
-        // ANIM STATE
-        // =====================
-
         let depositedLocalPoints = [];
         let depositedLength = 0.0;
         let finished = false;
@@ -628,10 +607,8 @@ def viewer(
         let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
         let guideRadius = R + Rt;
         let guideZ = Rt;
-
         let direction = 1;
         let mode = "axial";
-
         let turnProgress = 0.0;
         let turnDelay = 0.0;
         let turnStartRadius = guideRadius;
@@ -650,25 +627,24 @@ def viewer(
         }}
 
         function makeDisplayPoints(currentLocalContact) {{
-            if (depositedLocalPoints.length === 0) return [];
-
             const pts = depositedLocalPoints.map(p => p.clone());
-            const last = pts[pts.length - 1];
-
-            if (currentLocalContact && last.distanceTo(currentLocalContact) > 1e-9) {{
-                pts.push(currentLocalContact.clone());
-            }}
+            if (currentLocalContact && pts.length > 0) {{
+                const last = pts[pts.length - 1];
+                if (last.distanceTo(currentLocalContact) > 1e-9) {{
+                    pts.push(currentLocalContact.clone());
+                }}
+            }
             return pts;
         }}
 
-        function rebuildAnimatedMeshes(contactWorld, contactLocal) {{
-            if (rollMesh) {{
-                clearObj(rollMesh, rollGroup);
-                rollMesh = null;
+        function rebuildAnimatedView(contactWorld, contactLocal) {{
+            if (rollLine) {{
+                clearObj(rollLine, rollGroup);
+                rollLine = null;
             }}
-            if (freeMesh) {{
-                clearObj(freeMesh, scene);
-                freeMesh = null;
+            if (freeLine) {{
+                clearObj(freeLine, scene);
+                freeLine = null;
             }}
             if (startMarker) {{
                 clearObj(startMarker, rollGroup);
@@ -682,39 +658,24 @@ def viewer(
             const displayPoints = makeDisplayPoints(contactLocal);
 
             if (displayPoints.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(displayPoints, 12, tubeMat);
-                if (rollMesh) rollGroup.add(rollMesh);
+                rollLine = makeLine(displayPoints, lineMat, rollGroup);
             }}
 
             const guideWorld = guidePointWorld(guideRadius, guideZ);
-            const freePts = [guideWorld, contactWorld];
-            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
-            if (freeMesh) scene.add(freeMesh);
+            freeLine = makeLine([guideWorld, contactWorld], freeLineMat, scene);
 
             guide.position.copy(guideWorld);
             guide.visible = true;
 
-            guideFront.position.set(
-                guideWorld.x + 49,
-                guideWorld.y,
-                guideWorld.z
-            );
+            guideFront.position.set(guideWorld.x + 49, guideWorld.y, guideWorld.z);
             guideFront.visible = true;
 
-            guideNozzle.position.set(
-                guideWorld.x + 67,
-                guideWorld.y,
-                guideWorld.z
-            );
+            guideNozzle.position.set(guideWorld.x + 67, guideWorld.y, guideWorld.z);
             guideNozzle.visible = true;
 
             if (displayPoints.length >= 1) {{
                 startMarker = createMarker(displayPoints[0], startMat, rollGroup);
-                endMarker = createMarker(
-                    displayPoints[displayPoints.length - 1],
-                    endMat,
-                    rollGroup
-                );
+                endMarker = createMarker(displayPoints[displayPoints.length - 1], endMat, rollGroup);
             }}
         }}
 
@@ -722,12 +683,12 @@ def viewer(
             const prev = depositedLocalPoints[depositedLocalPoints.length - 1];
             const seg = contactLocal.distanceTo(prev);
 
-            if (seg < Math.max(0.18, Rt * 0.025)) return false;
+            if (seg < Math.max(0.18, Rt * 0.025)) return;
 
             if (depositedLength + seg <= maxLen) {{
                 depositedLocalPoints.push(contactLocal.clone());
                 depositedLength += seg;
-                return true;
+                return;
             }}
 
             const remain = maxLen - depositedLength;
@@ -738,12 +699,10 @@ def viewer(
                 depositedLength += prev.distanceTo(finalPoint);
             }}
             finished = true;
-            return true;
         }}
 
         function advanceMechanicsSubstep(degStep) {{
             const radPerStep = THREE.MathUtils.degToRad(degStep);
-
             thetaMachine -= radPerStep;
             machine.rotation.z = thetaMachine;
 
@@ -776,7 +735,6 @@ def viewer(
                 }} else {{
                     turnProgress += degStep;
                     const s = smoothstep(turnProgress / turnDelay);
-
                     guideRadius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
 
                     const edgeBlend = 0.06 * passo * Math.sin(Math.PI * s);
@@ -804,23 +762,19 @@ def viewer(
 
             if (animEnabled && !finished) {{
                 const totalDegThisFrame = 2.0 * speed;
-
-                // submostreig fort per evitar que la deposició vagi tard
                 const maxDegPerSubstep = 0.35;
                 const nSteps = Math.max(1, Math.ceil(totalDegThisFrame / maxDegPerSubstep));
                 const subDeg = totalDegThisFrame / nSteps;
 
                 for (let i = 0; i < nSteps && !finished; i++) {{
                     advanceMechanicsSubstep(subDeg);
-
                     currentWorld = contactPointWorld(guideRadius, guideZ);
                     currentLocal = worldToMachineLocal(currentWorld, thetaMachine);
-
                     addDepositedPoint(currentLocal);
                 }}
 
                 if (currentWorld && currentLocal) {{
-                    rebuildAnimatedMeshes(currentWorld, currentLocal);
+                    rebuildAnimatedView(currentWorld, currentLocal);
                 }}
             }}
 
