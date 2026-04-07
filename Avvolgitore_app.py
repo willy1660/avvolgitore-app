@@ -4,66 +4,10 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
 # =========================
-# LANGUAGE
+# VIEWER
 # =========================
 
-if "lang" not in st.session_state:
-    st.session_state.lang = "IT"
-
-lang_option = st.selectbox(
-    "🌍 Language",
-    ["🇮🇹 Italiano", "🇺🇸 English (US)"],
-    index=0 if st.session_state.lang == "IT" else 1
-)
-
-st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
-lang = st.session_state.lang
-
-TEXTS = {
-    "IT": {
-        "bobina": "🟦 Bobina",
-        "tubo": "🟩 Tubo",
-        "avvolg": "🟧 Avvolgimento",
-        "viewer": "⚙️ Viewer",
-        "diam_aspo": "Ø Aspo (mm)",
-        "spalla": "Spalla (mm)",
-        "rame": "Ø Rame",
-        "isolamento": "Spessore isolamento (mm)",
-        "altezza": "Altezza",
-        "animazione": "Animazione",
-        "velocita": "Velocità"
-    },
-    "EN": {
-        "bobina": "🟦 Coil",
-        "tubo": "🟩 Tube",
-        "avvolg": "🟧 Winding",
-        "viewer": "⚙️ Viewer",
-        "diam_aspo": "Spool diameter (mm)",
-        "spalla": "Width (mm)",
-        "rame": "Copper size",
-        "isolamento": "Insulation thickness (mm)",
-        "altezza": "Height",
-        "animazione": "Animation",
-        "velocita": "Speed"
-    }
-}
-
-t = TEXTS[lang]
-
-COPPER_SIZES_MM = {
-    "1/4": 6.35,
-    "3/8": 9.52,
-    "1/2": 12.70,
-    "5/8": 15.88,
-    "3/4": 19.05,
-    "7/8": 22.23,
-}
-
-# =========================
-# VIEWER HARDWARE
-# =========================
-
-def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
+def viewer(d_aspo, spalla, altezza):
 
     return f"""
     <div id="viewer" style="width:100%;height:{altezza}px;"></div>
@@ -82,11 +26,10 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
         scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 10000);
-        camera.position.set(-400, -900, 300);
+        camera.position.set(-400, -800, 250);
 
         const renderer = new THREE.WebGLRenderer({{antialias:true}});
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(w, h);
+        renderer.setSize(w,h);
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -129,61 +72,53 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
         machine.add(top);
 
         // =====================
-        // GUIDATUBO STRUCTURE
+        // GUIDATUBO REAL
         // =====================
 
-        const rTube = {d_tubo}/2;
-        const guideX = -(r + rTube);
+        const guideX = -(r + 20);
+        const guideY = -120;
 
-        const Y_OFFSET = -80;
-
-        // EIX HORITZONTAL (GROC) → cap a dins (Y)
-        const yellow = new THREE.Mesh(
-            new THREE.BoxGeometry(20, 160, 20),
+        // BASE GROC (rail)
+        const rail = new THREE.Mesh(
+            new THREE.BoxGeometry(200, 20, 20),
             new THREE.MeshStandardMaterial({{color:0xffff00}})
         );
-        yellow.position.set(guideX - 20, Y_OFFSET, -h_m/2 - 10);
-        scene.add(yellow);
+        rail.position.set(guideX - 80, guideY, -h_m/2 - 10);
+        scene.add(rail);
 
-        // COLUMNA (NEGRE) → més enrere
-        const column = new THREE.Mesh(
-            new THREE.BoxGeometry(20, 20, h_m + 150),
-            new THREE.MeshStandardMaterial({{color:0x111111}})
+        // CARRO BLAU
+        const carriage = new THREE.Mesh(
+            new THREE.BoxGeometry(30,20,20),
+            new THREE.MeshStandardMaterial({{color:0x0033ff}})
         );
-        column.position.set(guideX - 20, Y_OFFSET, 0);
-        scene.add(column);
+        carriage.position.set(guideX, guideY, -h_m/2);
+        scene.add(carriage);
 
-        // =====================
-        // GUIDATUBO
-        // =====================
-
-        const guide = new THREE.Group();
-        scene.add(guide);
-
-        const block = new THREE.Mesh(
-            new THREE.BoxGeometry(30, 20, 20),
-            new THREE.MeshStandardMaterial({{color:0x0044ff}})
-        );
-        guide.add(block);
-
+        // BRAÇ GRIS (des del carro)
         const arm = new THREE.Mesh(
-            new THREE.CylinderGeometry(5,5,100,16),
+            new THREE.CylinderGeometry(6,6,160,16),
             new THREE.MeshStandardMaterial({{color:0xaaaaaa}})
         );
-        arm.rotation.z = Math.PI/2;
-        arm.position.x = 50;
-        guide.add(arm);
+        arm.position.set(guideX + 70, guideY + 40, 0);
+        arm.rotation.z = -Math.PI/4;
+        scene.add(arm);
 
+        // NOZZLE
         const nozzle = new THREE.Mesh(
             new THREE.CylinderGeometry(6,6,20,16),
             new THREE.MeshStandardMaterial({{color:0xffffff}})
         );
+        nozzle.position.set(guideX + 120, guideY + 70, 0);
         nozzle.rotation.z = Math.PI/2;
-        nozzle.position.x = 100;
-        guide.add(nozzle);
+        scene.add(nozzle);
 
-        // POSICIÓ alineada amb columna
-        guide.position.set(guideX - 100, Y_OFFSET, 0);
+        // COLUMNA NEGRA (entre carro i aspo)
+        const column = new THREE.Mesh(
+            new THREE.BoxGeometry(20,20,h_m+120),
+            new THREE.MeshStandardMaterial({{color:0x111111}})
+        );
+        column.position.set(guideX + 40, guideY + 20, 0);
+        scene.add(column);
 
         // =====================
         // LIGHT
@@ -199,15 +134,10 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
         // ANIMATION
         // =====================
 
-        let t = 0;
-
         function animate(){{
             requestAnimationFrame(animate);
 
-            machine.rotation.z -= 0.01 * {vel if anim else 0};
-
-            t += 0.02;
-            guide.position.z = Math.sin(t) * (h_m/2);
+            machine.rotation.z -= 0.01;
 
             controls.update();
             renderer.render(scene,camera);
@@ -223,32 +153,13 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
 # UI
 # =========================
 
-colA, colB, colC, colD = st.columns(4)
+col1, col2 = st.columns(2)
 
-with colA:
-    st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0)
-    spalla = st.number_input(t["spalla"], value=95.0)
+with col1:
+    diametro_aspo = st.number_input("Ø Aspo (mm)", value=450.0)
+    spalla = st.number_input("Spalla (mm)", value=95.0)
 
-with colB:
-    st.markdown(f"#### {t['tubo']}")
-    rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore = st.number_input(t["isolamento"], value=7.0)
-    d_rame = COPPER_SIZES_MM[rame]
+with col2:
+    altezza = st.slider("Altezza", 400, 900, 700)
 
-with colC:
-    st.markdown(f"#### {t['avvolg']}")
-    st.write("—")
-
-with colD:
-    st.markdown(f"#### {t['viewer']}")
-    altezza = st.slider(t["altezza"], 400, 900, 700)
-    anim = st.checkbox(t["animazione"], True)
-    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
-
-d_tubo = d_rame + 2*spessore
-
-components.html(
-    viewer(diametro_aspo, spalla, d_tubo, altezza, anim, vel),
-    height=altezza
-)
+components.html(viewer(diametro_aspo, spalla, altezza), height=altezza)
