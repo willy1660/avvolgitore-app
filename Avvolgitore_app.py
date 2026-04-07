@@ -393,7 +393,7 @@ def viewer(
     aspo_mode_json = json.dumps(aspo_mode)
 
     return f"""
-    <div id="viewer_root" style="width:100%;height:{altezza}px;background:#000;"></div>
+    <div id="viewer_root" style="width:100%;height:{altezza}px;"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
@@ -406,17 +406,20 @@ def viewer(
         const W = Math.max(host.clientWidth, 600);
         const Hview = Math.max(host.clientHeight, 400);
 
+        // =====================
+        // SCENE
+        // =====================
+
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+        scene.background = new THREE.Color(0x0f1115);
 
-        const  = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
+        const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
         camera.position.set(-900, -900, 600);
-        controls.target.set(0, 0, Hs / 2);
 
-        controls.maxDistance = 4000;
-        controls.minDistance = 200;
-
-        const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+        const renderer = new THREE.WebGLRenderer({{
+            antialias: true,
+            powerPreference: "high-performance"
+        }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(W, Hview);
         host.appendChild(renderer.domElement);
@@ -425,6 +428,8 @@ def viewer(
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.target.set(0, 0, {spalla}/2);
+        controls.maxDistance = 4000;
+        controls.minDistance = 200;
 
         // =====================
         // PARAMS
@@ -445,49 +450,57 @@ def viewer(
         const aspoMode = {aspo_mode_json};
 
         // =====================
+        // LIGHTING PRO
+        // =====================
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        keyLight.position.set(600, -600, 800);
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
+        fillLight.position.set(-400, 200, 300);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        rimLight.position.set(0, 600, 400);
+        scene.add(rimLight);
+
+        // =====================
+        // GRID
+        // =====================
+
+        const grid = new THREE.GridHelper(2000, 40, 0x444444, 0x222222);
+        grid.rotation.x = Math.PI / 2;
+        scene.add(grid);
+
+        // =====================
         // MATERIALS
         // =====================
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0xff3333,
-            roughness: 0.55,
-            metalness: 0.08,
+            roughness: 0.35,
+            metalness: 0.25,
             transparent: aspoMode === "transparent",
             opacity: aspoMode === "transparent" ? 0.18 : 1.0
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
             color: 0x0044ff,
-            roughness: 0.55,
-            metalness: 0.10
+            roughness: 0.35,
+            metalness: 0.25
         }});
 
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: 0xffffff,
-            roughness: 0.65,
-            metalness: 0.15
-        }});
-
-        const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0x9fe7ff,
-            roughness: 0.55,
-            metalness: 0.08
-        }});
-
-        const startMat = new THREE.MeshStandardMaterial({{
-            color: 0x00ff88,
-            roughness: 0.45,
-            metalness: 0.12
-        }});
-
-        const endMat = new THREE.MeshStandardMaterial({{
-            color: 0xffcc00,
-            roughness: 0.45,
-            metalness: 0.12
+            roughness: 0.5,
+            metalness: 0.2
         }});
 
         // =====================
-        // ASPO GROUP
+        // MACHINE
         // =====================
 
         const machine = new THREE.Group();
@@ -498,22 +511,20 @@ def viewer(
             redMat
         );
         mandrel.rotation.x = Math.PI / 2;
-        mandrel.position.z = Hs / 2.0;
+        mandrel.position.z = Hs / 2;
         machine.add(mandrel);
 
-        const flangeR = R + 150.0;
-        const flangeTh = 4.0;
+        const flangeR = R + 150;
 
         const base = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
+            new THREE.CylinderGeometry(flangeR, flangeR, 4, 96),
             redMat
         );
         base.rotation.x = Math.PI / 2;
-        base.position.z = 0.0;
         machine.add(base);
 
         const top = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
+            new THREE.CylinderGeometry(flangeR, flangeR, 4, 96),
             redMat
         );
         top.rotation.x = Math.PI / 2;
@@ -522,12 +533,8 @@ def viewer(
 
         machine.visible = aspoMode !== "hidden";
 
-        // bobina animada com a fill del grup que gira
-        const rollGroup = new THREE.Group();
-        machine.add(rollGroup);
-
         // =====================
-        // GUIDATUBO (en world, no gira)
+        // GUIDATUBO
         // =====================
 
         const guide = new THREE.Mesh(
@@ -537,53 +544,14 @@ def viewer(
         scene.add(guide);
 
         // =====================
-        // LIGHTS PRO
-        // =====================
-        
-        // ambient molt suau
-        scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-        
-        // key light (principal)
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        keyLight.position.set(600, -600, 800);
-        scene.add(keyLight);
-        
-        // fill light (suavitzar ombres)
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
-        fillLight.position.set(-400, 200, 300);
-        scene.add(fillLight);
-        
-        // rim light (contorn volum)
-        const rimLight = new THREE.DirectionalLight(0xffffff, 0.6);
-        rimLight.position.set(0, 600, 400);
-        scene.add(rimLight);
-        // =====================
-        // GRID + AXES
-        // =====================
-        
-        const grid = new THREE.GridHelper(2000, 40, 0x444444, 0x222222);
-        grid.rotation.x = Math.PI / 2;
-        scene.add(grid);
-        
-        // eixos subtils
-        const axes = new THREE.AxesHelper(200);
-        scene.add(axes);
-        // =====================
-        // HELPERS
+        // UTILITIES
         // =====================
 
-        function smoothstep(x) {{
-            x = Math.max(0.0, Math.min(1.0, x));
-            return x * x * (3.0 - 2.0 * x);
+        function contactPoint(radius, z) {{
+            return new THREE.Vector3(0, radius, z);
         }}
 
-        // punt de contacte en world: sempre tangent superior
-        function contactPointWorld(radius, z) {{
-            return new THREE.Vector3(0.0, radius, z);
-        }}
-
-        // guidatubo fix en X, i Y = radius per fer l'entrada horitzontal tangent
-        function guidePointWorld(radius, z) {{
+        function guidePoint(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
                 radius,
@@ -591,240 +559,72 @@ def viewer(
             );
         }}
 
-        // world -> local del grup que gira
-        function worldToMachineLocal(pWorld, thetaMachine) {{
-            const c = Math.cos(-thetaMachine);
-            const s = Math.sin(-thetaMachine);
-            return new THREE.Vector3(
-                pWorld.x * c - pWorld.y * s,
-                pWorld.x * s + pWorld.y * c,
-                pWorld.z
-            );
-        }}
-
-        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
-            if (!points || points.length < 2) return null;
-            const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.1);
-            const tubularSegments = Math.max(24, Math.min(2200, points.length * 2));
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
-            return new THREE.Mesh(geo, material);
-        }}
-
-        function createMarker(point, material, parentObj = scene) {{
-            const g = new THREE.SphereGeometry(Math.max(4, Rt * 0.9), 18, 18);
-            const m = new THREE.Mesh(g, material);
-            m.position.copy(point);
-            parentObj.add(m);
-            return m;
-        }}
-
-        function clearObj(obj, parentObj = scene) {{
-            if (!obj) return;
-            parentObj.remove(obj);
-            if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) obj.material.dispose();
+        function buildTube(points) {{
+            if (points.length < 2) return null;
+            const curve = new THREE.CatmullRomCurve3(points);
+            const geo = new THREE.TubeGeometry(curve, points.length * 2, Rt, 12, false);
+            return new THREE.Mesh(geo, tubeMat);
         }}
 
         // =====================
-        // STATIC FINAL VIEW
+        // STATIC MODE
         // =====================
 
-        let rollMesh = null;
-        let freeMesh = null;
-        let startMarker = null;
-        let endMarker = null;
+        let mesh = null;
 
-        function buildStaticFinalView() {{
+        if (!animEnabled) {{
+            const pts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+            mesh = buildTube(pts);
+            if (mesh) scene.add(mesh);
             guide.visible = false;
-
-            const finalPts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
-            if (finalPts.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(finalPts, 12, tubeMat);
-                if (rollMesh) scene.add(rollMesh);
-
-                startMarker = createMarker(finalPts[0], startMat, scene);
-                endMarker = createMarker(finalPts[finalPts.length - 1], endMat, scene);
-            }}
         }}
 
         // =====================
-        // ANIM STATE
+        // ANIMATION
         // =====================
 
-        let depositedLocalPoints = [];
-        let depositedLength = 0.0;
-        let finished = false;
-        let lastRebuildCount = -1;
+        let theta = THREE.MathUtils.degToRad({float(gradi_start)});
+        let radius = R + Rt;
+        let z = Rt;
+        let dir = 1;
 
-        let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
-        let guideRadius = R + Rt;
-        let guideZ = Rt;
+        let pts = [];
+        let len = 0;
 
-        let direction = 1;
-        let mode = "axial";
-        let turnProgress = 0.0;
-        let turnDelay = 0.0;
-        let turnStartRadius = guideRadius;
-        let turnEndRadius = guideRadius;
-        let turnZ = guideZ;
-        let layerIndex = 0;
+        function step() {{
+            const deg = 2.0 * speed;
+            theta -= THREE.MathUtils.degToRad(deg);
 
-        machine.rotation.z = thetaMachine;
+            z += dir * passo * (deg / 360.0);
 
-        if (animEnabled) {{
-            const c0w = contactPointWorld(guideRadius, guideZ);
-            const c0l = worldToMachineLocal(c0w, thetaMachine);
-            depositedLocalPoints.push(c0l);
-            guide.position.copy(guidePointWorld(guideRadius, guideZ));
-        }} else {{
-            buildStaticFinalView();
-        }}
-
-        function rebuildAnimatedMeshes(contactWorld) {{
-            if (rollMesh) {{
-                clearObj(rollMesh, rollGroup);
-                rollMesh = null;
-            }}
-            if (freeMesh) {{
-                clearObj(freeMesh, scene);
-                freeMesh = null;
-            }}
-            if (startMarker) {{
-                clearObj(startMarker, rollGroup);
-                startMarker = null;
-            }}
-            if (endMarker) {{
-                clearObj(endMarker, rollGroup);
-                endMarker = null;
+            if (z >= Hs - Rt) {{
+                z = Hs - Rt;
+                radius += incremento;
+                dir = -1;
             }}
 
-            if (depositedLocalPoints.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(depositedLocalPoints, 12, tubeMat);
-                if (rollMesh) rollGroup.add(rollMesh);
+            if (z <= Rt) {{
+                z = Rt;
+                radius += incremento;
+                dir = 1;
             }}
 
-            const guideWorld = guidePointWorld(guideRadius, guideZ);
-            const freePts = [guideWorld, contactWorld];
-            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
-            if (freeMesh) scene.add(freeMesh);
+            const p = contactPoint(radius, z);
+            pts.push(p);
 
-            guide.position.copy(guideWorld);
-            guide.visible = true;
-
-            if (depositedLocalPoints.length >= 1) {{
-                startMarker = createMarker(depositedLocalPoints[0], startMat, rollGroup);
-                endMarker = createMarker(
-                    depositedLocalPoints[depositedLocalPoints.length - 1],
-                    endMat,
-                    rollGroup
-                );
-            }}
-        }}
-
-        function addDepositedPoint(contactLocal) {{
-            const prev = depositedLocalPoints[depositedLocalPoints.length - 1];
-            const seg = contactLocal.distanceTo(prev);
-
-            if (seg < Math.max(0.8, Rt * 0.10)) return;
-
-            if (depositedLength + seg <= maxLen) {{
-                depositedLocalPoints.push(contactLocal.clone());
-                depositedLength += seg;
-                return;
+            if (pts.length > 2) {{
+                if (mesh) scene.remove(mesh);
+                mesh = buildTube(pts);
+                if (mesh) scene.add(mesh);
             }}
 
-            const remain = maxLen - depositedLength;
-            if (seg > 1e-9 && remain > 0) {{
-                const trim = remain / seg;
-                const finalPoint = prev.clone().lerp(contactLocal, trim);
-                depositedLocalPoints.push(finalPoint);
-                depositedLength += prev.distanceTo(finalPoint);
-            }}
-            finished = true;
-        }}
-
-        function advanceMechanics() {{
-            const degPerFrame = 2.0 * speed;
-            const radPerFrame = THREE.MathUtils.degToRad(degPerFrame);
-
-            thetaMachine -= radPerFrame;
-            machine.rotation.z = thetaMachine;
-
-            if (layerIndex === 0) {{
-                if (mode === "axial") {{
-                    guideZ += direction * passo * (degPerFrame / 360.0);
-
-                    if (guideZ >= Hs - Rt) {{
-                        guideZ = Hs - Rt;
-                        mode = "turn";
-                        turnProgress = 0.0;
-                        turnDelay = Math.max(ritT, 0.0);
-                        turnStartRadius = guideRadius;
-                        turnEndRadius = guideRadius + incremento;
-                        turnZ = guideZ;
-                    }} else if (guideZ <= Rt) {{
-                        guideZ = Rt;
-                        mode = "turn";
-                        turnProgress = 0.0;
-                        turnDelay = Math.max(ritB, 0.0);
-                        turnStartRadius = guideRadius;
-                        turnEndRadius = guideRadius + incremento;
-                        turnZ = guideZ;
-                    }}
-                }} else {{
-                    if (turnDelay <= 0.0) {{
-                        guideRadius = turnEndRadius;
-                        mode = "axial";
-                        direction *= -1;
-                        layerIndex = 1;
-                    }} else {{
-                        turnProgress += degPerFrame;
-                        const s = smoothstep(turnProgress / turnDelay);
-                        guideRadius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
-                        guideZ = turnZ;
-
-                        if (turnProgress >= turnDelay) {{
-                            guideRadius = turnEndRadius;
-                            mode = "axial";
-                            direction *= -1;
-                            layerIndex = 1;
-                        }}
-                    }}
-                }}
-            }} else {{
-                guideZ += direction * passo * (degPerFrame / 360.0);
-
-                if (guideZ >= Hs - Rt) {{
-                    guideZ = Hs - Rt;
-                    guideRadius += incremento;
-                    direction = -1;
-                    layerIndex += 1;
-                }} else if (guideZ <= Rt) {{
-                    guideZ = Rt;
-                    guideRadius += incremento;
-                    direction = 1;
-                    layerIndex += 1;
-                }}
-            }}
+            guide.position.copy(guidePoint(radius, z));
         }}
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && !finished) {{
-                advanceMechanics();
-
-                const cWorld = contactPointWorld(guideRadius, guideZ);
-                const cLocal = worldToMachineLocal(cWorld, thetaMachine);
-
-                addDepositedPoint(cLocal);
-
-                if (depositedLocalPoints.length !== lastRebuildCount || finished) {{
-                    rebuildAnimatedMeshes(cWorld);
-                    lastRebuildCount = depositedLocalPoints.length;
-                }}
-            }}
+            if (animEnabled) step();
 
             controls.update();
             renderer.render(scene, camera);
@@ -833,12 +633,13 @@ def viewer(
         animate();
 
         window.addEventListener("resize", () => {{
-            const nw = Math.max(host.clientWidth, 600);
-            const nh = Math.max(host.clientHeight, 400);
-            .aspect = nw / nh;
-            .updateProjectionMatrix();
+            const nw = host.clientWidth;
+            const nh = host.clientHeight;
+            camera.aspect = nw / nh;
+            camera.updateProjectionMatrix();
             renderer.setSize(nw, nh);
         }});
+
     }})();
     </script>
     """
