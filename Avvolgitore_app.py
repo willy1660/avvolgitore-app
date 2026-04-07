@@ -169,7 +169,7 @@ def simulate_winding_continuous(
     rit_t: float,
     lunghezza_m: float,
     gradi_start: float,
-    deg_step: float = 4.0,
+    deg_step: float = 2.0,
 ):
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
@@ -194,7 +194,7 @@ def simulate_winding_continuous(
 
     rad_step = np.deg2rad(deg_step)
 
-    for _ in range(800000):
+    for _ in range(1200000):
         prev = points[-1]
         theta -= rad_step
 
@@ -228,8 +228,7 @@ def simulate_winding_continuous(
             else:
                 turn_progress += deg_step
                 s = smoothstep(turn_progress / turn_delay)
-
-                radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
+                radius = turn_start_radius + s * (turn_end_radius - turnStart_radius) if False else turn_start_radius + s * (turn_end_radius - turn_start_radius)
 
                 edge_blend = 0.06 * passo * np.sin(np.pi * s)
                 if turn_z >= H - Rt - 1e-9:
@@ -246,7 +245,7 @@ def simulate_winding_continuous(
         new_p = deposited_point(theta, radius, z)
         seg = float(np.linalg.norm(new_p - prev))
 
-        if seg < max(0.4, Rt * 0.08):
+        if seg < max(0.18, Rt * 0.025):
             continue
 
         if deposited_len + seg >= max_len:
@@ -564,8 +563,8 @@ def viewer(
             if (path.curves.length === 0) return null;
 
             const tubularSegments = Math.max(
-                24,
-                Math.min(4000, Math.floor(totalLen / Math.max(0.8, Rt * 0.35)))
+                40,
+                Math.min(6000, Math.floor(totalLen / Math.max(0.35, Rt * 0.16)))
             );
 
             const geo = new THREE.TubeGeometry(path, tubularSegments, Rt, radialSegments, false);
@@ -625,7 +624,6 @@ def viewer(
         let depositedLocalPoints = [];
         let depositedLength = 0.0;
         let finished = false;
-        let lastCommitCount = -1;
 
         let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
         let guideRadius = R + Rt;
@@ -663,7 +661,7 @@ def viewer(
             return pts;
         }}
 
-        function rebuildAnimatedMeshes(contactWorld, contactLocal, forceFull=false) {{
+        function rebuildAnimatedMeshes(contactWorld, contactLocal) {{
             if (rollMesh) {{
                 clearObj(rollMesh, rollGroup);
                 rollMesh = null;
@@ -724,7 +722,7 @@ def viewer(
             const prev = depositedLocalPoints[depositedLocalPoints.length - 1];
             const seg = contactLocal.distanceTo(prev);
 
-            if (seg < Math.max(0.55, Rt * 0.06)) return false;
+            if (seg < Math.max(0.18, Rt * 0.025)) return false;
 
             if (depositedLength + seg <= maxLen) {{
                 depositedLocalPoints.push(contactLocal.clone());
@@ -743,15 +741,14 @@ def viewer(
             return true;
         }}
 
-        function advanceMechanics() {{
-            const degPerFrame = 2.0 * speed;
-            const radPerFrame = THREE.MathUtils.degToRad(degPerFrame);
+        function advanceMechanicsSubstep(degStep) {{
+            const radPerStep = THREE.MathUtils.degToRad(degStep);
 
-            thetaMachine -= radPerFrame;
+            thetaMachine -= radPerStep;
             machine.rotation.z = thetaMachine;
 
             if (mode === "axial") {{
-                guideZ += direction * passo * (degPerFrame / 360.0);
+                guideZ += direction * passo * (degStep / 360.0);
 
                 if (guideZ >= Hs - Rt) {{
                     guideZ = Hs - Rt;
@@ -777,7 +774,7 @@ def viewer(
                     mode = "axial";
                     direction *= -1;
                 }} else {{
-                    turnProgress += degPerFrame;
+                    turnProgress += degStep;
                     const s = smoothstep(turnProgress / turnDelay);
 
                     guideRadius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
@@ -806,16 +803,25 @@ def viewer(
             let currentWorld = null;
 
             if (animEnabled && !finished) {{
-                advanceMechanics();
+                const totalDegThisFrame = 2.0 * speed;
 
-                currentWorld = contactPointWorld(guideRadius, guideZ);
-                currentLocal = worldToMachineLocal(currentWorld, thetaMachine);
+                // submostreig fort per evitar que la deposició vagi tard
+                const maxDegPerSubstep = 0.35;
+                const nSteps = Math.max(1, Math.ceil(totalDegThisFrame / maxDegPerSubstep));
+                const subDeg = totalDegThisFrame / nSteps;
 
-                const committed = addDepositedPoint(currentLocal);
+                for (let i = 0; i < nSteps && !finished; i++) {{
+                    advanceMechanicsSubstep(subDeg);
 
-                rebuildAnimatedMeshes(currentWorld, currentLocal, committed);
+                    currentWorld = contactPointWorld(guideRadius, guideZ);
+                    currentLocal = worldToMachineLocal(currentWorld, thetaMachine);
 
-                lastCommitCount = depositedLocalPoints.length;
+                    addDepositedPoint(currentLocal);
+                }}
+
+                if (currentWorld && currentLocal) {{
+                    rebuildAnimatedMeshes(currentWorld, currentLocal);
+                }}
             }}
 
             controls.update();
@@ -894,7 +900,7 @@ points, deposited_len_mm = simulate_winding_continuous(
     rit_t=rit_t,
     lunghezza_m=lunghezza,
     gradi_start=gradi_start,
-    deg_step=4.0,
+    deg_step=2.0,
 )
 
 metrics = compute_metrics(points, d_tubo)
