@@ -102,7 +102,7 @@ COPPER_SIZES_MM = {
 }
 
 # =========================
-# FIXED PARAMS
+# FIXED VALUES (REMOVED UI)
 # =========================
 
 gradi_start = 0.0
@@ -137,6 +137,8 @@ def smoothstep(x):
     return x * x * (3.0 - 2.0 * x)
 
 def polyline_length(points):
+    if len(points) < 2:
+        return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def deposited_point(theta, radius, z):
@@ -147,15 +149,15 @@ def deposited_point(theta, radius, z):
     ])
 
 # =========================
-# SIMULATION (SMOOTH LAYERS)
+# SIMULATION (SMOOTH FIX)
 # =========================
 
 def simulate_winding(
-    d_aspo, spalla, d_tubo, passo, incremento,
-    rit_b, rit_t, lunghezza_m
+    d_aspo, spalla, d_tubo, passo,
+    incremento, rit_b, rit_t, lunghezza_m
 ):
-    max_len = lunghezza_m * 1000
-    Rt = d_tubo / 2
+    max_len = lunghezza_m * 1000.0
+    Rt = d_tubo / 2.0
     H = spalla
 
     theta = 0.0
@@ -163,12 +165,14 @@ def simulate_winding(
     z = Rt
 
     direction = 1
-    points = [deposited_point(theta, radius, z)]
+    mode = "axial"
 
     turn_progress = 0
     turn_delay = 0
-    mode = "axial"
+    r0 = radius
+    r1 = radius
 
+    points = [deposited_point(theta, radius, z)]
     deposited_len = 0
 
     for _ in range(500000):
@@ -197,7 +201,9 @@ def simulate_winding(
 
         else:
             turn_progress += 4
-            s = smoothstep(turn_progress / max(turn_delay,1))
+
+            # 🔥 SUAVITZAT CLAU
+            s = smoothstep(turn_progress / max(turn_delay, 1))
             radius = r0 + s * (r1 - r0)
 
             if turn_progress >= turn_delay:
@@ -208,14 +214,45 @@ def simulate_winding(
         new_p = deposited_point(theta, radius, z)
         seg = np.linalg.norm(new_p - prev)
 
-        if deposited_len + seg >= max_len:
-            break
-
-        if seg > 0.5:
+        if seg > 0.4:
             points.append(new_p)
             deposited_len += seg
 
+        if deposited_len >= max_len:
+            break
+
     return np.array(points)
+
+# =========================
+# VIEWER (INTOCABLE)
+# =========================
+
+def viewer(points, h):
+    return f"""
+    <div id="viewer" style="width:100%;height:{h}px;background:black;"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth/{h}, 0.1, 10000);
+    camera.position.set(400,-600,400);
+
+    const renderer = new THREE.WebGLRenderer({{antialias:true}});
+    renderer.setSize(window.innerWidth,{h});
+    document.getElementById("viewer").appendChild(renderer.domElement);
+
+    const mat = new THREE.LineBasicMaterial({{color:0xffffff}});
+    const pts = {json.dumps(points.tolist())}.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const line = new THREE.Line(geo,mat);
+    scene.add(line);
+
+    function animate(){{
+        requestAnimationFrame(animate);
+        renderer.render(scene,camera);
+    }}
+    animate();
+    </script>
+    """
 
 # =========================
 # UI
@@ -224,26 +261,22 @@ def simulate_winding(
 colA, colB, colC, colD = st.columns(4)
 
 with colA:
-    st.markdown(f"#### {t['bobina']}")
     diametro_aspo = st.number_input(t["diam_aspo"], value=450.0)
     spalla = st.number_input(t["spalla"], value=95.0)
 
 with colB:
-    st.markdown(f"#### {t['tubo']}")
     rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
     spessore = st.number_input(t["isolamento"], value=7.0)
     lunghezza = st.number_input(t["lunghezza"], value=50.0)
     d_rame = COPPER_SIZES_MM[rame]
 
 with colC:
-    st.markdown(f"#### {t['avvolg']}")
     passo = st.number_input(t["passo_assiale"], value=20.0)
     incremento = st.number_input(t["incremento"], value=20.0)
     rit_b = st.number_input(t["rit_min"], value=360.0)
     rit_t = st.number_input(t["rit_max"], value=360.0)
 
 with colD:
-    st.markdown(f"#### {t['viewer']}")
     altezza = st.slider(t["altezza"], 400, 900, 700)
     anim = st.checkbox(t["animazione"], True)
     vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
@@ -255,11 +288,16 @@ with colD:
 d_tubo = d_rame + 2*spessore
 
 points = simulate_winding(
-    diametro_aspo, spalla, d_tubo,
-    passo, incremento, rit_b, rit_t,
+    diametro_aspo,
+    spalla,
+    d_tubo,
+    passo,
+    incremento,
+    rit_b,
+    rit_t,
     lunghezza
 )
 
-components.html("<div style='color:white'>Viewer OK (mantingut simplificat)</div>", height=altezza)
+components.html(viewer(points, altezza), height=altezza)
 
-st.write("Punts generats:", len(points))
+st.write("Points:", len(points))
