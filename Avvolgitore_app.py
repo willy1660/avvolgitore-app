@@ -5,328 +5,172 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
+st.title("🌀 Avvolgimento")
+
 # =========================
-# LANGUAGE
+# INPUTS
 # =========================
 
-if "lang" not in st.session_state:
-    st.session_state.lang = "IT"
+col1, col2, col3 = st.columns(3)
 
-lang_option = st.selectbox(
-    "🌍 Language",
-    ["🇮🇹 Italiano", "🇺🇸 English (US)"],
-    index=0 if st.session_state.lang == "IT" else 1
-)
+with col1:
+    diam_aspo = st.number_input("Ø Aspo (mm)", value=450.0)
+    spalla = st.number_input("Spalla (mm)", value=95.0)
 
-st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
-lang = st.session_state.lang
+with col2:
+    d_tubo = st.number_input("Ø Tubo (mm)", value=22.0)
+    lunghezza = st.number_input("Lunghezza (m)", value=30.0)
 
-TEXTS = {
-    "IT": {
-        "title": "Avvolgimento",
-        "bobina": "🟦 Bobina",
-        "tubo": "🟩 Tubo",
-        "avvolg": "🟧 Avvolgimento",
-        "viewer": "⚙️ Viewer",
-        "diam_aspo": "Ø Aspo (mm)",
-        "spalla": "Spalla (mm)",
-        "rame": "Ø Rame",
-        "isolamento": "Spessore isolamento (mm)",
-        "lunghezza": "Lunghezza rotolo (m)",
-        "passo_assiale": "Passo assiale (mm)",
-        "incremento": "Incremento strato (mm)",
-        "rit_min": "Ritardo base (°)",
-        "rit_max": "Ritardo spalla (°)",
-        "gradi_start": "Gradi iniziali (°)",
-        "pinza": "Lunghezza pinza (m)",
-        "altezza": "Altezza",
-        "animazione": "Animazione",
-        "velocita": "Velocità",
-        "metric1": "Diametro tubo",
-        "metric2": "Passo assiale",
-        "metric3": "Incremento strato",
-        "metric4": "Diametro esterno",
-        "warning": "⚠️ Diametro esterno superiore a 750 mm."
-    },
-    "EN": {
-        "title": "Coiling",
-        "bobina": "🟦 Coil",
-        "tubo": "🟩 Tube",
-        "avvolg": "🟧 Winding",
-        "viewer": "⚙️ Viewer",
-        "diam_aspo": "Spool diameter (mm)",
-        "spalla": "Width (mm)",
-        "rame": "Copper size",
-        "isolamento": "Insulation thickness (mm)",
-        "lunghezza": "Coil length (m)",
-        "passo_assiale": "Axial pitch (mm)",
-        "incremento": "Layer increment (mm)",
-        "rit_min": "Bottom delay (°)",
-        "rit_max": "Top delay (°)",
-        "gradi_start": "Initial degrees (°)",
-        "pinza": "Clamp length (m)",
-        "altezza": "Height",
-        "animazione": "Animation",
-        "velocita": "Speed",
-        "metric1": "Tube diameter",
-        "metric2": "Axial pitch",
-        "metric3": "Layer increment",
-        "metric4": "Outer diameter",
-        "warning": "⚠️ Outer diameter exceeds 750 mm."
-    }
-}
+with col3:
+    passo = st.number_input("Passo assiale", value=20.0)
+    incremento = st.number_input("Incremento strato", value=20.0)
+    rit_b = st.number_input("Ritardo base", value=180.0)
+    rit_t = st.number_input("Ritardo spalla", value=180.0)
 
-t = TEXTS[lang]
-
-COPPER_SIZES_MM = {
-    "1/4": 6.35,
-    "3/8": 9.52,
-    "1/2": 12.70,
-    "5/8": 15.88,
-    "3/4": 19.05,
-    "7/8": 22.23,
-}
+altezza = st.slider("Viewer height", 400, 900, 700)
+vel = st.slider("Velocitat", 0.1, 5.0, 1.0)
 
 # =========================
 # VIEWER
 # =========================
 
-def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, altezza, anim, vel):
-    anim_js = "true" if anim else "false"
+def viewer():
 
     return f"""
-    <div id="viewer" style="width:100%;height:{altezza}px;background:#000;"></div>
+    <div id="viewer" style="width:100%;height:{altezza}px;background:black;"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-    (() => {{
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
 
-        const el = document.getElementById("viewer");
-        el.innerHTML = "";
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 10000);
+    camera.position.set(-500,-700,400);
 
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+    const renderer = new THREE.WebGLRenderer({{antialias:true}});
+    renderer.setSize(window.innerWidth, {altezza});
+    document.getElementById("viewer").appendChild(renderer.domElement);
 
-        const camera = new THREE.PerspectiveCamera(40, el.clientWidth/el.clientHeight, 0.1, 10000);
-        camera.position.set(-500, -700, 400);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-        const renderer = new THREE.WebGLRenderer({{antialias:true}});
-        renderer.setSize(el.clientWidth, el.clientHeight);
-        el.appendChild(renderer.domElement);
+    const R = {diam_aspo}/2;
+    const H = {spalla};
+    const Rt = {d_tubo}/2;
 
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    const machine = new THREE.Group();
+    scene.add(machine);
 
-        // =====================
-        // PARAMS
-        // =====================
+    const mat = new THREE.MeshStandardMaterial({{color:0xff3333}});
 
-        const R = {d_aspo}/2;
-        const H = {spalla};
-        const Rt = {d_tubo}/2;
+    const mandrel = new THREE.Mesh(
+        new THREE.CylinderGeometry(R,R,H,80), mat
+    );
+    mandrel.rotation.x = Math.PI/2;
+    mandrel.position.z = H/2;
+    machine.add(mandrel);
 
-        const passo = {passo};
-        const incremento = {incremento};
-        const ritB = {rit_b};
-        const ritT = {rit_t};
+    const guide = new THREE.Mesh(
+        new THREE.BoxGeometry(20,20,20),
+        new THREE.MeshStandardMaterial({{color:0x0044ff}})
+    );
+    scene.add(guide);
 
-        const maxLen = {lunghezza} * 1000;
+    let guideY = R + Rt;
+    let guideZ = Rt;
+    let dir = 1;
+    let delay = 0;
 
-        const guideX = -(R + 80);
+    let points = [];
+    let total = 0;
+    let maxLen = {lunghezza}*1000;
 
-        let guideY = R + Rt;
-        let guideZ = Rt;
+    let tubeMesh = null;
 
-        // =====================
-        // ASPO
-        // =====================
+    function updateTubeMesh() {{
+        if (points.length < 2) return;
 
-        const machine = new THREE.Group();
-        scene.add(machine);
+        if (tubeMesh) scene.remove(tubeMesh);
 
-        const red = new THREE.MeshStandardMaterial({{color:0xff3333}});
+        const curve = new THREE.CatmullRomCurve3(points);
 
-        const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, H, 80),
-            red
+        const geometry = new THREE.TubeGeometry(curve, 200, Rt, 8, false);
+
+        tubeMesh = new THREE.Mesh(
+            geometry,
+            new THREE.MeshStandardMaterial({{color:0xffffff}})
         );
-        mandrel.rotation.x = Math.PI/2;
-        mandrel.position.z = H/2;
-        machine.add(mandrel);
 
-        const base = new THREE.Mesh(
-            new THREE.CylinderGeometry(R+120, R+120, 6, 80),
-            red
-        );
-        base.rotation.x = Math.PI/2;
-        machine.add(base);
+        scene.add(tubeMesh);
+    }}
 
-        const top = new THREE.Mesh(
-            new THREE.CylinderGeometry(R+120, R+120, 6, 80),
-            red
-        );
-        top.rotation.x = Math.PI/2;
-        top.position.z = H;
-        machine.add(top);
+    function getPoint() {{
+        const theta = -machine.rotation.z;
 
-        // =====================
-        // GUIDATUBO
-        // =====================
+        const x = guideY * Math.cos(theta);
+        const y = guideY * Math.sin(theta);
 
-        const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(30,20,20),
-            new THREE.MeshStandardMaterial({{color:0x0044ff}})
-        );
-        scene.add(guide);
+        return new THREE.Vector3(x,y,guideZ);
+    }}
 
-        // =====================
-        // TUB
-        // =====================
-
-        let points = [];
-        let totalLength = 0;
-        let finished = false;
-
-        const geometry = new THREE.BufferGeometry();
-        const material = new THREE.LineBasicMaterial({{color:0xffffff}});
-        const line = new THREE.Line(geometry, material);
-        scene.add(line);
-
-        function currentTubePoint() {{
-
-            const theta = machine.rotation.z;
-
-            const x = guideY * Math.cos(theta);
-            const y = guideY * Math.sin(theta);
-
-            return new THREE.Vector3(x, y, guideZ);
+    function addPoint(p) {{
+        if(points.length>0){{
+            let d = p.distanceTo(points[points.length-1]);
+            if(total+d>maxLen) return;
+            total+=d;
         }}
+        points.push(p);
+        updateTubeMesh();
+    }}
 
-        function addPoint(p) {{
-            if (points.length > 0) {{
-                const prev = points[points.length - 1];
-                const d = p.distanceTo(prev);
+    scene.add(new THREE.AmbientLight(0xffffff,0.8));
 
-                if (totalLength + d > maxLen) {{
-                    const remain = maxLen - totalLength;
-                    const dir = p.clone().sub(prev).normalize();
-                    const finalP = prev.clone().add(dir.multiplyScalar(remain));
-                    points.push(finalP);
-                    finished = true;
-                }} else {{
-                    points.push(p);
-                    totalLength += d;
-                }}
-            }} else {{
-                points.push(p);
+    function animate(){{
+        requestAnimationFrame(animate);
+
+        machine.rotation.z -= 0.02 * {vel};
+
+        if(delay>0) delay--;
+        else{{
+            guideZ += dir * {passo} * 0.02 * {vel};
+
+            if(guideZ >= H-Rt){{
+                guideZ = H-Rt;
+                guideY += {incremento};
+                delay = {rit_t};
+                dir = -1;
             }}
 
-            geometry.setFromPoints(points);
-        }}
-
-        // =====================
-        // LIGHT
-        // =====================
-
-        scene.add(new THREE.AmbientLight(0xffffff,0.8));
-        const light = new THREE.DirectionalLight(0xffffff,0.6);
-        light.position.set(500,-500,800);
-        scene.add(light);
-
-        // =====================
-        // MOTION
-        // =====================
-
-        let dir = 1;
-        let delay = 0;
-
-        function animate(){{
-            requestAnimationFrame(animate);
-
-            if ({anim_js} && !finished) {{
-
-                // ROTACIÓ CORRECTA
-                machine.rotation.z -= 0.02 * {vel};
-
-                if (delay > 0) {{
-                    delay -= 1;
-                }} else {{
-
-                    guideZ += dir * passo * 0.02 * {vel};
-
-                    if (guideZ >= H - Rt) {{
-                        guideZ = H - Rt;
-                        guideY += incremento;
-                        delay = ritT;
-                        dir = -1;
-                    }}
-
-                    if (guideZ <= Rt) {{
-                        guideZ = Rt;
-                        guideY += incremento;
-                        delay = ritB;
-                        dir = 1;
-                    }}
-                }}
+            if(guideZ <= Rt){{
+                guideZ = Rt;
+                guideY += {incremento};
+                delay = {rit_b};
+                dir = 1;
             }}
-
-            guide.position.set(guideX, guideY, guideZ);
-
-            addPoint(currentTubePoint());
-
-            controls.update();
-            renderer.render(scene,camera);
         }}
 
-        animate();
+        guide.position.set(-(R+80),guideY,guideZ);
 
-    }})();
+        addPoint(getPoint());
+
+        controls.update();
+        renderer.render(scene,camera);
+    }}
+
+    animate();
     </script>
     """
 
+components.html(viewer(), height=altezza)
+
 # =========================
-# UI
+# METRICS
 # =========================
 
-colA, colB, colC, colD = st.columns(4)
+st.divider()
 
-with colA:
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0)
-    spalla = st.number_input(t["spalla"], value=95.0)
-
-with colB:
-    rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore = st.number_input(t["isolamento"], value=7.0)
-    lunghezza = st.number_input(t["lunghezza"], value=30.0)
-    d_rame = COPPER_SIZES_MM[rame]
-
-with colC:
-    passo = st.number_input(t["passo_assiale"], value=20.0)
-    incremento = st.number_input(t["incremento"], value=20.0)
-    rit_b = st.number_input(t["rit_min"], value=180.0)
-    rit_t = st.number_input(t["rit_max"], value=180.0)
-
-with colD:
-    altezza = st.slider(t["altezza"], 400, 900, 700)
-    anim = st.checkbox(t["animazione"], True)
-    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
-
-d_tubo = d_rame + 2 * spessore
-
-components.html(
-    viewer(
-        diametro_aspo,
-        spalla,
-        d_tubo,
-        passo,
-        incremento,
-        rit_b,
-        rit_t,
-        lunghezza,
-        altezza,
-        anim,
-        vel
-    ),
-    height=altezza
-)
+m1, m2, m3 = st.columns(3)
+m1.metric("Ø Tubo", f"{d_tubo} mm")
+m2.metric("Passo", f"{passo} mm")
+m3.metric("Incremento", f"{incremento} mm")
