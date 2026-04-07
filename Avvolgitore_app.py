@@ -380,6 +380,10 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
 # VIEWER
 # =========================
 
+# =========================
+# VIEWER
+# =========================
+
 def viewer(
     d_aspo,
     spalla,
@@ -410,6 +414,7 @@ def viewer(
 
     <script>
     (() => {{
+
         const host = document.getElementById("viewer_root");
         host.innerHTML = "";
 
@@ -423,119 +428,121 @@ def viewer(
         camera.position.set(-520, -760, 420);
 
         const renderer = new THREE.WebGLRenderer({{ antialias: true }});
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(W, Hview);
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.08;
-        controls.target.set(0, 0, {spalla}/2);
+
+        // =====================
+        // PARAMS
+        // =====================
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
-        const passo = {float(passo)};
-        const incremento = {float(incremento)};
-        const ritB = {float(rit_b)};
-        const ritT = {float(rit_t)};
-        const maxLen = {float(lunghezza)} * 1000.0;
         const speed = {float(vel)};
         const animEnabled = {anim_js};
-        const guideOffsetX = {float(guide_offset_x)};
-        const finalPointsRaw = {final_points_json};
-        const aspoMode = {aspo_mode_json};
 
-        const redMat = new THREE.MeshStandardMaterial({{
-            color: 0xff3333,
-            transparent: aspoMode === "transparent",
-            opacity: aspoMode === "transparent" ? 0.18 : 1.0
-        }});
+        // =====================
+        // LIGHT
+        // =====================
 
-        const tubeMat = new THREE.MeshStandardMaterial({{ color: 0xffffff }});
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        const machine = new THREE.Group();
-        scene.add(machine);
+        const dLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        dLight.position.set(500, -500, 800);
+        scene.add(dLight);
+
+        // =====================
+        // ASPO
+        // =====================
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, Hs, 96),
-            redMat
+            new THREE.CylinderGeometry(R, R, Hs, 64),
+            new THREE.MeshStandardMaterial({{color:0xff3333}})
         );
         mandrel.rotation.x = Math.PI / 2;
-        mandrel.position.z = Hs / 2.0;
-        machine.add(mandrel);
+        mandrel.position.z = Hs/2;
+        scene.add(mandrel);
 
-        machine.visible = aspoMode !== "hidden";
+        // =====================
+        // STATE
+        // =====================
 
-        let depositedPoints = [];
-        let depositedLength = 0.0;
-        let finished = false;
+        let theta = 0;
+        let radius = R + Rt;
+        let z = Rt;
 
-        let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
-        let guideRadius = R + Rt;
-        let guideZ = Rt;
+        let pts = [];
+        let mesh = null;
 
-        function currentDepositedPoint(theta, radius, z) {{
-            const t = -theta + Math.PI;
+        function depositedPoint(theta, radius, z) {{
+            const a = -theta + Math.PI;
             return new THREE.Vector3(
-                radius * Math.cos(t),
-                radius * Math.sin(t),
+                radius*Math.cos(a),
+                radius*Math.sin(a),
                 z
             );
         }}
 
-        // =========================
-        // 🔥 DEPOSICIÓ REAL (AQUÍ)
-        // =========================
+        pts.push(depositedPoint(theta, radius, z));
 
-        function addDepositedPoint(targetPoint) {{
+        // =====================
+        // 🔥 DEPOSICIÓ REAL
+        // =====================
 
-            const prev = depositedPoints[depositedPoints.length - 1];
+        function step() {{
 
-            const alpha = 0.22;
-            const newPoint = prev.clone().lerp(targetPoint, alpha);
+            const prev = pts[pts.length - 1];
 
-            // snap final
-            if (newPoint.distanceTo(targetPoint) < Rt * 0.05) {{
-                newPoint.copy(targetPoint);
+            theta -= 0.05 * speed;
+
+            const target = depositedPoint(theta, radius, z);
+
+            const alpha = 0.25;
+            let newP = prev.clone().lerp(target, alpha);
+
+            if (newP.distanceTo(target) < Rt * 0.05) {{
+                newP.copy(target);
             }}
 
-            const seg = newPoint.distanceTo(prev);
-
-            if (seg < Math.max(0.8, Rt * 0.10)) return;
-
-            if (depositedLength + seg <= maxLen) {{
-                depositedPoints.push(newPoint.clone());
-                depositedLength += seg;
-                return;
-            }}
-
-            finished = true;
+            pts.push(newP);
         }}
 
-        function buildMesh() {{
-            if (depositedPoints.length < 2) return;
+        function rebuild() {{
+            if (mesh) scene.remove(mesh);
 
-            const curve = new THREE.CatmullRomCurve3(depositedPoints);
-            const geo = new THREE.TubeGeometry(curve, depositedPoints.length*2, Rt, 12, false);
+            if (pts.length < 2) return;
 
-            const mesh = new THREE.Mesh(geo, tubeMat);
+            const curve = new THREE.CatmullRomCurve3(pts);
+
+            const geo = new THREE.TubeGeometry(
+                curve,
+                Math.min(pts.length*2, 2000),
+                Rt,
+                12,
+                false
+            );
+
+            mesh = new THREE.Mesh(
+                geo,
+                new THREE.MeshStandardMaterial({{color:0xffffff}})
+            );
+
             scene.add(mesh);
         }}
 
-        depositedPoints.push(currentDepositedPoint(thetaMachine, guideRadius, guideZ));
+        // =====================
+        // LOOP
+        // =====================
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (!finished && animEnabled) {{
-                thetaMachine -= 0.05 * speed;
-
-                const rawPoint = currentDepositedPoint(thetaMachine, guideRadius, guideZ);
-
-                addDepositedPoint(rawPoint);
-
-                buildMesh();
+            if (animEnabled) {{
+                step();
+                rebuild();
             }}
 
             controls.update();
@@ -543,6 +550,7 @@ def viewer(
         }}
 
         animate();
+
     }})();
     </script>
     """
