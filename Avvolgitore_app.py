@@ -185,11 +185,11 @@ def viewer(points, d_aspo, spalla):
         // MANDRÍ
         // =====================
 
-        const r = {d_aspo}/2;
+        const r_m = {d_aspo}/2;
         const h_m = {spalla};
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(r, r, h_m, 64),
+            new THREE.CylinderGeometry(r_m, r_m, h_m, 64),
             new THREE.MeshStandardMaterial({{
                 color: 0x666666,
                 roughness: 0.7,
@@ -201,32 +201,24 @@ def viewer(points, d_aspo, spalla):
         machine.add(mandrel);
 
         // =====================
-        // BASE (inferior)
+        // BASE + SPALLA Ø700
         // =====================
 
-        const flange_r = r + 60;
+        const flange_r = 350;
         const flange_th = 6;
 
         const base = new THREE.Mesh(
             new THREE.CylinderGeometry(flange_r, flange_r, flange_th, 64),
-            new THREE.MeshStandardMaterial({{
-                color: 0x2e69b9
-            }})
+            new THREE.MeshStandardMaterial({{ color: 0x2e69b9 }})
         );
 
         base.rotation.x = Math.PI/2;
         base.position.z = -h_m/2 - flange_th/2;
         machine.add(base);
 
-        // =====================
-        // SPALLA (superior)
-        // =====================
-
         const top = new THREE.Mesh(
             new THREE.CylinderGeometry(flange_r, flange_r, flange_th, 64),
-            new THREE.MeshStandardMaterial({{
-                color: 0x2e69b9
-            }})
+            new THREE.MeshStandardMaterial({{ color: 0x2e69b9 }})
         );
 
         top.rotation.x = Math.PI/2;
@@ -234,52 +226,59 @@ def viewer(points, d_aspo, spalla):
         machine.add(top);
 
         // =====================
-        // GUIDATUBO (FIX)
+        // GUIDATUBO (ESQUERRA)
         // =====================
 
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
 
-        const baseX = r + 120;
+        // ⚠️ IMPORTANT: radi tub estimat (provisional)
+        const r_tubo = 10;
 
-        // columna
+        // posició correcta de tangència
+        const guideX = -(r_m + r_tubo);
+
+        // columna (a l’esquerra)
         const column = new THREE.Mesh(
             new THREE.BoxGeometry(20, 20, h_m + 200),
             new THREE.MeshStandardMaterial({{ color: 0x555555 }})
         );
 
-        column.position.set(baseX, 0, 0);
+        column.position.set(guideX - 120, 0, 0);
         scene.add(column);
 
-        // carro (on surt el tub)
+        // carro (offset de columna)
         const carriage = new THREE.Mesh(
             new THREE.BoxGeometry(30, 20, 20),
             new THREE.MeshStandardMaterial({{ color: 0xcccccc }})
         );
 
-        carriage.position.set(baseX, 0, 0);
+        carriage.position.set(guideX - 120, 0, 0);
         guideGroup.add(carriage);
 
         // braç cap al mandrí
-        const arm_len = baseX - 40;
+        const arm_len = 120;
 
         const arm = new THREE.Mesh(
             new THREE.BoxGeometry(arm_len, 10, 10),
             new THREE.MeshStandardMaterial({{ color: 0x999999 }})
         );
 
-        arm.position.set(-arm_len/2, 0, 0);
+        arm.position.set(arm_len/2, 0, 0);
         guideGroup.add(arm);
 
-        // nozzle
+        // nozzle (punt de sortida tub)
         const nozzle = new THREE.Mesh(
             new THREE.CylinderGeometry(6, 6, 30, 16),
-            new THREE.MeshStandardMaterial({{ color: 0xdddddd }})
+            new THREE.MeshStandardMaterial({{ color: 0xffffff }})
         );
 
         nozzle.rotation.z = Math.PI/2;
-        nozzle.position.set(-arm_len - 15, 0, 0);
+        nozzle.position.set(arm_len + 15, 0, 0);
         guideGroup.add(nozzle);
+
+        // posició global guidatubo
+        guideGroup.position.set(guideX - 120, 0, 0);
 
         // =====================
         // LIGHT
@@ -298,7 +297,6 @@ def viewer(points, d_aspo, spalla):
         function animate(){{
             requestAnimationFrame(animate);
 
-            // gir mandrí
             machine.rotation.z += 0.02;
 
             controls.update();
@@ -306,14 +304,6 @@ def viewer(points, d_aspo, spalla):
         }}
 
         animate();
-
-        window.addEventListener("resize", () => {{
-            const w = container.clientWidth;
-            const h = container.clientHeight;
-            camera.aspect = w/h;
-            camera.updateProjectionMatrix();
-            renderer.setSize(w,h);
-        }});
 
     }}, 50);
     </script>
