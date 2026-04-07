@@ -5,6 +5,26 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
+# =========================
+# LANGUAGE
+# =========================
+
+if "lang" not in st.session_state:
+    st.session_state.lang = "IT"
+
+lang_option = st.selectbox(
+    "🌍 Language",
+    ["🇮🇹 Italiano", "🇺🇸 English (US)"],
+    index=0 if st.session_state.lang == "IT" else 1
+)
+
+st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
+lang = st.session_state.lang
+
+# =========================
+# CONSTANTS
+# =========================
+
 COPPER_SIZES_MM = {
     "1/4": 6.35,
     "3/8": 9.52,
@@ -13,6 +33,10 @@ COPPER_SIZES_MM = {
     "3/4": 19.05,
     "7/8": 22.23,
 }
+
+# =========================
+# GEOMETRY (només mètriques)
+# =========================
 
 def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza):
     pts = []
@@ -61,10 +85,10 @@ def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, r
     return pts
 
 # =========================
-# VIEWER CORRECTE
+# VIEWER (cinemàtica real)
 # =========================
 
-def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
+def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, altezza, anim, vel):
 
     return f"""
     <div id="viewer" style="width:100%;height:{altezza}px;background:#000;"></div>
@@ -93,15 +117,20 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
+        // =====================
         // PARAMS
+        // =====================
+
         const R = {d_aspo}/2;
         const H = {spalla};
         const Rt = {d_tubo}/2;
 
-        // GUIDATUBO
-        const guideY = (R + Rt);
-        const guideX = -(R + 80);
-        const guideZ = Rt;   // 🔥 BASE = 0
+        const passo = {passo};
+        const incremento = {incremento};
+        const ritB = {rit_b};
+        const ritT = {rit_t};
+
+        const offsetX = -(R + 80);
 
         // =====================
         // ASPO
@@ -141,22 +170,61 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
             new THREE.BoxGeometry(30,20,20),
             new THREE.MeshStandardMaterial({{color:0x0044ff}})
         );
-        guide.position.set(guideX, guideY, guideZ);
         scene.add(guide);
 
+        // =====================
         // LIGHT
+        // =====================
+
         scene.add(new THREE.AmbientLight(0xffffff,0.8));
 
         const light = new THREE.DirectionalLight(0xffffff,0.6);
         light.position.set(500,-500,800);
         scene.add(light);
 
+        // =====================
+        // STATE MACHINE
+        // =====================
+
+        let z = Rt;
+        let y = R + Rt;
+        let dir = 1;
+        let delay = 0;
+
         function animate(){{
             requestAnimationFrame(animate);
 
             if ({'true' if anim else 'false'}) {{
-                mandrel.rotation.y -= 0.01 * {vel};   // 🔥 EIX CORRECTE
+
+                // ROTACIÓ ASPO (EIX Y)
+                mandrel.rotation.y -= 0.02 * {vel};
+
+                if (delay > 0) {{
+                    delay -= 1;
+                }} else {{
+
+                    // MOVIMENT AXIAL
+                    z += dir * passo * 0.02 * {vel};
+
+                    // LIMIT SUPERIOR
+                    if (z >= H - Rt) {{
+                        z = H - Rt;
+                        y += incremento;
+                        delay = ritT;
+                        dir = -1;
+                    }}
+
+                    // LIMIT INFERIOR
+                    if (z <= Rt) {{
+                        z = Rt;
+                        y += incremento;
+                        delay = ritB;
+                        dir = 1;
+                    }}
+                }}
             }}
+
+            guide.position.set(offsetX, y, z);
 
             controls.update();
             renderer.render(scene,camera);
@@ -194,17 +262,41 @@ with colC:
 
 with colD:
     altezza = st.slider("Altezza", 400, 900, 700)
-    anim = st.checkbox("Animazione", False)
+    anim = st.checkbox("Animazione", True)
     vel = st.slider("Velocità", 0.1, 5.0, 1.0)
 
+# =========================
 # BUILD
-pts = build_coil(diametro_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza)
+# =========================
+
+pts = build_coil(
+    diametro_aspo, spalla, lunghezza,
+    d_rame, spessore, passo, incremento,
+    rit_b, rit_t, gradi_start, pinza
+)
 
 d_tubo = d_rame + 2*spessore
 
-components.html(viewer(diametro_aspo, spalla, d_tubo, altezza, anim, vel), height=altezza)
+components.html(
+    viewer(
+        diametro_aspo,
+        spalla,
+        d_tubo,
+        passo,
+        incremento,
+        rit_b,
+        rit_t,
+        altezza,
+        anim,
+        vel
+    ),
+    height=altezza
+)
 
+# =========================
 # METRICS
+# =========================
+
 st.divider()
 
 m1, m2, m3, m4 = st.columns(4)
