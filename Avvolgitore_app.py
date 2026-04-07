@@ -1,7 +1,6 @@
 import os
 import glob
 import json
-import math
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
@@ -176,7 +175,7 @@ def simulate_winding_contact_hybrid(
     layer_transition_deg: float = 120.0,
 ):
     """
-    Model híbrid per a la vista final i mètriques:
+    Simulació final per a mètriques i vista estàtica:
     - primera capa amb retard base/spalla
     - capes següents amb transició radial suau
     """
@@ -201,15 +200,15 @@ def simulate_winding_contact_hybrid(
     turn_start_radius = radius
     turn_end_radius = radius
     turn_z = z
+    first_layer_done = False
 
-    # capes següents
+    # resta capes
     layer_transition = False
     layer_progress = 0.0
     layer_start_radius = radius
     layer_target_radius = radius
 
     rad_step = np.deg2rad(deg_step)
-    first_layer_done = False
 
     for _ in range(600000):
         prev = points[-1]
@@ -314,10 +313,7 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
     max_centerline_r = float(np.max(radial))
 
     diam_radiale = 2.0 * (max_centerline_r + d_tubo / 2.0)
-
-    # En planta XY l'ingombro real és el diàmetre exterior
     max_xy_span = diam_radiale
-
     wound_length_m = polyline_length(points) / 1000.0
 
     return {
@@ -515,12 +511,11 @@ def viewer(
             return x * x * (3.0 - 2.0 * x);
         }}
 
-        // punt contacte tangent fix en world
         function contactPointWorld(radius, z) {{
             return new THREE.Vector3(0.0, radius, z);
         }}
 
-        // guidatubo amb offset X i offset Y = radius (entrada horitzontal tangent)
+        // guidatubo fix en world amb offset X i Y tangencial
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -572,44 +567,45 @@ def viewer(
             if (obj.material) obj.material.dispose();
         }}
 
-        function computeContactPointWorld(guideP, targetP, thetaMachine) {{
-            // primera capa
-            if (depositedLocalPoints.length < 40) return targetP.clone();
+        // 🔥 CONTACTE EN LOCAL
+        function computeContactPointLocal(guideP_world, targetP_world, thetaMachine) {{
+            const guideL = worldToMachineLocal(guideP_world, thetaMachine);
+            const targetL = worldToMachineLocal(targetP_world, thetaMachine);
 
-            // cerca contacte sobre capa anterior al llarg de la recta horitzontal guide -> target
-            // triem el primer punt interceptat des del guidatubo
+            if (depositedLocalPoints.length < 40) return targetL.clone();
+
             let best = null;
             let bestS = Infinity;
 
-            const line = targetP.clone().sub(guideP);
+            const line = targetL.clone().sub(guideL);
             const lineLen2 = line.lengthSq();
-            if (lineLen2 < 1e-9) return targetP.clone();
+            if (lineLen2 < 1e-9) return targetL.clone();
 
             const startIdx = Math.max(0, depositedLocalPoints.length - 2600);
 
             for (let i = startIdx; i < depositedLocalPoints.length; i += 2) {{
-                const pWorld = localToWorldPoint(depositedLocalPoints[i], thetaMachine);
+                const p = depositedLocalPoints[i];
 
-                if (Math.abs(pWorld.z - targetP.z) > Rt * 1.8) continue;
-                if (pWorld.distanceTo(targetP) > Rt * 2.2) continue;
+                if (Math.abs(p.z - targetL.z) > Rt * 1.8) continue;
+                if (p.distanceTo(targetL) > Rt * 2.2) continue;
 
-                const v = pWorld.clone().sub(guideP);
+                const v = p.clone().sub(guideL);
                 const s = v.dot(line) / lineLen2;
 
                 if (s <= 0.0 || s >= 1.0) continue;
 
-                const proj = guideP.clone().add(line.clone().multiplyScalar(s));
-                const perp = proj.distanceTo(pWorld);
+                const proj = guideL.clone().add(line.clone().multiplyScalar(s));
+                const perp = proj.distanceTo(p);
 
                 if (perp <= Rt * 1.1) {{
                     if (s < bestS) {{
                         bestS = s;
-                        best = pWorld.clone();
+                        best = p.clone();
                     }}
                 }}
             }}
 
-            return best ? best : targetP.clone();
+            return best ? best : targetL.clone();
         }}
 
         // =====================
@@ -651,7 +647,7 @@ def viewer(
         let direction = 1;
         let mode = "axial";
 
-        // primera capa: retard real
+        // primera capa
         let turnProgress = 0.0;
         let turnDelay = 0.0;
         let turnStartRadius = guideRadius;
@@ -659,7 +655,7 @@ def viewer(
         let turnZ = guideZ;
         let firstLayerDone = false;
 
-        // resta capes: transició suau
+        // resta capes
         let layerTransition = false;
         let layerProgress = 0.0;
         let layerStartRadius = guideRadius;
@@ -839,8 +835,10 @@ def viewer(
 
                 const guideW = guidePointWorld(guideRadius, guideZ);
                 const targetIdealW = contactPointWorld(guideRadius, guideZ);
-                const contactW = computeContactPointWorld(guideW, targetIdealW, thetaMachine);
-                const contactL = worldToMachineLocal(contactW, thetaMachine);
+
+                // contacte en local per evitar espires retroactives
+                const contactL = computeContactPointLocal(guideW, targetIdealW, thetaMachine);
+                const contactW = localToWorldPoint(contactL, thetaMachine);
 
                 appendSegmentedPoint(contactL);
 
