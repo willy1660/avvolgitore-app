@@ -245,9 +245,11 @@ def simulate_first_layer(
         "z_end": z,
         "direction_end": direction,
     }
+
 gradi_start = 0.0
 pinza = 0.0
 guide_offset_x = 150.0
+
 def simulate_winding_hybrid(
     d_aspo: float,
     spalla: float,
@@ -393,7 +395,17 @@ def viewer(
     aspo_mode_json = json.dumps(aspo_mode)
 
     return f"""
-    <div id="viewer_root" style="width:100%;height:{altezza}px;background:#000;"></div>
+    <div id="viewer_root" style="
+        width:100%;
+        height:{altezza}px;
+        border-radius:18px;
+        overflow:hidden;
+        background:linear-gradient(180deg, #0b1220 0%, #05070c 100%);
+        border:1px solid rgba(255,255,255,0.08);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.04),
+            0 16px 40px rgba(0,0,0,0.35);
+    "></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
@@ -407,20 +419,30 @@ def viewer(
         const Hview = Math.max(host.clientHeight, 400);
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+        scene.background = new THREE.Color(0x070b12);
+        scene.fog = new THREE.Fog(0x070b12, 1200, 4200);
 
         const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
-        camera.position.set(-520, -760, 420);
+        camera.position.set(-560, -820, 460);
 
-        const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+        const renderer = new THREE.WebGLRenderer({{
+            antialias: true,
+            alpha: false,
+            powerPreference: "high-performance"
+        }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(W, Hview);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.physicallyCorrectLights = false;
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.target.set(0, 0, {spalla}/2);
+        controls.minDistance = 180;
+        controls.maxDistance = 3500;
+        controls.maxPolarAngle = Math.PI * 0.495;
 
         // =====================
         // PARAMS
@@ -444,46 +466,114 @@ def viewer(
         // MATERIALS
         // =====================
 
-        const redMat = new THREE.MeshStandardMaterial({{
-            color: 0xff3333,
-            roughness: 0.55,
-            metalness: 0.08,
+        const mandrelMat = new THREE.MeshPhysicalMaterial({{
+            color: 0x435066,
+            roughness: 0.62,
+            metalness: 0.45,
+            clearcoat: 0.10,
             transparent: aspoMode === "transparent",
             opacity: aspoMode === "transparent" ? 0.18 : 1.0
         }});
 
-        const blueMat = new THREE.MeshStandardMaterial({{
-            color: 0x0044ff,
-            roughness: 0.55,
-            metalness: 0.10
+        const flangeMat = new THREE.MeshPhysicalMaterial({{
+            color: 0x5b6c86,
+            roughness: 0.46,
+            metalness: 0.52,
+            clearcoat: 0.18,
+            transparent: aspoMode === "transparent",
+            opacity: aspoMode === "transparent" ? 0.18 : 1.0
         }});
 
-        const tubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xffffff,
-            roughness: 0.65,
+        const guideMat = new THREE.MeshPhysicalMaterial({{
+            color: 0x4f6d95,
+            roughness: 0.40,
+            metalness: 0.60,
+            clearcoat: 0.25
+        }});
+
+        const guideAccentMat = new THREE.MeshStandardMaterial({{
+            color: 0xaec7e8,
+            roughness: 0.35,
             metalness: 0.15
         }});
 
-        const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0x9fe7ff,
-            roughness: 0.55,
-            metalness: 0.08
+        const tubeMat = new THREE.MeshPhysicalMaterial({{
+            color: 0xf4f7fb,
+            roughness: 0.58,
+            metalness: 0.12,
+            clearcoat: 0.08
+        }});
+
+        const freeTubeMat = new THREE.MeshPhysicalMaterial({{
+            color: 0x8fdfff,
+            roughness: 0.40,
+            metalness: 0.10,
+            clearcoat: 0.20,
+            transparent: true,
+            opacity: 0.92
         }});
 
         const startMat = new THREE.MeshStandardMaterial({{
-            color: 0x00ff88,
-            roughness: 0.45,
-            metalness: 0.12
+            color: 0x22d38a,
+            roughness: 0.35,
+            metalness: 0.15,
+            emissive: 0x0e5a3c,
+            emissiveIntensity: 0.35
         }});
 
         const endMat = new THREE.MeshStandardMaterial({{
-            color: 0xffcc00,
-            roughness: 0.45,
-            metalness: 0.12
+            color: 0xffc84d,
+            roughness: 0.30,
+            metalness: 0.18,
+            emissive: 0x6a4d00,
+            emissiveIntensity: 0.30
+        }});
+
+        const floorMat = new THREE.ShadowMaterial({{
+            opacity: 0.0
         }});
 
         // =====================
-        // ASPO GROUP
+        // FLOOR / GRID
+        // =====================
+
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(5000, 5000),
+            new THREE.MeshStandardMaterial({{
+                color: 0x0f1522,
+                roughness: 0.96,
+                metalness: 0.02
+            }})
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.z = -30;
+        scene.add(floor);
+
+        const grid = new THREE.GridHelper(2600, 26, 0x2b3444, 0x1b2330);
+        grid.rotation.x = Math.PI / 2;
+        grid.position.z = -28.5;
+        grid.material.transparent = true;
+        grid.material.opacity = 0.28;
+        scene.add(grid);
+
+        // =====================
+        // AXES / REFERENCE RING
+        // =====================
+
+        const refRing = new THREE.Mesh(
+            new THREE.TorusGeometry(R, 1.1, 10, 180),
+            new THREE.MeshBasicMaterial({{
+                color: 0x7c8ba5,
+                transparent: true,
+                opacity: 0.18
+            }})
+        );
+        refRing.rotation.x = Math.PI / 2;
+        refRing.position.z = Hs / 2;
+        scene.add(refRing);
+
+        // =====================
+        // MACHINE GROUP
         // =====================
 
         const machine = new THREE.Group();
@@ -491,18 +581,18 @@ def viewer(
 
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
-            redMat
+            mandrelMat
         );
         mandrel.rotation.x = Math.PI / 2;
         mandrel.position.z = Hs / 2.0;
         machine.add(mandrel);
 
         const flangeR = R + 150.0;
-        const flangeTh = 4.0;
+        const flangeTh = 5.0;
 
         const base = new THREE.Mesh(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
-            redMat
+            flangeMat
         );
         base.rotation.x = Math.PI / 2;
         base.position.z = 0.0;
@@ -510,41 +600,98 @@ def viewer(
 
         const top = new THREE.Mesh(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
-            redMat
+            flangeMat
         );
         top.rotation.x = Math.PI / 2;
         top.position.z = Hs;
         machine.add(top);
 
+        // vores fines
+        const rimGeo = new THREE.TorusGeometry(flangeR, 1.4, 10, 140);
+        const rimMat = new THREE.MeshBasicMaterial({{
+            color: 0xb7c4d8,
+            transparent: true,
+            opacity: aspoMode === "transparent" ? 0.18 : 0.35
+        }});
+
+        const rimBase = new THREE.Mesh(rimGeo, rimMat);
+        rimBase.rotation.x = Math.PI / 2;
+        rimBase.position.z = 0.0;
+        machine.add(rimBase);
+
+        const rimTop = new THREE.Mesh(rimGeo, rimMat);
+        rimTop.rotation.x = Math.PI / 2;
+        rimTop.position.z = Hs;
+        machine.add(rimTop);
+
         machine.visible = aspoMode !== "hidden";
 
-        // bobina animada com a fill del grup que gira
         const rollGroup = new THREE.Group();
         machine.add(rollGroup);
 
         // =====================
-        // GUIDATUBO (en world, no gira)
+        // GUIDATUBO
         // =====================
 
-        const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(80, 60, 60),
-            blueMat
+        const guideGroup = new THREE.Group();
+        scene.add(guideGroup);
+
+        const guideBody = new THREE.Mesh(
+            new THREE.BoxGeometry(84, 44, 44),
+            guideMat
         );
-        scene.add(guide);
+        guideGroup.add(guideBody);
+
+        const guideFront = new THREE.Mesh(
+            new THREE.CylinderGeometry(14, 14, 88, 28),
+            guideAccentMat
+        );
+        guideFront.rotation.z = Math.PI / 2;
+        guideGroup.add(guideFront);
+
+        const guideHole = new THREE.Mesh(
+            new THREE.CylinderGeometry(Math.max(3.5, Rt * 0.42), Math.max(3.5, Rt * 0.42), 92, 24),
+            new THREE.MeshStandardMaterial({{
+                color: 0xdce6f3,
+                roughness: 0.25,
+                metalness: 0.55
+            }})
+        );
+        guideHole.rotation.z = Math.PI / 2;
+        guideGroup.add(guideHole);
+
+        // braç subtil
+        const guideArm = new THREE.Mesh(
+            new THREE.BoxGeometry(150, 18, 18),
+            new THREE.MeshStandardMaterial({{
+                color: 0x334255,
+                roughness: 0.55,
+                metalness: 0.28
+            }})
+        );
+        scene.add(guideArm);
 
         // =====================
         // LIGHTS
         // =====================
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.82));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.74));
 
-        const dLight1 = new THREE.DirectionalLight(0xffffff, 0.72);
-        dLight1.position.set(500, -500, 800);
-        scene.add(dLight1);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 0.95);
+        keyLight.position.set(650, -520, 900);
+        scene.add(keyLight);
 
-        const dLight2 = new THREE.DirectionalLight(0xffffff, 0.30);
-        dLight2.position.set(-600, 250, 300);
-        scene.add(dLight2);
+        const fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.42);
+        fillLight.position.set(-700, 450, 320);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0x89b4ff, 0.34);
+        rimLight.position.set(0, 900, 280);
+        scene.add(rimLight);
+
+        const topLight = new THREE.PointLight(0xffffff, 0.30, 4000);
+        topLight.position.set(0, 0, 1100);
+        scene.add(topLight);
 
         // =====================
         // HELPERS
@@ -555,12 +702,10 @@ def viewer(
             return x * x * (3.0 - 2.0 * x);
         }}
 
-        // punt de contacte en world: sempre tangent superior
         function contactPointWorld(radius, z) {{
             return new THREE.Vector3(0.0, radius, z);
         }}
 
-        // guidatubo fix en X, i Y = radius per fer l'entrada horitzontal tangent
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -569,7 +714,6 @@ def viewer(
             );
         }}
 
-        // world -> local del grup que gira
         function worldToMachineLocal(pWorld, thetaMachine) {{
             const c = Math.cos(-thetaMachine);
             const s = Math.sin(-thetaMachine);
@@ -580,7 +724,7 @@ def viewer(
             );
         }}
 
-        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
+        function buildTubeMeshFromPoints(points, radialSegments = 14, material = tubeMat) {{
             if (!points || points.length < 2) return null;
             const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.1);
             const tubularSegments = Math.max(24, Math.min(2200, points.length * 2));
@@ -588,9 +732,10 @@ def viewer(
             return new THREE.Mesh(geo, material);
         }}
 
-        function createMarker(point, material, parentObj = scene) {{
-            const g = new THREE.SphereGeometry(Math.max(4, Rt * 0.9), 18, 18);
+        function createDiscMarker(point, material, parentObj = scene) {{
+            const g = new THREE.CylinderGeometry(Math.max(4.0, Rt * 0.82), Math.max(4.0, Rt * 0.82), Math.max(2.2, Rt * 0.32), 28);
             const m = new THREE.Mesh(g, material);
+            m.rotation.x = Math.PI / 2;
             m.position.copy(point);
             parentObj.add(m);
             return m;
@@ -613,16 +758,17 @@ def viewer(
         let endMarker = null;
 
         function buildStaticFinalView() {{
-            guide.visible = false;
+            guideGroup.visible = false;
+            guideArm.visible = false;
 
             const finalPts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
             if (finalPts.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(finalPts, 12, tubeMat);
+                rollMesh = buildTubeMeshFromPoints(finalPts, 14, tubeMat);
                 if (rollMesh) scene.add(rollMesh);
 
-                startMarker = createMarker(finalPts[0], startMat, scene);
-                endMarker = createMarker(finalPts[finalPts.length - 1], endMat, scene);
+                startMarker = createDiscMarker(finalPts[0], startMat, scene);
+                endMarker = createDiscMarker(finalPts[finalPts.length - 1], endMat, scene);
             }}
         }}
 
@@ -654,7 +800,7 @@ def viewer(
             const c0w = contactPointWorld(guideRadius, guideZ);
             const c0l = worldToMachineLocal(c0w, thetaMachine);
             depositedLocalPoints.push(c0l);
-            guide.position.copy(guidePointWorld(guideRadius, guideZ));
+            guideGroup.position.copy(guidePointWorld(guideRadius, guideZ));
         }} else {{
             buildStaticFinalView();
         }}
@@ -678,21 +824,24 @@ def viewer(
             }}
 
             if (depositedLocalPoints.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(depositedLocalPoints, 12, tubeMat);
+                rollMesh = buildTubeMeshFromPoints(depositedLocalPoints, 14, tubeMat);
                 if (rollMesh) rollGroup.add(rollMesh);
             }}
 
             const guideWorld = guidePointWorld(guideRadius, guideZ);
             const freePts = [guideWorld, contactWorld];
-            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
+            freeMesh = buildTubeMeshFromPoints(freePts, 12, freeTubeMat);
             if (freeMesh) scene.add(freeMesh);
 
-            guide.position.copy(guideWorld);
-            guide.visible = true;
+            guideGroup.position.copy(guideWorld);
+            guideGroup.visible = true;
+
+            guideArm.position.set(guideWorld.x - 75, guideWorld.y, guideWorld.z);
+            guideArm.visible = true;
 
             if (depositedLocalPoints.length >= 1) {{
-                startMarker = createMarker(depositedLocalPoints[0], startMat, rollGroup);
-                endMarker = createMarker(
+                startMarker = createDiscMarker(depositedLocalPoints[0], startMat, rollGroup);
+                endMarker = createDiscMarker(
                     depositedLocalPoints[depositedLocalPoints.length - 1],
                     endMat,
                     rollGroup
@@ -845,6 +994,7 @@ with colC:
     incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
     rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
     rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
+
 with colD:
     st.markdown(f"#### {t['viewer']}")
     altezza = st.slider(t["altezza"], 400, 900, 700)
