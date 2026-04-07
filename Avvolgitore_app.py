@@ -356,8 +356,8 @@ def viewer(d_aspo, spalla, d_tubo, passo, incremento, rit_b, rit_t, lunghezza, a
 
             if ({anim_js} && !finished) {{
 
-                // gira tot l’aspo sobre eix Y
-                machine.rotation.y -= 0.02 * {float(vel)};
+                // gira tot l’aspo sobre eix z
+                machine.rotation.z -= 0.02 * {float(vel)};
 
                 if (delay > 0) {{
                     delay -= 1;
