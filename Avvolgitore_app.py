@@ -833,24 +833,24 @@ colA, colB, colC, colD = st.columns(4)
 
 with colA:
     st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=1.0)
+    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=10.0)
     spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
 
 with colB:
     st.markdown(f"#### {t['tubo']}")
     rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore = st.number_input(t["isolamento"], value=7.0, step=0.1)
-    lunghezza = st.number_input(t["lunghezza"], value=30.0, step=0.1)
+    spessore = st.number_input(t["isolamento"], value=7.0, step=1.0)
+    lunghezza = st.number_input(t["lunghezza"], value=50.0, step=5.0)
     d_rame = COPPER_SIZES_MM[rame]
 
 with colC:
     st.markdown(f"#### {t['avvolg']}")
-    passo = st.number_input(t["passo_assiale"], value=20.0, step=0.1)
-    incremento = st.number_input(t["incremento"], value=20.0, step=0.1)
-    rit_b = st.number_input(t["rit_min"], value=180.0, step=1.0)
-    rit_t = st.number_input(t["rit_max"], value=180.0, step=1.0)
-    gradi_start = st.number_input(t["gradi_start"], value=30.0, step=1.0)
-    pinza = st.number_input(t["pinza"], value=0.3, step=0.05)
+    passo = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
+    incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
+    rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
+    rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
+    gradi_start = st.number_input(t["gradi_start"], value=00.0, step=1.0)
+    pinza = st.number_input(t["pinza"], value=0.0, step=0.1)
 
 with colD:
     st.markdown(f"#### {t['viewer']}")
@@ -862,7 +862,7 @@ with colD:
         [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
         index=0
     )
-    guide_offset_x = st.number_input(t["guide_offset_x"], value=80.0, step=1.0)
+    guide_offset_x = st.number_input(t["guide_offset_x"], value=150.0, step=1.0)
 
 if aspo_mode_label == t["aspo_visible"]:
     aspo_mode = "visible"
