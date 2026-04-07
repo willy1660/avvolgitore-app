@@ -49,7 +49,6 @@ TEXTS = {
         "aspo_transparent": "Trasparente",
         "aspo_hidden": "Nascosto",
         "guide_offset_x": "Offset guidatubo X (mm)",
-        "guide_offset_y": "Offset guidatubo Y (mm)",
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
@@ -83,7 +82,6 @@ TEXTS = {
         "aspo_transparent": "Transparent",
         "aspo_hidden": "Hidden",
         "guide_offset_x": "Guide offset X (mm)",
-        "guide_offset_y": "Guide offset Y (mm)",
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
@@ -174,13 +172,6 @@ def simulate_first_layer(
     gradi_start: float,
     deg_step: float = 3.0,
 ):
-    """
-    Simula la primera capa completa fins a fer el primer canvi de capa.
-    Aquesta capa sí respecta:
-    - pas axial
-    - retard base i spalla
-    - increment radial al canvi de capa
-    """
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
     H = spalla
@@ -259,7 +250,6 @@ def simulate_first_layer(
         "radius_end": radius,
         "z_end": z,
         "direction_end": direction,
-        "mode_end": mode,
     }
 
 def simulate_winding_hybrid(
@@ -275,13 +265,7 @@ def simulate_winding_hybrid(
     deg_step_first: float = 3.0,
     deg_step_fast: float = 6.0,
 ):
-    """
-    Model híbrid:
-    - primera capa amb simulació completa
-    - capes posteriors amb increment radial directe
-    """
     max_len = lunghezza_m * 1000.0
-    R = d_aspo / 2.0
     Rt = d_tubo / 2.0
     H = spalla
 
@@ -407,7 +391,6 @@ def viewer(
     final_points,
     aspo_mode,
     guide_offset_x,
-    guide_offset_y,
 ):
     anim_js = "true" if anim else "false"
     final_points_json = json.dumps(final_points)
@@ -459,7 +442,6 @@ def viewer(
         const animEnabled = {anim_js};
         const straightLen = Math.max(50.0, {float(pinza)} * 1000.0);
         const guideOffsetX = {float(guide_offset_x)};
-        const guideOffsetY = {float(guide_offset_y)};
         const finalPointsRaw = {final_points_json};
         const aspoMode = {aspo_mode_json};
 
@@ -569,9 +551,21 @@ def viewer(
         }}
 
         function guidePointFor(radius, z) {{
+            // Y calculat perquè la recta de sortida sigui tangent a la capa actual
+            const yTangent = radius;
+
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
-                guideOffsetY,
+                yTangent,
+                z
+            );
+        }}
+
+        function tangentPointFor(radius, z) {{
+            // Tangència de la recta horitzontal y = radius amb el cercle x²+y²=radius²
+            return new THREE.Vector3(
+                0.0,
+                radius,
                 z
             );
         }}
@@ -599,52 +593,12 @@ def viewer(
             return m;
         }}
 
-        function angleWrapDiff(a, b) {{
-            let d = a - b;
-            while (d > Math.PI) d -= 2.0 * Math.PI;
-            while (d < -Math.PI) d += 2.0 * Math.PI;
-            return Math.abs(d);
-        }}
-
-        function buildFreePathPoints(curRadius, curZ, thetaMachine) {{
-            // GUIDATUBO amb offset en X i Y
+        function buildFreePathPoints(curRadius, curZ) {{
             const guideP = guidePointFor(curRadius, curZ);
+            const tangentP = tangentPointFor(curRadius, curZ);
 
-            // Fem sortir el tub recte del guidatubo
-            const preGuide = new THREE.Vector3(
-                guideP.x + straightLen,
-                guideP.y,
-                guideP.z
-            );
-
-            // Tangència real des del punt preGuide al cercle de radi curRadius
-            const Px = preGuide.x;
-            const Py = preGuide.y;
-            const r = curRadius;
-
-            const d = Math.sqrt(Px * Px + Py * Py);
-
-            if (d <= r + 1e-6) {{
-                return [guideP, preGuide];
-            }}
-
-            const baseAngle = Math.atan2(Py, Px);
-            const alpha = Math.acos(r / d);
-
-            const t1 = baseAngle + alpha;
-            const t2 = baseAngle - alpha;
-
-            const tubeTheta = -thetaMachine + Math.PI;
-
-            const chosen = angleWrapDiff(t1, tubeTheta) < angleWrapDiff(t2, tubeTheta) ? t1 : t2;
-
-            const tangentPt = new THREE.Vector3(
-                r * Math.cos(chosen),
-                r * Math.sin(chosen),
-                curZ
-            );
-
-            return [guideP, preGuide, tangentPt];
+            // tram recte pur des del guidatubo fins a tangència
+            return [guideP, tangentP];
         }}
 
         // =====================
@@ -731,7 +685,7 @@ def viewer(
                 if (rollMesh) scene.add(rollMesh);
             }}
 
-            const freePts = buildFreePathPoints(guideRadius, guideZ, thetaMachine);
+            const freePts = buildFreePathPoints(guideRadius, guideZ);
             if (freePts.length >= 2) {{
                 freeMesh = buildTubeMeshFromPoints(freePts, 12);
                 if (freeMesh) scene.add(freeMesh);
@@ -915,7 +869,6 @@ with colD:
         index=0
     )
     guide_offset_x = st.number_input(t["guide_offset_x"], value=80.0, step=1.0)
-    guide_offset_y = st.number_input(t["guide_offset_y"], value=120.0, step=1.0)
 
 if aspo_mode_label == t["aspo_visible"]:
     aspo_mode = "visible"
@@ -964,7 +917,6 @@ components.html(
         points.tolist(),
         aspo_mode,
         guide_offset_x,
-        guide_offset_y,
     ),
     height=altezza
 )
