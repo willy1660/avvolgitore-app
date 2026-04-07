@@ -48,7 +48,6 @@ TEXTS = {
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
         "metric4": "Diametro esterno",
-        "warning": "⚠️ Diametro esterno superiore a 750 mm."
     },
     "EN": {
         "title": "Coiling",
@@ -74,11 +73,14 @@ TEXTS = {
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
         "metric4": "Outer diameter",
-        "warning": "⚠️ Outer diameter exceeds 750 mm."
     }
 }
 
 t = TEXTS[lang]
+
+# =========================
+# CONSTANTS
+# =========================
 
 COPPER_SIZES_MM = {
     "1/4": 6.35,
@@ -116,7 +118,12 @@ def deposited_point(theta, radius, z):
     a = -theta + np.pi
     return np.array([radius*np.cos(a), radius*np.sin(a), z])
 
+# =========================
+# SIMULATION
+# =========================
+
 def simulate(d_aspo, spalla, d_tubo, passo, incremento, lunghezza):
+
     R = d_aspo/2
     Rt = d_tubo/2
     H = spalla
@@ -150,7 +157,12 @@ def simulate(d_aspo, spalla, d_tubo, passo, incremento, lunghezza):
             direction = 1
 
         contact = deposited_point(theta, radius, z)
+
+        # deposició real
         new = prev + 0.25*(contact - prev)
+
+        if np.linalg.norm(contact - new) < Rt*0.05:
+            new = contact
 
         seg = np.linalg.norm(new-prev)
 
@@ -181,18 +193,18 @@ with colB:
 with colC:
     passo = st.number_input(t["passo_assiale"], value=20.0)
     incremento = st.number_input(t["incremento"], value=20.0)
-    rit_b = st.number_input(t["rit_min"], value=180.0)
-    rit_t = st.number_input(t["rit_max"], value=180.0)
 
 with colD:
     altezza = st.slider(t["altezza"], 400, 900, 700)
+    anim = st.checkbox(t["animazione"], True)
+    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
 
 d_tubo = d_rame + 2*spess
 
-pts = simulate(d_aspo, spalla, d_tubo, passo, incremento, lunghezza)
+points = simulate(d_aspo, spalla, d_tubo, passo, incremento, lunghezza)
 
 # =========================
-# VIEWER FIXED
+# VIEWER FINAL + ANIMATION
 # =========================
 
 components.html(f"""
@@ -202,16 +214,17 @@ components.html(f"""
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
 <script>
+
 const container = document.getElementById("c");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
 const camera = new THREE.PerspectiveCamera(40, container.clientWidth/{altezza}, 1, 10000);
-camera.position.set(-500,-700,400);
+camera.position.set(-600,-800,500);
 
 const renderer = new THREE.WebGLRenderer({{antialias:true}});
-renderer.setSize(container.clientWidth, {altezza});
+renderer.setSize(container.clientWidth,{altezza});
 container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -220,8 +233,20 @@ const light = new THREE.DirectionalLight(0xffffff,1);
 light.position.set(500,500,500);
 scene.add(light);
 
-const pts = {json.dumps(pts.tolist())}.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+// ASP0
+const aspo = new THREE.Mesh(
+    new THREE.CylinderGeometry({d_aspo/2},{d_aspo/2},{spalla},64),
+    new THREE.MeshStandardMaterial({{color:0xff3333}})
+);
+aspo.rotation.x = Math.PI/2;
+aspo.position.z = {spalla}/2;
+scene.add(aspo);
 
+// POINTS
+const ptsRaw = {json.dumps(points.tolist())};
+const pts = ptsRaw.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+
+// TUBE
 const curve = new THREE.CatmullRomCurve3(pts);
 const geo = new THREE.TubeGeometry(curve, pts.length*2, {d_tubo/2}, 12, false);
 
@@ -235,6 +260,7 @@ function animate(){{
 }}
 
 animate();
+
 </script>
 """, height=altezza)
 
@@ -249,4 +275,4 @@ m1,m2,m3,m4 = st.columns(4)
 m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
 m2.metric(t["metric2"], f"{passo:.2f} mm")
 m3.metric(t["metric3"], f"{incremento:.2f} mm")
-m4.metric(t["metric4"], f"{np.max(np.sqrt(pts[:,0]**2+pts[:,1]**2))*2:.1f} mm")
+m4.metric(t["metric4"], f"{np.max(np.sqrt(points[:,0]**2+points[:,1]**2))*2:.1f} mm")
