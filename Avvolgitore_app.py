@@ -701,7 +701,7 @@ st.divider()
 m1, m2, m3, m4 = st.columns(4)
 
 m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
-m2.metric(t["metric2"], f"{passo:.2f} mm/rev")
+m2.metric(t["metric2"], f"{passo:.2f} mm")
 m3.metric(t["metric3"], f"{incremento:.2f} mm")
 m4.metric(t["metric4"], f"{diam_esterno:.1f} mm")
 
