@@ -2,82 +2,8 @@ import json
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
-import os
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
-
-# =========================
-# LANGUAGE
-# =========================
-
-if "lang" not in st.session_state:
-    st.session_state.lang = "IT"
-
-lang_option = st.selectbox(
-    "🌍 Language",
-    ["🇮🇹 Italiano", "🇺🇸 English (US)"],
-    index=0 if st.session_state.lang == "IT" else 1
-)
-
-st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
-lang = st.session_state.lang
-
-TEXTS = {
-    "IT": {
-        "title": "Avvolgimento",
-        "bobina": "🟦 Bobina",
-        "tubo": "🟩 Tubo",
-        "avvolg": "🟧 Avvolgimento",
-        "viewer": "⚙️ Viewer",
-        "diam_aspo": "Ø Aspo (mm)",
-        "spalla": "Spalla (mm)",
-        "rame": "Ø Rame",
-        "isolamento": "Spessore isolamento (mm)",
-        "lunghezza": "Lunghezza rotolo (m)",
-        "passo_assiale": "Passo assiale (mm)",
-        "incremento": "Incremento strato (mm)",
-        "rit_min": "Ritardo base (°)",
-        "rit_max": "Ritardo spalla (°)",
-        "gradi_start": "Gradi iniziali (°)",
-        "pinza": "Lunghezza pinza (m)",
-        "altezza": "Altezza",
-        "animazione": "Animazione",
-        "velocita": "Velocità",
-        "metric1": "Diametro tubo",
-        "metric2": "Passo assiale",
-        "metric3": "Incremento strato",
-        "metric4": "Diametro esterno",
-        "warning": "⚠️ Diametro esterno superiore a 750 mm."
-    },
-    "EN": {
-        "title": "Coiling",
-        "bobina": "🟦 Coil",
-        "tubo": "🟩 Tube",
-        "avvolg": "🟧 Winding",
-        "viewer": "⚙️ Viewer",
-        "diam_aspo": "Spool diameter (mm)",
-        "spalla": "Width (mm)",
-        "rame": "Copper size",
-        "isolamento": "Insulation thickness (mm)",
-        "lunghezza": "Coil length (m)",
-        "passo_assiale": "Axial pitch (mm)",
-        "incremento": "Layer increment (mm)",
-        "rit_min": "Bottom delay (°)",
-        "rit_max": "Top delay (°)",
-        "gradi_start": "Initial degrees (°)",
-        "pinza": "Clamp length (m)",
-        "altezza": "Height",
-        "animazione": "Animation",
-        "velocita": "Speed",
-        "metric1": "Tube diameter",
-        "metric2": "Axial pitch",
-        "metric3": "Layer increment",
-        "metric4": "Outer diameter",
-        "warning": "⚠️ Outer diameter exceeds 750 mm."
-    }
-}
-
-t = TEXTS[lang]
 
 # =========================
 # CONSTANTS
@@ -93,7 +19,7 @@ COPPER_SIZES_MM = {
 }
 
 # =========================
-# GEOMETRY (igual)
+# GEOMETRY (per mètriques)
 # =========================
 
 def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza):
@@ -143,46 +69,61 @@ def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, r
     return pts
 
 # =========================
-# VIEWER (fix)
+# VIEWER FINAL
 # =========================
 
 def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
 
     return f"""
-    <div id="viewer_root" style="width:100%;height:{altezza}px;background:#000;"></div>
+    <div id="viewer" style="width:100%;height:{altezza}px;background:#000;"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
     <script>
     (() => {{
-        const host = document.getElementById("viewer_root");
-        host.innerHTML = "";
 
-        const W = host.clientWidth;
-        const H = host.clientHeight;
+        const el = document.getElementById("viewer");
+        el.innerHTML = "";
+
+        const w = el.clientWidth;
+        const h = el.clientHeight;
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
 
-        const camera = new THREE.PerspectiveCamera(35, W / H, 0.1, 10000);
+        const camera = new THREE.PerspectiveCamera(40, w/h, 0.1, 10000);
         camera.position.set(-500, -700, 250);
 
-        const renderer = new THREE.WebGLRenderer({{ antialias: true }});
-        renderer.setSize(W, H);
-        host.appendChild(renderer.domElement);
+        const renderer = new THREE.WebGLRenderer({{antialias:true}});
+        renderer.setSize(w,h);
+        el.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-        // ASPO
+        // =====================
+        // PARAMS
+        // =====================
+
         const R = {d_aspo}/2;
-        const Hs = {spalla};
+        const H = {spalla};
         const Rt = {d_tubo}/2;
+
+        // 🔥 POSICIÓ CORRECTA
+        const guideY = (R + Rt);
+        const guideZ = -H/2 + Rt;
+
+        // 🔥 OFFSET X PER NO COL·LISIÓ
+        const guideX = -(R + 80);
+
+        // =====================
+        // ASPO
+        // =====================
 
         const red = new THREE.MeshStandardMaterial({{color:0xff3333}});
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, Hs, 80),
+            new THREE.CylinderGeometry(R, R, H, 80),
             red
         );
         mandrel.rotation.x = Math.PI/2;
@@ -193,7 +134,7 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
             red
         );
         base.rotation.x = Math.PI/2;
-        base.position.z = -Hs/2 - 3;
+        base.position.z = -H/2 - 3;
         scene.add(base);
 
         const top = new THREE.Mesh(
@@ -201,21 +142,24 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
             red
         );
         top.rotation.x = Math.PI/2;
-        top.position.z = Hs/2 + 3;
+        top.position.z = H/2 + 3;
         scene.add(top);
 
-        // GUIDATUBO (NOU COSTAT)
-        const guideY = (R + Rt);   // 🔥 canvi clau
-        const guideZ = -Hs/2 + Rt;
+        // =====================
+        // GUIDATUBO
+        // =====================
 
-        const guideBlock = new THREE.Mesh(
+        const guide = new THREE.Mesh(
             new THREE.BoxGeometry(30,20,20),
             new THREE.MeshStandardMaterial({{color:0x0044ff}})
         );
-        guideBlock.position.set(0, guideY, guideZ);
-        scene.add(guideBlock);
+        guide.position.set(guideX, guideY, guideZ);
+        scene.add(guide);
 
+        // =====================
         // LIGHT
+        // =====================
+
         scene.add(new THREE.AmbientLight(0xffffff,0.8));
 
         const light = new THREE.DirectionalLight(0xffffff,0.6);
@@ -240,60 +184,55 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
     """
 
 # =========================
-# UI (intacta)
+# UI ORIGINAL
 # =========================
 
 colA, colB, colC, colD = st.columns(4)
 
 with colA:
-    st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0)
-    spalla = st.number_input(t["spalla"], value=95.0)
+    diametro_aspo = st.number_input("Ø Aspo (mm)", value=450.0)
+    spalla = st.number_input("Spalla (mm)", value=95.0)
 
 with colB:
-    st.markdown(f"#### {t['tubo']}")
-    rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore = st.number_input(t["isolamento"], value=7.0)
-    lunghezza = st.number_input(t["lunghezza"], value=30.0)
+    rame = st.selectbox("Ø Rame", list(COPPER_SIZES_MM.keys()))
+    spessore = st.number_input("Isolamento (mm)", value=7.0)
+    lunghezza = st.number_input("Lunghezza (m)", value=30.0)
     d_rame = COPPER_SIZES_MM[rame]
 
 with colC:
-    st.markdown(f"#### {t['avvolg']}")
-    passo = st.number_input(t["passo_assiale"], value=20.0)
-    incremento = st.number_input(t["incremento"], value=20.0)
-    rit_b = st.number_input(t["rit_min"], value=180.0)
-    rit_t = st.number_input(t["rit_max"], value=180.0)
-    gradi_start = st.number_input(t["gradi_start"], value=30.0)
-    pinza = st.number_input(t["pinza"], value=0.3)
+    passo = st.number_input("Passo", value=20.0)
+    incremento = st.number_input("Incremento", value=20.0)
+    rit_b = st.number_input("Ritardo base", value=180.0)
+    rit_t = st.number_input("Ritardo top", value=180.0)
+    gradi_start = st.number_input("Start", value=30.0)
+    pinza = st.number_input("Pinza", value=0.3)
 
 with colD:
-    st.markdown(f"#### {t['viewer']}")
-    altezza = st.slider(t["altezza"], 400, 900, 700)
-    anim = st.checkbox(t["animazione"], False)
-    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
+    altezza = st.slider("Altezza", 400, 900, 700)
+    anim = st.checkbox("Animazione", False)
+    vel = st.slider("Velocità", 0.1, 5.0, 1.0)
 
+# =========================
 # BUILD
-pts = build_coil(
-    diametro_aspo, spalla, lunghezza,
-    d_rame, spessore, passo, incremento,
-    rit_b, rit_t, gradi_start, pinza
-)
+# =========================
+
+pts = build_coil(diametro_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza)
 
 d_tubo = d_rame + 2*spessore
 
-components.html(
-    viewer(diametro_aspo, spalla, d_tubo, altezza, anim, vel),
-    height=altezza
-)
+components.html(viewer(diametro_aspo, spalla, d_tubo, altezza, anim, vel), height=altezza)
 
+# =========================
 # METRICS
+# =========================
+
 st.divider()
 
 m1, m2, m3, m4 = st.columns(4)
 
-m1.metric(t["metric1"], f"{d_rame+2*spessore:.2f} mm")
-m2.metric(t["metric2"], f"{passo:.2f} mm")
-m3.metric(t["metric3"], f"{incremento:.2f} mm")
+m1.metric("Diametro tubo", f"{d_rame+2*spessore:.2f} mm")
+m2.metric("Passo", f"{passo:.2f} mm")
+m3.metric("Incremento", f"{incremento:.2f} mm")
 
 rmax = np.max(np.sqrt(pts[:,0]**2 + pts[:,1]**2))
-m4.metric(t["metric4"], f"{2*(rmax):.1f} mm")
+m4.metric("Diametro esterno", f"{2*(rmax):.1f} mm")
