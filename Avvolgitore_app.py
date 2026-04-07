@@ -409,8 +409,12 @@ def viewer(
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
 
-        const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
-        camera.position.set(-520, -760, 420);
+        const  = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
+        camera.position.set(-900, -900, 600);
+        controls.target.set(0, 0, Hs / 2);
+
+        controls.maxDistance = 4000;
+        controls.minDistance = 200;
 
         const renderer = new THREE.WebGLRenderer({{ antialias: true }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -831,8 +835,8 @@ def viewer(
         window.addEventListener("resize", () => {{
             const nw = Math.max(host.clientWidth, 600);
             const nh = Math.max(host.clientHeight, 400);
-            camera.aspect = nw / nh;
-            camera.updateProjectionMatrix();
+            .aspect = nw / nh;
+            .updateProjectionMatrix();
             renderer.setSize(nw, nh);
         }});
     }})();
