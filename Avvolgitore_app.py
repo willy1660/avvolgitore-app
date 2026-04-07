@@ -1,5 +1,3 @@
-import json
-import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -31,11 +29,6 @@ TEXTS = {
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
         "isolamento": "Spessore isolamento (mm)",
-        "lunghezza": "Lunghezza rotolo (m)",
-        "passo_assiale": "Passo assiale (mm)",
-        "incremento": "Incremento strato (mm)",
-        "rit_min": "Ritardo base (°)",
-        "rit_max": "Ritardo spalla (°)",
         "altezza": "Altezza",
         "animazione": "Animazione",
         "velocita": "Velocità"
@@ -49,11 +42,6 @@ TEXTS = {
         "spalla": "Width (mm)",
         "rame": "Copper size",
         "isolamento": "Insulation thickness (mm)",
-        "lunghezza": "Coil length (m)",
-        "passo_assiale": "Axial pitch (mm)",
-        "incremento": "Layer increment (mm)",
-        "rit_min": "Bottom delay (°)",
-        "rit_max": "Top delay (°)",
         "altezza": "Height",
         "animazione": "Animation",
         "velocita": "Speed"
@@ -72,7 +60,7 @@ COPPER_SIZES_MM = {
 }
 
 # =========================
-# VIEWER (HARDWARE ONLY)
+# VIEWER HARDWARE
 # =========================
 
 def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
@@ -87,7 +75,6 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
     setTimeout(() => {{
 
         const container = document.getElementById("viewer");
-
         const w = container.clientWidth;
         const h = container.clientHeight;
 
@@ -142,29 +129,34 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
         machine.add(top);
 
         // =====================
-        // GUIDATUBO
+        // GUIDATUBO STRUCTURE
         // =====================
 
         const rTube = {d_tubo}/2;
         const guideX = -(r + rTube);
 
-        // base groga
+        const Y_OFFSET = -80;
+
+        // EIX HORITZONTAL (GROC) → cap a dins (Y)
         const yellow = new THREE.Mesh(
-            new THREE.BoxGeometry(150, 20, 20),
+            new THREE.BoxGeometry(20, 160, 20),
             new THREE.MeshStandardMaterial({{color:0xffff00}})
         );
-        yellow.position.set(guideX - 100, 0, -h_m/2 - 10);
+        yellow.position.set(guideX - 20, Y_OFFSET, -h_m/2 - 10);
         scene.add(yellow);
 
-        // columna negra
+        // COLUMNA (NEGRE) → més enrere
         const column = new THREE.Mesh(
             new THREE.BoxGeometry(20, 20, h_m + 150),
             new THREE.MeshStandardMaterial({{color:0x111111}})
         );
-        column.position.set(guideX - 20, 0, 0);
+        column.position.set(guideX - 20, Y_OFFSET, 0);
         scene.add(column);
 
-        // carro
+        // =====================
+        // GUIDATUBO
+        // =====================
+
         const guide = new THREE.Group();
         scene.add(guide);
 
@@ -190,7 +182,8 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
         nozzle.position.x = 100;
         guide.add(nozzle);
 
-        guide.position.set(guideX - 100, 0, 0);
+        // POSICIÓ alineada amb columna
+        guide.position.set(guideX - 100, Y_OFFSET, 0);
 
         // =====================
         // LIGHT
@@ -245,10 +238,7 @@ with colB:
 
 with colC:
     st.markdown(f"#### {t['avvolg']}")
-    passo = st.number_input(t["passo_assiale"], value=20.0)
-    incremento = st.number_input(t["incremento"], value=20.0)
-    rit_b = st.number_input(t["rit_min"], value=180.0)
-    rit_t = st.number_input(t["rit_max"], value=180.0)
+    st.write("—")
 
 with colD:
     st.markdown(f"#### {t['viewer']}")
