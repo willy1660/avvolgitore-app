@@ -169,7 +169,7 @@ def simulate_winding_continuous(
     rit_t: float,
     lunghezza_m: float,
     gradi_start: float,
-    deg_step: float = 2.0,
+    deg_step: float = 4.0,
 ):
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
@@ -194,7 +194,7 @@ def simulate_winding_continuous(
 
     rad_step = np.deg2rad(deg_step)
 
-    for _ in range(1200000):
+    for _ in range(800000):
         prev = points[-1]
         theta -= rad_step
 
@@ -229,8 +229,12 @@ def simulate_winding_continuous(
                 turn_progress += deg_step
                 s = smoothstep(turn_progress / turn_delay)
 
+                # canvi radial progressiu
                 radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
 
+                # z queda recolzat a l’extrem, però amb una
+                # petita relaxació perquè no es vegi tan "clavat"
+                # i recordi més el suport sobre la capa anterior.
                 edge_blend = 0.06 * passo * np.sin(np.pi * s)
                 if turn_z >= H - Rt - 1e-9:
                     z = turn_z - edge_blend
@@ -246,7 +250,7 @@ def simulate_winding_continuous(
         new_p = deposited_point(theta, radius, z)
         seg = float(np.linalg.norm(new_p - prev))
 
-        if seg < max(0.18, Rt * 0.025):
+        if seg < max(0.4, Rt * 0.08):
             continue
 
         if deposited_len + seg >= max_len:
@@ -308,10 +312,16 @@ def viewer(
     d_aspo,
     spalla,
     d_tubo,
+    passo,
+    incremento,
+    rit_b,
+    rit_t,
     lunghezza,
     altezza,
     anim,
     vel,
+    gradi_start,
+    pinza,
     final_points,
     aspo_mode,
     guide_offset_x,
@@ -357,20 +367,29 @@ def viewer(
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
+        controls.target.set(0, 0, {spalla}/2);
+
+        // =====================
+        // PARAMS
+        // =====================
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
+        const passo = {float(passo)};
+        const incremento = {float(incremento)};
+        const ritB = {float(rit_b)};
+        const ritT = {float(rit_t)};
         const maxLen = {float(lunghezza)} * 1000.0;
         const speed = {float(vel)};
         const animEnabled = {anim_js};
         const guideOffsetX = {float(guide_offset_x)};
+        const finalPointsRaw = {final_points_json};
         const aspoMode = {aspo_mode_json};
 
-        const rawPts = {final_points_json};
-        const allPointsWorld = rawPts.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
-        controls.target.set(0, 0, Hs / 2.0);
+        // =====================
+        // MATERIALS
+        // =====================
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0x6b7076,
@@ -392,12 +411,10 @@ def viewer(
             metalness: 0.08
         }});
 
-        const lineMat = new THREE.LineBasicMaterial({{
-            color: 0xd6d9dd
-        }});
-
-        const freeLineMat = new THREE.LineBasicMaterial({{
-            color: 0xb8bec6
+        const freeTubeMat = new THREE.MeshStandardMaterial({{
+            color: 0xb8bec6,
+            roughness: 0.78,
+            metalness: 0.04
         }});
 
         const startMat = new THREE.MeshStandardMaterial({{
@@ -411,6 +428,10 @@ def viewer(
             roughness: 0.78,
             metalness: 0.06
         }});
+
+        // =====================
+        // ASPO GROUP
+        // =====================
 
         const machine = new THREE.Group();
         scene.add(machine);
@@ -444,6 +465,13 @@ def viewer(
 
         machine.visible = aspoMode !== "hidden";
 
+        const rollGroup = new THREE.Group();
+        machine.add(rollGroup);
+
+        // =====================
+        // GUIDATUBO (en world, no gira)
+        // =====================
+
         const guide = new THREE.Mesh(
             new THREE.BoxGeometry(80, 60, 60),
             blueMat
@@ -471,6 +499,10 @@ def viewer(
         guideNozzle.rotation.z = Math.PI / 2;
         scene.add(guideNozzle);
 
+        // =====================
+        // LIGHTS
+        // =====================
+
         scene.add(new THREE.AmbientLight(0xffffff, 0.72));
 
         const dLight1 = new THREE.DirectionalLight(0xffffff, 0.62);
@@ -485,63 +517,43 @@ def viewer(
         dLight3.position.set(0, -900, 500);
         scene.add(dLight3);
 
-        function buildTubeMeshFromPoints(points, material=tubeMat) {{
-            if (!points || points.length < 2) return null;
+        // =====================
+        // HELPERS
+        // =====================
 
-            const path = new THREE.CurvePath();
-            let totalLen = 0.0;
-
-            for (let i = 0; i < points.length - 1; i++) {{
-                const p0 = points[i];
-                const p1 = points[i + 1];
-                const segLen = p0.distanceTo(p1);
-                if (segLen > 1e-9) {{
-                    path.add(new THREE.LineCurve3(p0.clone(), p1.clone()));
-                    totalLen += segLen;
-                }}
-            }}
-
-            if (path.curves.length === 0) return null;
-
-            const tubularSegments = Math.max(
-                40,
-                Math.min(2500, Math.floor(totalLen / Math.max(0.8, Rt * 0.50)))
-            );
-
-            const geo = new THREE.TubeGeometry(path, tubularSegments, Rt, 12, false);
-            return new THREE.Mesh(geo, material);
+        function smoothstep(x) {{
+            x = Math.max(0.0, Math.min(1.0, x));
+            return x * x * (3.0 - 2.0 * x);
         }}
 
-        function createDynamicLine(maxPoints, material, parentObj) {{
-            const arr = new Float32Array(maxPoints * 3);
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute("position", new THREE.BufferAttribute(arr, 3));
-            geo.setDrawRange(0, 0);
-            const line = new THREE.Line(geo, material);
-            parentObj.add(line);
-            return line;
+        function contactPointWorld(radius, z) {{
+            return new THREE.Vector3(0.0, radius, z);
         }}
 
-        function updateDynamicLine(line, points) {{
-            const pos = line.geometry.attributes.position.array;
-            const n = points.length;
-            for (let i = 0; i < n; i++) {{
-                pos[i * 3 + 0] = points[i].x;
-                pos[i * 3 + 1] = points[i].y;
-                pos[i * 3 + 2] = points[i].z;
-            }}
-            line.geometry.setDrawRange(0, n);
-            line.geometry.attributes.position.needsUpdate = true;
-            line.geometry.computeBoundingSphere();
-        }}
-
-        function guidePointWorld(contactWorld) {{
-            const r = Math.sqrt(contactWorld.x * contactWorld.x + contactWorld.y * contactWorld.y);
+        function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
-                -(r + guideOffsetX),
-                r,
-                contactWorld.z
+                -(radius + guideOffsetX),
+                radius,
+                z
             );
+        }}
+
+        function worldToMachineLocal(pWorld, thetaMachine) {{
+            const c = Math.cos(-thetaMachine);
+            const s = Math.sin(-thetaMachine);
+            return new THREE.Vector3(
+                pWorld.x * c - pWorld.y * s,
+                pWorld.x * s + pWorld.y * c,
+                pWorld.z
+            );
+        }}
+
+        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
+            if (!points || points.length < 2) return null;
+            const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.1);
+            const tubularSegments = Math.max(24, Math.min(2200, points.length * 2));
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
+            return new THREE.Mesh(geo, material);
         }}
 
         function createMarker(point, material, parentObj = scene) {{
@@ -558,72 +570,219 @@ def viewer(
             return m;
         }}
 
-        let staticRollMesh = null;
-        let animatedLine = null;
-        let freeLine = null;
+        function clearObj(obj, parentObj = scene) {{
+            if (!obj) return;
+            parentObj.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) obj.material.dispose();
+        }}
+
+        // =====================
+        // STATIC FINAL VIEW
+        // =====================
+
+        let rollMesh = null;
+        let freeMesh = null;
         let startMarker = null;
         let endMarker = null;
 
-        const MAX_POINTS = Math.max(2, allPointsWorld.length + 2);
-
-        if (!animEnabled) {{
-            if (allPointsWorld.length >= 2) {{
-                staticRollMesh = buildTubeMeshFromPoints(allPointsWorld, tubeMat);
-                if (staticRollMesh) scene.add(staticRollMesh);
-
-                startMarker = createMarker(allPointsWorld[0], startMat, scene);
-                endMarker = createMarker(allPointsWorld[allPointsWorld.length - 1], endMat, scene);
-            }}
+        function buildStaticFinalView() {{
             guide.visible = false;
             guideFront.visible = false;
             guideNozzle.visible = false;
-        }} else {{
-            animatedLine = createDynamicLine(MAX_POINTS, lineMat, scene);
-            freeLine = createDynamicLine(2, freeLineMat, scene);
 
-            const p0 = allPointsWorld[0];
-            startMarker = createMarker(p0, startMat, scene);
-            endMarker = createMarker(p0, endMat, scene);
+            const finalPts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+
+            if (finalPts.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(finalPts, 12, tubeMat);
+                if (rollMesh) scene.add(rollMesh);
+
+                startMarker = createMarker(finalPts[0], startMat, scene);
+                endMarker = createMarker(finalPts[finalPts.length - 1], endMat, scene);
+            }}
         }}
 
-        function updateGuide(contactWorld) {{
-            const gp = guidePointWorld(contactWorld);
+        // =====================
+        // ANIM STATE
+        // =====================
 
-            guide.position.copy(gp);
+        let depositedLocalPoints = [];
+        let depositedLength = 0.0;
+        let finished = false;
+        let lastRebuildCount = -1;
+
+        let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
+        let guideRadius = R + Rt;
+        let guideZ = Rt;
+
+        let direction = 1;
+        let mode = "axial";
+
+        let turnProgress = 0.0;
+        let turnDelay = 0.0;
+        let turnStartRadius = guideRadius;
+        let turnEndRadius = guideRadius;
+        let turnZ = guideZ;
+
+        machine.rotation.z = thetaMachine;
+
+        if (animEnabled) {{
+            const c0w = contactPointWorld(guideRadius, guideZ);
+            const c0l = worldToMachineLocal(c0w, thetaMachine);
+            depositedLocalPoints.push(c0l);
+            guide.position.copy(guidePointWorld(guideRadius, guideZ));
+        }} else {{
+            buildStaticFinalView();
+        }}
+
+        function rebuildAnimatedMeshes(contactWorld) {{
+            if (rollMesh) {{
+                clearObj(rollMesh, rollGroup);
+                rollMesh = null;
+            }}
+            if (freeMesh) {{
+                clearObj(freeMesh, scene);
+                freeMesh = null;
+            }}
+            if (startMarker) {{
+                clearObj(startMarker, rollGroup);
+                startMarker = null;
+            }}
+            if (endMarker) {{
+                clearObj(endMarker, rollGroup);
+                endMarker = null;
+            }}
+
+            if (depositedLocalPoints.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(depositedLocalPoints, 12, tubeMat);
+                if (rollMesh) rollGroup.add(rollMesh);
+            }}
+
+            const guideWorld = guidePointWorld(guideRadius, guideZ);
+            const freePts = [guideWorld, contactWorld];
+            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
+            if (freeMesh) scene.add(freeMesh);
+
+            guide.position.copy(guideWorld);
             guide.visible = true;
 
-            guideFront.position.set(gp.x + 49, gp.y, gp.z);
+            guideFront.position.set(
+                guideWorld.x + 49,
+                guideWorld.y,
+                guideWorld.z
+            );
             guideFront.visible = true;
 
-            guideNozzle.position.set(gp.x + 67, gp.y, gp.z);
+            guideNozzle.position.set(
+                guideWorld.x + 67,
+                guideWorld.y,
+                guideWorld.z
+            );
             guideNozzle.visible = true;
 
-            updateDynamicLine(freeLine, [gp, contactWorld]);
+            if (depositedLocalPoints.length >= 1) {{
+                startMarker = createMarker(depositedLocalPoints[0], startMat, rollGroup);
+                endMarker = createMarker(
+                    depositedLocalPoints[depositedLocalPoints.length - 1],
+                    endMat,
+                    rollGroup
+                );
+            }}
         }}
 
-        let revealIndex = 1;
-        let revealAccum = 0.0;
+        function addDepositedPoint(contactLocal) {{
+            const prev = depositedLocalPoints[depositedLocalPoints.length - 1];
+            const seg = contactLocal.distanceTo(prev);
+
+            if (seg < Math.max(0.8, Rt * 0.10)) return;
+
+            if (depositedLength + seg <= maxLen) {{
+                depositedLocalPoints.push(contactLocal.clone());
+                depositedLength += seg;
+                return;
+            }}
+
+            const remain = maxLen - depositedLength;
+            if (seg > 1e-9 && remain > 0) {{
+                const trim = remain / seg;
+                const finalPoint = prev.clone().lerp(contactLocal, trim);
+                depositedLocalPoints.push(finalPoint);
+                depositedLength += prev.distanceTo(finalPoint);
+            }}
+            finished = true;
+        }}
+
+        function advanceMechanics() {{
+            const degPerFrame = 2.0 * speed;
+            const radPerFrame = THREE.MathUtils.degToRad(degPerFrame);
+
+            thetaMachine -= radPerFrame;
+            machine.rotation.z = thetaMachine;
+
+            if (mode === "axial") {{
+                guideZ += direction * passo * (degPerFrame / 360.0);
+
+                if (guideZ >= Hs - Rt) {{
+                    guideZ = Hs - Rt;
+                    mode = "turn";
+                    turnProgress = 0.0;
+                    turnDelay = Math.max(ritT, 0.0);
+                    turnStartRadius = guideRadius;
+                    turnEndRadius = guideRadius + incremento;
+                    turnZ = guideZ;
+                }} else if (guideZ <= Rt) {{
+                    guideZ = Rt;
+                    mode = "turn";
+                    turnProgress = 0.0;
+                    turnDelay = Math.max(ritB, 0.0);
+                    turnStartRadius = guideRadius;
+                    turnEndRadius = guideRadius + incremento;
+                    turnZ = guideZ;
+                }}
+            }} else {{
+                if (turnDelay <= 0.0) {{
+                    guideRadius = turnEndRadius;
+                    guideZ = turnZ;
+                    mode = "axial";
+                    direction *= -1;
+                }} else {{
+                    turnProgress += degPerFrame;
+                    const s = smoothstep(turnProgress / turnDelay);
+
+                    guideRadius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
+
+                    const edgeBlend = 0.06 * passo * Math.sin(Math.PI * s);
+                    if (turnZ >= Hs - Rt - 1e-9) {{
+                        guideZ = turnZ - edgeBlend;
+                    }} else {{
+                        guideZ = turnZ + edgeBlend;
+                    }}
+
+                    if (turnProgress >= turnDelay) {{
+                        guideRadius = turnEndRadius;
+                        guideZ = turnZ;
+                        mode = "axial";
+                        direction *= -1;
+                    }}
+                }}
+            }}
+        }}
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && allPointsWorld.length >= 2) {{
-                revealAccum += speed * 0.85;
+            if (animEnabled && !finished) {{
+                advanceMechanics();
 
-                const stepPts = Math.max(1, Math.floor(revealAccum));
-                if (stepPts > 0) {{
-                    revealAccum -= stepPts;
-                    revealIndex = Math.min(allPointsWorld.length, revealIndex + stepPts);
+                const cWorld = contactPointWorld(guideRadius, guideZ);
+                const cLocal = worldToMachineLocal(cWorld, thetaMachine);
+
+                addDepositedPoint(cLocal);
+
+                if (depositedLocalPoints.length !== lastRebuildCount || finished) {{
+                    rebuildAnimatedMeshes(cWorld);
+                    lastRebuildCount = depositedLocalPoints.length;
                 }}
-
-                const visiblePts = allPointsWorld.slice(0, revealIndex);
-                updateDynamicLine(animatedLine, visiblePts);
-
-                const currentPoint = visiblePts[visiblePts.length - 1];
-                endMarker.position.copy(currentPoint);
-                startMarker.position.copy(allPointsWorld[0]);
-
-                updateGuide(currentPoint);
             }}
 
             controls.update();
@@ -702,7 +861,7 @@ points, deposited_len_mm = simulate_winding_continuous(
     rit_t=rit_t,
     lunghezza_m=lunghezza,
     gradi_start=gradi_start,
-    deg_step=2.0,
+    deg_step=4.0,
 )
 
 metrics = compute_metrics(points, d_tubo)
@@ -712,10 +871,16 @@ components.html(
         diametro_aspo,
         spalla,
         d_tubo,
+        passo,
+        incremento,
+        rit_b,
+        rit_t,
         lunghezza,
         altezza,
         anim,
         vel,
+        gradi_start,
+        pinza,
         points.tolist(),
         aspo_mode,
         guide_offset_x,
