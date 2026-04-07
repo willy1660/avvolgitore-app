@@ -42,17 +42,6 @@ TEXTS = {
         "altezza": "Altezza",
         "animazione": "Animazione",
         "velocita": "Velocità",
-        "aspo_mode": "Aspo",
-        "aspo_visible": "Visibile",
-        "aspo_transparent": "Trasparente",
-        "aspo_hidden": "Nascosto",
-        "metric1": "Diametro tubo",
-        "metric2": "Passo assiale",
-        "metric3": "Incremento strato",
-        "metric4": "Diametro radiale max",
-        "metric5": "Ingombro max XY",
-        "metric6": "Lunghezza avvolta",
-        "warning": "⚠️ Ingombro max XY superiore a 750 mm."
     },
     "EN": {
         "title": "Coiling",
@@ -72,17 +61,6 @@ TEXTS = {
         "altezza": "Height",
         "animazione": "Animation",
         "velocita": "Speed",
-        "aspo_mode": "Spool",
-        "aspo_visible": "Visible",
-        "aspo_transparent": "Transparent",
-        "aspo_hidden": "Hidden",
-        "metric1": "Tube diameter",
-        "metric2": "Axial pitch",
-        "metric3": "Layer increment",
-        "metric4": "Max radial diameter",
-        "metric5": "Max XY span",
-        "metric6": "Wound length",
-        "warning": "⚠️ Max XY span exceeds 750 mm."
     }
 }
 
@@ -102,31 +80,10 @@ COPPER_SIZES_MM = {
 }
 
 # =========================
-# FIXED VALUES (REMOVED UI)
+# FIXED PARAMS
 # =========================
 
 gradi_start = 0.0
-guide_offset_x = 150.0
-
-# =========================
-# LOGO
-# =========================
-
-def find_logo():
-    for f in glob.glob("*.png"):
-        return f
-    return None
-
-logo_path = find_logo()
-
-if logo_path:
-    c1, c2 = st.columns([1, 5])
-    with c1:
-        st.image(logo_path, use_container_width=True)
-    with c2:
-        st.markdown(f"## {t['title']}")
-else:
-    st.markdown(f"## {t['title']}")
 
 # =========================
 # UTILS
@@ -136,11 +93,6 @@ def smoothstep(x):
     x = max(0.0, min(1.0, x))
     return x * x * (3.0 - 2.0 * x)
 
-def polyline_length(points):
-    if len(points) < 2:
-        return 0.0
-    return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
-
 def deposited_point(theta, radius, z):
     return np.array([
         radius * np.cos(-theta + np.pi),
@@ -149,18 +101,20 @@ def deposited_point(theta, radius, z):
     ])
 
 # =========================
-# SIMULATION (SMOOTH FIX)
+# SIMULATION (SMOOTH)
 # =========================
 
-def simulate_winding(
-    d_aspo, spalla, d_tubo, passo,
-    incremento, rit_b, rit_t, lunghezza_m
+def simulate(
+    d_aspo, spalla, d_tubo,
+    passo, incremento,
+    rit_b, rit_t,
+    lunghezza_m
 ):
-    max_len = lunghezza_m * 1000.0
-    Rt = d_tubo / 2.0
+    max_len = lunghezza_m * 1000
+    Rt = d_tubo / 2
     H = spalla
 
-    theta = 0.0
+    theta = 0
     radius = d_aspo/2 + Rt
     z = Rt
 
@@ -172,12 +126,11 @@ def simulate_winding(
     r0 = radius
     r1 = radius
 
-    points = [deposited_point(theta, radius, z)]
-    deposited_len = 0
+    pts = [deposited_point(theta, radius, z)]
+    L = 0
 
-    for _ in range(500000):
-
-        prev = points[-1]
+    for _ in range(300000):
+        prev = pts[-1]
         theta -= np.deg2rad(4)
 
         if mode == "axial":
@@ -201,10 +154,8 @@ def simulate_winding(
 
         else:
             turn_progress += 4
-
-            # 🔥 SUAVITZAT CLAU
-            s = smoothstep(turn_progress / max(turn_delay, 1))
-            radius = r0 + s * (r1 - r0)
+            s = smoothstep(turn_progress / max(turn_delay,1))
+            radius = r0 + s*(r1-r0)
 
             if turn_progress >= turn_delay:
                 radius = r1
@@ -212,44 +163,61 @@ def simulate_winding(
                 mode = "axial"
 
         new_p = deposited_point(theta, radius, z)
-        seg = np.linalg.norm(new_p - prev)
+        seg = np.linalg.norm(new_p-prev)
 
         if seg > 0.4:
-            points.append(new_p)
-            deposited_len += seg
+            pts.append(new_p)
+            L += seg
 
-        if deposited_len >= max_len:
+        if L >= max_len:
             break
 
-    return np.array(points)
+    return np.array(pts)
 
 # =========================
-# VIEWER (INTOCABLE)
+# VIEWER (FIXED)
 # =========================
 
-def viewer(points, h):
+def viewer(points, height):
+
     return f"""
-    <div id="viewer" style="width:100%;height:{h}px;background:black;"></div>
+    <div id="viewer" style="width:100%;height:{height}px;background:black;"></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
     <script>
+    const container = document.getElementById("viewer");
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(40, window.innerWidth/{h}, 0.1, 10000);
-    camera.position.set(400,-600,400);
+
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth/container.clientHeight, 0.1, 10000);
+    camera.position.set(-500,-700,400);
 
     const renderer = new THREE.WebGLRenderer({{antialias:true}});
-    renderer.setSize(window.innerWidth,{h});
-    document.getElementById("viewer").appendChild(renderer.domElement);
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    const light = new THREE.DirectionalLight(0xffffff,1);
+    light.position.set(300,-300,400);
+    scene.add(light);
 
     const mat = new THREE.LineBasicMaterial({{color:0xffffff}});
+
     const pts = {json.dumps(points.tolist())}.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
     const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    const line = new THREE.Line(geo,mat);
+    const line = new THREE.Line(geo, mat);
     scene.add(line);
 
     function animate(){{
         requestAnimationFrame(animate);
+        controls.update();
         renderer.render(scene,camera);
     }}
+
     animate();
     </script>
     """
@@ -278,8 +246,6 @@ with colC:
 
 with colD:
     altezza = st.slider(t["altezza"], 400, 900, 700)
-    anim = st.checkbox(t["animazione"], True)
-    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
 
 # =========================
 # BUILD
@@ -287,7 +253,7 @@ with colD:
 
 d_tubo = d_rame + 2*spessore
 
-points = simulate_winding(
+points = simulate(
     diametro_aspo,
     spalla,
     d_tubo,
@@ -299,5 +265,3 @@ points = simulate_winding(
 )
 
 components.html(viewer(points, altezza), height=altezza)
-
-st.write("Points:", len(points))
