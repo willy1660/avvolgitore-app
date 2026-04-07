@@ -331,5 +331,4 @@ m3.metric(t["metric3"], f"{incremento:.2f} mm")
 m4.metric(t["metric4"], f"{diam:.1f} mm")
 m5.metric(t["metric5"], f"{span:.1f} mm")
 m6.metric(t["metric6"], f"{length:.3f} m")
-if metrics["max_xy_span"] > 750:
-    st.warning(t["warning"])
+
