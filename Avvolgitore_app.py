@@ -93,7 +93,7 @@ COPPER_SIZES_MM = {
 }
 
 # =========================
-# GEOMETRY (PER METRICS)
+# GEOMETRY (igual)
 # =========================
 
 def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza):
@@ -143,14 +143,10 @@ def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, r
     return pts
 
 # =========================
-# VIEWER (HARDWARE ONLY, FIXED AXES)
-# X = left-right
-# Y = depth
-# Z = vertical
+# VIEWER (fix)
 # =========================
 
 def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
-    anim_js = "true" if anim else "false"
 
     return f"""
     <div id="viewer_root" style="width:100%;height:{altezza}px;background:#000;"></div>
@@ -163,235 +159,88 @@ def viewer(d_aspo, spalla, d_tubo, altezza, anim, vel):
         const host = document.getElementById("viewer_root");
         host.innerHTML = "";
 
-        const W = Math.max(host.clientWidth, 600);
-        const H = Math.max(host.clientHeight, 400);
+        const W = host.clientWidth;
+        const H = host.clientHeight;
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(35, W / H, 0.1, 10000);
-        camera.position.set(-520, -760, 260);
+        camera.position.set(-500, -700, 250);
 
         const renderer = new THREE.WebGLRenderer({{ antialias: true }});
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(W, H);
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.08;
-        controls.target.set(0, 0, 0);
 
-        // =====================
-        // PARAMETERS
-        // =====================
-
-        const R = {float(d_aspo)} / 2.0;
-        const Hs = {float(spalla)};
-        const Rt = {float(d_tubo)} / 2.0;
-
-        const flangeR = Math.max(R + 120, 260);
-        const flangeTh = 6;
-
-        const zBase = -Hs / 2.0;
-        const zTop = Hs / 2.0;
-
-        // Tangency position for the tube:
-        // guide offset is in Y, not X
-        const tangentY = -(R + Rt);
-        const tangentZ = zBase + Rt;
-
-        // Hardware placement in X
-        const postX = -(R + 85);
-        const blockX = postX - 38;
-        const nozzleX = -(R + 8);
-
-        // =====================
-        // LIGHTS
-        // =====================
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-
-        const key = new THREE.DirectionalLight(0xffffff, 0.8);
-        key.position.set(-500, -500, 800);
-        scene.add(key);
-
-        const fill = new THREE.DirectionalLight(0xffffff, 0.35);
-        fill.position.set(400, 200, 500);
-        scene.add(fill);
-
-        // =====================
         // ASPO
-        // =====================
+        const R = {d_aspo}/2;
+        const Hs = {spalla};
+        const Rt = {d_tubo}/2;
 
-        const machine = new THREE.Group();
-        scene.add(machine);
+        const red = new THREE.MeshStandardMaterial({{color:0xff3333}});
 
-        const redMat = new THREE.MeshStandardMaterial({{
-            color: 0xff2f2f,
-            roughness: 0.55,
-            metalness: 0.08
-        }});
-
-        const hubMat = new THREE.MeshStandardMaterial({{
-            color: 0xc63c3c,
-            roughness: 0.65,
-            metalness: 0.04
-        }});
-
-        const hub = new THREE.Mesh(
+        const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 80),
-            hubMat
+            red
         );
-        hub.rotation.x = Math.PI / 2;
-        machine.add(hub);
+        mandrel.rotation.x = Math.PI/2;
+        scene.add(mandrel);
 
-        const lowerFlange = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 80),
-            redMat
+        const base = new THREE.Mesh(
+            new THREE.CylinderGeometry(R+120, R+120, 6, 80),
+            red
         );
-        lowerFlange.rotation.x = Math.PI / 2;
-        lowerFlange.position.z = zBase - flangeTh / 2;
-        machine.add(lowerFlange);
+        base.rotation.x = Math.PI/2;
+        base.position.z = -Hs/2 - 3;
+        scene.add(base);
 
-        const upperFlange = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 80),
-            redMat
+        const top = new THREE.Mesh(
+            new THREE.CylinderGeometry(R+120, R+120, 6, 80),
+            red
         );
-        upperFlange.rotation.x = Math.PI / 2;
-        upperFlange.position.z = zTop + flangeTh / 2;
-        machine.add(upperFlange);
+        top.rotation.x = Math.PI/2;
+        top.position.z = Hs/2 + 3;
+        scene.add(top);
 
-        // =====================
-        // HARDWARE WITHOUT RAILS
-        // =====================
+        // GUIDATUBO (NOU COSTAT)
+        const guideY = (R + Rt);   // 🔥 canvi clau
+        const guideZ = -Hs/2 + Rt;
 
-        const blackMat = new THREE.MeshStandardMaterial({{
-            color: 0x1b1b1b,
-            roughness: 0.82,
-            metalness: 0.12
-        }});
-
-        const blueMat = new THREE.MeshStandardMaterial({{
-            color: 0x2448d8,
-            roughness: 0.55,
-            metalness: 0.10
-        }});
-
-        const steelMat = new THREE.MeshStandardMaterial({{
-            color: 0xcfcfcf,
-            roughness: 0.35,
-            metalness: 0.72
-        }});
-
-        const whiteSteelMat = new THREE.MeshStandardMaterial({{
-            color: 0xdedede,
-            roughness: 0.42,
-            metalness: 0.60
-        }});
-
-        // Vertical black post
-        const post = new THREE.Mesh(
-            new THREE.BoxGeometry(22, 22, Hs + 150),
-            blackMat
-        );
-        post.position.set(postX, tangentY, 22);
-        scene.add(post);
-
-        // Blue guide block
         const guideBlock = new THREE.Mesh(
-            new THREE.BoxGeometry(28, 20, 18),
-            blueMat
+            new THREE.BoxGeometry(30,20,20),
+            new THREE.MeshStandardMaterial({{color:0x0044ff}})
         );
-        guideBlock.position.set(blockX, tangentY, tangentZ);
+        guideBlock.position.set(0, guideY, guideZ);
         scene.add(guideBlock);
 
-        // Short rear cylinder on the block
-        const rearRoll = new THREE.Mesh(
-            new THREE.CylinderGeometry(6.5, 6.5, 22, 20),
-            whiteSteelMat
-        );
-        rearRoll.rotation.z = Math.PI / 2;
-        rearRoll.position.set(blockX - 18, tangentY, tangentZ);
-        scene.add(rearRoll);
+        // LIGHT
+        scene.add(new THREE.AmbientLight(0xffffff,0.8));
 
-        // Arm from block to nozzle
-        const armStart = new THREE.Vector3(blockX + 10, tangentY, tangentZ + 2);
-        const armEnd   = new THREE.Vector3(nozzleX, tangentY, tangentZ + 22);
+        const light = new THREE.DirectionalLight(0xffffff,0.6);
+        light.position.set(500,-500,800);
+        scene.add(light);
 
-        const armVec = new THREE.Vector3().subVectors(armEnd, armStart);
-        const armLen = armVec.length();
-
-        const arm = new THREE.Mesh(
-            new THREE.CylinderGeometry(5.2, 5.2, armLen, 20),
-            steelMat
-        );
-        arm.position.copy(new THREE.Vector3().addVectors(armStart, armEnd).multiplyScalar(0.5));
-        arm.quaternion.setFromUnitVectors(
-            new THREE.Vector3(0, 1, 0),
-            armVec.clone().normalize()
-        );
-        scene.add(arm);
-
-        // Nozzle
-        const nozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(7, 7, 22, 20),
-            whiteSteelMat
-        );
-        nozzle.position.copy(armEnd);
-        nozzle.quaternion.setFromUnitVectors(
-            new THREE.Vector3(0, 1, 0),
-            armVec.clone().normalize()
-        );
-        scene.add(nozzle);
-
-        // Optional tiny tube segment showing tangency point
-        const tubeSegLen = Math.max(18, Rt * 1.8);
-        const tubeSeg = new THREE.Mesh(
-            new THREE.CylinderGeometry(Rt, Rt, tubeSegLen, 18),
-            new THREE.MeshStandardMaterial({{
-                color: 0xffffff,
-                roughness: 0.65,
-                metalness: 0.15
-            }})
-        );
-        tubeSeg.rotation.x = Math.PI / 2;
-        tubeSeg.position.set(0, -(R + Rt), zBase + Rt);
-        scene.add(tubeSeg);
-
-        // =====================
-        // ANIMATION
-        // =====================
-
-        const animEnabled = {anim_js};
-        const speed = {float(vel)};
-
-        function animate() {{
+        function animate(){{
             requestAnimationFrame(animate);
 
-            if (animEnabled) {{
-                machine.rotation.z -= 0.01 * speed;
+            if ({'true' if anim else 'false'}) {{
+                mandrel.rotation.z -= 0.01 * {vel};
             }}
 
             controls.update();
-            renderer.render(scene, camera);
+            renderer.render(scene,camera);
         }}
 
         animate();
 
-        window.addEventListener("resize", () => {{
-            const w = Math.max(host.clientWidth, 600);
-            const h = Math.max(host.clientHeight, 400);
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-            renderer.setSize(w, h);
-        }});
     }})();
     </script>
     """
 
 # =========================
-# UI (ORIGINAL)
+# UI (intacta)
 # =========================
 
 colA, colB, colC, colD = st.columns(4)
@@ -423,45 +272,28 @@ with colD:
     anim = st.checkbox(t["animazione"], False)
     vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
 
-# =========================
 # BUILD
-# =========================
-
 pts = build_coil(
-    diametro_aspo,
-    spalla,
-    lunghezza,
-    d_rame,
-    spessore,
-    passo,
-    incremento,
-    rit_b,
-    rit_t,
-    gradi_start,
-    pinza
+    diametro_aspo, spalla, lunghezza,
+    d_rame, spessore, passo, incremento,
+    rit_b, rit_t, gradi_start, pinza
 )
 
-d_tubo = d_rame + 2 * spessore
+d_tubo = d_rame + 2*spessore
 
 components.html(
     viewer(diametro_aspo, spalla, d_tubo, altezza, anim, vel),
     height=altezza
 )
 
-# =========================
-# METRICS (ORIGINAL)
-# =========================
-
+# METRICS
 st.divider()
 
 m1, m2, m3, m4 = st.columns(4)
 
-m1.metric(t["metric1"], f"{d_rame + 2 * spessore:.2f} mm")
+m1.metric(t["metric1"], f"{d_rame+2*spessore:.2f} mm")
 m2.metric(t["metric2"], f"{passo:.2f} mm")
 m3.metric(t["metric3"], f"{incremento:.2f} mm")
 
-rmax = np.max(np.sqrt(pts[:, 0]**2 + pts[:, 1]**2))
-m4.metric(t["metric4"], f"{2 * (rmax):.1f} mm")
-
-if 2 * rmax > 750:
-    st.warning(t["warning"])
+rmax = np.max(np.sqrt(pts[:,0]**2 + pts[:,1]**2))
+m4.metric(t["metric4"], f"{2*(rmax):.1f} mm")
