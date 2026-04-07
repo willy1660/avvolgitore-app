@@ -2,88 +2,151 @@ import json
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
+import os
 
-st.set_page_config(layout="wide")
-
-# =========================
-# PARAMS
-# =========================
-
-d_aspo = st.number_input("Ø Aspo", value=450.0)
-spalla = st.number_input("Spalla", value=95.0)
-lunghezza = st.number_input("Lunghezza (m)", value=30.0)
-
-passo = st.number_input("Passo assiale", value=20.0)
-incremento = st.number_input("Incremento strato", value=20.0)
-
-rit_base = st.number_input("Ritardo base", value=180.0)
-rit_top = st.number_input("Ritardo spalla", value=180.0)
+st.set_page_config(page_title="Avvolgimento", layout="wide")
 
 # =========================
-# COIL GENERATION
+# LANGUAGE
 # =========================
 
-def build():
+if "lang" not in st.session_state:
+    st.session_state.lang = "IT"
+
+lang_option = st.selectbox(
+    "🌍 Language",
+    ["🇮🇹 Italiano", "🇺🇸 English (US)"],
+    index=0 if st.session_state.lang == "IT" else 1
+)
+
+st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
+lang = st.session_state.lang
+
+TEXTS = {
+    "IT": {
+        "title": "Avvolgimento",
+        "bobina": "🟦 Bobina",
+        "tubo": "🟩 Tubo",
+        "avvolg": "🟧 Avvolgimento",
+        "viewer": "⚙️ Viewer",
+        "diam_aspo": "Ø Aspo (mm)",
+        "spalla": "Spalla (mm)",
+        "rame": "Ø Rame",
+        "isolamento": "Spessore isolamento (mm)",
+        "lunghezza": "Lunghezza rotolo (m)",
+        "passo_assiale": "Passo assiale (mm)",
+        "incremento": "Incremento strato (mm)",
+        "rit_min": "Ritardo base (°)",
+        "rit_max": "Ritardo spalla (°)",
+        "gradi_start": "Gradi iniziali (°)",
+        "pinza": "Lunghezza pinza (m)",
+        "altezza": "Altezza",
+        "animazione": "Animazione",
+        "velocita": "Velocità",
+        "metric1": "Diametro tubo",
+        "metric2": "Passo assiale",
+        "metric3": "Incremento strato",
+        "metric4": "Diametro esterno",
+        "warning": "⚠️ Diametro esterno superiore a 750 mm."
+    },
+    "EN": {
+        "title": "Coiling",
+        "bobina": "🟦 Coil",
+        "tubo": "🟩 Tube",
+        "avvolg": "🟧 Winding",
+        "viewer": "⚙️ Viewer",
+        "diam_aspo": "Spool diameter (mm)",
+        "spalla": "Width (mm)",
+        "rame": "Copper size",
+        "isolamento": "Insulation thickness (mm)",
+        "lunghezza": "Coil length (m)",
+        "passo_assiale": "Axial pitch (mm)",
+        "incremento": "Layer increment (mm)",
+        "rit_min": "Bottom delay (°)",
+        "rit_max": "Top delay (°)",
+        "gradi_start": "Initial degrees (°)",
+        "pinza": "Clamp length (m)",
+        "altezza": "Height",
+        "animazione": "Animation",
+        "velocita": "Speed",
+        "metric1": "Tube diameter",
+        "metric2": "Axial pitch",
+        "metric3": "Layer increment",
+        "metric4": "Outer diameter",
+        "warning": "⚠️ Outer diameter exceeds 750 mm."
+    }
+}
+
+t = TEXTS[lang]
+
+# =========================
+# CONSTANTS
+# =========================
+
+COPPER_SIZES_MM = {
+    "1/4": 6.35,
+    "3/8": 9.52,
+    "1/2": 12.70,
+    "5/8": 15.88,
+    "3/4": 19.05,
+    "7/8": 22.23,
+}
+
+# =========================
+# GEOMETRY (NO CANVIS)
+# =========================
+
+def build_coil(d_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza):
     pts = []
-
-    r = d_aspo/2 + 10
-    z_min = 0
-    z_max = spalla
-
+    r = d_aspo/2 + (d_rame + 2*spessore)/2
+    z_min, z_max = 0, spalla
     z = z_min
     theta = 0
-
-    direction = 1
+    dir = 1
     delay = 0
     pending = False
 
-    for i in range(20000):
-
+    for _ in range(20000):
         theta += np.deg2rad(4)
 
         if delay > 0:
             delay -= 4
-
         else:
             if pending:
                 r += incremento
                 pending = False
 
-            z += direction * (passo/(2*np.pi)) * np.deg2rad(4)
+            z += dir * (passo/(2*np.pi)) * np.deg2rad(4)
 
             if z >= z_max:
                 z = z_max
-                delay = rit_top
+                delay = rit_t
                 pending = True
-                direction = -1
+                dir = -1
 
             elif z <= z_min:
                 z = z_min
-                delay = rit_base
+                delay = rit_b
                 pending = True
-                direction = 1
+                dir = 1
 
         x = r*np.cos(theta)
         y = r*np.sin(theta)
-
         pts.append([x,y,z])
 
-        if len(pts) > 2:
+        if len(pts)>2:
             if np.sum(np.linalg.norm(np.diff(np.array(pts),axis=0),axis=1)) > lunghezza*1000:
                 break
 
     pts = np.array(pts)
     pts[:,2] -= spalla/2
-
     return pts
 
-points = build()
-
 # =========================
-# VIEWER
+# VIEWER CORREGIT
 # =========================
 
-def viewer(points):
+def viewer(points, d_aspo, spalla):
 
     pts = json.dumps(points.tolist())
 
@@ -99,108 +162,74 @@ def viewer(points):
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
 
-        const container = document.getElementById("viewer");
-        const w = container.clientWidth;
-        const h = container.clientHeight;
+        const c = document.getElementById("viewer");
+        const w = c.clientWidth;
+        const h = c.clientHeight;
 
         const camera = new THREE.PerspectiveCamera(45, w/h, 1, 10000);
         camera.position.set(700,-900,300);
 
         const renderer = new THREE.WebGLRenderer({{antialias:true}});
         renderer.setSize(w,h);
-        container.appendChild(renderer.domElement);
+        c.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
-
-        // =====================
-        // MACHINE GROUP (ROTATES)
-        // =====================
 
         const machine = new THREE.Group();
         scene.add(machine);
 
-        // =====================
-        // TUBE
-        // =====================
-
         const raw = {pts};
         const vecs = raw.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
 
-        class Curve extends THREE.Curve {{
+        class C extends THREE.Curve {{
             constructor(p){{super();this.p=p}}
             getPoint(t){{
                 const f=t*(this.p.length-1);
                 const i=Math.floor(f);
-                const t2=f-i;
-                return new THREE.Vector3().lerpVectors(this.p[i],this.p[i+1],t2);
+                return new THREE.Vector3().lerpVectors(this.p[i],this.p[i+1],f-i);
             }}
         }}
 
-        const curve = new Curve(vecs);
-
-        const geo = new THREE.TubeGeometry(curve, 2000, 6, 16, false);
-        const mat = new THREE.MeshStandardMaterial({{color:0xdddddd}});
-        const tube = new THREE.Mesh(geo,mat);
+        const curve = new C(vecs);
+        const tube = new THREE.Mesh(
+            new THREE.TubeGeometry(curve,2000,6,16,false),
+            new THREE.MeshStandardMaterial({{color:0xdddddd}})
+        );
 
         machine.add(tube);
-
-        // =====================
-        // MANDREL
-        // =====================
 
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry({d_aspo/2},{d_aspo/2},{spalla},64),
             new THREE.MeshStandardMaterial({{color:0x555555,transparent:true,opacity:0.4}})
         );
-
         mandrel.rotation.x = Math.PI/2;
         machine.add(mandrel);
 
-        // =====================
-        // GUIDATUBO (FIX X)
-        // =====================
-
-        const guide = new THREE.Group();
+        const guide = new THREE.Mesh(
+            new THREE.BoxGeometry(20,20,20),
+            new THREE.MeshStandardMaterial({{color:0xffffff}})
+        );
         scene.add(guide);
 
         const baseX = {d_aspo/2 + 120};
 
-        const block = new THREE.Mesh(
-            new THREE.BoxGeometry(20,20,20),
-            new THREE.MeshStandardMaterial({{color:0xffffff}})
-        );
-        guide.add(block);
-
-        // =====================
-        // LIGHT
-        // =====================
-
         scene.add(new THREE.HemisphereLight(0xffffff,0x444444));
 
-        // =====================
-        // ANIMATION
-        // =====================
-
-        let idx = 0;
+        let i = 0;
 
         function animate(){{
             requestAnimationFrame(animate);
 
-            // ROTACIÓ MANDRÍ
             machine.rotation.z += 0.02;
 
-            if(idx < vecs.length){{
-                const p = vecs[idx];
+            if(i < vecs.length){{
+                const p = vecs[i];
 
-                // AXIAL
-                const z = p.z;
-
-                // RADIAL NOMÉS CAP A FORA
                 const r = Math.sqrt(p.x*p.x + p.y*p.y);
 
-                guide.position.set(baseX + (r - {d_aspo/2}), 0, z);
+                guide.position.set(baseX + (r - {d_aspo/2}), 0, p.z);
 
-                idx++;
+                i++;
             }}
 
             controls.update();
@@ -213,4 +242,58 @@ def viewer(points):
     </script>
     """
 
-components.html(viewer(points), height=720)
+# =========================
+# UI (NO TOCADA)
+# =========================
+
+colA, colB, colC, colD = st.columns(4)
+
+with colA:
+    st.markdown(f"#### {t['bobina']}")
+    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0)
+    spalla = st.number_input(t["spalla"], value=95.0)
+
+with colB:
+    st.markdown(f"#### {t['tubo']}")
+    rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
+    spessore = st.number_input(t["isolamento"], value=7.0)
+    lunghezza = st.number_input(t["lunghezza"], value=30.0)
+    d_rame = COPPER_SIZES_MM[rame]
+
+with colC:
+    st.markdown(f"#### {t['avvolg']}")
+    passo = st.number_input(t["passo_assiale"], value=20.0)
+    incremento = st.number_input(t["incremento"], value=20.0)
+    rit_b = st.number_input(t["rit_min"], value=180.0)
+    rit_t = st.number_input(t["rit_max"], value=180.0)
+    gradi_start = st.number_input(t["gradi_start"], value=30.0)
+    pinza = st.number_input(t["pinza"], value=0.3)
+
+with colD:
+    st.markdown(f"#### {t['viewer']}")
+    altezza = st.slider(t["altezza"], 400, 900, 700)
+    anim = st.checkbox(t["animazione"], False)
+    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
+
+# =========================
+# BUILD
+# =========================
+
+pts = build_coil(diametro_aspo, spalla, lunghezza, d_rame, spessore, passo, incremento, rit_b, rit_t, gradi_start, pinza)
+
+components.html(viewer(pts, diametro_aspo, spalla), height=altezza)
+
+# =========================
+# METRICS (INTACTES)
+# =========================
+
+st.divider()
+
+m1, m2, m3, m4 = st.columns(4)
+
+m1.metric(t["metric1"], f"{d_rame+2*spessore:.2f} mm")
+m2.metric(t["metric2"], f"{passo:.2f} mm")
+m3.metric(t["metric3"], f"{incremento:.2f} mm")
+
+rmax = np.max(np.sqrt(pts[:,0]**2 + pts[:,1]**2))
+m4.metric(t["metric4"], f"{2*(rmax):.1f} mm")
