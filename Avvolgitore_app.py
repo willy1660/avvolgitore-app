@@ -7,7 +7,7 @@ import os
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
 # =========================
-# LANGUAGE
+# 🌍 LANGUAGE
 # =========================
 
 if "lang" not in st.session_state:
@@ -47,7 +47,7 @@ TEXTS = {
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
         "metric4": "Diametro esterno",
-        "warning": "⚠️ Diametro esterno superiore a 750 mm."
+        "warning": "⚠️ Diametro esterno superiore a 750 mm. La bobina potrebbe uscire dal pallet."
     },
     "EN": {
         "title": "Coiling",
@@ -73,7 +73,7 @@ TEXTS = {
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
         "metric4": "Outer diameter",
-        "warning": "⚠️ Outer diameter exceeds 750 mm."
+        "warning": "⚠️ Outer diameter exceeds 750 mm. Coil may not fit on pallet."
     }
 }
 
@@ -84,6 +84,13 @@ t = TEXTS[lang]
 # =========================
 
 col_logo, col_title = st.columns([1, 7])
+
+logo_path = os.path.join(os.path.dirname(__file__), "New Logo PDM - rame.png")
+
+with col_logo:
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=130)
+
 with col_title:
     st.markdown(f"# {t['title']}")
 
@@ -132,19 +139,13 @@ def trim_polyline(points: np.ndarray, target_length: float) -> np.ndarray:
 
     alpha = (target_length - cum[idx]) / seg_len
     alpha = max(0.0, min(1.0, alpha))
-    p_trim = p0 + alpha * (p1 - p0)
-
-    return np.vstack([points[:idx + 1], p_trim])
+    return np.vstack([points[:idx + 1], p0 + alpha * (p1 - p0)])
 
 def compute_total_turns(points: np.ndarray) -> float:
     if len(points) < 2:
         return 0.0
     theta = np.unwrap(np.arctan2(points[:, 1], points[:, 0]))
-    return float(np.sum(np.abs(np.diff(theta))) / (2 * np.pi))
-
-def smoothstep01(x: float) -> float:
-    x = max(0.0, min(1.0, x))
-    return x * x * (3.0 - 2.0 * x)
+    return float(np.sum(np.abs(np.diff(theta))) / (2.0 * np.pi))
 
 # =========================
 # GEOMETRY
@@ -178,197 +179,159 @@ def build_coil(
     ritardo_top_deg = max(0.0, float(ritardo_max_deg))
     gradi_start_deg = max(0.0, float(gradi_start_deg))
 
-    # Centerline limits so tube wall touches base/spalla
+    r_mandrel = d_aspo_mm / 2.0
+    r_center_min = r_mandrel + r_tubo
+
     z_min = r_tubo
     z_max = spalla_mm - r_tubo
 
-    # First centerline radius so wall is tangent to spool
-    r0 = d_aspo_mm / 2.0 + r_tubo
-
     theta_step_deg = 4.0
     theta_step = np.deg2rad(theta_step_deg)
+    dz_dtheta = passo_assiale / (2.0 * np.pi)
 
-    # Clockwise rotation
-    theta_sign = -1.0
-
-    dz_per_rad = passo_assiale / (2.0 * np.pi)
-
-    theta = 0.0
-    z = z_min
-    r = r0
-    z_dir = +1
-
-    points = []
+    points_machine = []
 
     def add_point(theta_val, r_val, z_val):
         x = r_val * np.cos(theta_val)
         y = r_val * np.sin(theta_val)
-        points.append([x, y, z_val])
+        points_machine.append([x, y, z_val])
 
-    add_point(theta, r, z)
+    # Entrada inicial: tangent a base i mandrí
+    theta = 0.0
+    r_layer = r_center_min
+    z = z_min
+    direction = +1  # primer puja
 
-    # Initial engagement at base
+    add_point(theta, r_layer, z)
+
+    # Gir inicial de la punta en el NOU sentit
     if gradi_start_deg > EPS and lunghezza_visibile_mm > EPS:
-        n0 = max(4, int(np.ceil(gradi_start_deg / theta_step_deg)))
-        step0 = np.deg2rad(gradi_start_deg) / n0
+        start_steps = max(6, int(np.ceil(gradi_start_deg / theta_step_deg)))
+        theta_step_start = np.deg2rad(gradi_start_deg) / start_steps
 
-        for _ in range(n0):
-            theta += theta_sign * step0
-            add_point(theta, r, z_min)
-            if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
+        for _ in range(start_steps):
+            theta += theta_step_start   # <-- sentit canviat
+            add_point(theta, r_layer, z_min)
+
+            if len(points_machine) > 2 and polyline_length(np.array(points_machine, dtype=float)) >= lunghezza_visibile_mm:
                 break
+
+    dwell_remaining_deg = 0.0
+    pending_radial_increment = False
 
     while True:
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
+        current_path = np.array(points_machine, dtype=float)
+        if len(current_path) > 2 and polyline_length(current_path) >= lunghezza_visibile_mm:
             break
 
-        # Normal helical winding
-        while True:
-            theta += theta_sign * theta_step
-            z += z_dir * dz_per_rad * theta_step
+        # El mandrí gira en l'altre sentit
+        theta += theta_step   # <-- canvi crític
 
-            if z_dir == +1 and z >= z_max:
-                z = z_max
-                add_point(theta, r, z)
-                break
-
-            if z_dir == -1 and z <= z_min:
-                z = z_min
-                add_point(theta, r, z)
-                break
-
-            add_point(theta, r, z)
-
-            if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
-                break
-
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
-            break
-
-        # Radial shift with Z fixed
-        at_spalla = (z_dir == +1)
-        z_const = z_max if at_spalla else z_min
-        ritardo_deg = ritardo_top_deg if at_spalla else ritardo_bottom_deg
-
-        r_old = r
-        r_new = r_old + passo_radiale
-
-        if ritardo_deg > EPS:
-            n_shift = max(8, int(np.ceil(ritardo_deg / theta_step_deg)))
-            step_shift = np.deg2rad(ritardo_deg) / n_shift
-
-            for i in range(1, n_shift + 1):
-                theta += theta_sign * step_shift
-                u = smoothstep01(i / n_shift)
-                r_curr = r_old + (r_new - r_old) * u
-                add_point(theta, r_curr, z_const)
-
-                if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
-                    break
+        if dwell_remaining_deg > EPS:
+            dwell_remaining_deg -= theta_step_deg
+            add_point(theta, r_layer, z)
         else:
-            r = r_new
-            add_point(theta, r, z_const)
+            if pending_radial_increment:
+                # Primer ritardo, després incremento strato
+                r_layer += passo_radiale
+                pending_radial_increment = False
 
-        r = r_new
+            z += direction * dz_dtheta * theta_step
 
-        if len(points) > 2 and polyline_length(np.array(points, dtype=float)) >= lunghezza_visibile_mm:
+            if direction == +1 and z >= z_max:
+                z = z_max
+                add_point(theta, r_layer, z)
+                dwell_remaining_deg = ritardo_top_deg
+                pending_radial_increment = True
+                direction = -1
+
+            elif direction == -1 and z <= z_min:
+                z = z_min
+                add_point(theta, r_layer, z)
+                dwell_remaining_deg = ritardo_bottom_deg
+                pending_radial_increment = True
+                direction = +1
+
+            else:
+                add_point(theta, r_layer, z)
+
+        if len(points_machine) > 2 and polyline_length(np.array(points_machine, dtype=float)) >= lunghezza_visibile_mm:
             break
 
-        z_dir *= -1
+    path = np.array(points_machine, dtype=float)
 
-    path = np.array(points, dtype=float)
-
-    if lunghezza_visibile_mm > EPS and len(path) > 1:
+    if lunghezza_visibile_mm > EPS:
         path = trim_polyline(path, lunghezza_visibile_mm)
 
-    if len(path) > 0:
-        path[:, 2] -= spalla_mm / 2.0
+    # Centrat vertical
+    path[:, 2] -= spalla_mm / 2.0
 
     r_path = np.sqrt(path[:, 0] ** 2 + path[:, 1] ** 2)
-    r_max = float(np.max(r_path)) if len(r_path) > 0 else r0
-    diam_ext = 2.0 * (r_max + r_tubo)
+    r_max = float(np.max(r_path)) if len(r_path) > 0 else r_center_min
+    diam_ext = 2.0 * (r_max + d_tubo / 2.0)
+
+    capes = int(np.floor((r_max - r_center_min) / max(passo_radiale, EPS))) + 1
+    capes = max(capes, 1)
+
+    turns_tot = compute_total_turns(path)
 
     meta = {
         "DiametroTubo": d_tubo,
         "PassoAssiale": passo_assiale,
         "IncrementoStrato": passo_radiale,
         "DiametroEsterno": diam_ext,
+        "Capes": capes,
+        "VolteTotali": turns_tot,
+        "Zmin": z_min - spalla_mm / 2.0,
+        "Zmax": z_max - spalla_mm / 2.0,
         "MandrelHeight": spalla_mm,
+        "LunghezzaVisibile": lunghezza_visibile_mm / 1000.0,
+        "LunghezzaPinza": lunghezza_pinza_mm / 1000.0,
         "Rmax": r_max,
-        "R0": r0,
-        "Turns": compute_total_turns(path),
+        "R0": r_center_min,
     }
 
     return path, meta
 
 # =========================
-# VIEWER HTML BUILDER
+# VIEWER
 # =========================
 
-def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_aspo_mm, spalla_mm, r_max_mm):
+def build_viewer_html(points, d_tubo, altezza, animazione, velocita, d_aspo_mm, spalla_mm, r_max_mm):
     pts = points.tolist()
     points_json = json.dumps(pts)
 
     r_tubo = d_tubo / 2.0
     r_mandrel = d_aspo_mm / 2.0
-    flange_radius = max(r_max_mm + d_tubo * 1.25, r_mandrel + 55.0)
-
-    tubular_segments = min(3200, max(700, int(len(pts) * 0.42)))
-    radial_segments = 18
-
+    flange_radius = r_mandrel + 40.0
+    tubular_segments = min(4000, max(600, int(len(pts) * 0.45)))
     anim_js = "true" if animazione else "false"
-    init_progress = "0.0" if animazione else "1.0"
+    speed_js = float(velocita)
 
     html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <style>
-    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    html, body {{
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-    }}
-    #viewer {{
-      width: 100%;
-      height: {viewer_height}px;
-      display: block;
-      overflow: hidden;
-    }}
-  </style>
-</head>
-<body>
-  <div id="viewer"></div>
+    <div style="width:100%;height:{altezza}px;">
+      <div id="viewer" style="width:100%;height:100%;"></div>
+    </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
-  <script>
-    function initViewer() {{
+    <script>
+    setTimeout(() => {{
       const container = document.getElementById("viewer");
       if (!container) return;
-
-      const width = container.offsetWidth || 900;
-      const height = {viewer_height};
-
-      if (width < 10 || height < 10) {{
-        setTimeout(initViewer, 80);
-        return;
-      }}
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x000000);
 
+      const width = Math.max(container.clientWidth, 300);
+      const height = Math.max(container.clientHeight, 300);
+
       const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100000);
       camera.up.set(0, 0, 1);
-      camera.position.set(760, -1050, 300);
-      camera.lookAt(0, 0, 0);
 
       const renderer = new THREE.WebGLRenderer({{ antialias: true }});
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
       renderer.setSize(width, height);
       container.appendChild(renderer.domElement);
 
@@ -377,261 +340,285 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
       controls.dampingFactor = 0.06;
       controls.target.set(0, 0, 0);
 
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x202020, 0.92));
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x202020, 0.9));
 
-      const light1 = new THREE.DirectionalLight(0xffffff, 0.60);
+      const light1 = new THREE.DirectionalLight(0xffffff, 0.62);
       light1.position.set(900, -900, 1200);
       scene.add(light1);
 
-      const light2 = new THREE.DirectionalLight(0xffffff, 0.24);
-      light2.position.set(-1100, 650, 750);
+      const light2 = new THREE.DirectionalLight(0xffffff, 0.25);
+      light2.position.set(-1200, 500, 700);
       scene.add(light2);
 
       const rawPoints = {points_json};
       const vectors = rawPoints.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-      if (vectors.length < 2) return;
-
       class CurvePath extends THREE.Curve {{
-        constructor(pts) {{
+        constructor(points) {{
           super();
-          this.pts = pts;
+          this.points = points;
         }}
         getPoint(t) {{
-          const n = this.pts.length;
-          if (n === 1) return this.pts[0].clone();
+          const n = this.points.length;
+          if (n === 1) return this.points[0].clone();
           const f = t * (n - 1);
           const i = Math.floor(f);
           const i0 = Math.max(0, Math.min(i, n - 2));
           const i1 = i0 + 1;
           const tt = f - i0;
-          return new THREE.Vector3().lerpVectors(this.pts[i0], this.pts[i1], tt);
+          return new THREE.Vector3().lerpVectors(this.points[i0], this.points[i1], tt);
         }}
       }}
 
-      // Groups
-      const woundGroup = new THREE.Group();
-      scene.add(woundGroup);
-
-      const machineRotGroup = new THREE.Group();
-      scene.add(machineRotGroup);
-
       const curve = new CurvePath(vectors);
 
-      let tubeGeom = new THREE.TubeGeometry(
-        curve,
-        {tubular_segments},
-        {r_tubo},
-        {radial_segments},
-        false
-      );
+      let tubeGeom = new THREE.TubeGeometry(curve, {tubular_segments}, {r_tubo}, 40, false);
       tubeGeom = tubeGeom.toNonIndexed();
 
       const tubeMat = new THREE.MeshStandardMaterial({{
-        color: 0xe4e4e4,
-        roughness: 0.86,
-        metalness: 0.06
+        color: 0xe6e6e6,
+        roughness: 0.84,
+        metalness: 0.08
       }});
 
       const tubeMesh = new THREE.Mesh(tubeGeom, tubeMat);
-      woundGroup.add(tubeMesh);
+      scene.add(tubeMesh);
 
       const mandrelHeight = {spalla_mm};
 
-      const mandrelGeom = new THREE.CylinderGeometry({r_mandrel}, {r_mandrel}, mandrelHeight, 64, 1, false);
+      const mandrelGeom = new THREE.CylinderGeometry({r_mandrel}, {r_mandrel}, mandrelHeight, 72, 1, false);
       const mandrelMat = new THREE.MeshStandardMaterial({{
-        color: 0x5e5e5e,
+        color: 0x595959,
         roughness: 0.72,
         metalness: 0.45,
         transparent: true,
         opacity: 0.42
       }});
       const mandrelMesh = new THREE.Mesh(mandrelGeom, mandrelMat);
-      mandrelMesh.rotation.x = Math.PI / 2;
-      machineRotGroup.add(mandrelMesh);
+      mandrelMesh.rotation.x = Math.PI / 2.0;
+      mandrelMesh.position.set(0, 0, 0);
+      scene.add(mandrelMesh);
 
       const hubRadius = Math.max({r_mandrel} * 0.35, 28.0);
-      const hubGeom = new THREE.CylinderGeometry(hubRadius, hubRadius, mandrelHeight, 42);
+      const hubGeom = new THREE.CylinderGeometry(hubRadius, hubRadius, mandrelHeight, 48);
       const hubMat = new THREE.MeshStandardMaterial({{
-        color: 0x2f5fa6,
+        color: 0x2c5fa8,
         roughness: 0.82,
-        metalness: 0.16
+        metalness: 0.18
       }});
       const hubMesh = new THREE.Mesh(hubGeom, hubMat);
-      hubMesh.rotation.x = Math.PI / 2;
-      machineRotGroup.add(hubMesh);
+      hubMesh.rotation.x = Math.PI / 2.0;
+      hubMesh.position.set(0, 0, 0);
+      scene.add(hubMesh);
 
       const flangeRadius = {flange_radius};
       const flangeThickness = 6.0;
+
       const flangeMat = new THREE.MeshStandardMaterial({{
-        color: 0x2f6ab8,
+        color: 0x2e69b9,
         roughness: 0.86,
         metalness: 0.14
       }});
 
-      const flangeGeom = new THREE.CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 84);
+      const baseGeom = new THREE.CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 96);
+      const baseMesh = new THREE.Mesh(baseGeom, flangeMat);
+      baseMesh.rotation.x = Math.PI / 2.0;
+      baseMesh.position.set(0, 0, -mandrelHeight / 2.0 - flangeThickness / 2.0);
+      scene.add(baseMesh);
 
-      const baseMesh = new THREE.Mesh(flangeGeom, flangeMat);
-      baseMesh.rotation.x = Math.PI / 2;
-      baseMesh.position.z = -mandrelHeight / 2 - flangeThickness / 2;
-      machineRotGroup.add(baseMesh);
-
-      const topMesh = new THREE.Mesh(flangeGeom, flangeMat);
-      topMesh.rotation.x = Math.PI / 2;
-      topMesh.position.z = mandrelHeight / 2 + flangeThickness / 2;
-      machineRotGroup.add(topMesh);
+      const topGeom = new THREE.CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 96);
+      const topMesh = new THREE.Mesh(topGeom, flangeMat);
+      topMesh.rotation.x = Math.PI / 2.0;
+      topMesh.position.set(0, 0, mandrelHeight / 2.0 + flangeThickness / 2.0);
+      scene.add(topMesh);
 
       function createCap(position, direction, color) {{
-        const geom = new THREE.CircleGeometry({r_tubo}, 24);
-        const mat = new THREE.MeshBasicMaterial({{
+        const geometry = new THREE.CircleGeometry({r_tubo}, 32);
+        const material = new THREE.MeshBasicMaterial({{
           color: color,
           side: THREE.DoubleSide
         }});
-        const cap = new THREE.Mesh(geom, mat);
+        const cap = new THREE.Mesh(geometry, material);
 
         const up = new THREE.Vector3(0, 0, 1);
         const dir = direction.clone().normalize();
+
         if (dir.length() > 1e-9) {{
-          cap.quaternion.setFromUnitVectors(up, dir);
+          const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+          cap.quaternion.copy(quat);
         }}
+
         cap.position.copy(position);
         return cap;
       }}
 
-      const startCap = createCap(
-        vectors[0],
-        vectors[1].clone().sub(vectors[0]).multiplyScalar(-1),
-        0x00ff00
-      );
-      woundGroup.add(startCap);
+      let startCap = null;
+      let endCap = null;
 
-      const endCap = createCap(
-        vectors[vectors.length - 1],
-        vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]),
-        0xff0000
-      );
-      woundGroup.add(endCap);
+      if (vectors.length >= 2) {{
+        startCap = createCap(
+          vectors[0],
+          vectors[1].clone().sub(vectors[0]).multiplyScalar(-1),
+          0x00ff00
+        );
+        scene.add(startCap);
 
-      // GUIDATUBO ON THE OPPOSITE SIDE
-      const guideColumnX = +(flangeRadius + 120);
-      const guideColumnHeight = mandrelHeight + 180;
+        endCap = createCap(
+          vectors[vectors.length - 1],
+          vectors[vectors.length - 1].clone().sub(vectors[vectors.length - 2]),
+          0xff0000
+        );
+        scene.add(endCap);
+      }}
+
+      // Guidatubo a la dreta, braç cap al mandrí
+      const guideGroup = new THREE.Group();
+      scene.add(guideGroup);
+
+      const guideColumnHeight = mandrelHeight + 180.0;
+      const guideColumnX = +(flangeRadius + 115.0);
 
       const guideColumnGeom = new THREE.BoxGeometry(18, 18, guideColumnHeight);
       const guideColumnMat = new THREE.MeshStandardMaterial({{
-        color: 0x5b5b5b,
+        color: 0x5c5c5c,
         roughness: 0.78,
         metalness: 0.35
       }});
       const guideColumn = new THREE.Mesh(guideColumnGeom, guideColumnMat);
-      guideColumn.position.x = guideColumnX;
+      guideColumn.position.set(guideColumnX, 0, 0);
       scene.add(guideColumn);
-
-      const guideGroup = new THREE.Group();
-      scene.add(guideGroup);
 
       const carriageGeom = new THREE.BoxGeometry(30, 24, 24);
       const carriageMat = new THREE.MeshStandardMaterial({{
-        color: 0xc8c8c8,
+        color: 0xc7c7c7,
         roughness: 0.82,
         metalness: 0.18
       }});
       const carriageMesh = new THREE.Mesh(carriageGeom, carriageMat);
       guideGroup.add(carriageMesh);
 
-      const guideArmLen = Math.abs(guideColumnX) - 44;
+      const guideArmLen = Math.abs(guideColumnX) - 42.0;
       const armGeom = new THREE.BoxGeometry(guideArmLen, 12, 12);
       const armMat = new THREE.MeshStandardMaterial({{
-        color: 0x989898,
+        color: 0x9a9a9a,
         roughness: 0.74,
         metalness: 0.28
       }});
       const armMesh = new THREE.Mesh(armGeom, armMat);
-      armMesh.position.x = -guideArmLen / 2;
+      armMesh.position.set(-guideArmLen / 2.0, 0, 0);
       guideGroup.add(armMesh);
 
-      const guideNozzleLen = 34;
+      const guideNozzleLen = 32.0;
       const nozzleRadius = Math.max({r_tubo} * 0.95, 4.5);
-      const nozzleGeom = new THREE.CylinderGeometry(nozzleRadius, nozzleRadius * 0.9, guideNozzleLen, 22);
+
+      const nozzleGeom = new THREE.CylinderGeometry(nozzleRadius, nozzleRadius * 0.9, guideNozzleLen, 28);
       const nozzleMat = new THREE.MeshStandardMaterial({{
         color: 0xb0b0b0,
         roughness: 0.62,
         metalness: 0.42
       }});
       const nozzleMesh = new THREE.Mesh(nozzleGeom, nozzleMat);
-      nozzleMesh.rotation.z = Math.PI / 2;
-      nozzleMesh.position.x = -(guideArmLen + guideNozzleLen / 2);
+      nozzleMesh.rotation.z = Math.PI / 2.0;
+      nozzleMesh.position.set(-(guideArmLen + guideNozzleLen / 2.0), 0, 0);
       guideGroup.add(nozzleMesh);
 
-      // Straight feed tube
-      const feedGeom = new THREE.CylinderGeometry({r_tubo}, {r_tubo}, 1, 18, 1, false);
+      const ringGeom = new THREE.TorusGeometry(Math.max({r_tubo} * 0.9, 4.0), 1.1, 12, 28);
+      const ringMat = new THREE.MeshStandardMaterial({{
+        color: 0xe0e0e0,
+        roughness: 0.58,
+        metalness: 0.36
+      }});
+      const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+      ringMesh.rotation.y = Math.PI / 2.0;
+      ringMesh.position.set(-(guideArmLen + guideNozzleLen), 0, 0);
+      guideGroup.add(ringMesh);
+
+      const feedGeom = new THREE.CylinderGeometry({r_tubo}, {r_tubo}, 1.0, 28, 1, false);
       const feedMesh = new THREE.Mesh(feedGeom, tubeMat);
       scene.add(feedMesh);
 
       function setCylinderBetween(mesh, p0, p1) {{
         const dir = new THREE.Vector3().subVectors(p1, p0);
         const len = dir.length();
+
         if (len < 1e-6) {{
           mesh.visible = false;
           return;
         }}
+
         mesh.visible = true;
-        mesh.position.copy(new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5));
-        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+
+        const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
+        mesh.position.copy(mid);
+
+        const yAxis = new THREE.Vector3(0, 1, 0);
+        const q = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
+        mesh.quaternion.copy(q);
+
         mesh.scale.set(1, len, 1);
       }}
 
+      function getGuideOutletWorld() {{
+        const outlet = new THREE.Vector3(-(guideArmLen + guideNozzleLen), 0, 0);
+        return guideGroup.localToWorld(outlet);
+      }}
+
+      const floorGeom = new THREE.CircleGeometry(flangeRadius * 1.5, 96);
+      const floorMat = new THREE.MeshBasicMaterial({{
+        color: 0x0a0a0a,
+        transparent: true,
+        opacity: 0.52
+      }});
+      const floorMesh = new THREE.Mesh(floorGeom, floorMat);
+      floorMesh.rotation.x = -Math.PI / 2.0;
+      floorMesh.position.set(0, -flangeRadius - 120, -mandrelHeight / 2.0 - flangeThickness - 2);
+      scene.add(floorMesh);
+
       const total = tubeGeom.attributes.position.count;
-      let progress = {init_progress};
-      const isAnimating = {anim_js};
+      let progress = { "0.0" if animazione else "1.0" };
 
-      tubeGeom.setDrawRange(0, isAnimating ? 0 : total);
+      if ({anim_js}) {{
+        tubeGeom.setDrawRange(0, 0);
+      }} else {{
+        tubeGeom.setDrawRange(0, total);
+      }}
 
-      // Contact side opposite to previous version
-      // Positive Y side
-      const thetaContact = Math.PI / 2;
-
-      function getCurrentPoint(t) {{
-        return curve.getPoint(Math.max(0.0005, Math.min(1.0, t)));
+      function getCurrentPointLocal(t) {{
+        const tt = Math.max(0.0005, Math.min(1.0, t));
+        return curve.getPoint(tt);
       }}
 
       function updateMachine(t) {{
-        const pLocal = getCurrentPoint(t);
+        const pLocal = getCurrentPointLocal(t);
+        const pWorld = pLocal.clone();
 
-        // Rotate wound tube so active point stays tangent on opposite side
-        const thetaCurrent = Math.atan2(pLocal.y, pLocal.x);
-        woundGroup.rotation.z = thetaContact - thetaCurrent;
-        woundGroup.updateMatrixWorld(true);
+        guideGroup.position.set(guideColumnX, pWorld.y, pWorld.z);
 
-        const pWorld = woundGroup.localToWorld(pLocal.clone());
-        const rCurrent = Math.sqrt(pWorld.x * pWorld.x + pWorld.y * pWorld.y);
-
-        // Guidatubo at opposite side
-        guideGroup.position.set(guideColumnX, +rCurrent, pWorld.z);
-
-        const outlet = new THREE.Vector3(-(guideArmLen + guideNozzleLen), 0, 0);
-        guideGroup.localToWorld(outlet);
-
-        // Tangent point also on opposite side
-        const tangentPoint = new THREE.Vector3(0, +rCurrent, pWorld.z);
+        const outlet = getGuideOutletWorld();
+        const tangentPoint = new THREE.Vector3(pWorld.x, pWorld.y, pWorld.z);
         setCylinderBetween(feedMesh, outlet, tangentPoint);
+
+        if (endCap) {{
+          endCap.position.copy(tangentPoint);
+        }}
       }}
 
       updateMachine(progress);
 
-      // Clockwise machine rotation
-      let mandrelSpin = 0.0;
+      camera.position.set(700, -980, 290);
+      camera.lookAt(0, 0, 0);
+      controls.target.set(0, 0, 0);
 
       function animate() {{
         requestAnimationFrame(animate);
 
-        if (isAnimating && progress < 1.0) {{
-          progress += {velocita} * 0.002;
+        if ({anim_js}) {{
+          progress += {speed_js} * 0.002;
           if (progress > 1.0) progress = 1.0;
-          tubeGeom.setDrawRange(0, Math.max(2, Math.floor(progress * total)));
-          mandrelSpin -= {velocita} * 0.06;
-        }}
 
-        machineRotGroup.rotation.z = mandrelSpin;
+          const visible = Math.max(2, Math.floor(progress * total));
+          tubeGeom.setDrawRange(0, visible);
+        }}
 
         updateMachine(progress);
         controls.update();
@@ -641,22 +628,15 @@ def build_viewer_html(points, d_tubo, viewer_height, animazione, velocita, d_asp
       animate();
 
       window.addEventListener("resize", () => {{
-        const newWidth = container.offsetWidth || 900;
-        camera.aspect = newWidth / height;
+        const w = Math.max(container.clientWidth, 300);
+        const h = Math.max(container.clientHeight, 300);
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        renderer.setSize(newWidth, height);
+        renderer.setSize(w, h);
       }});
-    }}
-
-    if (document.readyState === "complete" || document.readyState === "interactive") {{
-      setTimeout(initViewer, 50);
-    }} else {{
-      document.addEventListener("DOMContentLoaded", () => setTimeout(initViewer, 50));
-    }}
-  </script>
-</body>
-</html>
-"""
+    }}, 50);
+    </script>
+    """
     return html
 
 # =========================
@@ -693,7 +673,7 @@ with colD:
     velocita = st.slider(t["velocita"], 0.1, 5.0, 1.0)
 
 # =========================
-# BUILD & RENDER
+# BUILD
 # =========================
 
 path, meta = build_coil(
@@ -721,14 +701,16 @@ html = build_viewer_html(
     meta["Rmax"]
 )
 
-components.html(html, height=altezza + 20)
+components.html(html, height=altezza)
 
 # =========================
 # METRICS
 # =========================
 
 st.divider()
+
 m1, m2, m3, m4 = st.columns(4)
+
 m1.metric(t["metric1"], f"{meta['DiametroTubo']:.2f} mm")
 m2.metric(t["metric2"], f"{meta['PassoAssiale']:.2f} mm")
 m3.metric(t["metric3"], f"{meta['IncrementoStrato']:.2f} mm")
