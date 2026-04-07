@@ -245,9 +245,11 @@ def simulate_first_layer(
         "z_end": z,
         "direction_end": direction,
     }
+
 gradi_start = 0.0
 pinza = 0.0
 guide_offset_x = 150.0
+
 def simulate_winding_hybrid(
     d_aspo: float,
     spalla: float,
@@ -393,7 +395,15 @@ def viewer(
     aspo_mode_json = json.dumps(aspo_mode)
 
     return f"""
-    <div id="viewer_root" style="width:100%;height:{altezza}px;background:#000;"></div>
+    <div id="viewer_root" style="
+        width:100%;
+        height:{altezza}px;
+        background:linear-gradient(180deg, #07111c 0%, #03070d 100%);
+        border-radius:16px;
+        overflow:hidden;
+        border:1px solid rgba(255,255,255,0.08);
+        box-shadow:0 14px 34px rgba(0,0,0,0.28);
+    "></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
@@ -407,7 +417,7 @@ def viewer(
         const Hview = Math.max(host.clientHeight, 400);
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+        scene.background = new THREE.Color(0x050a12);
 
         const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
         camera.position.set(-520, -760, 420);
@@ -415,6 +425,7 @@ def viewer(
         const renderer = new THREE.WebGLRenderer({{ antialias: true }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(W, Hview);
+        renderer.outputEncoding = THREE.sRGBEncoding;
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -445,41 +456,41 @@ def viewer(
         // =====================
 
         const redMat = new THREE.MeshStandardMaterial({{
-            color: 0xff3333,
-            roughness: 0.55,
-            metalness: 0.08,
+            color: 0x7f8ea3,
+            roughness: 0.52,
+            metalness: 0.22,
             transparent: aspoMode === "transparent",
             opacity: aspoMode === "transparent" ? 0.18 : 1.0
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
-            color: 0x0044ff,
-            roughness: 0.55,
-            metalness: 0.10
+            color: 0x58759a,
+            roughness: 0.48,
+            metalness: 0.24
         }});
 
         const tubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xffffff,
-            roughness: 0.65,
-            metalness: 0.15
+            color: 0xf3f6fb,
+            roughness: 0.56,
+            metalness: 0.10
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0x9fe7ff,
-            roughness: 0.55,
+            color: 0xa8ebff,
+            roughness: 0.46,
             metalness: 0.08
         }});
 
         const startMat = new THREE.MeshStandardMaterial({{
-            color: 0x00ff88,
-            roughness: 0.45,
-            metalness: 0.12
+            color: 0x26d98b,
+            roughness: 0.38,
+            metalness: 0.10
         }});
 
         const endMat = new THREE.MeshStandardMaterial({{
-            color: 0xffcc00,
-            roughness: 0.45,
-            metalness: 0.12
+            color: 0xffc94d,
+            roughness: 0.36,
+            metalness: 0.10
         }});
 
         // =====================
@@ -518,12 +529,11 @@ def viewer(
 
         machine.visible = aspoMode !== "hidden";
 
-        // bobina animada com a fill del grup que gira
         const rollGroup = new THREE.Group();
         machine.add(rollGroup);
 
         // =====================
-        // GUIDATUBO (en world, no gira)
+        // GUIDATUBO (world, no gira)
         // =====================
 
         const guide = new THREE.Mesh(
@@ -536,15 +546,19 @@ def viewer(
         // LIGHTS
         // =====================
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.82));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.84));
 
-        const dLight1 = new THREE.DirectionalLight(0xffffff, 0.72);
+        const dLight1 = new THREE.DirectionalLight(0xffffff, 0.78);
         dLight1.position.set(500, -500, 800);
         scene.add(dLight1);
 
-        const dLight2 = new THREE.DirectionalLight(0xffffff, 0.30);
+        const dLight2 = new THREE.DirectionalLight(0xbfd8ff, 0.24);
         dLight2.position.set(-600, 250, 300);
         scene.add(dLight2);
+
+        const dLight3 = new THREE.DirectionalLight(0xffffff, 0.12);
+        dLight3.position.set(0, 0, 1000);
+        scene.add(dLight3);
 
         // =====================
         // HELPERS
@@ -555,12 +569,10 @@ def viewer(
             return x * x * (3.0 - 2.0 * x);
         }}
 
-        // punt de contacte en world: sempre tangent superior
         function contactPointWorld(radius, z) {{
             return new THREE.Vector3(0.0, radius, z);
         }}
 
-        // guidatubo fix en X, i Y = radius per fer l'entrada horitzontal tangent
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -569,7 +581,6 @@ def viewer(
             );
         }}
 
-        // world -> local del grup que gira
         function worldToMachineLocal(pWorld, thetaMachine) {{
             const c = Math.cos(-thetaMachine);
             const s = Math.sin(-thetaMachine);
@@ -845,6 +856,7 @@ with colC:
     incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
     rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
     rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
+
 with colD:
     st.markdown(f"#### {t['viewer']}")
     altezza = st.slider(t["altezza"], 400, 900, 700)
