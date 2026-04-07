@@ -398,11 +398,11 @@ def viewer(
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:linear-gradient(180deg, #07111c 0%, #03070d 100%);
-        border-radius:16px;
+        background:#0b0f14;
+        border-radius:10px;
         overflow:hidden;
-        border:1px solid rgba(255,255,255,0.08);
-        box-shadow:0 14px 34px rgba(0,0,0,0.28);
+        border:1px solid rgba(255,255,255,0.06);
+        box-shadow:0 10px 24px rgba(0,0,0,0.30);
     "></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -417,7 +417,7 @@ def viewer(
         const Hview = Math.max(host.clientHeight, 400);
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050a12);
+        scene.background = new THREE.Color(0x0b0f14);
 
         const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
         camera.position.set(-520, -760, 420);
@@ -456,41 +456,41 @@ def viewer(
         // =====================
 
         const redMat = new THREE.MeshStandardMaterial({{
-            color: 0x7f8ea3,
-            roughness: 0.52,
-            metalness: 0.22,
+            color: 0x6b7076,
+            roughness: 0.78,
+            metalness: 0.24,
             transparent: aspoMode === "transparent",
             opacity: aspoMode === "transparent" ? 0.18 : 1.0
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
-            color: 0x58759a,
-            roughness: 0.48,
-            metalness: 0.24
+            color: 0x555b63,
+            roughness: 0.82,
+            metalness: 0.18
         }});
 
         const tubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xf3f6fb,
-            roughness: 0.56,
-            metalness: 0.10
-        }});
-
-        const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xa8ebff,
-            roughness: 0.46,
+            color: 0xd6d9dd,
+            roughness: 0.72,
             metalness: 0.08
         }});
 
+        const freeTubeMat = new THREE.MeshStandardMaterial({{
+            color: 0xb8bec6,
+            roughness: 0.78,
+            metalness: 0.04
+        }});
+
         const startMat = new THREE.MeshStandardMaterial({{
-            color: 0x26d98b,
-            roughness: 0.38,
-            metalness: 0.10
+            color: 0x3f7f56,
+            roughness: 0.80,
+            metalness: 0.06
         }});
 
         const endMat = new THREE.MeshStandardMaterial({{
-            color: 0xffc94d,
-            roughness: 0.36,
-            metalness: 0.10
+            color: 0xa88437,
+            roughness: 0.78,
+            metalness: 0.06
         }});
 
         // =====================
@@ -533,7 +533,7 @@ def viewer(
         machine.add(rollGroup);
 
         // =====================
-        // GUIDATUBO (world, no gira)
+        // GUIDATUBO (en world, no gira)
         // =====================
 
         const guide = new THREE.Mesh(
@@ -542,22 +542,44 @@ def viewer(
         );
         scene.add(guide);
 
+        // detall frontal simple més mecànic
+        const guideFront = new THREE.Mesh(
+            new THREE.BoxGeometry(18, 26, 26),
+            new THREE.MeshStandardMaterial({{
+                color: 0x8b9198,
+                roughness: 0.76,
+                metalness: 0.22
+            }})
+        );
+        scene.add(guideFront);
+
+        const guideNozzle = new THREE.Mesh(
+            new THREE.CylinderGeometry(Math.max(4.0, Rt * 0.28), Math.max(4.0, Rt * 0.28), 22, 20),
+            new THREE.MeshStandardMaterial({{
+                color: 0x9da3aa,
+                roughness: 0.70,
+                metalness: 0.26
+            }})
+        );
+        guideNozzle.rotation.z = Math.PI / 2;
+        scene.add(guideNozzle);
+
         // =====================
         // LIGHTS
         // =====================
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.84));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.72));
 
-        const dLight1 = new THREE.DirectionalLight(0xffffff, 0.78);
+        const dLight1 = new THREE.DirectionalLight(0xffffff, 0.62);
         dLight1.position.set(500, -500, 800);
         scene.add(dLight1);
 
-        const dLight2 = new THREE.DirectionalLight(0xbfd8ff, 0.24);
+        const dLight2 = new THREE.DirectionalLight(0xdfe3e8, 0.18);
         dLight2.position.set(-600, 250, 300);
         scene.add(dLight2);
 
-        const dLight3 = new THREE.DirectionalLight(0xffffff, 0.12);
-        dLight3.position.set(0, 0, 1000);
+        const dLight3 = new THREE.DirectionalLight(0xffffff, 0.10);
+        dLight3.position.set(0, -900, 500);
         scene.add(dLight3);
 
         // =====================
@@ -600,8 +622,14 @@ def viewer(
         }}
 
         function createMarker(point, material, parentObj = scene) {{
-            const g = new THREE.SphereGeometry(Math.max(4, Rt * 0.9), 18, 18);
+            const g = new THREE.CylinderGeometry(
+                Math.max(4, Rt * 0.8),
+                Math.max(4, Rt * 0.8),
+                Math.max(2.5, Rt * 0.32),
+                18
+            );
             const m = new THREE.Mesh(g, material);
+            m.rotation.x = Math.PI / 2;
             m.position.copy(point);
             parentObj.add(m);
             return m;
@@ -625,6 +653,8 @@ def viewer(
 
         function buildStaticFinalView() {{
             guide.visible = false;
+            guideFront.visible = false;
+            guideNozzle.visible = false;
 
             const finalPts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
@@ -700,6 +730,20 @@ def viewer(
 
             guide.position.copy(guideWorld);
             guide.visible = true;
+
+            guideFront.position.set(
+                guideWorld.x + 49,
+                guideWorld.y,
+                guideWorld.z
+            );
+            guideFront.visible = true;
+
+            guideNozzle.position.set(
+                guideWorld.x + 67,
+                guideWorld.y,
+                guideWorld.z
+            );
+            guideNozzle.visible = true;
 
             if (depositedLocalPoints.length >= 1) {{
                 startMarker = createMarker(depositedLocalPoints[0], startMat, rollGroup);
