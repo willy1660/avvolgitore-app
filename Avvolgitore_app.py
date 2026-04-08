@@ -154,17 +154,28 @@ def polyline_length(points: np.ndarray) -> float:
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
     """
     Punt exacte de deposició:
-    intersecció entre la línia recta del tub (paral·lela a X)
-    i el pla perpendicular que passa pel centre de l’aspo.
-    En aquest muntatge aquest pla és x = 0.
+    línia recta del guidatubo (paral·lela a X) tallant el pla perpendicular
+    que passa pel centre de l’aspo.
+    En aquest muntatge: x = 0.
     """
     return np.array([0.0, radius, z], dtype=float)
+
+def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
+    """
+    Converteix el punt world al sistema local de l’aspo.
+    Aquesta és la part clau perquè la bobina sigui solidària amb l’aspo.
+    """
+    c = np.cos(theta)
+    s = np.sin(theta)
+    x =  pt_world[0] * c + pt_world[1] * s
+    y = -pt_world[0] * s + pt_world[1] * c
+    return np.array([x, y, pt_world[2]], dtype=float)
 
 gradi_start = 0.0
 pinza = 0.0
 guide_offset_x = 150.0
 
-def simulate_winding_fixed_deposition(
+def simulate_winding_center_plane_local(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -176,12 +187,6 @@ def simulate_winding_fixed_deposition(
     gradi_start: float,
     deg_step: float = 2.0,
 ):
-    """
-    Deposició visual real:
-    - el punt dipositat queda fix al món
-    - incremento strato només al canvi de sentit
-    - el tram axial té radi constant
-    """
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
@@ -191,7 +196,11 @@ def simulate_winding_fixed_deposition(
     z = Rt
     current_layer_radius = R + Rt
 
-    deposited_world = [deposit_point_world(current_layer_radius, z)]
+    first_world = deposit_point_world(current_layer_radius, z)
+    first_local = world_to_spool_local(first_world, theta)
+
+    deposited_world_contact = [first_world]
+    deposited_local = [first_local]
     theta_values = [theta]
     radius_values = [current_layer_radius]
     z_values = [z]
@@ -262,8 +271,10 @@ def simulate_winding_fixed_deposition(
                     next_direction = -direction
 
         new_world = deposit_point_world(next_radius, next_z)
-        prev_world = deposited_world[-1]
-        seg = float(np.linalg.norm(new_world - prev_world))
+        new_local = world_to_spool_local(new_world, next_theta)
+
+        prev_local = deposited_local[-1]
+        seg = float(np.linalg.norm(new_local - prev_local))
 
         if seg < max(0.25, Rt * 0.05):
             theta = next_theta
@@ -287,15 +298,19 @@ def simulate_winding_fixed_deposition(
                 final_r = prev_r + a * (next_radius - prev_r)
 
                 final_world = deposit_point_world(final_r, final_z)
-                deposited_world.append(final_world)
+                final_local = world_to_spool_local(final_world, final_theta)
+
+                deposited_world_contact.append(final_world)
+                deposited_local.append(final_local)
                 theta_values.append(final_theta)
                 radius_values.append(final_r)
                 z_values.append(final_z)
 
-                deposited_len += float(np.linalg.norm(final_world - prev_world))
+                deposited_len += float(np.linalg.norm(final_local - prev_local))
             break
 
-        deposited_world.append(new_world)
+        deposited_world_contact.append(new_world)
+        deposited_local.append(new_local)
         theta_values.append(next_theta)
         radius_values.append(next_radius)
         z_values.append(next_z)
@@ -311,10 +326,12 @@ def simulate_winding_fixed_deposition(
         turn_start_radius = next_turn_start_radius
         turn_end_radius = next_turn_end_radius
 
-    pts = np.array(deposited_world, dtype=float)
+    deposited_world_contact = np.array(deposited_world_contact, dtype=float)
+    deposited_local = np.array(deposited_local, dtype=float)
+
     return (
-        pts,
-        pts.copy(),
+        deposited_world_contact,
+        deposited_local,
         np.array(theta_values, dtype=float),
         np.array(radius_values, dtype=float),
         np.array(z_values, dtype=float),
@@ -375,7 +392,7 @@ def viewer(
     vel,
     gradi_start,
     pinza,
-    final_world_points,
+    final_world_contacts,
     final_local_points,
     final_thetas,
     final_radii,
@@ -384,7 +401,8 @@ def viewer(
     guide_offset_x,
 ):
     anim_js = "true" if anim else "false"
-    final_world_points_json = json.dumps(final_world_points)
+    final_world_contacts_json = json.dumps(final_world_contacts)
+    final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
     final_radii_json = json.dumps(final_radii)
     final_zs_json = json.dumps(final_zs)
@@ -437,12 +455,14 @@ def viewer(
         const guideOffsetX = {float(guide_offset_x)};
         const aspoMode = {aspo_mode_json};
 
-        const finalWorldRaw = {final_world_points_json};
+        const finalWorldContactsRaw = {final_world_contacts_json};
+        const finalLocalRaw = {final_local_points_json};
         const finalThetaRaw = {final_thetas_json};
         const finalRadiusRaw = {final_radii_json};
         const finalZRaw = {final_zs_json};
 
-        const finalWorldPts = finalWorldRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const finalWorldContacts = finalWorldContactsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const finalLocalPts = finalLocalRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0x6b7076,
@@ -513,6 +533,9 @@ def viewer(
         machine.add(top);
 
         machine.visible = aspoMode !== "hidden";
+
+        const rollGroup = new THREE.Group();
+        machine.add(rollGroup);
 
         const guide = new THREE.Mesh(
             new THREE.BoxGeometry(80, 60, 60),
@@ -597,12 +620,12 @@ def viewer(
         let startMarker = null;
         let endMarker = null;
 
-        let drawIndex = animEnabled ? 2 : finalWorldPts.length;
+        let drawIndex = animEnabled ? 2 : finalLocalPts.length;
         let drawAccumulator = 0.0;
 
         function rebuildView() {{
             if (rollMesh) {{
-                disposeObj(rollMesh, scene);
+                disposeObj(rollMesh, rollGroup);
                 rollMesh = null;
             }}
             if (freeMesh) {{
@@ -610,35 +633,35 @@ def viewer(
                 freeMesh = null;
             }}
             if (startMarker) {{
-                disposeObj(startMarker, scene);
+                disposeObj(startMarker, rollGroup);
                 startMarker = null;
             }}
             if (endMarker) {{
-                disposeObj(endMarker, scene);
+                disposeObj(endMarker, rollGroup);
                 endMarker = null;
             }}
 
-            const safeIndex = Math.max(2, Math.min(drawIndex, finalWorldPts.length));
-            const visibleWorld = finalWorldPts.slice(0, safeIndex);
+            const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
+            const visibleLocal = finalLocalPts.slice(0, safeIndex);
 
-            if (visibleWorld.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(visibleWorld, 12, tubeMat);
-                if (rollMesh) scene.add(rollMesh);
+            if (visibleLocal.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat);
+                if (rollMesh) rollGroup.add(rollMesh);
 
-                startMarker = createMarker(visibleWorld[0], startMat, scene);
-                endMarker = createMarker(visibleWorld[visibleWorld.length - 1], endMat, scene);
+                startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
+                endMarker = createMarker(visibleLocal[visibleLocal.length - 1], endMat, rollGroup);
             }}
 
             const i = safeIndex - 1;
             const currentTheta = finalThetaRaw[i];
             const currentRadius = finalRadiusRaw[i];
             const currentZ = finalZRaw[i];
-            const currentWorld = finalWorldPts[i];
+            const currentContactWorld = finalWorldContacts[i];
 
             machine.rotation.z = currentTheta;
 
             const guideWorld = guidePointWorld(currentRadius, currentZ);
-            const freePts = [guideWorld, currentWorld];
+            const freePts = [guideWorld, currentContactWorld];
 
             freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
             if (freeMesh) scene.add(freeMesh);
@@ -666,13 +689,13 @@ def viewer(
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && drawIndex < finalWorldPts.length) {{
+            if (animEnabled && drawIndex < finalLocalPts.length) {{
                 drawAccumulator += Math.max(0.12, speed * 0.85);
 
                 const stepNow = Math.floor(drawAccumulator);
                 if (stepNow >= 1) {{
                     drawAccumulator -= stepNow;
-                    drawIndex = Math.min(finalWorldPts.length, drawIndex + stepNow);
+                    drawIndex = Math.min(finalLocalPts.length, drawIndex + stepNow);
                     rebuildView();
                 }}
             }}
@@ -744,13 +767,13 @@ else:
 d_tubo = d_rame + 2.0 * spessore
 
 (
-    world_points,
+    world_contacts,
     local_points,
     theta_values,
     radius_values,
     z_values,
     deposited_len_mm,
-) = simulate_winding_fixed_deposition(
+) = simulate_winding_center_plane_local(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
@@ -763,7 +786,7 @@ d_tubo = d_rame + 2.0 * spessore
     deg_step=2.0,
 )
 
-metrics = compute_metrics(world_points, d_tubo)
+metrics = compute_metrics(local_points, d_tubo)
 
 components.html(
     viewer(
@@ -780,7 +803,7 @@ components.html(
         vel,
         gradi_start,
         pinza,
-        world_points.tolist(),
+        world_contacts.tolist(),
         local_points.tolist(),
         theta_values.tolist(),
         radius_values.tolist(),
