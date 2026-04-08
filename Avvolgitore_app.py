@@ -155,18 +155,9 @@ def polyline_length(points: np.ndarray) -> float:
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
-    """
-    Punt exacte de contacte/deposició al món:
-    intersecció de la línia recta que surt del guidatubo
-    amb el pla perpendicular que passa pel centre de l’aspo.
-    En aquest muntatge: x = 0.
-    """
     return np.array([0.0, radius, z], dtype=float)
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
-    """
-    Converteix el punt world al sistema local de l’aspo.
-    """
     c = np.cos(theta)
     s = np.sin(theta)
     x =  pt_world[0] * c + pt_world[1] * s
@@ -185,12 +176,6 @@ def simulate_winding_center_plane_local(
     gradi_start: float,
     deg_step: float = 2.0,
 ):
-    """
-    - el punt de contacte instantani és al pla x=0
-    - aquest punt es transforma a local de l’aspo
-    - el rotllo queda definit en coordenades locals i gira solidari amb l’aspo
-    - incremento strato només als extrems
-    """
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
@@ -586,9 +571,13 @@ def viewer(
             );
         }}
 
-        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
+        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat, animated = false) {{
             if (!points || points.length < 2) return null;
-            const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.08);
+
+            const curveType = animated ? "catmullrom" : "centripetal";
+            const tension = animated ? 0.0 : 0.08;
+
+            const curve = new THREE.CatmullRomCurve3(points, false, curveType, tension);
             const tubularSegments = Math.max(24, Math.min(2500, points.length * 2));
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
@@ -645,7 +634,7 @@ def viewer(
             const visibleLocal = finalLocalPts.slice(0, safeIndex);
 
             if (visibleLocal.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat);
+                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat, animEnabled);
                 if (rollMesh) rollGroup.add(rollMesh);
 
                 startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
@@ -666,7 +655,7 @@ def viewer(
             const guideWorld = guidePointWorld(currentRadius, currentZ);
             const freePts = [guideWorld, currentEndWorld];
 
-            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
+            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat, true);
             if (freeMesh) scene.add(freeMesh);
 
             guide.position.copy(guideWorld);
