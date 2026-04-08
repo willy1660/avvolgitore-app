@@ -180,15 +180,8 @@ def solve_line_contact_radius(
     recent_exclusion: int,
 ) -> float:
     """
-    Línia radial local del punt actual:
-        p(r) = u * r , amb u = [sin(theta), cos(theta)]
-
-    El nou radi és el més petit admissible que:
-    - no entra al mandrí
-    - no interpenetra material antic
-
-    Per evitar l'artefacte gran de "self collision" del mateix tram recent,
-    s'ignoren els últims punts recents.
+    Calcula el radi de contacte físic contra el mandrí o contra material ja dipositat.
+    Aquest solver només s'utilitza al canvi de capa, no durant el tram axial.
     """
     u = radial_dir_from_theta(theta)
     r_contact = base_radius
@@ -242,7 +235,7 @@ def simulate_winding_physical_line_deposition(
     spalla: float,
     d_tubo: float,
     passo: float,
-    incremento: float,  # es manté per no tocar UI
+    incremento: float,  # es manté per UI, però el radi físic mana
     rit_b: float,
     rit_t: float,
     lunghezza_m: float,
@@ -258,14 +251,15 @@ def simulate_winding_physical_line_deposition(
     theta = np.deg2rad(gradi_start)
     z = Rt
 
-    first_radius = base_radius
-    first_local = local_point_from_theta_radius_z(theta, first_radius, z)
-    first_world = world_contact_point(first_radius, z)
+    current_layer_radius = base_radius
+
+    first_local = local_point_from_theta_radius_z(theta, current_layer_radius, z)
+    first_world = world_contact_point(current_layer_radius, z)
 
     deposited_local = [first_local]
     deposited_world = [first_world]
     theta_values = [theta]
-    radius_values = [first_radius]
+    radius_values = [current_layer_radius]
     z_values = [z]
 
     deposited_len = 0.0
@@ -275,6 +269,8 @@ def simulate_winding_physical_line_deposition(
     turn_progress = 0.0
     turn_delay = 0.0
     turn_z = z
+    turn_start_radius = current_layer_radius
+    turn_end_radius = current_layer_radius
 
     samples_per_rev = max(1, int(round(360.0 / deg_step)))
     recent_exclusion = max(12, int(samples_per_rev * 0.35))
@@ -299,9 +295,13 @@ def simulate_winding_physical_line_deposition(
         next_turn_progress = turn_progress
         next_turn_delay = turn_delay
         next_turn_z = turn_z
+        next_turn_start_radius = turn_start_radius
+        next_turn_end_radius = turn_end_radius
+        next_radius = current_layer_radius
 
         if mode == "axial":
             next_z = z + direction * passo * (deg_step / 360.0)
+            next_radius = current_layer_radius
 
             if next_z >= H - Rt:
                 next_z = H - Rt
@@ -309,6 +309,25 @@ def simulate_winding_physical_line_deposition(
                 next_turn_progress = 0.0
                 next_turn_delay = max(rit_t, 0.0)
                 next_turn_z = next_z
+                next_turn_start_radius = current_layer_radius
+
+                physical_contact_radius = solve_line_contact_radius(
+                    theta=next_theta,
+                    z=next_z,
+                    deposited_local_points=deposited_local,
+                    spatial_bins=spatial_bins,
+                    d_tubo=d_tubo,
+                    base_radius=base_radius,
+                    z_bin_w=z_bin_w,
+                    n_ang_bins=n_ang_bins,
+                    current_index=len(deposited_local) - 1,
+                    recent_exclusion=recent_exclusion,
+                )
+                # Manté també la possibilitat manual d'incremento com a mínim geomètric
+                next_turn_end_radius = max(
+                    physical_contact_radius,
+                    current_layer_radius + max(0.0, incremento)
+                )
 
             elif next_z <= Rt:
                 next_z = Rt
@@ -316,26 +335,45 @@ def simulate_winding_physical_line_deposition(
                 next_turn_progress = 0.0
                 next_turn_delay = max(rit_b, 0.0)
                 next_turn_z = next_z
+                next_turn_start_radius = current_layer_radius
+
+                physical_contact_radius = solve_line_contact_radius(
+                    theta=next_theta,
+                    z=next_z,
+                    deposited_local_points=deposited_local,
+                    spatial_bins=spatial_bins,
+                    d_tubo=d_tubo,
+                    base_radius=base_radius,
+                    z_bin_w=z_bin_w,
+                    n_ang_bins=n_ang_bins,
+                    current_index=len(deposited_local) - 1,
+                    recent_exclusion=recent_exclusion,
+                )
+                next_turn_end_radius = max(
+                    physical_contact_radius,
+                    current_layer_radius + max(0.0, incremento)
+                )
+
         else:
             next_z = next_turn_z
-            next_turn_progress = turn_progress + deg_step
 
-            if next_turn_progress >= next_turn_delay:
+            if next_turn_delay <= 0.0:
+                next_radius = next_turn_end_radius
+                current_layer_radius = next_turn_end_radius
                 next_mode = "axial"
                 next_direction = -direction
+            else:
+                next_turn_progress = turn_progress + deg_step
+                s = min(1.0, max(0.0, next_turn_progress / next_turn_delay))
 
-        next_radius = solve_line_contact_radius(
-            theta=next_theta,
-            z=next_z,
-            deposited_local_points=deposited_local,
-            spatial_bins=spatial_bins,
-            d_tubo=d_tubo,
-            base_radius=base_radius,
-            z_bin_w=z_bin_w,
-            n_ang_bins=n_ang_bins,
-            current_index=len(deposited_local) - 1,
-            recent_exclusion=recent_exclusion,
-        )
+                # increment de capa només al retard d’extrem
+                next_radius = next_turn_start_radius + s * (next_turn_end_radius - next_turn_start_radius)
+
+                if next_turn_progress >= next_turn_delay:
+                    next_radius = next_turn_end_radius
+                    current_layer_radius = next_turn_end_radius
+                    next_mode = "axial"
+                    next_direction = -direction
 
         new_local = local_point_from_theta_radius_z(next_theta, next_radius, next_z)
         new_world = world_contact_point(next_radius, next_z)
@@ -351,6 +389,8 @@ def simulate_winding_physical_line_deposition(
             turn_progress = next_turn_progress
             turn_delay = next_turn_delay
             turn_z = next_turn_z
+            turn_start_radius = next_turn_start_radius
+            turn_end_radius = next_turn_end_radius
             continue
 
         if deposited_len + seg >= max_len:
@@ -396,6 +436,8 @@ def simulate_winding_physical_line_deposition(
         turn_progress = next_turn_progress
         turn_delay = next_turn_delay
         turn_z = next_turn_z
+        turn_start_radius = next_turn_start_radius
+        turn_end_radius = next_turn_end_radius
 
     return (
         np.array(deposited_world, dtype=float),
