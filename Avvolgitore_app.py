@@ -151,26 +151,30 @@ def polyline_length(points: np.ndarray) -> float:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
-def local_deposit_point(radius: float, z: float) -> np.ndarray:
+def world_deposit_point(radius: float, z: float) -> np.ndarray:
     """
-    Punt dipositat en local de l’aspo.
-    Sempre cau sobre el pla local x=0, que és la generatriu de deposició.
-    Després la rotació de l’aspo l’emporta al món.
+    Punt de deposició al món:
+    intersecció de la línia recta del guidatubo amb el pla x=0
+    (pla perpendicular a la línia del guidatubo que passa pel centre de l’aspo).
     """
     return np.array([0.0, radius, z], dtype=float)
 
-def rotate_local_to_world(pt_local: np.ndarray, theta: float) -> np.ndarray:
+def local_point_from_world_contact(theta: float, radius: float, z: float) -> np.ndarray:
+    """
+    Converteix el punt world de deposició a coordenades locals de la bobina.
+    Això és el que queda 'imprès' a l’aspo.
+    """
     c = np.cos(theta)
     s = np.sin(theta)
-    x = pt_local[0] * c - pt_local[1] * s
-    y = pt_local[0] * s + pt_local[1] * c
-    return np.array([x, y, pt_local[2]], dtype=float)
+    x = radius * s
+    y = radius * c
+    return np.array([x, y, z], dtype=float)
 
 gradi_start = 0.0
 pinza = 0.0
 guide_offset_x = 150.0
 
-def simulate_winding_deposition_local(
+def simulate_winding_deposition_on_center_plane(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -183,10 +187,11 @@ def simulate_winding_deposition_local(
     deg_step: float = 2.0,
 ):
     """
-    Model:
-    - la deposició queda en local de l’aspo
-    - el punt dipositat és la intersecció amb la generatriu local x=0
-    - el radi només canvia al canvi de capa
+    Model geomètric de deposició:
+    - tram axial: radi constant
+    - canvi de capa: el radi creix només durant el retard d’extrem
+    - el punt dipositat és SEMPRE el punt on la línia recta del guidatubo
+      talla el pla x=0 que passa pel centre de l’aspo
     """
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
@@ -197,7 +202,8 @@ def simulate_winding_deposition_local(
     z = Rt
     current_layer_radius = R + Rt
 
-    deposited_local = [local_deposit_point(current_layer_radius, z)]
+    local_points = [local_point_from_world_contact(theta, current_layer_radius, z)]
+    world_points = [world_deposit_point(current_layer_radius, z)]
     theta_values = [theta]
     radius_values = [current_layer_radius]
     z_values = [z]
@@ -258,6 +264,8 @@ def simulate_winding_deposition_local(
             else:
                 next_turn_progress = turn_progress + deg_step
                 s = smoothstep(next_turn_progress / next_turn_delay)
+
+                # incremento strato només al canvi de sentit
                 next_radius = next_turn_start_radius + s * (next_turn_end_radius - next_turn_start_radius)
 
                 if next_turn_progress >= next_turn_delay:
@@ -266,8 +274,10 @@ def simulate_winding_deposition_local(
                     next_mode = "axial"
                     next_direction = -direction
 
-        new_local = local_deposit_point(next_radius, next_z)
-        prev_local = deposited_local[-1]
+        new_local = local_point_from_world_contact(next_theta, next_radius, next_z)
+        new_world = world_deposit_point(next_radius, next_z)
+
+        prev_local = local_points[-1]
         seg = float(np.linalg.norm(new_local - prev_local))
 
         if seg < max(0.25, Rt * 0.05):
@@ -286,13 +296,17 @@ def simulate_winding_deposition_local(
             remain = max_len - deposited_len
             if seg > EPS and remain > 0.0:
                 a = remain / seg
+
                 final_theta = theta + a * (next_theta - theta)
                 final_z = z + a * (next_z - z)
                 prev_r = radius_values[-1]
                 final_r = prev_r + a * (next_radius - prev_r)
 
-                final_local = local_deposit_point(final_r, final_z)
-                deposited_local.append(final_local)
+                final_local = local_point_from_world_contact(final_theta, final_r, final_z)
+                final_world = world_deposit_point(final_r, final_z)
+
+                local_points.append(final_local)
+                world_points.append(final_world)
                 theta_values.append(final_theta)
                 radius_values.append(final_r)
                 z_values.append(final_z)
@@ -300,7 +314,8 @@ def simulate_winding_deposition_local(
                 deposited_len += float(np.linalg.norm(final_local - prev_local))
             break
 
-        deposited_local.append(new_local)
+        local_points.append(new_local)
+        world_points.append(new_world)
         theta_values.append(next_theta)
         radius_values.append(next_radius)
         z_values.append(next_z)
@@ -316,22 +331,12 @@ def simulate_winding_deposition_local(
         turn_start_radius = next_turn_start_radius
         turn_end_radius = next_turn_end_radius
 
-    deposited_local = np.array(deposited_local, dtype=float)
-    theta_values = np.array(theta_values, dtype=float)
-    radius_values = np.array(radius_values, dtype=float)
-    z_values = np.array(z_values, dtype=float)
-
-    deposited_world = np.array(
-        [rotate_local_to_world(p, th) for p, th in zip(deposited_local, theta_values)],
-        dtype=float
-    )
-
     return (
-        deposited_world,
-        deposited_local,
-        theta_values,
-        radius_values,
-        z_values,
+        np.array(world_points, dtype=float),
+        np.array(local_points, dtype=float),
+        np.array(theta_values, dtype=float),
+        np.array(radius_values, dtype=float),
+        np.array(z_values, dtype=float),
         deposited_len,
     )
 
@@ -653,13 +658,13 @@ def viewer(
             const currentTheta = finalThetaRaw[i];
             const currentRadius = finalRadiusRaw[i];
             const currentZ = finalZRaw[i];
+            const currentWorld = finalWorldPts[i];
 
             machine.rotation.z = currentTheta;
 
-            const currentWorld = finalWorldPts[i];
             const guideWorld = guidePointWorld(currentRadius, currentZ);
-
             const freePts = [guideWorld, currentWorld];
+
             freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
             if (freeMesh) scene.add(freeMesh);
 
@@ -770,7 +775,7 @@ d_tubo = d_rame + 2.0 * spessore
     radius_values,
     z_values,
     deposited_len_mm,
-) = simulate_winding_deposition_local(
+) = simulate_winding_deposition_on_center_plane(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
@@ -783,7 +788,7 @@ d_tubo = d_rame + 2.0 * spessore
     deg_step=2.0,
 )
 
-metrics = compute_metrics(world_points, d_tubo)
+metrics = compute_metrics(local_points, d_tubo)
 
 components.html(
     viewer(
