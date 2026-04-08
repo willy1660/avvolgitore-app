@@ -155,11 +155,20 @@ def deposited_point(theta: float, radius: float, z: float) -> np.ndarray:
     y = radius * np.sin(tube_theta)
     return np.array([x, y, z], dtype=float)
 
+def machine_local_point(theta: float, radius: float, z: float) -> np.ndarray:
+    # Punt local a la bobina, de manera que si la màquina gira a theta
+    # el punt de contacte surt sempre tangent davant del guidatubo.
+    c = np.cos(-theta)
+    s = np.sin(-theta)
+    x = -radius * s
+    y =  radius * c
+    return np.array([x, y, z], dtype=float)
+
 gradi_start = 0.0
 pinza = 0.0
 guide_offset_x = 150.0
 
-def simulate_winding_continuous(
+def simulate_winding_layered(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -180,7 +189,12 @@ def simulate_winding_continuous(
     radius = R + Rt
     z = Rt
 
-    points = [deposited_point(theta, radius, z)]
+    world_points = [deposited_point(theta, radius, z)]
+    local_points = [machine_local_point(theta, radius, z)]
+    theta_list = [theta]
+    radius_list = [radius]
+    z_list = [z]
+
     deposited_len = 0.0
 
     direction = 1
@@ -192,11 +206,10 @@ def simulate_winding_continuous(
     turn_end_radius = radius
     turn_z = z
 
-    rad_step = np.deg2rad(deg_step)
-
     for _ in range(800000):
-        prev = points[-1]
-        theta -= rad_step
+        prev_world = world_points[-1].copy()
+
+        theta -= np.deg2rad(deg_step)
 
         if mode == "axial":
             z += direction * passo * (deg_step / 360.0)
@@ -229,12 +242,10 @@ def simulate_winding_continuous(
                 turn_progress += deg_step
                 s = smoothstep(turn_progress / turn_delay)
 
-                # canvi radial progressiu
+                # canvi radial progressiu capa a capa
                 radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
 
-                # z queda recolzat a l’extrem, però amb una
-                # petita relaxació perquè no es vegi tan "clavat"
-                # i recordi més el suport sobre la capa anterior.
+                # lleu relaxació visual a extrem
                 edge_blend = 0.06 * passo * np.sin(np.pi * s)
                 if turn_z >= H - Rt - 1e-9:
                     z = turn_z - edge_blend
@@ -247,26 +258,48 @@ def simulate_winding_continuous(
                     mode = "axial"
                     direction *= -1
 
-        new_p = deposited_point(theta, radius, z)
-        seg = float(np.linalg.norm(new_p - prev))
+        new_world = deposited_point(theta, radius, z)
+        seg = float(np.linalg.norm(new_world - prev_world))
 
         if seg < max(0.4, Rt * 0.08):
             continue
 
         if deposited_len + seg >= max_len:
             remain = max_len - deposited_len
-            if seg > 1e-9:
+            if seg > 1e-9 and remain > 0.0:
                 alpha = remain / seg
-                final_p = prev + alpha * (new_p - prev)
-                points.append(final_p)
-                deposited_len += float(np.linalg.norm(final_p - prev))
+
+                final_theta = theta_list[-1] + alpha * (theta - theta_list[-1])
+                final_radius = radius_list[-1] + alpha * (radius - radius_list[-1])
+                final_z = z_list[-1] + alpha * (z - z_list[-1])
+
+                final_world = deposited_point(final_theta, final_radius, final_z)
+                final_local = machine_local_point(final_theta, final_radius, final_z)
+
+                world_points.append(final_world)
+                local_points.append(final_local)
+                theta_list.append(final_theta)
+                radius_list.append(final_radius)
+                z_list.append(final_z)
+
+                deposited_len += float(np.linalg.norm(final_world - prev_world))
             break
 
-        points.append(new_p)
+        world_points.append(new_world)
+        local_points.append(machine_local_point(theta, radius, z))
+        theta_list.append(theta)
+        radius_list.append(radius)
+        z_list.append(z)
         deposited_len += seg
 
-    pts = np.array(points, dtype=float)
-    return pts, deposited_len
+    return (
+        np.array(world_points, dtype=float),
+        np.array(local_points, dtype=float),
+        np.array(theta_list, dtype=float),
+        np.array(radius_list, dtype=float),
+        np.array(z_list, dtype=float),
+        deposited_len,
+    )
 
 def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
     if len(points) < 2:
@@ -322,12 +355,20 @@ def viewer(
     vel,
     gradi_start,
     pinza,
-    final_points,
+    final_world_points,
+    final_local_points,
+    final_thetas,
+    final_radii,
+    final_zs,
     aspo_mode,
     guide_offset_x,
 ):
     anim_js = "true" if anim else "false"
-    final_points_json = json.dumps(final_points)
+    final_world_points_json = json.dumps(final_world_points)
+    final_local_points_json = json.dumps(final_local_points)
+    final_thetas_json = json.dumps(final_thetas)
+    final_radii_json = json.dumps(final_radii)
+    final_zs_json = json.dumps(final_zs)
     aspo_mode_json = json.dumps(aspo_mode)
 
     return f"""
@@ -376,16 +417,19 @@ def viewer(
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
-        const passo = {float(passo)};
-        const incremento = {float(incremento)};
-        const ritB = {float(rit_b)};
-        const ritT = {float(rit_t)};
-        const maxLen = {float(lunghezza)} * 1000.0;
         const speed = {float(vel)};
         const animEnabled = {anim_js};
         const guideOffsetX = {float(guide_offset_x)};
-        const finalPointsRaw = {final_points_json};
         const aspoMode = {aspo_mode_json};
+
+        const finalWorldRaw = {final_world_points_json};
+        const finalLocalRaw = {final_local_points_json};
+        const finalThetaRaw = {final_thetas_json};
+        const finalRadiusRaw = {final_radii_json};
+        const finalZRaw = {final_zs_json};
+
+        const finalWorldPts = finalWorldRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const finalLocalPts = finalLocalRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
         // =====================
         // MATERIALS
@@ -469,7 +513,7 @@ def viewer(
         machine.add(rollGroup);
 
         // =====================
-        // GUIDATUBO (en world, no gira)
+        // GUIDATUBO
         // =====================
 
         const guide = new THREE.Mesh(
@@ -521,15 +565,6 @@ def viewer(
         // HELPERS
         // =====================
 
-        function smoothstep(x) {{
-            x = Math.max(0.0, Math.min(1.0, x));
-            return x * x * (3.0 - 2.0 * x);
-        }}
-
-        function contactPointWorld(radius, z) {{
-            return new THREE.Vector3(0.0, radius, z);
-        }}
-
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -538,19 +573,9 @@ def viewer(
             );
         }}
 
-        function worldToMachineLocal(pWorld, thetaMachine) {{
-            const c = Math.cos(-thetaMachine);
-            const s = Math.sin(-thetaMachine);
-            return new THREE.Vector3(
-                pWorld.x * c - pWorld.y * s,
-                pWorld.x * s + pWorld.y * c,
-                pWorld.z
-            );
-        }}
-
         function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
             if (!points || points.length < 2) return null;
-            const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.1);
+            const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.08);
             const tubularSegments = Math.max(24, Math.min(2200, points.length * 2));
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
@@ -570,15 +595,19 @@ def viewer(
             return m;
         }}
 
-        function clearObj(obj, parentObj = scene) {{
+        function disposeObj(obj, parentObj = scene) {{
             if (!obj) return;
             parentObj.remove(obj);
             if (obj.geometry) obj.geometry.dispose();
             if (obj.material) obj.material.dispose();
         }}
 
+        function worldPointFromLocal(localPoint) {{
+            return machine.localToWorld(localPoint.clone());
+        }}
+
         // =====================
-        // STATIC FINAL VIEW
+        // STATE
         // =====================
 
         let rollMesh = null;
@@ -586,80 +615,51 @@ def viewer(
         let startMarker = null;
         let endMarker = null;
 
-        function buildStaticFinalView() {{
-            guide.visible = false;
-            guideFront.visible = false;
-            guideNozzle.visible = false;
+        let drawIndex = animEnabled ? 2 : finalLocalPts.length;
+        let drawAccumulator = 0.0;
 
-            const finalPts = finalPointsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
-            if (finalPts.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(finalPts, 12, tubeMat);
-                if (rollMesh) scene.add(rollMesh);
-
-                startMarker = createMarker(finalPts[0], startMat, scene);
-                endMarker = createMarker(finalPts[finalPts.length - 1], endMat, scene);
-            }}
-        }}
-
-        // =====================
-        // ANIM STATE
-        // =====================
-
-        let depositedLocalPoints = [];
-        let depositedLength = 0.0;
-        let finished = false;
-        let lastRebuildCount = -1;
-
-        let thetaMachine = THREE.MathUtils.degToRad({float(gradi_start)});
-        let guideRadius = R + Rt;
-        let guideZ = Rt;
-
-        let direction = 1;
-        let mode = "axial";
-
-        let turnProgress = 0.0;
-        let turnDelay = 0.0;
-        let turnStartRadius = guideRadius;
-        let turnEndRadius = guideRadius;
-        let turnZ = guideZ;
-
-        machine.rotation.z = thetaMachine;
-
-        if (animEnabled) {{
-            const c0w = contactPointWorld(guideRadius, guideZ);
-            const c0l = worldToMachineLocal(c0w, thetaMachine);
-            depositedLocalPoints.push(c0l);
-            guide.position.copy(guidePointWorld(guideRadius, guideZ));
-        }} else {{
-            buildStaticFinalView();
-        }}
-
-        function rebuildAnimatedMeshes(contactWorld) {{
+        function rebuildView() {{
             if (rollMesh) {{
-                clearObj(rollMesh, rollGroup);
+                disposeObj(rollMesh, rollGroup);
                 rollMesh = null;
             }}
             if (freeMesh) {{
-                clearObj(freeMesh, scene);
+                disposeObj(freeMesh, scene);
                 freeMesh = null;
             }}
             if (startMarker) {{
-                clearObj(startMarker, rollGroup);
+                disposeObj(startMarker, rollGroup);
                 startMarker = null;
             }}
             if (endMarker) {{
-                clearObj(endMarker, rollGroup);
+                disposeObj(endMarker, rollGroup);
                 endMarker = null;
             }}
 
-            if (depositedLocalPoints.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(depositedLocalPoints, 12, tubeMat);
+            const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
+            const visibleLocal = finalLocalPts.slice(0, safeIndex);
+
+            if (visibleLocal.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat);
                 if (rollMesh) rollGroup.add(rollMesh);
+
+                startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
+                endMarker = createMarker(visibleLocal[visibleLocal.length - 1], endMat, rollGroup);
             }}
 
-            const guideWorld = guidePointWorld(guideRadius, guideZ);
-            const freePts = [guideWorld, contactWorld];
+            const i = safeIndex - 1;
+            const currentTheta = finalThetaRaw[i];
+            const currentRadius = finalRadiusRaw[i];
+            const currentZ = finalZRaw[i];
+
+            machine.rotation.z = currentTheta;
+
+            const currentLocal = finalLocalPts[i];
+            const currentWorld = worldPointFromLocal(currentLocal);
+
+            const guideWorld = guidePointWorld(currentRadius, currentZ);
+            const freePts = [guideWorld, currentWorld];
+
             freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
             if (freeMesh) scene.add(freeMesh);
 
@@ -679,109 +679,21 @@ def viewer(
                 guideWorld.z
             );
             guideNozzle.visible = true;
-
-            if (depositedLocalPoints.length >= 1) {{
-                startMarker = createMarker(depositedLocalPoints[0], startMat, rollGroup);
-                endMarker = createMarker(
-                    depositedLocalPoints[depositedLocalPoints.length - 1],
-                    endMat,
-                    rollGroup
-                );
-            }}
         }}
 
-        function addDepositedPoint(contactLocal) {{
-            const prev = depositedLocalPoints[depositedLocalPoints.length - 1];
-            const seg = contactLocal.distanceTo(prev);
-
-            if (seg < Math.max(0.8, Rt * 0.10)) return;
-
-            if (depositedLength + seg <= maxLen) {{
-                depositedLocalPoints.push(contactLocal.clone());
-                depositedLength += seg;
-                return;
-            }}
-
-            const remain = maxLen - depositedLength;
-            if (seg > 1e-9 && remain > 0) {{
-                const trim = remain / seg;
-                const finalPoint = prev.clone().lerp(contactLocal, trim);
-                depositedLocalPoints.push(finalPoint);
-                depositedLength += prev.distanceTo(finalPoint);
-            }}
-            finished = true;
-        }}
-
-        function advanceMechanics() {{
-            const degPerFrame = 2.0 * speed;
-            const radPerFrame = THREE.MathUtils.degToRad(degPerFrame);
-
-            thetaMachine -= radPerFrame;
-            machine.rotation.z = thetaMachine;
-
-            if (mode === "axial") {{
-                guideZ += direction * passo * (degPerFrame / 360.0);
-
-                if (guideZ >= Hs - Rt) {{
-                    guideZ = Hs - Rt;
-                    mode = "turn";
-                    turnProgress = 0.0;
-                    turnDelay = Math.max(ritT, 0.0);
-                    turnStartRadius = guideRadius;
-                    turnEndRadius = guideRadius + incremento;
-                    turnZ = guideZ;
-                }} else if (guideZ <= Rt) {{
-                    guideZ = Rt;
-                    mode = "turn";
-                    turnProgress = 0.0;
-                    turnDelay = Math.max(ritB, 0.0);
-                    turnStartRadius = guideRadius;
-                    turnEndRadius = guideRadius + incremento;
-                    turnZ = guideZ;
-                }}
-            }} else {{
-                if (turnDelay <= 0.0) {{
-                    guideRadius = turnEndRadius;
-                    guideZ = turnZ;
-                    mode = "axial";
-                    direction *= -1;
-                }} else {{
-                    turnProgress += degPerFrame;
-                    const s = smoothstep(turnProgress / turnDelay);
-
-                    guideRadius = turnStartRadius + s * (turnEndRadius - turnStartRadius);
-
-                    const edgeBlend = 0.06 * passo * Math.sin(Math.PI * s);
-                    if (turnZ >= Hs - Rt - 1e-9) {{
-                        guideZ = turnZ - edgeBlend;
-                    }} else {{
-                        guideZ = turnZ + edgeBlend;
-                    }}
-
-                    if (turnProgress >= turnDelay) {{
-                        guideRadius = turnEndRadius;
-                        guideZ = turnZ;
-                        mode = "axial";
-                        direction *= -1;
-                    }}
-                }}
-            }}
-        }}
+        rebuildView();
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && !finished) {{
-                advanceMechanics();
+            if (animEnabled && drawIndex < finalLocalPts.length) {{
+                drawAccumulator += Math.max(0.12, speed * 0.85);
 
-                const cWorld = contactPointWorld(guideRadius, guideZ);
-                const cLocal = worldToMachineLocal(cWorld, thetaMachine);
-
-                addDepositedPoint(cLocal);
-
-                if (depositedLocalPoints.length !== lastRebuildCount || finished) {{
-                    rebuildAnimatedMeshes(cWorld);
-                    lastRebuildCount = depositedLocalPoints.length;
+                const stepNow = Math.floor(drawAccumulator);
+                if (stepNow >= 1) {{
+                    drawAccumulator -= stepNow;
+                    drawIndex = Math.min(finalLocalPts.length, drawIndex + stepNow);
+                    rebuildView();
                 }}
             }}
 
@@ -851,7 +763,14 @@ else:
 
 d_tubo = d_rame + 2.0 * spessore
 
-points, deposited_len_mm = simulate_winding_continuous(
+(
+    world_points,
+    local_points,
+    theta_values,
+    radius_values,
+    z_values,
+    deposited_len_mm,
+) = simulate_winding_layered(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
@@ -864,7 +783,7 @@ points, deposited_len_mm = simulate_winding_continuous(
     deg_step=4.0,
 )
 
-metrics = compute_metrics(points, d_tubo)
+metrics = compute_metrics(world_points, d_tubo)
 
 components.html(
     viewer(
@@ -881,7 +800,11 @@ components.html(
         vel,
         gradi_start,
         pinza,
-        points.tolist(),
+        world_points.tolist(),
+        local_points.tolist(),
+        theta_values.tolist(),
+        radius_values.tolist(),
+        z_values.tolist(),
         aspo_mode,
         guide_offset_x,
     ),
