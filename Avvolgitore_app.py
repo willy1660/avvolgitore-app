@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import math
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
@@ -155,25 +156,109 @@ def polyline_length(points: np.ndarray) -> float:
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
-    """
-    Punt exacte de contacte/deposició al món:
-    intersecció de la línia recta que surt del guidatubo
-    amb el pla perpendicular que passa pel centre de l’aspo.
-    En aquest muntatge: x = 0.
-    """
+    # Punt de contacte instantani al pla x=0
     return np.array([0.0, radius, z], dtype=float)
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
-    """
-    Converteix el punt world al sistema local de l’aspo.
-    """
     c = np.cos(theta)
     s = np.sin(theta)
-    x =  pt_world[0] * c + pt_world[1] * s
+    x = pt_world[0] * c + pt_world[1] * s
     y = -pt_world[0] * s + pt_world[1] * c
     return np.array([x, y, pt_world[2]], dtype=float)
 
-def simulate_winding_center_plane_local(
+def z_bin_index(z: float, bin_w: float) -> int:
+    return int(np.floor(z / bin_w))
+
+def circle_pair_candidate_radius(z0: float, z1: float, d_tubo: float) -> float | None:
+    dz = abs(z0 - z1)
+    half = dz * 0.5
+    if half >= d_tubo:
+        return None
+    return math.sqrt(max(0.0, d_tubo * d_tubo - half * half))
+
+def solve_deposit_radius_between_spires(
+    z_target: float,
+    r_cmd: float,
+    deposited_local_points: list,
+    base_radius: float,
+    d_tubo: float,
+    z_window: float,
+):
+    """
+    Retorna el radi real dipositat per a aquest z_target.
+
+    Idea:
+    - El guidatubo imposa un radi màxim comandat r_cmd.
+    - El tub ideal rígid es col·loca al menor radi admissible.
+    - Es prioritza encaixar entre dues espires de la capa anterior.
+    - Si no hi ha parella útil, es busca contacte amb una sola espira.
+    - En cap cas es supera r_cmd.
+    """
+    if len(deposited_local_points) < 1:
+        return min(r_cmd, base_radius)
+
+    z_vals = np.array([p[2] for p in deposited_local_points], dtype=float)
+    r_vals = np.array([np.linalg.norm(p[:2]) for p in deposited_local_points], dtype=float)
+
+    # candidats propers en z
+    mask = np.abs(z_vals - z_target) <= z_window
+    idx = np.where(mask)[0]
+
+    if len(idx) == 0:
+        return min(r_cmd, base_radius)
+
+    # 1) prioritat: encaix entre dues espirals
+    best_pair_radius = None
+
+    # Limitem als punts més propers en radi comandat per evitar barrejar massa capes
+    local_idx = idx[np.argsort(np.abs(r_vals[idx] - min(r_cmd, np.min(r_vals[idx]))))]
+    local_idx = local_idx[:40]
+
+    for i in range(len(local_idx)):
+        for j in range(i + 1, len(local_idx)):
+            a = local_idx[i]
+            b = local_idx[j]
+
+            ra = r_vals[a]
+            rb = r_vals[b]
+
+            # volem parelles relativament de la mateixa capa
+            if abs(ra - rb) > d_tubo * 0.35:
+                continue
+
+            r_base = 0.5 * (ra + rb)
+            rise = circle_pair_candidate_radius(z_vals[a], z_vals[b], d_tubo)
+            if rise is None:
+                continue
+
+            cand = r_base + rise
+
+            if cand <= r_cmd + 1e-9:
+                if best_pair_radius is None or cand < best_pair_radius:
+                    best_pair_radius = cand
+
+    if best_pair_radius is not None:
+        return max(base_radius, best_pair_radius)
+
+    # 2) si no hi ha parella vàlida, contacte sobre una espira sola
+    #    idealment sobre la més baixa possible però admissible
+    single_candidates = []
+    for k in local_idx:
+        dz = abs(z_vals[k] - z_target)
+        if dz >= d_tubo:
+            continue
+        rise = math.sqrt(max(0.0, d_tubo * d_tubo - dz * dz))
+        cand = r_vals[k] + rise
+        if cand <= r_cmd + 1e-9:
+            single_candidates.append(cand)
+
+    if single_candidates:
+        return max(base_radius, min(single_candidates))
+
+    # 3) si ni així, el tub queda on li permet el comandament però no per sota del mandrí
+    return max(base_radius, r_cmd)
+
+def simulate_winding_realistic(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -189,18 +274,21 @@ def simulate_winding_center_plane_local(
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
     H = spalla
+    base_radius = R + Rt
 
     theta = np.deg2rad(gradi_start)
     z = Rt
-    current_layer_radius = R + Rt
 
-    first_contact_world = deposit_point_world(current_layer_radius, z)
+    # comandament radial del guidatubo
+    r_cmd = base_radius
+
+    first_contact_world = deposit_point_world(base_radius, z)
     first_local = world_to_spool_local(first_contact_world, theta)
 
     contact_world = [first_contact_world]
     deposited_local = [first_local]
     theta_values = [theta]
-    radius_values = [current_layer_radius]
+    radius_values = [base_radius]
     z_values = [z]
 
     deposited_len = 0.0
@@ -211,8 +299,10 @@ def simulate_winding_center_plane_local(
     turn_progress = 0.0
     turn_delay = 0.0
     turn_z = z
-    turn_start_radius = current_layer_radius
-    turn_end_radius = current_layer_radius
+    turn_start_cmd = r_cmd
+    turn_end_cmd = r_cmd
+
+    z_window = max(d_tubo * 1.25, passo * 1.5)
 
     for _ in range(1200000):
         next_theta = theta - np.deg2rad(deg_step)
@@ -223,13 +313,13 @@ def simulate_winding_center_plane_local(
         next_turn_progress = turn_progress
         next_turn_delay = turn_delay
         next_turn_z = turn_z
-        next_turn_start_radius = turn_start_radius
-        next_turn_end_radius = turn_end_radius
-        next_radius = current_layer_radius
+        next_turn_start_cmd = turn_start_cmd
+        next_turn_end_cmd = turn_end_cmd
+        next_r_cmd = r_cmd
 
         if mode == "axial":
             next_z = z + direction * passo * (deg_step / 360.0)
-            next_radius = current_layer_radius
+            next_r_cmd = r_cmd
 
             if next_z >= H - Rt:
                 next_z = H - Rt
@@ -237,8 +327,8 @@ def simulate_winding_center_plane_local(
                 next_turn_progress = 0.0
                 next_turn_delay = max(rit_t, 0.0)
                 next_turn_z = next_z
-                next_turn_start_radius = current_layer_radius
-                next_turn_end_radius = current_layer_radius + max(0.0, incremento)
+                next_turn_start_cmd = r_cmd
+                next_turn_end_cmd = r_cmd + max(0.0, incremento)
 
             elif next_z <= Rt:
                 next_z = Rt
@@ -246,29 +336,37 @@ def simulate_winding_center_plane_local(
                 next_turn_progress = 0.0
                 next_turn_delay = max(rit_b, 0.0)
                 next_turn_z = next_z
-                next_turn_start_radius = current_layer_radius
-                next_turn_end_radius = current_layer_radius + max(0.0, incremento)
+                next_turn_start_cmd = r_cmd
+                next_turn_end_cmd = r_cmd + max(0.0, incremento)
 
         else:
             next_z = next_turn_z
 
             if next_turn_delay <= 0.0:
-                next_radius = next_turn_end_radius
-                current_layer_radius = next_turn_end_radius
+                next_r_cmd = next_turn_end_cmd
                 next_mode = "axial"
                 next_direction = -direction
             else:
                 next_turn_progress = turn_progress + deg_step
                 s = smoothstep(next_turn_progress / next_turn_delay)
-                next_radius = next_turn_start_radius + s * (next_turn_end_radius - next_turn_start_radius)
+                next_r_cmd = next_turn_start_cmd + s * (next_turn_end_cmd - next_turn_start_cmd)
 
                 if next_turn_progress >= next_turn_delay:
-                    next_radius = next_turn_end_radius
-                    current_layer_radius = next_turn_end_radius
+                    next_r_cmd = next_turn_end_cmd
                     next_mode = "axial"
                     next_direction = -direction
 
-        new_contact_world = deposit_point_world(next_radius, next_z)
+        # radi real dipositat per acomodació geomètrica
+        next_r_dep = solve_deposit_radius_between_spires(
+            z_target=next_z,
+            r_cmd=next_r_cmd,
+            deposited_local_points=deposited_local,
+            base_radius=base_radius,
+            d_tubo=d_tubo,
+            z_window=z_window,
+        )
+
+        new_contact_world = deposit_point_world(next_r_dep, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
 
         prev_local = deposited_local[-1]
@@ -282,8 +380,9 @@ def simulate_winding_center_plane_local(
             turn_progress = next_turn_progress
             turn_delay = next_turn_delay
             turn_z = next_turn_z
-            turn_start_radius = next_turn_start_radius
-            turn_end_radius = next_turn_end_radius
+            turn_start_cmd = next_turn_start_cmd
+            turn_end_cmd = next_turn_end_cmd
+            r_cmd = next_r_cmd
             continue
 
         if deposited_len + seg >= max_len:
@@ -293,7 +392,7 @@ def simulate_winding_center_plane_local(
                 final_theta = theta + a * (next_theta - theta)
                 final_z = z + a * (next_z - z)
                 prev_r = radius_values[-1]
-                final_r = prev_r + a * (next_radius - prev_r)
+                final_r = prev_r + a * (next_r_dep - prev_r)
 
                 final_contact_world = deposit_point_world(final_r, final_z)
                 final_local = world_to_spool_local(final_contact_world, final_theta)
@@ -310,7 +409,7 @@ def simulate_winding_center_plane_local(
         contact_world.append(new_contact_world)
         deposited_local.append(new_local)
         theta_values.append(next_theta)
-        radius_values.append(next_radius)
+        radius_values.append(next_r_dep)
         z_values.append(next_z)
         deposited_len += seg
 
@@ -321,8 +420,9 @@ def simulate_winding_center_plane_local(
         turn_progress = next_turn_progress
         turn_delay = next_turn_delay
         turn_z = next_turn_z
-        turn_start_radius = next_turn_start_radius
-        turn_end_radius = next_turn_end_radius
+        turn_start_cmd = next_turn_start_cmd
+        turn_end_cmd = next_turn_end_cmd
+        r_cmd = next_r_cmd
 
     return (
         np.array(contact_world, dtype=float),
@@ -811,7 +911,7 @@ d_tubo = d_rame + 2.0 * spessore
     radius_values,
     z_values,
     deposited_len_mm,
-) = simulate_winding_center_plane_local(
+) = simulate_winding_realistic(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
