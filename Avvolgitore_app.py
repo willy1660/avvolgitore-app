@@ -156,19 +156,20 @@ def deposited_point(theta: float, radius: float, z: float) -> np.ndarray:
     return np.array([x, y, z], dtype=float)
 
 def machine_local_point(theta: float, radius: float, z: float) -> np.ndarray:
-    # Punt local a la bobina, de manera que si la màquina gira a theta
-    # el punt de contacte surt sempre tangent davant del guidatubo.
+    # Punt dipositat en coordenades locals de la bobina.
+    # Quan la màquina gira a theta, aquest punt correspon al contacte real
+    # amb el guidatubo, i després queda "imprès" a la capa.
     c = np.cos(-theta)
     s = np.sin(-theta)
     x = -radius * s
-    y =  radius * c
+    y = radius * c
     return np.array([x, y, z], dtype=float)
 
 gradi_start = 0.0
 pinza = 0.0
 guide_offset_x = 150.0
 
-def simulate_winding_layered(
+def simulate_winding_deposition(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -178,7 +179,7 @@ def simulate_winding_layered(
     rit_t: float,
     lunghezza_m: float,
     gradi_start: float,
-    deg_step: float = 4.0,
+    deg_step: float = 2.0,
 ):
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
@@ -189,11 +190,11 @@ def simulate_winding_layered(
     radius = R + Rt
     z = Rt
 
-    world_points = [deposited_point(theta, radius, z)]
-    local_points = [machine_local_point(theta, radius, z)]
-    theta_list = [theta]
-    radius_list = [radius]
-    z_list = [z]
+    deposited_world = [deposited_point(theta, radius, z)]
+    deposited_local = [machine_local_point(theta, radius, z)]
+    theta_values = [theta]
+    radius_values = [radius]
+    z_values = [z]
 
     deposited_len = 0.0
 
@@ -206,98 +207,123 @@ def simulate_winding_layered(
     turn_end_radius = radius
     turn_z = z
 
-    for _ in range(800000):
-        prev_world = world_points[-1].copy()
+    for _ in range(1200000):
+        prev_world = deposited_world[-1]
 
-        theta -= np.deg2rad(deg_step)
+        next_theta = theta - np.deg2rad(deg_step)
+        next_radius = radius
+        next_z = z
+        next_direction = direction
+        next_mode = mode
+        next_turn_progress = turn_progress
+        next_turn_delay = turn_delay
+        next_turn_start_radius = turn_start_radius
+        next_turn_end_radius = turn_end_radius
+        next_turn_z = turn_z
 
         if mode == "axial":
-            z += direction * passo * (deg_step / 360.0)
+            next_z = z + direction * passo * (deg_step / 360.0)
 
-            if z >= H - Rt:
-                z = H - Rt
-                mode = "turn"
-                turn_progress = 0.0
-                turn_delay = max(rit_t, 0.0)
-                turn_start_radius = radius
-                turn_end_radius = radius + incremento
-                turn_z = z
+            if next_z >= H - Rt:
+                next_z = H - Rt
+                next_mode = "turn"
+                next_turn_progress = 0.0
+                next_turn_delay = max(rit_t, 0.0)
+                next_turn_start_radius = radius
+                next_turn_end_radius = radius + incremento
+                next_turn_z = next_z
 
-            elif z <= Rt:
-                z = Rt
-                mode = "turn"
-                turn_progress = 0.0
-                turn_delay = max(rit_b, 0.0)
-                turn_start_radius = radius
-                turn_end_radius = radius + incremento
-                turn_z = z
+            elif next_z <= Rt:
+                next_z = Rt
+                next_mode = "turn"
+                next_turn_progress = 0.0
+                next_turn_delay = max(rit_b, 0.0)
+                next_turn_start_radius = radius
+                next_turn_end_radius = radius + incremento
+                next_turn_z = next_z
 
         else:
             if turn_delay <= 0.0:
-                radius = turn_end_radius
-                z = turn_z
-                mode = "axial"
-                direction *= -1
+                next_radius = turn_end_radius
+                next_z = turn_z
+                next_mode = "axial"
+                next_direction = -direction
             else:
-                turn_progress += deg_step
-                s = smoothstep(turn_progress / turn_delay)
+                next_turn_progress = turn_progress + deg_step
+                s = smoothstep(next_turn_progress / turn_delay)
 
-                # canvi radial progressiu capa a capa
-                radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
+                next_radius = turn_start_radius + s * (turn_end_radius - turn_start_radius)
 
-                # lleu relaxació visual a extrem
                 edge_blend = 0.06 * passo * np.sin(np.pi * s)
                 if turn_z >= H - Rt - 1e-9:
-                    z = turn_z - edge_blend
+                    next_z = turn_z - edge_blend
                 else:
-                    z = turn_z + edge_blend
+                    next_z = turn_z + edge_blend
 
-                if turn_progress >= turn_delay:
-                    radius = turn_end_radius
-                    z = turn_z
-                    mode = "axial"
-                    direction *= -1
+                if next_turn_progress >= turn_delay:
+                    next_radius = turn_end_radius
+                    next_z = turn_z
+                    next_mode = "axial"
+                    next_direction = -direction
 
-        new_world = deposited_point(theta, radius, z)
+        new_world = deposited_point(next_theta, next_radius, next_z)
         seg = float(np.linalg.norm(new_world - prev_world))
 
-        if seg < max(0.4, Rt * 0.08):
+        if seg < max(0.25, Rt * 0.05):
+            theta = next_theta
+            radius = next_radius
+            z = next_z
+            direction = next_direction
+            mode = next_mode
+            turn_progress = next_turn_progress
+            turn_delay = next_turn_delay
+            turn_start_radius = next_turn_start_radius
+            turn_end_radius = next_turn_end_radius
+            turn_z = next_turn_z
             continue
 
         if deposited_len + seg >= max_len:
             remain = max_len - deposited_len
             if seg > 1e-9 and remain > 0.0:
-                alpha = remain / seg
+                a = remain / seg
 
-                final_theta = theta_list[-1] + alpha * (theta - theta_list[-1])
-                final_radius = radius_list[-1] + alpha * (radius - radius_list[-1])
-                final_z = z_list[-1] + alpha * (z - z_list[-1])
+                final_theta = theta + a * (next_theta - theta)
+                final_radius = radius + a * (next_radius - radius)
+                final_z = z + a * (next_z - z)
 
-                final_world = deposited_point(final_theta, final_radius, final_z)
-                final_local = machine_local_point(final_theta, final_radius, final_z)
+                deposited_world.append(deposited_point(final_theta, final_radius, final_z))
+                deposited_local.append(machine_local_point(final_theta, final_radius, final_z))
+                theta_values.append(final_theta)
+                radius_values.append(final_radius)
+                z_values.append(final_z)
 
-                world_points.append(final_world)
-                local_points.append(final_local)
-                theta_list.append(final_theta)
-                radius_list.append(final_radius)
-                z_list.append(final_z)
-
-                deposited_len += float(np.linalg.norm(final_world - prev_world))
+                deposited_len += float(np.linalg.norm(deposited_world[-1] - prev_world))
             break
 
-        world_points.append(new_world)
-        local_points.append(machine_local_point(theta, radius, z))
-        theta_list.append(theta)
-        radius_list.append(radius)
-        z_list.append(z)
+        deposited_world.append(new_world)
+        deposited_local.append(machine_local_point(next_theta, next_radius, next_z))
+        theta_values.append(next_theta)
+        radius_values.append(next_radius)
+        z_values.append(next_z)
         deposited_len += seg
 
+        theta = next_theta
+        radius = next_radius
+        z = next_z
+        direction = next_direction
+        mode = next_mode
+        turn_progress = next_turn_progress
+        turn_delay = next_turn_delay
+        turn_start_radius = next_turn_start_radius
+        turn_end_radius = next_turn_end_radius
+        turn_z = next_turn_z
+
     return (
-        np.array(world_points, dtype=float),
-        np.array(local_points, dtype=float),
-        np.array(theta_list, dtype=float),
-        np.array(radius_list, dtype=float),
-        np.array(z_list, dtype=float),
+        np.array(deposited_world, dtype=float),
+        np.array(deposited_local, dtype=float),
+        np.array(theta_values, dtype=float),
+        np.array(radius_values, dtype=float),
+        np.array(z_values, dtype=float),
         deposited_len,
     )
 
@@ -410,10 +436,6 @@ def viewer(
         controls.dampingFactor = 0.08;
         controls.target.set(0, 0, {spalla}/2);
 
-        // =====================
-        // PARAMS
-        // =====================
-
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
@@ -430,10 +452,6 @@ def viewer(
 
         const finalWorldPts = finalWorldRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
         const finalLocalPts = finalLocalRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
-        // =====================
-        // MATERIALS
-        // =====================
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0x6b7076,
@@ -473,10 +491,6 @@ def viewer(
             metalness: 0.06
         }});
 
-        // =====================
-        // ASPO GROUP
-        // =====================
-
         const machine = new THREE.Group();
         scene.add(machine);
 
@@ -512,10 +526,6 @@ def viewer(
         const rollGroup = new THREE.Group();
         machine.add(rollGroup);
 
-        // =====================
-        // GUIDATUBO
-        // =====================
-
         const guide = new THREE.Mesh(
             new THREE.BoxGeometry(80, 60, 60),
             blueMat
@@ -543,10 +553,6 @@ def viewer(
         guideNozzle.rotation.z = Math.PI / 2;
         scene.add(guideNozzle);
 
-        // =====================
-        // LIGHTS
-        // =====================
-
         scene.add(new THREE.AmbientLight(0xffffff, 0.72));
 
         const dLight1 = new THREE.DirectionalLight(0xffffff, 0.62);
@@ -561,10 +567,6 @@ def viewer(
         dLight3.position.set(0, -900, 500);
         scene.add(dLight3);
 
-        // =====================
-        // HELPERS
-        // =====================
-
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -576,7 +578,7 @@ def viewer(
         function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
             if (!points || points.length < 2) return null;
             const curve = new THREE.CatmullRomCurve3(points, false, "centripetal", 0.08);
-            const tubularSegments = Math.max(24, Math.min(2200, points.length * 2));
+            const tubularSegments = Math.max(24, Math.min(2500, points.length * 2));
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
         }}
@@ -605,10 +607,6 @@ def viewer(
         function worldPointFromLocal(localPoint) {{
             return machine.localToWorld(localPoint.clone());
         }}
-
-        // =====================
-        // STATE
-        // =====================
 
         let rollMesh = null;
         let freeMesh = null;
@@ -770,7 +768,7 @@ d_tubo = d_rame + 2.0 * spessore
     radius_values,
     z_values,
     deposited_len_mm,
-) = simulate_winding_layered(
+) = simulate_winding_deposition(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
@@ -780,7 +778,7 @@ d_tubo = d_rame + 2.0 * spessore
     rit_t=rit_t,
     lunghezza_m=lunghezza,
     gradi_start=gradi_start,
-    deg_step=4.0,
+    deg_step=2.0,
 )
 
 metrics = compute_metrics(world_points, d_tubo)
