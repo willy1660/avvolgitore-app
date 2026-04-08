@@ -155,9 +155,18 @@ def polyline_length(points: np.ndarray) -> float:
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
+    """
+    Punt exacte de contacte/deposició al món:
+    intersecció de la línia recta que surt del guidatubo
+    amb el pla perpendicular que passa pel centre de l’aspo.
+    En aquest muntatge: x = 0.
+    """
     return np.array([0.0, radius, z], dtype=float)
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
+    """
+    Converteix el punt world al sistema local de l’aspo.
+    """
     c = np.cos(theta)
     s = np.sin(theta)
     x =  pt_world[0] * c + pt_world[1] * s
@@ -571,14 +580,52 @@ def viewer(
             );
         }}
 
-        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat, animated = false) {{
+        class PolylineCurve3 extends THREE.Curve {{
+            constructor(points) {{
+                super();
+                this.points = points || [];
+                this.cumulative = [];
+                this.totalLength = 0;
+
+                if (this.points.length >= 2) {{
+                    this.cumulative = [0];
+                    for (let i = 1; i < this.points.length; i++) {{
+                        this.totalLength += this.points[i].distanceTo(this.points[i - 1]);
+                        this.cumulative.push(this.totalLength);
+                    }}
+                }}
+            }}
+
+            getPoint(t) {{
+                if (!this.points || this.points.length === 0) return new THREE.Vector3();
+                if (this.points.length === 1) return this.points[0].clone();
+
+                const target = THREE.MathUtils.clamp(t, 0, 1) * this.totalLength;
+
+                for (let i = 1; i < this.cumulative.length; i++) {{
+                    if (target <= this.cumulative[i]) {{
+                        const l0 = this.cumulative[i - 1];
+                        const l1 = this.cumulative[i];
+                        const segLen = Math.max(1e-9, l1 - l0);
+                        const a = (target - l0) / segLen;
+                        return this.points[i - 1].clone().lerp(this.points[i], a);
+                    }}
+                }}
+
+                return this.points[this.points.length - 1].clone();
+            }}
+        }}
+
+        function buildTubeMeshFromPolyline(points, radialSegments = 12, material = tubeMat) {{
             if (!points || points.length < 2) return null;
 
-            const curveType = animated ? "catmullrom" : "centripetal";
-            const tension = animated ? 0.0 : 0.08;
+            let totalLen = 0;
+            for (let i = 1; i < points.length; i++) {{
+                totalLen += points[i].distanceTo(points[i - 1]);
+            }}
 
-            const curve = new THREE.CatmullRomCurve3(points, false, curveType, tension);
-            const tubularSegments = Math.max(24, Math.min(2500, points.length * 2));
+            const tubularSegments = Math.max(8, Math.min(2500, Math.floor(totalLen / Math.max(1.5, Rt * 0.35))));
+            const curve = new PolylineCurve3(points);
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
         }}
@@ -634,7 +681,7 @@ def viewer(
             const visibleLocal = finalLocalPts.slice(0, safeIndex);
 
             if (visibleLocal.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat, animEnabled);
+                rollMesh = buildTubeMeshFromPolyline(visibleLocal, 12, tubeMat);
                 if (rollMesh) rollGroup.add(rollMesh);
 
                 startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
@@ -655,7 +702,7 @@ def viewer(
             const guideWorld = guidePointWorld(currentRadius, currentZ);
             const freePts = [guideWorld, currentEndWorld];
 
-            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat, true);
+            freeMesh = buildTubeMeshFromPolyline(freePts, 10, freeTubeMat);
             if (freeMesh) scene.add(freeMesh);
 
             guide.position.copy(guideWorld);
