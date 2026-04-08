@@ -540,13 +540,13 @@ def viewer(
         machine.add(rollGroup);
 
         const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(80, 60, 60),
+            new THREE.BoxGeometry(100, 80, 80),
             blueMat
         );
         scene.add(guide);
 
         const guideFront = new THREE.Mesh(
-            new THREE.BoxGeometry(18, 26, 26),
+            new THREE.BoxGeometry(30, 60, 60),
             new THREE.MeshStandardMaterial({{
                 color: 0x8b9198,
                 roughness: 0.76,
