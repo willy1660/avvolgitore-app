@@ -441,13 +441,11 @@ def viewer(
         const aspoMode = {aspo_mode_json};
 
         const finalWorldContactsRaw = {final_world_contacts_json};
-        const finalLocalRaw = {final_local_points_json};
         const finalThetaRaw = {final_thetas_json};
         const finalRadiusRaw = {final_radii_json};
         const finalZRaw = {final_zs_json};
 
-        const finalWorldContacts = finalWorldContactsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-        const finalLocalPts = finalLocalRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const worldPts = finalWorldContactsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0x6b7076,
@@ -490,6 +488,12 @@ def viewer(
         const machine = new THREE.Group();
         scene.add(machine);
 
+        const depositedGroup = new THREE.Group();
+        scene.add(depositedGroup);
+
+        const overlayGroup = new THREE.Group();
+        scene.add(overlayGroup);
+
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
             redMat
@@ -518,9 +522,6 @@ def viewer(
         machine.add(top);
 
         machine.visible = aspoMode !== "hidden";
-
-        const rollGroup = new THREE.Group();
-        machine.add(rollGroup);
 
         const guide = new THREE.Mesh(
             new THREE.BoxGeometry(80, 60, 60),
@@ -625,36 +626,35 @@ def viewer(
         let startMarker = null;
         let endMarker = null;
 
-        let drawIndex = animEnabled ? 2 : finalLocalPts.length;
+        let drawIndex = animEnabled ? 2 : worldPts.length;
         let drawAccumulator = 0.0;
         let builtUntil = 1;
 
-        function clearDeposited() {{
-            for (const obj of depositedSegments) disposeObj(obj, rollGroup);
-            for (const obj of depositedJoints) disposeObj(obj, rollGroup);
-            depositedSegments = [];
-            depositedJoints = [];
-            builtUntil = 1;
+        function clearGroupObjects(group, arr) {{
+            for (const obj of arr) disposeObj(obj, group);
+            arr.length = 0;
         }}
 
         function rebuildDepositedUpTo(idx) {{
-            clearDeposited();
+            clearGroupObjects(depositedGroup, depositedSegments);
+            clearGroupObjects(depositedGroup, depositedJoints);
 
-            if (finalLocalPts.length === 0) return;
+            if (worldPts.length === 0) return;
 
-            const firstJoint = createDiscMarker(finalLocalPts[0], tubeMat, rollGroup);
+            const firstJoint = createDiscMarker(worldPts[0], tubeMat, depositedGroup);
             depositedJoints.push(firstJoint);
 
             for (let i = 1; i < idx; i++) {{
-                const p0 = finalLocalPts[i - 1];
-                const p1 = finalLocalPts[i];
+                const p0 = worldPts[i - 1];
+                const p1 = worldPts[i];
+
                 const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
                 if (seg) {{
-                    rollGroup.add(seg);
+                    depositedGroup.add(seg);
                     depositedSegments.push(seg);
                 }}
 
-                const joint = createDiscMarker(p1, tubeMat, rollGroup);
+                const joint = createDiscMarker(p1, tubeMat, depositedGroup);
                 depositedJoints.push(joint);
             }}
 
@@ -663,38 +663,38 @@ def viewer(
 
         function appendOneSegment() {{
             const nextI = builtUntil + 1;
-            if (nextI >= drawIndex || nextI >= finalLocalPts.length) return;
+            if (nextI >= drawIndex || nextI >= worldPts.length) return;
 
-            const p0 = finalLocalPts[nextI - 1];
-            const p1 = finalLocalPts[nextI];
+            const p0 = worldPts[nextI - 1];
+            const p1 = worldPts[nextI];
 
             const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
             if (seg) {{
-                rollGroup.add(seg);
+                depositedGroup.add(seg);
                 depositedSegments.push(seg);
             }}
 
-            const joint = createDiscMarker(p1, tubeMat, rollGroup);
+            const joint = createDiscMarker(p1, tubeMat, depositedGroup);
             depositedJoints.push(joint);
 
             builtUntil = nextI;
         }}
 
-        function updateMarkersAndFreeTube() {{
+        function updateOverlay() {{
             if (freeMesh) {{
-                disposeObj(freeMesh, scene);
+                disposeObj(freeMesh, overlayGroup);
                 freeMesh = null;
             }}
             if (startMarker) {{
-                disposeObj(startMarker, rollGroup);
+                disposeObj(startMarker, overlayGroup);
                 startMarker = null;
             }}
             if (endMarker) {{
-                disposeObj(endMarker, rollGroup);
+                disposeObj(endMarker, overlayGroup);
                 endMarker = null;
             }}
 
-            const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
+            const safeIndex = Math.max(2, Math.min(drawIndex, worldPts.length));
             const i = safeIndex - 1;
 
             const currentTheta = finalThetaRaw[i];
@@ -703,19 +703,16 @@ def viewer(
 
             machine.rotation.z = currentTheta;
 
-            startMarker = createDiscMarker(finalLocalPts[0], startMat, rollGroup);
-            endMarker = createDiscMarker(finalLocalPts[i], endMat, rollGroup);
+            startMarker = createDiscMarker(worldPts[0], startMat, overlayGroup);
+            endMarker = createDiscMarker(worldPts[i], endMat, overlayGroup);
 
-            const currentEndWorld = finalLocalPts[i].clone().applyAxisAngle(
-                new THREE.Vector3(0, 0, 1), currentTheta
-            );
-
+            const currentEndWorld = worldPts[i].clone();
             const guideWorld = guidePointWorld(currentRadius, currentZ);
 
             const seg = makeTubeSegment(guideWorld, currentEndWorld, Rt, freeTubeMat);
             if (seg) {{
+                overlayGroup.add(seg);
                 freeMesh = seg;
-                scene.add(freeMesh);
             }}
 
             guide.position.copy(guideWorld);
@@ -739,28 +736,28 @@ def viewer(
         if (animEnabled) {{
             rebuildDepositedUpTo(drawIndex);
         }} else {{
-            rebuildDepositedUpTo(finalLocalPts.length);
-            drawIndex = finalLocalPts.length;
+            rebuildDepositedUpTo(worldPts.length);
+            drawIndex = worldPts.length;
         }}
-        updateMarkersAndFreeTube();
+        updateOverlay();
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && drawIndex < finalLocalPts.length) {{
+            if (animEnabled && drawIndex < worldPts.length) {{
                 drawAccumulator += Math.max(0.12, speed * 0.85);
                 const stepNow = Math.floor(drawAccumulator);
 
                 if (stepNow >= 1) {{
                     drawAccumulator -= stepNow;
                     const oldDrawIndex = drawIndex;
-                    drawIndex = Math.min(finalLocalPts.length, drawIndex + stepNow);
+                    drawIndex = Math.min(worldPts.length, drawIndex + stepNow);
 
                     for (let k = oldDrawIndex; k < drawIndex; k++) {{
                         appendOneSegment();
                     }}
 
-                    updateMarkersAndFreeTube();
+                    updateOverlay();
                 }}
             }}
 
