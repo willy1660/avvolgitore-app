@@ -51,7 +51,7 @@ TEXTS = {
         "tube_gelblack": "Gelblack",
         "show_grid": "Mostra grid",
         "show_axes": "Mostra assi",
-        "cut_half": "Bobina tallada a meitat",
+        "cut_half": "Sezione bobina",
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
@@ -87,7 +87,7 @@ TEXTS = {
         "tube_gelblack": "Gelblack",
         "show_grid": "Show grid",
         "show_axes": "Show axes",
-        "cut_half": "Half-cut coil",
+        "cut_half": "Coil section",
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
@@ -411,7 +411,7 @@ def viewer(
     show_grid_json = "true" if show_grid else "false"
     show_axes_json = "true" if show_axes else "false"
 
-    bg = "#101317" if tube_color_mode == "gelwhite" else "#f6f6f4"
+    bg = "#000000" if tube_color_mode == "gelwhite" else "#ffffff"
 
     return f"""
     <div id="viewer_root" style="
@@ -457,6 +457,16 @@ def viewer(
                 <input id="speed_slider_in_viewer" type="range" min="0.1" max="5.0" step="0.1" value="{float(vel)}" style="width:120px;" />
                 <span id="speed_value_label">{float(vel):.1f}x</span>
             </div>
+
+            <button id="fullscreen_btn" style="
+                border:none;
+                border-radius:8px;
+                padding:7px 12px;
+                background:#f3f3f3;
+                color:#111;
+                font-weight:600;
+                cursor:pointer;
+            ">⛶ Fullscreen</button>
         </div>
     </div>
 
@@ -469,6 +479,7 @@ def viewer(
         const playPauseBtn = document.getElementById("play_pause_btn");
         const speedSlider = document.getElementById("speed_slider_in_viewer");
         const speedLabel = document.getElementById("speed_value_label");
+        const fullscreenBtn = document.getElementById("fullscreen_btn");
 
         const W = Math.max(host.clientWidth, 600);
         const Hview = Math.max(host.clientHeight, 400);
@@ -478,7 +489,7 @@ def viewer(
         const tubeColorMode = {tube_color_mode_json};
         const gelwhite = tubeColorMode === "gelwhite";
 
-        scene.background = new THREE.Color(gelwhite ? 0x101317 : 0xf6f6f4);
+        scene.background = new THREE.Color(gelwhite ? 0x000000 : 0xffffff);
 
         const tubeBaseColor = gelwhite ? 0xd8d8d6 : 0x111111;
         const freeTubeColor = gelwhite ? 0xbebebc : 0x242424;
@@ -550,14 +561,59 @@ def viewer(
             }});
         }}
 
+        if (fullscreenBtn) {{
+            fullscreenBtn.addEventListener("click", async () => {{
+                try {{
+                    if (!document.fullscreenElement) {{
+                        await host.requestFullscreen();
+                        fullscreenBtn.textContent = "🡼 Exit";
+                    }} else {{
+                        await document.exitFullscreen();
+                        fullscreenBtn.textContent = "⛶ Fullscreen";
+                    }}
+                }} catch (err) {{
+                    console.error(err);
+                }}
+            }});
+        }}
+
+        document.addEventListener("fullscreenchange", () => {{
+            if (!document.fullscreenElement && fullscreenBtn) {{
+                fullscreenBtn.textContent = "⛶ Fullscreen";
+            }}
+            setTimeout(() => {{
+                const nw = Math.max(host.clientWidth, 600);
+                const nh = Math.max(host.clientHeight, 400);
+                camera.aspect = nw / nh;
+                camera.updateProjectionMatrix();
+                renderer.setSize(nw, nh);
+                controls.handleResize();
+            }}, 30);
+        }});
+
         // ==========================================
         // CUTTING PLANE
         // ==========================================
         let clippingPlanes = [];
+        let sectionPlaneHelper = null;
+
         if (cutHalf) {{
-            // Talla vertical pel mig: conserva una meitat de la bobina
             const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
             clippingPlanes = [cutPlane];
+
+            const sectionMat = new THREE.MeshBasicMaterial({{
+                color: gelwhite ? 0xffffff : 0x000000,
+                transparent: true,
+                opacity: gelwhite ? 0.12 : 0.08,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            }});
+
+            const sectionGeo = new THREE.PlaneGeometry(2 * (R + 260), Hs + 260);
+            sectionPlaneHelper = new THREE.Mesh(sectionGeo, sectionMat);
+            sectionPlaneHelper.position.set(0, 0, Hs * 0.5);
+            sectionPlaneHelper.rotation.y = Math.PI / 2;
+            scene.add(sectionPlaneHelper);
         }}
 
         // ==========================================
