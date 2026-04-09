@@ -482,26 +482,61 @@ def viewer(
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-        function makeNoiseTexture(size = 128) {{
+        // ==========================================
+        // WAFFLE / DIAMOND KNURL TEXTURE FOR TUBE
+        // ==========================================
+        function makeWaffleKnurlTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
             canvas.height = size;
             const ctx = canvas.getContext("2d");
-            const img = ctx.createImageData(size, size);
 
-            for (let i = 0; i < img.data.length; i += 4) {{
-                const v = 25 + Math.floor(Math.random() * 210);
-                img.data[i] = v;
-                img.data[i + 1] = v;
-                img.data[i + 2] = v;
-                img.data[i + 3] = 255;
+            ctx.fillStyle = "rgb(128,128,128)";
+            ctx.fillRect(0, 0, size, size);
+
+            const img = ctx.getImageData(0, 0, size, size);
+            const data = img.data;
+
+            const pitch = 18.0;      // mida del patró
+            const lineWidth = 3.2;   // gruix de línia
+            const depth = 95.0;      // profunditat del relleu
+
+            for (let y = 0; y < size; y++) {{
+                for (let x = 0; x < size; x++) {{
+                    const u = x;
+                    const v = y;
+
+                    const d1 = Math.abs((((u + v) % pitch) + pitch) % pitch - pitch * 0.5);
+                    const d2 = Math.abs((((u - v) % pitch) + pitch) % pitch - pitch * 0.5);
+
+                    let value = 128;
+
+                    if (d1 < lineWidth) value -= depth;
+                    if (d2 < lineWidth) value -= depth;
+
+                    const cell =
+                        0.5 + 0.5 *
+                        Math.cos((u + v) * Math.PI / pitch) *
+                        Math.cos((u - v) * Math.PI / pitch);
+
+                    value += (cell - 0.5) * 52.0;
+
+                    value = Math.max(0, Math.min(255, Math.round(value)));
+
+                    const i = (y * size + x) * 4;
+                    data[i] = value;
+                    data[i + 1] = value;
+                    data[i + 2] = value;
+                    data[i + 3] = 255;
+                }}
             }}
 
             ctx.putImageData(img, 0, 0);
+
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(10, 10);
+            tex.repeat.set(56, 12);
             return tex;
         }}
 
@@ -539,11 +574,11 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(0.7, 0.7);
+            tex.repeat.set(0.5, 0.5);
             return tex;
         }}
 
-        const bumpTex = makeNoiseTexture(128);
+        const bumpTex = makeWaffleKnurlTexture(256);
         const steelTex = makeSteelTexture(256);
 
         const redMat = new THREE.MeshStandardMaterial({{
@@ -563,39 +598,39 @@ def viewer(
 
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 1,
+            roughness: 1.0,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 4
+            bumpScale: 2.2
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 1,
+            roughness: 1.0,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 4
+            bumpScale: 1.9
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 1,
+            roughness: 1.0,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 4
+            bumpScale: 1.6
         }});
 
         const steelMat = new THREE.MeshStandardMaterial({{
             color: 0xb8bec4,
-            roughness: 0.5,
-            metalness: 1.2,
+            roughness: 0.35,
+            metalness: 1.0,
             map: steelTex
         }});
 
         const steelDarkMat = new THREE.MeshStandardMaterial({{
             color: 0x8a9299,
-            roughness: 0.42,
-            metalness: 0.82,
+            roughness: 0.35,
+            metalness: 1.0,
             map: steelTex
         }});
 
@@ -604,7 +639,7 @@ def viewer(
             roughness: 0.45,
             metalness: 0.02,
             emissive: 0x0b2013,
-            emissiveIntensity: 0.5
+            emissiveIntensity: 0.12
         }});
 
         const markerEndMat = new THREE.MeshStandardMaterial({{
@@ -612,7 +647,7 @@ def viewer(
             roughness: 0.40,
             metalness: 0.02,
             emissive: 0x2a1800,
-            emissiveIntensity: 0.5
+            emissiveIntensity: 0.14
         }});
 
         const machine = new THREE.Group();
@@ -662,7 +697,6 @@ def viewer(
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
 
-        // Cosos cilíndrics per tenir mapatge cilíndric correcte
         const guideBarrel = new THREE.Mesh(
             new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false),
             steelDarkMat
