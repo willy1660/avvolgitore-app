@@ -443,7 +443,7 @@ def viewer(
         const activeTubeColor = gelwhite ? 0xf0f0ee : 0x050505;
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        camera.position.set(600, -600, 200);
+        camera.position.set(-820, -520, 260);
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
@@ -468,7 +468,7 @@ def viewer(
         controls.noPan = false;
         controls.noZoom = false;
         controls.noRotate = false;
-        controls.target.set(0, 0, {spalla}/2);
+        controls.target.set(40,40, {spalla}/2);
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
