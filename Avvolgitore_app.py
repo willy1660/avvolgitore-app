@@ -58,6 +58,7 @@ TEXTS = {
         "grid": "Grid",
         "axes": "Assi",
         "section": "Sezione",
+        "animation": "Animazione",
     },
     "EN": {
         "title": "Coiling",
@@ -72,7 +73,7 @@ TEXTS = {
         "isolamento": "Foam thickness (mm)",
         "lunghezza": "Coil length (m)",
         "passo_assiale": "Axial pitch (mm/rev)",
-        "incremento": "Layer increment (mm)",
+        "incremento": "Layer increment",
         "rit_min": "Bottom delay (°)",
         "rit_max": "Top delay (°)",
         "metric1": "Tube diameter",
@@ -98,6 +99,7 @@ TEXTS = {
         "grid": "Grid",
         "axes": "Axes",
         "section": "Section",
+        "animation": "Animation",
     }
 }
 
@@ -153,7 +155,7 @@ top1, top2 = st.columns([1.0, 5.0])
 
 with top1:
     if logo_path:
-        st.image(logo_path, width=210)
+        st.image(logo_path, width=110)
 
 with top2:
     st.markdown(f"## {TEXTS[st.session_state.lang]['title']}")
@@ -393,13 +395,7 @@ def viewer(
     d_aspo,
     spalla,
     d_tubo,
-    passo,
-    incremento,
-    rit_b,
-    rit_t,
-    lunghezza,
     altezza,
-    final_world_contacts,
     final_local_points,
     final_thetas,
     final_radii,
@@ -424,16 +420,15 @@ def viewer(
         box-shadow:0 10px 24px rgba(0,0,0,0.18);
         position:relative;
     ">
-        <div id="viewer_hud" style="
+        <div id="viewer_topbar" style="
             position:absolute;
             top:12px;
             left:12px;
-            right:12px;
             z-index:20;
             display:flex;
-            flex-direction:column;
-            gap:10px;
-            padding:12px;
+            align-items:center;
+            gap:8px;
+            padding:10px 12px;
             background:rgba(18,22,27,0.72);
             color:#f0f0f0;
             border:1px solid rgba(255,255,255,0.10);
@@ -442,45 +437,81 @@ def viewer(
             font-family:Arial, sans-serif;
             font-size:13px;
             user-select:none;
-            max-width:560px;
         ">
-            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
-                <button id="play_pause_btn" class="viewer_btn">⏸</button>
-                <button id="fullscreen_btn" class="viewer_btn">⛶</button>
+            <button id="play_pause_btn" class="viewer_btn">⏸</button>
+            <button id="fullscreen_btn" class="viewer_btn">⛶</button>
+            <span style="margin-left:6px;" id="progress_title"></span>
+            <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
+        </div>
 
-                <span style="margin-left:8px;">PROG</span>
-                <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:140px;" />
-
-                <span style="margin-left:8px;" id="speed_title"></span>
-                <button class="speed_btn viewer_btn_small" data-speed="0.1">x0.1</button>
-                <button class="speed_btn viewer_btn_small" data-speed="0.5">x0.5</button>
-                <button class="speed_btn viewer_btn_small active_speed" data-speed="1.0">x1</button>
-                <button class="speed_btn viewer_btn_small" data-speed="1.5">x1.5</button>
-                <button class="speed_btn viewer_btn_small" data-speed="2.0">x2</button>
-                <button class="speed_btn viewer_btn_small" data-speed="5.0">x5</button>
+        <div id="viewer_sidepanel" style="
+            position:absolute;
+            top:12px;
+            right:12px;
+            z-index:20;
+            display:flex;
+            flex-direction:column;
+            gap:12px;
+            width:230px;
+            padding:14px;
+            background:rgba(18,22,27,0.72);
+            color:#f0f0f0;
+            border:1px solid rgba(255,255,255,0.10);
+            border-radius:12px;
+            backdrop-filter: blur(8px);
+            font-family:Arial, sans-serif;
+            font-size:13px;
+            user-select:none;
+        ">
+            <div>
+                <div class="panel_label" id="animation_title"></div>
+                <label class="panel_check">
+                    <input type="checkbox" id="animation_check" checked />
+                    <span id="animation_label_text"></span>
+                </label>
             </div>
 
-            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
-                <span id="spool_title"></span>
-                <button class="spool_btn viewer_btn_small active_opt" data-spool="visible" id="spool_visible_btn"></button>
-                <button class="spool_btn viewer_btn_small" data-spool="transparent" id="spool_transparent_btn"></button>
-                <button class="spool_btn viewer_btn_small" data-spool="hidden" id="spool_hidden_btn"></button>
+            <div>
+                <div class="panel_label" id="speed_title"></div>
+                <div class="btn_group_vertical" id="speed_group">
+                    <button class="speed_btn viewer_btn_small" data-speed="0.1">x0.1</button>
+                    <button class="speed_btn viewer_btn_small" data-speed="0.5">x0.5</button>
+                    <button class="speed_btn viewer_btn_small active_speed" data-speed="1.0">x1</button>
+                    <button class="speed_btn viewer_btn_small" data-speed="1.5">x1.5</button>
+                    <button class="speed_btn viewer_btn_small" data-speed="2.0">x2</button>
+                    <button class="speed_btn viewer_btn_small" data-speed="5.0">x5</button>
+                </div>
+            </div>
 
-                <span style="margin-left:8px;" id="tube_title"></span>
-                <button class="tube_btn viewer_btn_small active_opt" data-tube="gelwhite" id="tube_gelwhite_btn"></button>
-                <button class="tube_btn viewer_btn_small" data-tube="gelblack" id="tube_gelblack_btn"></button>
+            <div>
+                <div class="panel_label" id="spool_title"></div>
+                <div class="btn_group_vertical">
+                    <button class="spool_btn viewer_btn_small active_opt" data-spool="visible" id="spool_visible_btn"></button>
+                    <button class="spool_btn viewer_btn_small" data-spool="transparent" id="spool_transparent_btn"></button>
+                    <button class="spool_btn viewer_btn_small" data-spool="hidden" id="spool_hidden_btn"></button>
+                </div>
+            </div>
 
-                <label style="margin-left:8px; display:flex; align-items:center; gap:6px;">
+            <div>
+                <div class="panel_label" id="tube_title"></div>
+                <div class="btn_group_vertical">
+                    <button class="tube_btn viewer_btn_small active_opt" data-tube="gelwhite" id="tube_gelwhite_btn"></button>
+                    <button class="tube_btn viewer_btn_small" data-tube="gelblack" id="tube_gelblack_btn"></button>
+                </div>
+            </div>
+
+            <div class="panel_checks_block">
+                <label class="panel_check">
                     <input type="checkbox" id="grid_check" checked />
                     <span id="grid_title"></span>
                 </label>
 
-                <label style="display:flex; align-items:center; gap:6px;">
+                <label class="panel_check">
                     <input type="checkbox" id="axes_check" />
                     <span id="axes_title"></span>
                 </label>
 
-                <label style="display:flex; align-items:center; gap:6px;">
+                <label class="panel_check">
                     <input type="checkbox" id="section_check" />
                     <span id="section_title"></span>
                 </label>
@@ -501,11 +532,12 @@ def viewer(
         .viewer_btn_small {{
             border:none;
             border-radius:8px;
-            padding:6px 10px;
+            padding:7px 10px;
             background:#dcdcdc;
             color:#111;
             font-weight:600;
             cursor:pointer;
+            text-align:left;
         }}
         .active_speed {{
             outline:2px solid #ffffff;
@@ -514,6 +546,33 @@ def viewer(
         .active_opt {{
             outline:2px solid #ffffff;
             background:#ffffff;
+        }}
+        .panel_label {{
+            font-size:12px;
+            opacity:0.82;
+            margin-bottom:6px;
+            text-transform:uppercase;
+            letter-spacing:0.04em;
+        }}
+        .btn_group_vertical {{
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+        }}
+        .panel_check {{
+            display:flex;
+            align-items:center;
+            gap:8px;
+        }}
+        .panel_checks_block {{
+            display:flex;
+            flex-direction:column;
+            gap:8px;
+            padding-top:2px;
+        }}
+        .viewer_btn_disabled {{
+            opacity:0.45;
+            cursor:not-allowed;
         }}
     </style>
 
@@ -528,6 +587,7 @@ def viewer(
         const playPauseBtn = document.getElementById("play_pause_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
         const progressSlider = document.getElementById("progress_slider");
+        const animationCheck = document.getElementById("animation_check");
 
         const speedBtns = [...document.querySelectorAll(".speed_btn")];
         const spoolBtns = [...document.querySelectorAll(".spool_btn")];
@@ -537,12 +597,15 @@ def viewer(
         const axesCheck = document.getElementById("axes_check");
         const sectionCheck = document.getElementById("section_check");
 
+        document.getElementById("progress_title").textContent = T.progress;
         document.getElementById("speed_title").textContent = T.speed;
         document.getElementById("spool_title").textContent = T.spool;
         document.getElementById("tube_title").textContent = T.tube_color;
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
         document.getElementById("section_title").textContent = T.section;
+        document.getElementById("animation_title").textContent = T.animation;
+        document.getElementById("animation_label_text").textContent = T.animation;
         document.getElementById("spool_visible_btn").textContent = T.visible;
         document.getElementById("spool_transparent_btn").textContent = T.transparent;
         document.getElementById("spool_hidden_btn").textContent = T.hidden;
@@ -553,7 +616,6 @@ def viewer(
         const Hview = Math.max(host.clientHeight, 400);
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
         camera.position.set(-1400, -2100, 200);
@@ -568,7 +630,6 @@ def viewer(
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.physicallyCorrectLights = true;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.localClippingEnabled = true;
@@ -597,6 +658,7 @@ def viewer(
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
         let isPlaying = true;
+        let animationEnabled = true;
         let speed = 1.0;
         let aspoMode = "visible";
         let tubeMode = "gelwhite";
@@ -610,11 +672,60 @@ def viewer(
         let sectionPlaneHelper = null;
         let sectionFrame = null;
 
+        function getTheme() {{
+            if (tubeMode === "gelblack") {{
+                return {{
+                    bg: 0xffffff,
+                    tube: 0x111111,
+                    freeTube: 0x242424,
+                    activeTube: 0x050505,
+                    sectionFill: 0x000000,
+                    sectionFrame: 0x111111,
+                    gridMajor: 0x5c5c5c,
+                    gridMinor: 0xb8b8b8,
+                    gridOpacity: 0.72,
+                    hemiSky: 0xffffff,
+                    hemiGround: 0xd8d2ca,
+                    ambient: 0.12,
+                    fill: 0.32,
+                    rim: 0.52,
+                    exposure: 1.15,
+                }};
+            }}
+            return {{
+                bg: 0x000000,
+                tube: 0xd8d8d6,
+                freeTube: 0xbebebc,
+                activeTube: 0xf0f0ee,
+                sectionFill: 0xffffff,
+                sectionFrame: 0xffffff,
+                gridMajor: 0x6f6f6f,
+                gridMinor: 0x2f2f2f,
+                gridOpacity: 0.34,
+                hemiSky: 0xd7dfe7,
+                hemiGround: 0x1a1d20,
+                ambient: 0.18,
+                fill: 0.40,
+                rim: 0.62,
+                exposure: 1.0,
+            }};
+        }}
+
         function updatePlayBtn() {{
             playPauseBtn.textContent = isPlaying ? "⏸" : "▶";
             playPauseBtn.title = isPlaying ? T.pause : T.play;
         }}
         updatePlayBtn();
+
+        function updateAnimationUI() {{
+            if (animationEnabled) {{
+                playPauseBtn.classList.remove("viewer_btn_disabled");
+                playPauseBtn.disabled = false;
+            }} else {{
+                playPauseBtn.classList.add("viewer_btn_disabled");
+                playPauseBtn.disabled = true;
+            }}
+        }}
 
         function setActiveButton(group, value, attr, activeClass="active_opt") {{
             group.forEach(btn => {{
@@ -642,7 +753,7 @@ def viewer(
             btn.addEventListener("click", () => {{
                 tubeMode = btn.dataset.tube;
                 setActiveButton(tubeBtns, tubeMode, "data-tube");
-                applyVisualState();
+                applyVisualState(true);
             }});
         }});
 
@@ -659,11 +770,27 @@ def viewer(
         sectionCheck.addEventListener("change", () => {{
             showSection = sectionCheck.checked;
             applySectionState();
-            rebuildDepositedMesh(Math.floor(drawPos));
-            updateOverlayContinuous();
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
+        }});
+
+        animationCheck.addEventListener("change", () => {{
+            animationEnabled = animationCheck.checked;
+            if (!animationEnabled) {{
+                isPlaying = false;
+                drawPos = localPts.length - 1;
+                rebuildDepositedMesh(Math.floor(drawPos), true);
+                updateOverlayContinuous(true);
+                progressSlider.value = 1000;
+            }} else {{
+                isPlaying = true;
+            }}
+            updatePlayBtn();
+            updateAnimationUI();
         }});
 
         playPauseBtn.addEventListener("click", () => {{
+            if (!animationEnabled) return;
             isPlaying = !isPlaying;
             updatePlayBtn();
         }});
@@ -696,8 +823,8 @@ def viewer(
         progressSlider.addEventListener("input", () => {{
             const maxPos = Math.max(1, localPts.length - 1);
             drawPos = (parseInt(progressSlider.value) / 1000.0) * maxPos;
-            rebuildDepositedMesh(Math.floor(drawPos));
-            updateOverlayContinuous();
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
         }});
 
         function resizeViewer() {{
@@ -808,7 +935,7 @@ def viewer(
         const steelTex = makeSteelTexture(256);
 
         // ==========================================
-        // MATERIALS
+        // MATERIALS / THEME
         // ==========================================
         function makeRedMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
@@ -823,21 +950,8 @@ def viewer(
         }}
 
         function makeTubeMaterial(mode, active=false, free=false) {{
-            let baseColor = 0xd8d8d6;
-            let bgColor = 0x000000;
-            let freeColor = 0xbebebc;
-            let activeColor = 0xf0f0ee;
-
-            if (mode === "gelblack") {{
-                baseColor = 0x111111;
-                bgColor = 0xffffff;
-                freeColor = 0x242424;
-                activeColor = 0x050505;
-            }}
-
-            scene.background = new THREE.Color(bgColor);
-
-            const chosen = active ? activeColor : (free ? freeColor : baseColor);
+            const theme = getTheme();
+            const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
 
             const m = new THREE.MeshStandardMaterial({{
                 color: chosen,
@@ -1027,6 +1141,17 @@ def viewer(
         guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
 
+        function refreshThemeBackgroundAndLights() {{
+            const theme = getTheme();
+            scene.background = new THREE.Color(theme.bg);
+            renderer.toneMappingExposure = theme.exposure;
+            ambient.intensity = theme.ambient;
+            hemi.color.setHex(theme.hemiSky);
+            hemi.groundColor.setHex(theme.hemiGround);
+            fillLight.intensity = theme.fill;
+            rimLight.intensity = theme.rim;
+        }}
+
         function applySectionState() {{
             clippingPlanes = [];
             if (sectionPlaneHelper) scene.remove(sectionPlaneHelper);
@@ -1035,11 +1160,12 @@ def viewer(
             sectionFrame = null;
 
             if (showSection) {{
+                const theme = getTheme();
                 const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
                 clippingPlanes = [cutPlane];
 
                 const sectionMat = new THREE.MeshBasicMaterial({{
-                    color: tubeMode === "gelwhite" ? 0xffffff : 0x000000,
+                    color: theme.sectionFill,
                     transparent: true,
                     opacity: tubeMode === "gelwhite" ? 0.18 : 0.12,
                     side: THREE.DoubleSide,
@@ -1054,7 +1180,7 @@ def viewer(
 
                 const frameGeo = new THREE.EdgesGeometry(sectionGeo);
                 const frameMat = new THREE.LineBasicMaterial({{
-                    color: tubeMode === "gelwhite" ? 0xffffff : 0x111111,
+                    color: theme.sectionFrame,
                     transparent: true,
                     opacity: tubeMode === "gelwhite" ? 0.45 : 0.35
                 }});
@@ -1069,8 +1195,6 @@ def viewer(
             tubeMat = makeTubeMaterial(tubeMode, false, false);
             activeTubeMat = makeTubeMaterial(tubeMode, true, false);
             freeTubeMat = makeTubeMaterial(tubeMode, false, true);
-
-            applyVisualState();
         }}
 
         function buildGridIfNeeded() {{
@@ -1078,15 +1202,16 @@ def viewer(
             grid = null;
 
             if (showGrid) {{
+                const theme = getTheme();
                 grid = new THREE.GridHelper(
                     2000,
                     20,
-                    tubeMode === "gelwhite" ? 0x6f6f6f : 0x5c5c5c,
-                    tubeMode === "gelwhite" ? 0x2f2f2f : 0xb8b8b8
+                    theme.gridMajor,
+                    theme.gridMinor
                 );
                 grid.rotation.x = Math.PI / 2;
                 grid.position.z = 0;
-                grid.material.opacity = tubeMode === "gelwhite" ? 0.34 : 0.72;
+                grid.material.opacity = theme.gridOpacity;
                 grid.material.transparent = true;
                 scene.add(grid);
             }}
@@ -1101,7 +1226,9 @@ def viewer(
             }}
         }}
 
-        function applyVisualState() {{
+        function applyVisualState(themeChanged=false) {{
+            refreshThemeBackgroundAndLights();
+
             const useMat = aspoMode === "transparent" ? redMatTransparent : redMat;
             mandrel.material = useMat;
             base.material = useMat;
@@ -1115,12 +1242,16 @@ def viewer(
             mandrel.visible = aspoMode !== "hidden";
             base.visible = aspoMode !== "hidden";
             top.visible = aspoMode !== "hidden";
-            guideGroup.visible = aspoMode !== "hidden" || true;
 
             buildGridIfNeeded();
             buildAxesIfNeeded();
-            rebuildDepositedMesh(Math.floor(drawPos));
-            updateOverlayContinuous();
+
+            if (themeChanged) {{
+                applySectionState();
+            }}
+
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
         }}
 
         // ==========================================
@@ -1269,9 +1400,9 @@ def viewer(
         let drawPos = 1.0;
         let lastRebuiltCompleted = -1;
 
-        function rebuildDepositedMesh(completedIndex) {{
+        function rebuildDepositedMesh(completedIndex, force=false) {{
             if (completedIndex < 1) return;
-            if (completedIndex === lastRebuiltCompleted && depositedMesh) return;
+            if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
             lastRebuiltCompleted = completedIndex;
 
             if (depositedMesh) {{
@@ -1303,7 +1434,7 @@ def viewer(
             }}
         }}
 
-        function updateOverlayContinuous() {{
+        function updateOverlayContinuous(force=false) {{
             clearOverlay();
             if (localPts.length < 2) return;
 
@@ -1341,27 +1472,32 @@ def viewer(
             overlayGroup.add(startMarker);
             overlayGroup.add(endMarker);
 
-            if (frac > 1e-6 && i1 > i0) {{
-                const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-                activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
-                if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
+            if (animationEnabled) {{
+                if (frac > 1e-6 && i1 > i0) {{
+                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
+                    activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
+                    if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
+                }}
+
+                const guideWorld = guidePointWorld(radius, z);
+                freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
+                if (freeMesh) overlayGroup.add(freeMesh);
+
+                guideGroup.position.copy(guideWorld);
+                guideGroup.visible = true;
+            }} else {{
+                guideGroup.visible = false;
             }}
-
-            const guideWorld = guidePointWorld(radius, z);
-            freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
-            if (freeMesh) overlayGroup.add(freeMesh);
-
-            guideGroup.position.copy(guideWorld);
-            guideGroup.visible = true;
         }}
 
         applySectionState();
-        applyVisualState();
+        applyVisualState(true);
+        updateAnimationUI();
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (isPlaying && drawPos < localPts.length - 1) {{
+            if (animationEnabled && isPlaying && drawPos < localPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
                 const oldCompleted = Math.floor(drawPos);
                 drawPos = Math.min(localPts.length - 1, drawPos + advance);
@@ -1379,8 +1515,16 @@ def viewer(
             renderer.render(scene, camera);
         }}
 
-        rebuildDepositedMesh(1);
-        updateOverlayContinuous();
+        if (!animationEnabled) {{
+            drawPos = localPts.length - 1;
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
+            progressSlider.value = 1000;
+        }} else {{
+            rebuildDepositedMesh(1, true);
+            updateOverlayContinuous(true);
+        }}
+
         animate();
 
         window.addEventListener("resize", resizeViewer);
@@ -1446,13 +1590,7 @@ components.html(
         diametro_aspo,
         spalla,
         d_tubo,
-        passo,
-        incremento,
-        rit_b,
-        rit_t,
-        lunghezza,
         760,
-        world_contacts.tolist(),
         local_points.tolist(),
         theta_values.tolist(),
         radius_values.tolist(),
