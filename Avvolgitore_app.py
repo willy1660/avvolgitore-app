@@ -199,13 +199,11 @@ def simulate_winding_paths_segmented(
     first_contact_world = deposit_point_world(current_layer_radius, z)
     first_local = world_to_spool_local(first_contact_world, theta)
 
-    # Full motion path
     full_local = [first_local]
     full_theta = [theta]
     full_radius = [current_layer_radius]
     full_z = [z]
 
-    # Deposited segmented paths
     deposited_segments = [[first_local.tolist()]]
     dep_seg_idx_at_full = [0]
     dep_seg_len_at_full = [1]
@@ -411,6 +409,14 @@ def viewer(
     language,
 ):
     labels_json = json.dumps(TEXTS[language])
+    full_local_points_json = json.dumps(full_local_points)
+    full_thetas_json = json.dumps(full_thetas)
+    full_radii_json = json.dumps(full_radii)
+    full_zs_json = json.dumps(full_zs)
+    deposited_segments_json = json.dumps(deposited_segments)
+    dep_seg_idx_at_full_json = json.dumps(dep_seg_idx_at_full)
+    dep_seg_len_at_full_json = json.dumps(dep_seg_len_at_full)
+
     return f"""
     <div id="viewer_root" style="
         width:100%;
@@ -519,13 +525,13 @@ def viewer(
     (() => {{
         const T = {labels_json};
 
-        const fullLocalPts = {json.dumps(full_local_points)}.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-        const thetaRaw = {json.dumps(full_thetas)};
-        const radiusRaw = {json.dumps(full_radii)};
-        const zRaw = {json.dumps(full_zs)};
-        const depositedSegmentsRaw = {json.dumps(deposited_segments)};
-        const depSegIdxAtFull = {json.dumps(dep_seg_idx_at_full)};
-        const depSegLenAtFull = {json.dumps(dep_seg_len_at_full)};
+        const fullLocalPts = {full_local_points_json}.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const thetaRaw = {full_thetas_json};
+        const radiusRaw = {full_radii_json};
+        const zRaw = {full_zs_json};
+        const depositedSegmentsRaw = {deposited_segments_json};
+        const depSegIdxAtFull = {dep_seg_idx_at_full_json};
+        const depSegLenAtFull = {dep_seg_len_at_full_json};
 
         const depositedSegments = depositedSegmentsRaw.map(seg => seg.map(p => new THREE.Vector3(p[0], p[1], p[2])));
 
@@ -564,7 +570,7 @@ def viewer(
         camera.position.set(-1400, -2100, 200);
         camera.up.set(0, 0, 1);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        const renderer = new THREE.WebGLRenderer({{ antialias: true, powerPreference: "high-performance" }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
@@ -918,31 +924,36 @@ def viewer(
 
         const guideBarrel = new THREE.Mesh(new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false), redMat);
         guideBarrel.rotation.z = Math.PI / 2;
-        guideBarrel.castShadow = true; guideBarrel.receiveShadow = true;
+        guideBarrel.castShadow = true;
+        guideBarrel.receiveShadow = true;
         guideGroup.add(guideBarrel);
 
         const guideShoulder = new THREE.Mesh(new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false), redMat);
         guideShoulder.rotation.z = Math.PI / 2;
         guideShoulder.position.x = 22 * guideScale;
-        guideShoulder.castShadow = true; guideShoulder.receiveShadow = true;
+        guideShoulder.castShadow = true;
+        guideShoulder.receiveShadow = true;
         guideGroup.add(guideShoulder);
 
         const guideTaper = new THREE.Mesh(new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false), redMat);
         guideTaper.rotation.z = Math.PI / 2;
         guideTaper.position.x = 42 * guideScale;
-        guideTaper.castShadow = true; guideTaper.receiveShadow = true;
+        guideTaper.castShadow = true;
+        guideTaper.receiveShadow = true;
         guideGroup.add(guideTaper);
 
         const guideNozzle = new THREE.Mesh(new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false), redMat);
         guideNozzle.rotation.z = Math.PI / 2;
         guideNozzle.position.x = 58 * guideScale;
-        guideNozzle.castShadow = true; guideNozzle.receiveShadow = true;
+        guideNozzle.castShadow = true;
+        guideNozzle.receiveShadow = true;
         guideGroup.add(guideNozzle);
 
         const guideBackCap = new THREE.Mesh(new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false), redMat);
         guideBackCap.rotation.z = Math.PI / 2;
         guideBackCap.position.x = -28 * guideScale;
-        guideBackCap.castShadow = true; guideBackCap.receiveShadow = true;
+        guideBackCap.castShadow = true;
+        guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
 
         function refreshThemeBackgroundAndLights() {{
