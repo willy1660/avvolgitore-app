@@ -155,7 +155,7 @@ top1, top2 = st.columns([1.0, 5.0])
 
 with top1:
     if logo_path:
-        st.image(logo_path, width=150)
+        st.image(logo_path, width=110)
 
 with top2:
     st.markdown(f"## {TEXTS[st.session_state.lang]['title']}")
@@ -836,9 +836,6 @@ def viewer(
             controls.handleResize();
         }}
 
-        // ==========================================
-        // TEXTURES
-        // ==========================================
         function makeWaffleKnurlTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
@@ -934,9 +931,6 @@ def viewer(
         const bumpTex = makeWaffleKnurlTexture(256);
         const steelTex = makeSteelTexture(256);
 
-        // ==========================================
-        // MATERIALS / THEME
-        // ==========================================
         function makeRedMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
                 color: 0x6d7278,
@@ -1007,9 +1001,6 @@ def viewer(
             emissiveIntensity: 0.14
         }});
 
-        // ==========================================
-        // LIGHTING
-        // ==========================================
         const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(ambient);
 
@@ -1033,21 +1024,16 @@ def viewer(
         rimLight.position.set(0, 400, 300);
         scene.add(rimLight);
 
-        // ==========================================
-        // SCENE GROUPS
-        // ==========================================
         const machine = new THREE.Group();
         scene.add(machine);
 
+        // depositedGroup CORRECT: child of machine
         const depositedGroup = new THREE.Group();
         machine.add(depositedGroup);
 
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
-        // ==========================================
-        // MANDREL / SPOOLS
-        // ==========================================
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
             redMat
@@ -1081,9 +1067,6 @@ def viewer(
         top.receiveShadow = true;
         machine.add(top);
 
-        // ==========================================
-        // GUIDE
-        // ==========================================
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
         const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.34;
@@ -1254,9 +1237,6 @@ def viewer(
             updateOverlayContinuous(true);
         }}
 
-        // ==========================================
-        // HELPERS
-        // ==========================================
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -1265,7 +1245,7 @@ def viewer(
             );
         }}
 
-        function localPointToWorld(ptLocal, theta) {{
+        function localPointToWorldCurrent(ptLocal, theta) {{
             return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
         }}
 
@@ -1454,13 +1434,13 @@ def viewer(
             const activeLocalStart = localPts[i0];
             const activeLocalEnd = lerpVec3(localPts[i0], localPts[i1], frac);
 
-            const startWorld = localPointToWorld(localPts[0], theta);
-            const endWorld = localPointToWorld(activeLocalEnd, theta);
+            const startWorld = localPointToWorldCurrent(localPts[0], theta);
+            const activeStartWorld = localPointToWorldCurrent(activeLocalStart, theta);
+            const endWorld = localPointToWorldCurrent(activeLocalEnd, theta);
 
             const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
-            const endTangentLocal = activeLocalEnd.clone().sub(activeLocalStart);
             const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
-            const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
+            const endTangentWorld = endWorld.clone().sub(activeStartWorld);
 
             startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.82);
             endMarker = makeEndpointDisc(
@@ -1474,7 +1454,6 @@ def viewer(
 
             if (animationEnabled) {{
                 if (frac > 1e-6 && i1 > i0) {{
-                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
                     activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
                     if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
                 }}
