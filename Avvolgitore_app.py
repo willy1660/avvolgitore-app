@@ -481,6 +481,7 @@ def viewer(
         const showAxes = {show_axes_json};
 
         controls.target.set(10, 20, Hs * 0.52);
+        camera.lookAt(10,20, Hs*0.52);
 
         const localRaw = {final_local_points_json};
         const thetaRaw = {final_thetas_json};
