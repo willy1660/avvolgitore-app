@@ -386,7 +386,6 @@ def viewer(
     guide_offset_x,
 ):
     anim_js = "true" if anim else "false"
-    final_world_contacts_json = json.dumps(final_world_contacts)
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
     final_radii_json = json.dumps(final_radii)
@@ -464,6 +463,12 @@ def viewer(
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: 0xd6d9dd,
             roughness: 0.72,
+            metalness: 0.08
+        }});
+
+        const activeTubeMat = new THREE.MeshStandardMaterial({{
+            color: 0xe0e3e7,
+            roughness: 0.70,
             metalness: 0.08
         }});
 
@@ -576,6 +581,18 @@ def viewer(
             return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
         }}
 
+        function lerp(a, b, t) {{
+            return a + (b - a) * t;
+        }}
+
+        function lerpVec3(a, b, t) {{
+            return new THREE.Vector3(
+                lerp(a.x, b.x, t),
+                lerp(a.y, b.y, t),
+                lerp(a.z, b.z, t)
+            );
+        }}
+
         function disposeMaterial(mat) {{
             if (!mat) return;
             if (Array.isArray(mat)) {{
@@ -626,20 +643,22 @@ def viewer(
 
         let depositedSegments = [];
         let depositedJoints = [];
+
         let freeMesh = null;
+        let activeCoilMesh = null;
         let startMarker = null;
         let endMarker = null;
 
-        let drawIndex = animEnabled ? 2 : localPts.length;
-        let drawAccumulator = 0.0;
+        let drawPos = animEnabled ? 1.0 : (localPts.length - 1);
         let builtUntil = 1;
+        let drawAccumulator = 0.0;
 
         function clearGroupObjects(group, arr) {{
             for (const obj of arr) disposeObj(obj, group);
             arr.length = 0;
         }}
 
-        function rebuildDepositedUpTo(idx) {{
+        function rebuildDepositedUpTo(idxInclusivePoint) {{
             clearGroupObjects(depositedGroup, depositedSegments);
             clearGroupObjects(depositedGroup, depositedJoints);
 
@@ -648,7 +667,7 @@ def viewer(
             const firstJoint = createDiscMarker(localPts[0], tubeMat, depositedGroup);
             depositedJoints.push(firstJoint);
 
-            for (let i = 1; i < idx; i++) {{
+            for (let i = 1; i <= idxInclusivePoint; i++) {{
                 const p0 = localPts[i - 1];
                 const p1 = localPts[i];
 
@@ -662,15 +681,15 @@ def viewer(
                 depositedJoints.push(joint);
             }}
 
-            builtUntil = Math.max(1, idx - 1);
+            builtUntil = idxInclusivePoint;
         }}
 
-        function appendOneSegment() {{
-            const nextI = builtUntil + 1;
-            if (nextI >= drawIndex || nextI >= localPts.length) return;
+        function appendCompletedSegment(nextIndex) {{
+            if (nextIndex < 1 || nextIndex >= localPts.length) return;
+            if (nextIndex <= builtUntil) return;
 
-            const p0 = localPts[nextI - 1];
-            const p1 = localPts[nextI];
+            const p0 = localPts[nextIndex - 1];
+            const p1 = localPts[nextIndex];
 
             const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
             if (seg) {{
@@ -681,13 +700,17 @@ def viewer(
             const joint = createDiscMarker(p1, tubeMat, depositedGroup);
             depositedJoints.push(joint);
 
-            builtUntil = nextI;
+            builtUntil = nextIndex;
         }}
 
-        function updateOverlay() {{
+        function clearOverlay() {{
             if (freeMesh) {{
                 disposeObj(freeMesh, overlayGroup);
                 freeMesh = null;
+            }}
+            if (activeCoilMesh) {{
+                disposeObj(activeCoilMesh, overlayGroup);
+                activeCoilMesh = null;
             }}
             if (startMarker) {{
                 disposeObj(startMarker, overlayGroup);
@@ -697,28 +720,48 @@ def viewer(
                 disposeObj(endMarker, overlayGroup);
                 endMarker = null;
             }}
+        }}
 
-            const safeIndex = Math.max(2, Math.min(drawIndex, localPts.length));
-            const i = safeIndex - 1;
+        function updateOverlayContinuous() {{
+            clearOverlay();
 
-            const currentTheta = thetaRaw[i];
-            const currentRadius = radiusRaw[i];
-            const currentZ = zRaw[i];
+            if (localPts.length < 2) return;
 
-            machine.rotation.z = currentTheta;
+            const maxPos = localPts.length - 1;
+            const clampedPos = Math.max(1.0, Math.min(drawPos, maxPos));
 
-            const startWorld = localPointToWorld(localPts[0], currentTheta);
-            const endWorld = localPointToWorld(localPts[i], currentTheta);
+            const i0 = Math.floor(clampedPos);
+            const i1 = Math.min(i0 + 1, localPts.length - 1);
+            const frac = clampedPos - i0;
+
+            const theta = lerp(thetaRaw[i0], thetaRaw[i1], frac);
+            const radius = lerp(radiusRaw[i0], radiusRaw[i1], frac);
+            const z = lerp(zRaw[i0], zRaw[i1], frac);
+
+            machine.rotation.z = theta;
+
+            const activeLocalStart = localPts[i0];
+            const activeLocalEnd = lerpVec3(localPts[i0], localPts[i1], frac);
+
+            const startWorld = localPointToWorld(localPts[0], theta);
+            const endWorld = localPointToWorld(activeLocalEnd, theta);
 
             startMarker = createDiscMarker(startWorld, startMat, overlayGroup);
             endMarker = createDiscMarker(endWorld, endMat, overlayGroup);
 
-            const guideWorld = guidePointWorld(currentRadius, currentZ);
+            if (frac > 1e-6 && i1 > i0) {{
+                const activeStartWorld = localPointToWorld(activeLocalStart, theta);
+                activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
+                if (activeCoilMesh) {{
+                    overlayGroup.add(activeCoilMesh);
+                }}
+            }}
 
-            const seg = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
-            if (seg) {{
-                overlayGroup.add(seg);
-                freeMesh = seg;
+            const guideWorld = guidePointWorld(radius, z);
+
+            freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
+            if (freeMesh) {{
+                overlayGroup.add(freeMesh);
             }}
 
             guide.position.copy(guideWorld);
@@ -740,31 +783,31 @@ def viewer(
         }}
 
         if (animEnabled) {{
-            rebuildDepositedUpTo(drawIndex);
+            rebuildDepositedUpTo(1);
         }} else {{
-            rebuildDepositedUpTo(localPts.length);
-            drawIndex = localPts.length;
+            rebuildDepositedUpTo(localPts.length - 1);
+            drawPos = localPts.length - 1;
         }}
-        updateOverlay();
+
+        updateOverlayContinuous();
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && drawIndex < localPts.length) {{
-                drawAccumulator += Math.max(0.12, speed * 0.85);
-                const stepNow = Math.floor(drawAccumulator);
+            if (animEnabled && drawPos < localPts.length - 1) {{
+                drawAccumulator += Math.max(0.01, speed * 0.035);
 
-                if (stepNow >= 1) {{
-                    drawAccumulator -= stepNow;
-                    const oldDrawIndex = drawIndex;
-                    drawIndex = Math.min(localPts.length, drawIndex + stepNow);
+                const oldCompleted = Math.floor(drawPos);
+                drawPos = Math.min(localPts.length - 1, drawPos + drawAccumulator);
+                drawAccumulator = 0.0;
 
-                    for (let k = oldDrawIndex; k < drawIndex; k++) {{
-                        appendOneSegment();
-                    }}
+                const newCompleted = Math.floor(drawPos);
 
-                    updateOverlay();
+                for (let i = oldCompleted + 1; i <= newCompleted; i++) {{
+                    appendCompletedSegment(i);
                 }}
+
+                updateOverlayContinuous();
             }}
 
             controls.update();
