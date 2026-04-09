@@ -205,7 +205,6 @@ def simulate_winding_center_plane_local(
     z_values = [z]
 
     deposited_len = 0.0
-
     direction = 1
     mode = "axial"
 
@@ -422,7 +421,7 @@ def viewer(
     "></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/TrackballControls.js"></script>
 
     <script>
     (() => {{
@@ -455,26 +454,16 @@ def viewer(
         renderer.outputEncoding = THREE.sRGBEncoding;
         host.appendChild(renderer.domElement);
 
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.04;
-        controls.rotateSpeed = 0.95;
-        controls.zoomSpeed = 1.0;
-        controls.panSpeed = 0.8;
-        controls.enablePan = true;
-        controls.enableRotate = true;
-        controls.enableZoom = true;
-        controls.screenSpacePanning = true;
-        controls.minDistance = 120;
-        controls.maxDistance = 5000;
-        controls.minPolarAngle = 0.0;
-        controls.maxPolarAngle = Math.PI;
+        const controls = new THREE.TrackballControls(camera, renderer.domElement);
+        controls.rotateSpeed = 4.0;
+        controls.zoomSpeed = 1.2;
+        controls.panSpeed = 0.85;
+        controls.dynamicDampingFactor = 0.12;
+        controls.staticMoving = false;
+        controls.noPan = false;
+        controls.noZoom = false;
+        controls.noRotate = false;
         controls.target.set(0, 0, {spalla}/2);
-
-        // intent de fer el pan més "càmera-relatiu"
-        controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
-        controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
-        controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
@@ -501,7 +490,7 @@ def viewer(
             const img = ctx.createImageData(size, size);
 
             for (let i = 0; i < img.data.length; i += 4) {{
-                const v = 45 + Math.floor(Math.random() * 170);
+                const v = 25 + Math.floor(Math.random() * 210);
                 img.data[i] = v;
                 img.data[i + 1] = v;
                 img.data[i + 2] = v;
@@ -512,7 +501,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(96, 18);
+            tex.repeat.set(120, 24);
             return tex;
         }}
 
@@ -523,18 +512,18 @@ def viewer(
             const ctx = canvas.getContext("2d");
 
             const grad = ctx.createLinearGradient(0, 0, size, 0);
-            grad.addColorStop(0.0, "#5f666d");
-            grad.addColorStop(0.16, "#d1d6da");
-            grad.addColorStop(0.34, "#81888f");
-            grad.addColorStop(0.55, "#bcc2c8");
-            grad.addColorStop(0.78, "#70777e");
-            grad.addColorStop(1.0, "#d9dde1");
+            grad.addColorStop(0.0, "#616870");
+            grad.addColorStop(0.18, "#dadfe3");
+            grad.addColorStop(0.36, "#7a8289");
+            grad.addColorStop(0.58, "#c7ccd1");
+            grad.addColorStop(0.82, "#6b727a");
+            grad.addColorStop(1.0, "#e1e5e8");
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, size, size);
 
             for (let y = 0; y < size; y += 2) {{
-                const alpha = 0.02 + Math.random() * 0.04;
-                ctx.fillStyle = `rgba(255,255,255,${{alpha}})`;
+                const a = 0.03 + Math.random() * 0.05;
+                ctx.fillStyle = `rgba(255,255,255,${{a}})`;
                 ctx.fillRect(0, y, size, 1);
             }}
 
@@ -550,7 +539,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(2.2, 2.2);
+            tex.repeat.set(3.0, 1.0);
             return tex;
         }}
 
@@ -574,44 +563,40 @@ def viewer(
 
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.97,
+            roughness: 0.99,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 2.1
+            bumpScale: 2.8
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.94,
+            roughness: 0.96,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.7
+            bumpScale: 2.2
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 0.95,
+            roughness: 0.97,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.35
+            bumpScale: 1.8
         }});
 
         const steelMat = new THREE.MeshStandardMaterial({{
             color: 0xb8bec4,
             roughness: 0.42,
             metalness: 0.82,
-            map: steelTex,
-            bumpMap: steelTex,
-            bumpScale: 0.10
+            map: steelTex
         }});
 
         const steelDarkMat = new THREE.MeshStandardMaterial({{
             color: 0x8a9299,
             roughness: 0.48,
             metalness: 0.76,
-            map: steelTex,
-            bumpMap: steelTex,
-            bumpScale: 0.08
+            map: steelTex
         }});
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
@@ -677,42 +662,45 @@ def viewer(
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
 
-        const guideMain = new THREE.Mesh(
-            new THREE.BoxGeometry(58 * guideScale, 34 * guideScale, 34 * guideScale),
-            blueMat
-        );
-        guideGroup.add(guideMain);
-
-        const guideSleeve = new THREE.Mesh(
-            new THREE.CylinderGeometry(14 * guideScale, 14 * guideScale, 34 * guideScale, 24),
+        // Cosos cilíndrics per tenir mapatge cilíndric correcte
+        const guideBarrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false),
             steelDarkMat
         );
-        guideSleeve.rotation.z = Math.PI / 2;
-        guideSleeve.position.x = 6 * guideScale;
-        guideGroup.add(guideSleeve);
+        guideBarrel.rotation.z = Math.PI / 2;
+        guideBarrel.position.x = 0;
+        guideGroup.add(guideBarrel);
+
+        const guideShoulder = new THREE.Mesh(
+            new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false),
+            steelMat
+        );
+        guideShoulder.rotation.z = Math.PI / 2;
+        guideShoulder.position.x = 22 * guideScale;
+        guideGroup.add(guideShoulder);
 
         const guideTaper = new THREE.Mesh(
-            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 20),
+            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false),
             steelMat
         );
         guideTaper.rotation.z = Math.PI / 2;
-        guideTaper.position.x = 32 * guideScale;
+        guideTaper.position.x = 42 * guideScale;
         guideGroup.add(guideTaper);
 
         const guideNozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 28),
+            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false),
             steelMat
         );
         guideNozzle.rotation.z = Math.PI / 2;
-        guideNozzle.position.x = 47 * guideScale;
+        guideNozzle.position.x = 58 * guideScale;
         guideGroup.add(guideNozzle);
 
         const guideBackCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 18),
+            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false),
             steelDarkMat
         );
         guideBackCap.rotation.z = Math.PI / 2;
-        guideBackCap.position.x = -30 * guideScale;
+        guideBackCap.position.x = -28 * guideScale;
         guideGroup.add(guideBackCap);
 
         scene.add(new THREE.AmbientLight(0xffffff, gelwhite ? 0.34 : 0.26));
@@ -942,7 +930,7 @@ def viewer(
             const endWorld = localPointToWorld(activeLocalEnd, theta);
 
             const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
-            const endTangentLocal = localPts[i1].clone().sub(localPts[i0]);
+            const endTangentLocal = activeLocalEnd.clone().sub(activeLocalStart);
             const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
             const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
 
@@ -1006,6 +994,7 @@ def viewer(
             camera.aspect = nw / nh;
             camera.updateProjectionMatrix();
             renderer.setSize(nw, nh);
+            controls.handleResize();
         }});
     }})();
     </script>
