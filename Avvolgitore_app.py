@@ -501,7 +501,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(100, 100);
+            tex.repeat.set(10, 10);
             return tex;
         }}
 
@@ -539,7 +539,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(0.5, 0.45);
+            tex.repeat.set(0.7, 0.7);
             return tex;
         }}
 
