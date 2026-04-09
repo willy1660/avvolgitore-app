@@ -175,35 +175,6 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     return np.array([x, y, pt_world[2]], dtype=float)
 
 
-def add_smooth_layer_bridge(segment, p_end, p_start, n_bridge=8):
-    p0 = np.array(p_end, dtype=float)
-    p1 = np.array(p_start, dtype=float)
-    if np.linalg.norm(p1 - p0) < 1e-9:
-        return
-
-    z0, z1 = p0[2], p1[2]
-    r0, r1 = np.linalg.norm(p0[:2]), np.linalg.norm(p1[:2])
-    a0 = np.arctan2(p0[1], p0[0])
-    a1 = np.arctan2(p1[1], p1[0])
-
-    da = a1 - a0
-    while da > np.pi:
-        da -= 2 * np.pi
-    while da < -np.pi:
-        da += 2 * np.pi
-    a1u = a0 + da
-
-    for i in range(1, n_bridge + 1):
-        u = i / (n_bridge + 1)
-        s = smoothstep(u)
-        r = r0 + s * (r1 - r0)
-        z = z0 + s * (z1 - z0)
-        a = a0 + s * (a1u - a0)
-        x = r * np.cos(a)
-        y = r * np.sin(a)
-        segment.append([float(x), float(y), float(z)])
-
-
 def simulate_winding_paths_segmented(
     d_aspo: float,
     spalla: float,
@@ -228,11 +199,13 @@ def simulate_winding_paths_segmented(
     first_contact_world = deposit_point_world(current_layer_radius, z)
     first_local = world_to_spool_local(first_contact_world, theta)
 
+    # Full motion path
     full_local = [first_local]
     full_theta = [theta]
     full_radius = [current_layer_radius]
     full_z = [z]
 
+    # Deposited segmented paths
     deposited_segments = [[first_local.tolist()]]
     dep_seg_idx_at_full = [0]
     dep_seg_len_at_full = [1]
@@ -264,49 +237,48 @@ def simulate_winding_paths_segmented(
         next_turn_end_radius = turn_end_radius
         next_radius = current_layer_radius
 
-        hit_end_and_jump_layer = False
+        turn_finished_this_step = False
 
         if mode == "axial":
             next_z = z + direction * passo * (deg_step / 360.0)
             next_radius = current_layer_radius
 
             if next_z >= H - Rt:
-                # Correct order:
-                # 1) reach end
-                # 2) jump layer immediately
-                # 3) reverse direction
                 next_z = H - Rt
-                next_radius = current_layer_radius + max(0.0, incremento)
-                current_layer_radius = next_radius
-                next_direction = -direction
                 next_mode = "turn"
                 next_turn_progress = 0.0
                 next_turn_delay = max(rit_t, 0.0)
                 next_turn_z = next_z
-                next_turn_start_radius = next_radius
-                next_turn_end_radius = next_radius
-                hit_end_and_jump_layer = True
+                next_turn_start_radius = current_layer_radius
+                next_turn_end_radius = current_layer_radius + max(0.0, incremento)
 
             elif next_z <= Rt:
                 next_z = Rt
-                next_radius = current_layer_radius + max(0.0, incremento)
-                current_layer_radius = next_radius
-                next_direction = -direction
                 next_mode = "turn"
                 next_turn_progress = 0.0
                 next_turn_delay = max(rit_b, 0.0)
                 next_turn_z = next_z
-                next_turn_start_radius = next_radius
-                next_turn_end_radius = next_radius
-                hit_end_and_jump_layer = True
+                next_turn_start_radius = current_layer_radius
+                next_turn_end_radius = current_layer_radius + max(0.0, incremento)
 
         else:
-            next_z = turn_z
-            next_radius = current_layer_radius
-            next_turn_progress = turn_progress + deg_step
-
-            if next_turn_progress >= max(turn_delay, 0.0):
+            next_z = next_turn_z
+            if next_turn_delay <= 0.0:
+                next_radius = next_turn_end_radius
+                current_layer_radius = next_turn_end_radius
                 next_mode = "axial"
+                next_direction = -direction
+                turn_finished_this_step = True
+            else:
+                next_turn_progress = turn_progress + deg_step
+                s = smoothstep(next_turn_progress / next_turn_delay)
+                next_radius = next_turn_start_radius + s * (next_turn_end_radius - next_turn_start_radius)
+                if next_turn_progress >= next_turn_delay:
+                    next_radius = next_turn_end_radius
+                    current_layer_radius = next_turn_end_radius
+                    next_mode = "axial"
+                    next_direction = -direction
+                    turn_finished_this_step = True
 
         new_contact_world = deposit_point_world(next_radius, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
@@ -346,13 +318,9 @@ def simulate_winding_paths_segmented(
 
                 if prev_mode == "axial":
                     deposited_segments[current_seg_idx].append(final_local.tolist())
-
-                    if hit_end_and_jump_layer:
-                        prev_end = deposited_segments[current_seg_idx][-1]
-                        next_start = final_local.tolist()
-                        add_smooth_layer_bridge(deposited_segments[current_seg_idx], prev_end, next_start, n_bridge=8)
-                        current_seg_idx += 1
-                        deposited_segments.append([final_local.tolist()])
+                elif turn_finished_this_step:
+                    current_seg_idx += 1
+                    deposited_segments.append([final_local.tolist()])
 
                 dep_seg_idx_at_full.append(current_seg_idx)
                 dep_seg_len_at_full.append(len(deposited_segments[current_seg_idx]))
@@ -367,13 +335,9 @@ def simulate_winding_paths_segmented(
 
             if prev_mode == "axial":
                 deposited_segments[current_seg_idx].append(new_local.tolist())
-
-                if hit_end_and_jump_layer:
-                    prev_end = deposited_segments[current_seg_idx][-1]
-                    next_start = new_local.tolist()
-                    add_smooth_layer_bridge(deposited_segments[current_seg_idx], prev_end, next_start, n_bridge=8)
-                    current_seg_idx += 1
-                    deposited_segments.append([new_local.tolist()])
+            elif turn_finished_this_step:
+                current_seg_idx += 1
+                deposited_segments.append([new_local.tolist()])
 
             dep_seg_idx_at_full.append(current_seg_idx)
             dep_seg_len_at_full.append(len(deposited_segments[current_seg_idx]))
@@ -600,7 +564,7 @@ def viewer(
         camera.position.set(-1400, -2100, 200);
         camera.up.set(0, 0, 1);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        const renderer = new THREE.WebGLRenderer({{ antialias: true, powerPreference: "high-performance" }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
@@ -641,133 +605,133 @@ def viewer(
         let sectionPlaneHelper = null;
         let sectionFrame = null;
 
-        function getTheme() {
-            if (tubeMode === "gelblack") {
-                return {
+        function getTheme() {{
+            if (tubeMode === "gelblack") {{
+                return {{
                     bg: 0xffffff, tube: 0x111111, freeTube: 0x242424, activeTube: 0x050505,
                     sectionFill: 0x000000, sectionFrame: 0x111111,
                     gridMajor: 0x5c5c5c, gridMinor: 0xb8b8b8, gridOpacity: 0.72,
                     hemiSky: 0xffffff, hemiGround: 0xd8d2ca, ambient: 0.12, fill: 0.32, rim: 0.52, exposure: 1.15,
-                };
-            }
-            return {
+                }};
+            }}
+            return {{
                 bg: 0x000000, tube: 0xd8d8d6, freeTube: 0xbebebc, activeTube: 0xf0f0ee,
                 sectionFill: 0xffffff, sectionFrame: 0xffffff,
                 gridMajor: 0x6f6f6f, gridMinor: 0x2f2f2f, gridOpacity: 0.34,
                 hemiSky: 0xd7dfe7, hemiGround: 0x1a1d20, ambient: 0.18, fill: 0.40, rim: 0.62, exposure: 1.0,
-            };
-        }
+            }};
+        }}
 
-        function updatePlayBtn() {
+        function updatePlayBtn() {{
             playPauseBtn.textContent = isPlaying ? "⏸" : "▶";
             playPauseBtn.title = isPlaying ? T.pause : T.play;
-        }
+        }}
         updatePlayBtn();
 
-        function updateAnimationUI() {
-            if (animationEnabled) {
+        function updateAnimationUI() {{
+            if (animationEnabled) {{
                 playPauseBtn.classList.remove("viewer_btn_disabled");
                 playPauseBtn.disabled = false;
-            } else {
+            }} else {{
                 playPauseBtn.classList.add("viewer_btn_disabled");
                 playPauseBtn.disabled = true;
-            }
-        }
+            }}
+        }}
 
-        function setActiveButton(group, value, attr, activeClass="active_opt") {
+        function setActiveButton(group, value, attr, activeClass="active_opt") {{
             group.forEach(btn => btn.classList.toggle(activeClass, btn.getAttribute(attr) === value));
-        }
+        }}
 
-        speedBtns.forEach(btn => btn.addEventListener("click", () => {
+        speedBtns.forEach(btn => btn.addEventListener("click", () => {{
             speed = parseFloat(btn.dataset.speed);
             speedBtns.forEach(b => b.classList.remove("active_speed"));
             btn.classList.add("active_speed");
-        }));
+        }}));
 
-        spoolBtns.forEach(btn => btn.addEventListener("click", () => {
+        spoolBtns.forEach(btn => btn.addEventListener("click", () => {{
             aspoMode = btn.dataset.spool;
             setActiveButton(spoolBtns, aspoMode, "data-spool");
             applyVisualState();
-        }));
+        }}));
 
-        tubeBtns.forEach(btn => btn.addEventListener("click", () => {
+        tubeBtns.forEach(btn => btn.addEventListener("click", () => {{
             tubeMode = btn.dataset.tube;
             setActiveButton(tubeBtns, tubeMode, "data-tube");
             applyVisualState(true);
-        }));
+        }}));
 
-        gridCheck.addEventListener("change", () => { showGrid = gridCheck.checked; applyVisualState(); });
-        axesCheck.addEventListener("change", () => { showAxes = axesCheck.checked; applyVisualState(); });
-        sectionCheck.addEventListener("change", () => {
+        gridCheck.addEventListener("change", () => {{ showGrid = gridCheck.checked; applyVisualState(); }});
+        axesCheck.addEventListener("change", () => {{ showAxes = axesCheck.checked; applyVisualState(); }});
+        sectionCheck.addEventListener("change", () => {{
             showSection = sectionCheck.checked;
             applySectionState();
             rebuildDepositedMeshes(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
-        });
+        }});
 
-        animationCheck.addEventListener("change", () => {
+        animationCheck.addEventListener("change", () => {{
             animationEnabled = animationCheck.checked;
-            if (!animationEnabled) {
+            if (!animationEnabled) {{
                 isPlaying = false;
                 drawPos = fullLocalPts.length - 1;
                 rebuildDepositedMeshes(Math.floor(drawPos), true);
                 updateOverlayContinuous(true);
                 progressSlider.value = 1000;
-            } else {
+            }} else {{
                 isPlaying = true;
-            }
+            }}
             updatePlayBtn();
             updateAnimationUI();
-        });
+        }});
 
-        playPauseBtn.addEventListener("click", () => {
+        playPauseBtn.addEventListener("click", () => {{
             if (!animationEnabled) return;
             isPlaying = !isPlaying;
             updatePlayBtn();
-        });
+        }});
 
-        fullscreenBtn.addEventListener("click", async () => {
-            try {
-                if (!document.fullscreenElement) {
+        fullscreenBtn.addEventListener("click", async () => {{
+            try {{
+                if (!document.fullscreenElement) {{
                     await host.requestFullscreen();
                     fullscreenBtn.textContent = "🡼";
                     fullscreenBtn.title = T.exit;
-                } else {
+                }} else {{
                     await document.exitFullscreen();
                     fullscreenBtn.textContent = "⛶";
                     fullscreenBtn.title = T.fullscreen;
-                }
-            } catch (err) {
+                }}
+            }} catch (err) {{
                 console.error(err);
-            }
-        });
+            }}
+        }});
         fullscreenBtn.title = T.fullscreen;
 
-        document.addEventListener("fullscreenchange", () => {
-            if (!document.fullscreenElement) {
+        document.addEventListener("fullscreenchange", () => {{
+            if (!document.fullscreenElement) {{
                 fullscreenBtn.textContent = "⛶";
                 fullscreenBtn.title = T.fullscreen;
-            }
+            }}
             setTimeout(resizeViewer, 30);
-        });
+        }});
 
-        progressSlider.addEventListener("input", () => {
+        progressSlider.addEventListener("input", () => {{
             const maxPos = Math.max(1, fullLocalPts.length - 1);
             drawPos = (parseInt(progressSlider.value) / 1000.0) * maxPos;
             rebuildDepositedMeshes(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
-        });
+        }});
 
-        function resizeViewer() {
+        function resizeViewer() {{
             const nw = Math.max(host.clientWidth, 600);
             const nh = Math.max(host.clientHeight, 400);
             camera.aspect = nw / nh;
             camera.updateProjectionMatrix();
             renderer.setSize(nw, nh);
             controls.handleResize();
-        }
+        }}
 
-        function makeWaffleKnurlTexture(size = 256) {
+        function makeWaffleKnurlTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size; canvas.height = size;
             const ctx = canvas.getContext("2d");
@@ -778,8 +742,8 @@ def viewer(
             const data = img.data;
             const pitch = 24.0, lineWidth = 4.0, depth = 95.0;
 
-            for (let y = 0; y < size; y++) {
-                for (let x = 0; x < size; x++) {
+            for (let y = 0; y < size; y++) {{
+                for (let x = 0; x < size; x++) {{
                     const u = x, v = y;
                     const d1 = Math.abs((((u + v) % pitch) + pitch) % pitch - pitch * 0.5);
                     const d2 = Math.abs((((u - v) % pitch) + pitch) % pitch - pitch * 0.5);
@@ -791,17 +755,17 @@ def viewer(
                     value = Math.max(0, Math.min(255, Math.round(value)));
                     const i = (y * size + x) * 4;
                     data[i] = value; data[i + 1] = value; data[i + 2] = value; data[i + 3] = 255;
-                }
-            }
+                }}
+            }}
             ctx.putImageData(img, 0, 0);
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(1.5, 1.5);
             return tex;
-        }
+        }}
 
-        function makeSteelTexture(size = 256) {
+        function makeSteelTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size; canvas.height = size;
             const ctx = canvas.getContext("2d");
@@ -815,41 +779,41 @@ def viewer(
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, size, size);
 
-            for (let y = 0; y < size; y += 2) {
+            for (let y = 0; y < size; y += 2) {{
                 const a = 0.04 + Math.random() * 0.06;
-                ctx.fillStyle = `rgba(255,255,255,${a})`;
+                ctx.fillStyle = `rgba(255,255,255,${{a}})`;
                 ctx.fillRect(0, y, size, 1);
-            }
+            }}
 
             const img = ctx.getImageData(0, 0, size, size);
-            for (let i = 0; i < img.data.length; i += 4) {
+            for (let i = 0; i < img.data.length; i += 4) {{
                 const n = Math.floor(Math.random() * 14) - 7;
                 img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
                 img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
                 img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
-            }
+            }}
             ctx.putImageData(img, 0, 0);
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(0.65, 0.65);
             return tex;
-        }
+        }}
 
         const bumpTex = makeWaffleKnurlTexture(256);
         const steelTex = makeSteelTexture(256);
 
-        function makeRedMat(opacity=1.0, transparent=false) {
-            return new THREE.MeshStandardMaterial({
+        function makeRedMat(opacity=1.0, transparent=false) {{
+            return new THREE.MeshStandardMaterial({{
                 color: 0x6d7278, roughness: 0.55, metalness: 0.85, map: steelTex,
                 transparent: transparent, opacity: opacity, depthWrite: !transparent
-            });
-        }
+            }});
+        }}
 
-        function makeTubeMaterial(mode, active=false, free=false) {
+        function makeTubeMaterial(mode, active=false, free=false) {{
             const theme = getTheme();
             const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
-            const m = new THREE.MeshStandardMaterial({
+            const m = new THREE.MeshStandardMaterial({{
                 color: chosen,
                 roughness: active ? 0.80 : (free ? 0.88 : 0.85),
                 metalness: 0.05,
@@ -857,8 +821,8 @@ def viewer(
                 bumpScale: active ? 1.25 : (free ? 1.1 : 1.2),
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
-            });
-            m.onBeforeCompile = (shader) => {
+            }});
+            m.onBeforeCompile = (shader) => {{
                 shader.fragmentShader = shader.fragmentShader.replace(
                     '#include <roughnessmap_fragment>',
                     `
@@ -875,10 +839,10 @@ def viewer(
                     gl_FragColor = vec4( outgoingLight, diffuseColor.a );
                     `
                 );
-            };
+            }};
             m.needsUpdate = true;
             return m;
-        }
+        }}
 
         let redMat = makeRedMat(1.0, false);
         let redMatTransparent = makeRedMat(0.18, true);
@@ -886,14 +850,14 @@ def viewer(
         let activeTubeMat = makeTubeMaterial(tubeMode, true, false);
         let freeTubeMat = makeTubeMaterial(tubeMode, false, true);
 
-        const markerStartMat = new THREE.MeshStandardMaterial({
+        const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a, roughness: 0.45, metalness: 0.02,
             emissive: 0x0b2013, emissiveIntensity: 0.12
-        });
-        const markerEndMat = new THREE.MeshStandardMaterial({
+        }});
+        const markerEndMat = new THREE.MeshStandardMaterial({{
             color: 0xffb020, roughness: 0.40, metalness: 0.02,
             emissive: 0x2a1800, emissiveIntensity: 0.14
-        });
+        }});
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(ambient);
@@ -981,7 +945,7 @@ def viewer(
         guideBackCap.castShadow = true; guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
 
-        function refreshThemeBackgroundAndLights() {
+        function refreshThemeBackgroundAndLights() {{
             const theme = getTheme();
             scene.background = new THREE.Color(theme.bg);
             renderer.toneMappingExposure = theme.exposure;
@@ -990,27 +954,27 @@ def viewer(
             hemi.groundColor.setHex(theme.hemiGround);
             fillLight.intensity = theme.fill;
             rimLight.intensity = theme.rim;
-        }
+        }}
 
-        function applySectionState() {
+        function applySectionState() {{
             clippingPlanes = [];
             if (sectionPlaneHelper) scene.remove(sectionPlaneHelper);
             if (sectionFrame) scene.remove(sectionFrame);
             sectionPlaneHelper = null;
             sectionFrame = null;
 
-            if (showSection) {
+            if (showSection) {{
                 const theme = getTheme();
                 const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
                 clippingPlanes = [cutPlane];
 
-                const sectionMat = new THREE.MeshBasicMaterial({
+                const sectionMat = new THREE.MeshBasicMaterial({{
                     color: theme.sectionFill,
                     transparent: true,
                     opacity: tubeMode === "gelwhite" ? 0.18 : 0.12,
                     side: THREE.DoubleSide,
                     depthWrite: false
-                });
+                }});
 
                 const sectionGeo = new THREE.PlaneGeometry(2 * (R + 260), Hs + 260);
                 sectionPlaneHelper = new THREE.Mesh(sectionGeo, sectionMat);
@@ -1019,27 +983,27 @@ def viewer(
                 scene.add(sectionPlaneHelper);
 
                 const frameGeo = new THREE.EdgesGeometry(sectionGeo);
-                const frameMat = new THREE.LineBasicMaterial({
+                const frameMat = new THREE.LineBasicMaterial({{
                     color: theme.sectionFrame,
                     transparent: true,
                     opacity: tubeMode === "gelwhite" ? 0.45 : 0.35
-                });
+                }});
                 sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
                 sectionFrame.position.copy(sectionPlaneHelper.position);
                 sectionFrame.rotation.copy(sectionPlaneHelper.rotation);
                 scene.add(sectionFrame);
-            }
+            }}
 
             renderer.localClippingEnabled = showSection;
             tubeMat = makeTubeMaterial(tubeMode, false, false);
             activeTubeMat = makeTubeMaterial(tubeMode, true, false);
             freeTubeMat = makeTubeMaterial(tubeMode, false, true);
-        }
+        }}
 
-        function buildGridIfNeeded() {
+        function buildGridIfNeeded() {{
             if (grid) scene.remove(grid);
             grid = null;
-            if (showGrid) {
+            if (showGrid) {{
                 const theme = getTheme();
                 grid = new THREE.GridHelper(2000, 20, theme.gridMajor, theme.gridMinor);
                 grid.rotation.x = Math.PI / 2;
@@ -1047,19 +1011,19 @@ def viewer(
                 grid.material.opacity = theme.gridOpacity;
                 grid.material.transparent = true;
                 scene.add(grid);
-            }
-        }
+            }}
+        }}
 
-        function buildAxesIfNeeded() {
+        function buildAxesIfNeeded() {{
             if (axes) scene.remove(axes);
             axes = null;
-            if (showAxes) {
+            if (showAxes) {{
                 axes = new THREE.AxesHelper(350);
                 scene.add(axes);
-            }
-        }
+            }}
+        }}
 
-        function applyVisualState(themeChanged=false) {
+        function applyVisualState(themeChanged=false) {{
             refreshThemeBackgroundAndLights();
             const useMat = aspoMode === "transparent" ? redMatTransparent : redMat;
 
@@ -1075,34 +1039,34 @@ def viewer(
 
             rebuildDepositedMeshes(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
-        }
+        }}
 
-        function guidePointWorld(radius, z) {
+        function guidePointWorld(radius, z) {{
             return new THREE.Vector3(-(radius + guideOffsetX), radius, z);
-        }
+        }}
 
-        function localPointToWorldCurrent(ptLocal, theta) {
+        function localPointToWorldCurrent(ptLocal, theta) {{
             return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
-        }
+        }}
 
-        function lerp(a, b, t) { return a + (b - a) * t; }
-        function lerpVec3(a, b, t) {
+        function lerp(a, b, t) {{ return a + (b - a) * t; }}
+        function lerpVec3(a, b, t) {{
             return new THREE.Vector3(lerp(a.x,b.x,t), lerp(a.y,b.y,t), lerp(a.z,b.z,t));
-        }
+        }}
 
-        class PolylineCurve3 extends THREE.Curve {
-            constructor(points) {
+        class PolylineCurve3 extends THREE.Curve {{
+            constructor(points) {{
                 super();
                 this.points = points || [];
                 this.arc = [0];
                 this.totalLength = 0;
-                for (let i = 1; i < this.points.length; i++) {
+                for (let i = 1; i < this.points.length; i++) {{
                     const seg = this.points[i].distanceTo(this.points[i - 1]);
                     this.totalLength += seg;
                     this.arc.push(this.totalLength);
-                }
-            }
-            getPoint(t) {
+                }}
+            }}
+            getPoint(t) {{
                 if (!this.points || this.points.length === 0) return new THREE.Vector3(0,0,0);
                 if (this.points.length === 1 || this.totalLength <= 1e-9) return this.points[0].clone();
                 const target = t * this.totalLength;
@@ -1117,23 +1081,23 @@ def viewer(
                     p0.y + a * (p1.y - p0.y),
                     p0.z + a * (p1.z - p0.z)
                 );
-            }
-        }
+            }}
+        }}
 
-        function disposeMaterial(mat) {
+        function disposeMaterial(mat) {{
             if (!mat) return;
             if (Array.isArray(mat)) mat.forEach(m => m && m.dispose && m.dispose());
             else if (mat.dispose) mat.dispose();
-        }
+        }}
 
-        function disposeObj(obj, parentObj = scene) {
+        function disposeObj(obj, parentObj = scene) {{
             if (!obj) return;
             parentObj.remove(obj);
             if (obj.geometry) obj.geometry.dispose();
             disposeMaterial(obj.material);
-        }
+        }}
 
-        function makeTubeMeshFromPoints(points, radius, material) {
+        function makeTubeMeshFromPoints(points, radius, material) {{
             if (!points || points.length < 2) return null;
             let totalLen = 0;
             for (let i = 1; i < points.length; i++) totalLen += points[i].distanceTo(points[i - 1]);
@@ -1145,9 +1109,9 @@ def viewer(
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             return mesh;
-        }
+        }}
 
-        function makeTubeSegment(p0, p1, radius, material) {
+        function makeTubeSegment(p0, p1, radius, material) {{
             const dir = new THREE.Vector3().subVectors(p1, p0);
             const len = dir.length();
             if (len < 1e-6) return null;
@@ -1161,9 +1125,9 @@ def viewer(
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             return mesh;
-        }
+        }}
 
-        function makeEndpointDisc(point, tangentDir, material, radiusScale = 0.92) {
+        function makeEndpointDisc(point, tangentDir, material, radiusScale = 0.92) {{
             const r = Math.max(7.0, Rt * radiusScale);
             const thickness = Math.max(2.0, Rt * 0.22);
             const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 28);
@@ -1175,7 +1139,7 @@ def viewer(
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             return mesh;
-        }
+        }}
 
         let depositedMeshes = [];
         let freeMesh = null;
@@ -1187,12 +1151,12 @@ def viewer(
         let lastDepSegIdx = -1;
         let lastDepSegLen = -1;
 
-        function clearDepositedMeshes() {
+        function clearDepositedMeshes() {{
             depositedMeshes.forEach(m => disposeObj(m, depositedGroup));
             depositedMeshes = [];
-        }
+        }}
 
-        function rebuildDepositedMeshes(fullIndex, force=false) {
+        function rebuildDepositedMeshes(fullIndex, force=false) {{
             if (fullIndex < 0) return;
 
             const segIdx = depSegIdxAtFull[Math.min(fullIndex, depSegIdxAtFull.length - 1)];
@@ -1204,34 +1168,34 @@ def viewer(
 
             clearDepositedMeshes();
 
-            for (let s = 0; s < depositedSegments.length; s++) {
+            for (let s = 0; s < depositedSegments.length; s++) {{
                 let pts = null;
-                if (s < segIdx) {
+                if (s < segIdx) {{
                     pts = depositedSegments[s];
-                } else if (s === segIdx) {
+                }} else if (s === segIdx) {{
                     pts = depositedSegments[s].slice(0, segLen);
-                } else {
+                }} else {{
                     break;
-                }
+                }}
 
-                if (pts && pts.length >= 2) {
+                if (pts && pts.length >= 2) {{
                     const mesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
-                    if (mesh) {
+                    if (mesh) {{
                         depositedGroup.add(mesh);
                         depositedMeshes.push(mesh);
-                    }
-                }
-            }
-        }
+                    }}
+                }}
+            }}
+        }}
 
-        function clearOverlay() {
-            if (freeMesh) { disposeObj(freeMesh, overlayGroup); freeMesh = null; }
-            if (activeCoilMesh) { disposeObj(activeCoilMesh, overlayGroup); activeCoilMesh = null; }
-            if (startMarker) { disposeObj(startMarker, overlayGroup); startMarker = null; }
-            if (endMarker) { disposeObj(endMarker, overlayGroup); endMarker = null; }
-        }
+        function clearOverlay() {{
+            if (freeMesh) {{ disposeObj(freeMesh, overlayGroup); freeMesh = null; }}
+            if (activeCoilMesh) {{ disposeObj(activeCoilMesh, overlayGroup); activeCoilMesh = null; }}
+            if (startMarker) {{ disposeObj(startMarker, overlayGroup); startMarker = null; }}
+            if (endMarker) {{ disposeObj(endMarker, overlayGroup); endMarker = null; }}
+        }}
 
-        function updateOverlayContinuous(force=false) {
+        function updateOverlayContinuous(force=false) {{
             clearOverlay();
             if (fullLocalPts.length < 2) return;
 
@@ -1270,11 +1234,11 @@ def viewer(
             overlayGroup.add(startMarker);
             overlayGroup.add(endMarker);
 
-            if (animationEnabled) {
-                if (frac > 1e-6 && i1 > i0) {
+            if (animationEnabled) {{
+                if (frac > 1e-6 && i1 > i0) {{
                     activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
                     if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
-                }
+                }}
 
                 const guideWorld = guidePointWorld(radius, z);
                 freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
@@ -1282,18 +1246,18 @@ def viewer(
 
                 guideGroup.position.copy(guideWorld);
                 guideGroup.visible = true;
-            } else {
+            }} else {{
                 guideGroup.visible = false;
-            }
-        }
+            }}
+        }}
 
         applySectionState();
         applyVisualState(true);
 
-        function animate() {
+        function animate() {{
             requestAnimationFrame(animate);
 
-            if (animationEnabled && isPlaying && drawPos < fullLocalPts.length - 1) {
+            if (animationEnabled && isPlaying && drawPos < fullLocalPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
                 const oldCompleted = Math.floor(drawPos);
                 drawPos = Math.min(fullLocalPts.length - 1, drawPos + advance);
@@ -1302,25 +1266,25 @@ def viewer(
                 if (newCompleted > oldCompleted) rebuildDepositedMeshes(newCompleted);
                 updateOverlayContinuous();
                 progressSlider.value = Math.round((drawPos / Math.max(1, fullLocalPts.length - 1)) * 1000);
-            }
+            }}
 
             controls.update();
             renderer.render(scene, camera);
-        }
+        }}
 
-        if (!animationEnabled) {
+        if (!animationEnabled) {{
             drawPos = fullLocalPts.length - 1;
             rebuildDepositedMeshes(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
             progressSlider.value = 1000;
-        } else {
+        }} else {{
             rebuildDepositedMeshes(1, true);
             updateOverlayContinuous(true);
-        }
+        }}
 
         animate();
         window.addEventListener("resize", resizeViewer);
-    })();
+    }})();
     </script>
     """
 
@@ -1369,6 +1333,7 @@ d_tubo = d_rame + 2.0 * spessore
     deg_step=2.0,
 )
 
+# Metrics from deposited geometry only
 all_dep_points = np.array([p for seg in deposited_segments for p in seg], dtype=float)
 metrics = compute_metrics(all_dep_points, d_tubo)
 
