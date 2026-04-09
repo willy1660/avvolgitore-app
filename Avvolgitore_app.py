@@ -464,7 +464,7 @@ def viewer(
         controls.rotateSpeed = 3.8;
         controls.zoomSpeed = 0.8;
         controls.panSpeed = 0.1;
-        controls.dynamicDampingFactor = 0.5;
+        controls.dynamicDampingFactor = 0.05;
         controls.staticMoving = false;
         controls.noPan = false;
         controls.noZoom = false;
