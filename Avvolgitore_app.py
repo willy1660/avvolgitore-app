@@ -1,7 +1,6 @@
 import os
 import glob
 import json
-import math
 import bisect
 import numpy as np
 import streamlit as st
@@ -157,7 +156,6 @@ def polyline_length(points: np.ndarray) -> float:
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
-    # pla de deposició x = 0
     return np.array([0.0, radius, z], dtype=float)
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
@@ -167,15 +165,11 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     y = -pt_world[0] * s + pt_world[1] * c
     return np.array([x, y, pt_world[2]], dtype=float)
 
-def radial_of_local_point(p: np.ndarray) -> float:
-    return float(np.linalg.norm(p[:2]))
-
 def compact_profile(layer_points, z_tol=0.25):
     if not layer_points:
         return None
 
     arr = sorted(layer_points, key=lambda x: x[0])
-
     z_out = []
     r_out = []
 
@@ -221,10 +215,10 @@ def interp_profile(profile, zq: float):
 
 def min_admissible_radius_at_z(z_target: float, profiles, base_radius: float, d_tubo: float):
     """
-    Radi mínim perquè el nou tub no penetri cap espira ja dipositada.
-    Model simple i ràpid:
-    - mirem cada perfil de capa prèvia
-    - a aquest z, el nou centre ha d'estar com a mínim a d_tubo per sobre del centre existent
+    Radi mínim perquè el tub no interpenetri cap capa ja tancada.
+    Model simple, ràpid i estable:
+    a aquest z, si una capa existent té centre a radi r_prev,
+    el nou centre ha d'estar com a mínim a r_prev + d_tubo.
     """
     r_min = base_radius
     for prof in profiles:
@@ -244,14 +238,14 @@ def simulate_winding_realistic(
     rit_t: float,
     lunghezza_m: float,
     gradi_start: float,
-    deg_step: float = 1.0,
+    deg_step: float = 0.75,
 ):
     """
-    Estratègia:
-    - seguir sempre el passo axial
-    - seguir sempre el incremento strato comandat
-    - però si a aquell radi el tub interpenetraria una altra espira,
-      el radi real dipositat puja fins al mínim admissible
+    Lògica final:
+    - segueix sempre il passo assiale
+    - segueix sempre il incremento strato comandat
+    - però si aquest radi comandat no és admissible, puja fins a r_min_adm
+    - canvi strato suau perquè r_cmd fa smoothstep durant el turn
     """
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
@@ -288,7 +282,7 @@ def simulate_winding_realistic(
     completed_profiles = []
     current_layer_points = [(z, r_dep)]
 
-    for _ in range(1600000):
+    for _ in range(2200000):
         next_theta = theta - np.deg2rad(deg_step)
 
         next_z = z
@@ -359,21 +353,12 @@ def simulate_winding_realistic(
             d_tubo=d_tubo,
         )
 
-        # regla clau
-        next_r_dep_raw = max(next_r_cmd, r_min_adm)
+        # Regla clau: seguir incremento strato, però sense solapar
+        next_r_dep = max(next_r_cmd, r_min_adm)
 
-        # relaxació lleu per evitar dents, però sense perdre el comandament
-        alpha = 0.55 if (next_mode == "turn" or mode == "turn") else 0.35
-        next_r_dep = r_dep + alpha * (next_r_dep_raw - r_dep)
-
-        dr_max = max(0.15, d_tubo * 0.15)
-        if next_r_dep > r_dep + dr_max:
-            next_r_dep = r_dep + dr_max
-        if next_r_dep < r_dep - dr_max:
-            next_r_dep = r_dep - dr_max
-
-        next_r_dep = max(base_radius, next_r_dep)
-        next_r_dep = max(next_r_cmd, next_r_dep) if r_min_adm > next_r_cmd else max(base_radius, next_r_dep)
+        # petita relaxació només per treure dents numèriques
+        alpha = 0.75 if (next_mode == "turn" or mode == "turn") else 0.55
+        next_r_dep = r_dep + alpha * (next_r_dep - r_dep)
 
         new_contact_world = deposit_point_world(next_r_dep, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
@@ -381,7 +366,7 @@ def simulate_winding_realistic(
         prev_local = deposited_local[-1]
         seg = float(np.linalg.norm(new_local - prev_local))
 
-        if seg < max(0.10, Rt * 0.018):
+        if seg < max(0.10, Rt * 0.02):
             theta = next_theta
             z = next_z
             direction = next_direction
@@ -559,7 +544,6 @@ def viewer(
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
-        const Hs = {float(spalla)};
         const speed = {float(vel)};
         const animEnabled = {anim_js};
         const guideOffsetX = {float(guide_offset_x)};
@@ -614,11 +598,11 @@ def viewer(
         scene.add(machine);
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, Hs, 96),
+            new THREE.CylinderGeometry(R, R, {float(spalla)}, 96),
             redMat
         );
         mandrel.rotation.x = Math.PI / 2;
-        mandrel.position.z = Hs / 2.0;
+        mandrel.position.z = {float(spalla)} / 2.0;
         machine.add(mandrel);
 
         const flangeR = R + 150.0;
@@ -637,7 +621,7 @@ def viewer(
             redMat
         );
         top.rotation.x = Math.PI / 2;
-        top.position.z = Hs;
+        top.position.z = {float(spalla)};
         machine.add(top);
 
         machine.visible = aspoMode !== "hidden";
@@ -694,6 +678,72 @@ def viewer(
             );
         }}
 
+        class PolylineCurve3 extends THREE.Curve {{
+            constructor(points) {{
+                super();
+                this.points = points || [];
+                this.cumulative = [];
+                this.totalLength = 0;
+
+                if (this.points.length >= 2) {{
+                    this.cumulative = [0];
+                    for (let i = 1; i < this.points.length; i++) {{
+                        this.totalLength += this.points[i].distanceTo(this.points[i - 1]);
+                        this.cumulative.push(this.totalLength);
+                    }}
+                }}
+            }}
+
+            getPoint(t) {{
+                if (!this.points || this.points.length === 0) return new THREE.Vector3();
+                if (this.points.length === 1) return this.points[0].clone();
+
+                const target = THREE.MathUtils.clamp(t, 0, 1) * this.totalLength;
+
+                for (let i = 1; i < this.cumulative.length; i++) {{
+                    if (target <= this.cumulative[i]) {{
+                        const l0 = this.cumulative[i - 1];
+                        const l1 = this.cumulative[i];
+                        const segLen = Math.max(1e-9, l1 - l0);
+                        const a = (target - l0) / segLen;
+                        return this.points[i - 1].clone().lerp(this.points[i], a);
+                    }}
+                }}
+
+                return this.points[this.points.length - 1].clone();
+            }}
+        }}
+
+        function decimatePoints(points, minDist) {{
+            if (!points || points.length <= 2) return points;
+            const out = [points[0]];
+            let last = points[0];
+
+            for (let i = 1; i < points.length - 1; i++) {{
+                if (points[i].distanceTo(last) >= minDist) {{
+                    out.push(points[i]);
+                    last = points[i];
+                }}
+            }}
+
+            out.push(points[points.length - 1]);
+            return out;
+        }}
+
+        function buildTubeMeshFromPolyline(points, material, radialSegments = 14) {{
+            if (!points || points.length < 2) return null;
+
+            let totalLen = 0;
+            for (let i = 1; i < points.length; i++) {{
+                totalLen += points[i].distanceTo(points[i - 1]);
+            }}
+
+            const tubularSegments = Math.max(20, Math.min(3500, Math.floor(totalLen / Math.max(0.7, Rt * 0.25))));
+            const curve = new PolylineCurve3(points);
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
+            return new THREE.Mesh(geo, material);
+        }}
+
         function createMarker(point, material, parentObj = scene) {{
             const g = new THREE.CylinderGeometry(
                 Math.max(4, Rt * 0.8),
@@ -708,68 +758,44 @@ def viewer(
             return m;
         }}
 
-        function clearGroup(group) {{
-            while (group.children.length > 0) {{
-                const obj = group.children[0];
-                group.remove(obj);
-                if (obj.geometry) obj.geometry.dispose();
-            }}
+        function disposeObj(obj, parentObj = scene) {{
+            if (!obj) return;
+            parentObj.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
         }}
 
-        function buildSegmentedTube(points, parentGroup, material, radialSegments = 12) {{
-            if (!points || points.length < 2) return;
-
-            const unitY = new THREE.Vector3(0, 1, 0);
-
-            for (let i = 1; i < points.length; i++) {{
-                const p0 = points[i - 1];
-                const p1 = points[i];
-                const dir = new THREE.Vector3().subVectors(p1, p0);
-                const len = dir.length();
-                if (len < 1e-9) continue;
-
-                const geo = new THREE.CylinderGeometry(Rt, Rt, len, radialSegments, 1, false);
-                const mesh = new THREE.Mesh(geo, material);
-
-                const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
-                mesh.position.copy(mid);
-                mesh.quaternion.setFromUnitVectors(unitY, dir.clone().normalize());
-
-                parentGroup.add(mesh);
-            }}
-        }}
-
+        let rollMesh = null;
+        let freeMesh = null;
         let startMarker = null;
         let endMarker = null;
-
-        const rollSegGroup = new THREE.Group();
-        rollGroup.add(rollSegGroup);
-
-        const freeSegGroup = new THREE.Group();
-        scene.add(freeSegGroup);
 
         let drawIndex = animEnabled ? 2 : finalLocalPts.length;
         let drawAccumulator = 0.0;
 
         function rebuildView() {{
-            clearGroup(rollSegGroup);
-            clearGroup(freeSegGroup);
-
+            if (rollMesh) {{
+                disposeObj(rollMesh, rollGroup);
+                rollMesh = null;
+            }}
+            if (freeMesh) {{
+                disposeObj(freeMesh, scene);
+                freeMesh = null;
+            }}
             if (startMarker) {{
-                rollGroup.remove(startMarker);
-                if (startMarker.geometry) startMarker.geometry.dispose();
+                disposeObj(startMarker, rollGroup);
                 startMarker = null;
             }}
             if (endMarker) {{
-                rollGroup.remove(endMarker);
-                if (endMarker.geometry) endMarker.geometry.dispose();
+                disposeObj(endMarker, rollGroup);
                 endMarker = null;
             }}
 
             const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
-            const visibleLocal = finalLocalPts.slice(0, safeIndex);
+            let visibleLocal = finalLocalPts.slice(0, safeIndex);
+            visibleLocal = decimatePoints(visibleLocal, Math.max(0.5, Rt * 0.20));
 
-            buildSegmentedTube(visibleLocal, rollSegGroup, tubeMat, 12);
+            rollMesh = buildTubeMeshFromPolyline(visibleLocal, tubeMat, 14);
+            if (rollMesh) rollGroup.add(rollMesh);
 
             startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
             endMarker = createMarker(visibleLocal[visibleLocal.length - 1], endMat, rollGroup);
@@ -786,7 +812,10 @@ def viewer(
             );
 
             const guideWorld = guidePointWorld(currentRadius, currentZ);
-            buildSegmentedTube([guideWorld, currentEndWorld], freeSegGroup, freeTubeMat, 10);
+            const freePts = [guideWorld, currentEndWorld];
+
+            freeMesh = buildTubeMeshFromPolyline(freePts, freeTubeMat, 12);
+            if (freeMesh) scene.add(freeMesh);
 
             guide.position.copy(guideWorld);
 
@@ -901,7 +930,7 @@ d_tubo = d_rame + 2.0 * spessore
     rit_t=rit_t,
     lunghezza_m=lunghezza,
     gradi_start=gradi_start,
-    deg_step=1.0,
+    deg_step=0.75,
 )
 
 metrics = compute_metrics(local_points, d_tubo)
