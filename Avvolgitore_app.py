@@ -497,9 +497,9 @@ def viewer(
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
 
-            const pitch = 18.0;      // mida del patró
-            const lineWidth = 3.2;   // gruix de línia
-            const depth = 95.0;      // profunditat del relleu
+            const pitch = 22.0;      // mida del patró
+            const lineWidth = 4.0;   // gruix de línia
+            const depth = 110.0;      // profunditat del relleu
 
             for (let y = 0; y < size; y++) {{
                 for (let x = 0; x < size; x++) {{
@@ -609,7 +609,7 @@ def viewer(
             roughness: 1.0,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.9
+            bumpScale: 2.2
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
@@ -617,7 +617,7 @@ def viewer(
             roughness: 1.0,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.6
+            bumpScale: 2.2
         }});
 
         const steelMat = new THREE.MeshStandardMaterial({{
