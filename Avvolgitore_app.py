@@ -147,7 +147,7 @@ logo_path = find_logo()
 if logo_path:
     c1, c2 = st.columns([0.7, 5.3])
     with c1:
-        st.image(logo_path, width=68)
+        st.image(logo_path, width=140)
     with c2:
         st.markdown(f"## {t['title']}")
 else:
