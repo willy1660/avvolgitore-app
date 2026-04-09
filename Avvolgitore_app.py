@@ -457,7 +457,7 @@ def viewer(
         const controls = new THREE.TrackballControls(camera, renderer.domElement);
         controls.rotateSpeed = 3.8;
         controls.zoomSpeed = 0.8;
-        controls.panSpeed = 0.2;
+        controls.panSpeed = 0.1;
         controls.dynamicDampingFactor = 0.2;
         controls.staticMoving = false;
         controls.noPan = false;
