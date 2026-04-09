@@ -443,7 +443,7 @@ def viewer(
         const activeTubeColor = gelwhite ? 0xf0f0ee : 0x050505;
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        camera.position.set(-820, -1000, 230);
+        camera.position.set(-1000, -2000, 0);
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
