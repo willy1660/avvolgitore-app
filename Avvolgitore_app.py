@@ -408,11 +408,13 @@ def viewer(
     show_grid_json = "true" if show_grid else "false"
     show_axes_json = "true" if show_axes else "false"
 
+    bg = "#101317" if tube_color_mode == "gelwhite" else "#ece8e1"
+
     return f"""
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:{'#0b0f14' if tube_color_mode == 'gelwhite' else '#f4f4f1'};
+        background:{bg};
         border-radius:10px;
         overflow:hidden;
         border:1px solid rgba(0,0,0,0.08);
@@ -434,11 +436,12 @@ def viewer(
 
         const tubeColorMode = {tube_color_mode_json};
         const gelwhite = tubeColorMode === "gelwhite";
-        scene.background = new THREE.Color(gelwhite ? 0x0b0f14 : 0xf4f4f1);
 
-        const tubeBaseColor = gelwhite ? 0xd2d2d2 : 0x040404;
-        const freeTubeColor = gelwhite ? 0xbdbdbd : 0x0a0a0a;
-        const activeTubeColor = gelwhite ? 0xe1e1e1 : 0x000000;
+        scene.background = new THREE.Color(gelwhite ? 0x101317 : 0xece8e1);
+
+        const tubeBaseColor = gelwhite ? 0xd4d4d4 : 0x050505;
+        const freeTubeColor = gelwhite ? 0xb8b8b8 : 0x0a0a0a;
+        const activeTubeColor = gelwhite ? 0xe7e7e7 : 0x000000;
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
         camera.position.set(0, -25, 1150);
@@ -454,7 +457,7 @@ def viewer(
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
+        controls.dampingFactor = 0.045;
         controls.rotateSpeed = 0.95;
         controls.zoomSpeed = 1.0;
         controls.panSpeed = 0.8;
@@ -468,7 +471,7 @@ def viewer(
         controls.maxPolarAngle = Math.PI;
         controls.target.set(0, 0, {spalla}/2);
 
-        // Tornem al pan "com abans" i rotació 360° sobre vertical
+        // Pan girat respecte a l'anterior
         controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
         controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
         controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
@@ -498,7 +501,7 @@ def viewer(
             const img = ctx.createImageData(size, size);
 
             for (let i = 0; i < img.data.length; i += 4) {{
-                const v = 85 + Math.floor(Math.random() * 85);
+                const v = 60 + Math.floor(Math.random() * 140);
                 img.data[i] = v;
                 img.data[i + 1] = v;
                 img.data[i + 2] = v;
@@ -509,50 +512,99 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(52, 9);
+            tex.repeat.set(72, 12);
+            return tex;
+        }}
+
+        function makeSteelTexture(size = 128) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+
+            const grad = ctx.createLinearGradient(0, 0, size, size);
+            grad.addColorStop(0.0, "#6f767d");
+            grad.addColorStop(0.22, "#c1c7cc");
+            grad.addColorStop(0.45, "#7e858b");
+            grad.addColorStop(0.72, "#d0d5da");
+            grad.addColorStop(1.0, "#6e757c");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+
+            const img = ctx.getImageData(0, 0, size, size);
+            for (let i = 0; i < img.data.length; i += 4) {{
+                const n = Math.floor(Math.random() * 24) - 12;
+                img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
+                img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
+                img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
+            }}
+            ctx.putImageData(img, 0, 0);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(3, 3);
             return tex;
         }}
 
         const bumpTex = makeNoiseTexture(128);
+        const steelTex = makeSteelTexture(128);
 
         const redMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x656a70 : 0x777777,
-            roughness: 0.82,
-            metalness: 0.20,
+            color: gelwhite ? 0x676d74 : 0x7a7a7a,
+            roughness: 0.84,
+            metalness: 0.18,
             transparent: aspoMode === "transparent",
             opacity: aspoMode === "transparent" ? 0.18 : 1.0,
             depthWrite: aspoMode !== "transparent"
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x59616b : 0x6e7480,
-            roughness: 0.84,
-            metalness: 0.14
+            color: gelwhite ? 0x5e6670 : 0x737985,
+            roughness: 0.86,
+            metalness: 0.12
         }});
 
-        // textura molt més evident
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.92,
+            roughness: 0.96,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.1
+            bumpScale: 1.65
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.88,
+            roughness: 0.93,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 0.95
+            bumpScale: 1.35
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 0.90,
+            roughness: 0.94,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 0.78
+            bumpScale: 1.05
+        }});
+
+        const steelMat = new THREE.MeshStandardMaterial({{
+            color: 0xb0b7bd,
+            roughness: 0.48,
+            metalness: 0.78,
+            map: steelTex,
+            bumpMap: steelTex,
+            bumpScale: 0.16
+        }});
+
+        const steelDarkMat = new THREE.MeshStandardMaterial({{
+            color: 0x889098,
+            roughness: 0.52,
+            metalness: 0.72,
+            map: steelTex,
+            bumpMap: steelTex,
+            bumpScale: 0.12
         }});
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
@@ -611,30 +663,31 @@ def viewer(
         base.visible = aspoMode !== "hidden";
         top.visible = aspoMode !== "hidden";
 
-        // guidatubo estilitzat, menys armatoste
+        // guidatubo estilitzat amb textura acer
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
         const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.74;
-
-        const guideBodyMat = blueMat;
-        const guideMetalMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x8f959c : 0x8b8f95,
-            roughness: 0.74,
-            metalness: 0.24
-        }});
 
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
 
         const guideMain = new THREE.Mesh(
             new THREE.BoxGeometry(58 * guideScale, 34 * guideScale, 34 * guideScale),
-            guideBodyMat
+            blueMat
         );
         guideGroup.add(guideMain);
 
+        const guideSleeve = new THREE.Mesh(
+            new THREE.CylinderGeometry(14 * guideScale, 14 * guideScale, 34 * guideScale, 24),
+            steelDarkMat
+        );
+        guideSleeve.rotation.z = Math.PI / 2;
+        guideSleeve.position.x = 6 * guideScale;
+        guideGroup.add(guideSleeve);
+
         const guideTaper = new THREE.Mesh(
             new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 20),
-            guideMetalMat
+            steelMat
         );
         guideTaper.rotation.z = Math.PI / 2;
         guideTaper.position.x = 32 * guideScale;
@@ -642,11 +695,7 @@ def viewer(
 
         const guideNozzle = new THREE.Mesh(
             new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 28),
-            new THREE.MeshStandardMaterial({{
-                color: gelwhite ? 0xa5abb2 : 0x8a8e93,
-                roughness: 0.68,
-                metalness: 0.28
-            }})
+            steelMat
         );
         guideNozzle.rotation.z = Math.PI / 2;
         guideNozzle.position.x = 47 * guideScale;
@@ -654,27 +703,27 @@ def viewer(
 
         const guideBackCap = new THREE.Mesh(
             new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 18),
-            guideMetalMat
+            steelDarkMat
         );
         guideBackCap.rotation.z = Math.PI / 2;
         guideBackCap.position.x = -30 * guideScale;
         guideGroup.add(guideBackCap);
 
-        // llum general molt més natural
-        scene.add(new THREE.AmbientLight(0xffffff, gelwhite ? 0.26 : 0.30));
+        // llum natural més viva al dark i suau al light
+        scene.add(new THREE.AmbientLight(0xffffff, gelwhite ? 0.34 : 0.26));
 
         const hemi = new THREE.HemisphereLight(
-            gelwhite ? 0xbcc7d4 : 0xf8f8f8,
-            gelwhite ? 0x171717 : 0xd8d1c9,
-            gelwhite ? 0.22 : 0.20
+            gelwhite ? 0xcfd8e2 : 0xffffff,
+            gelwhite ? 0x1a1d20 : 0xd7d0c7,
+            gelwhite ? 0.30 : 0.20
         );
         scene.add(hemi);
 
-        const dLight1 = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.24 : 0.18);
+        const dLight1 = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.30 : 0.18);
         dLight1.position.set(460, -380, 560);
         scene.add(dLight1);
 
-        const dLight2 = new THREE.DirectionalLight(gelwhite ? 0xd5dde7 : 0xf1ede7, gelwhite ? 0.08 : 0.06);
+        const dLight2 = new THREE.DirectionalLight(gelwhite ? 0xe2e8ef : 0xf1ede7, gelwhite ? 0.10 : 0.06);
         dLight2.position.set(-520, 220, 260);
         scene.add(dLight2);
 
@@ -682,8 +731,8 @@ def viewer(
             const grid = new THREE.GridHelper(
                 2600,
                 32,
-                gelwhite ? 0x666666 : 0x9a9a9a,
-                gelwhite ? 0x292929 : 0xdbdbdb
+                gelwhite ? 0x707070 : 0x9a9a9a,
+                gelwhite ? 0x2b2f33 : 0xdbdbdb
             );
             grid.rotation.x = Math.PI / 2;
             grid.position.z = 0;
@@ -808,11 +857,17 @@ def viewer(
             return mesh;
         }}
 
-        function makeEndpoint(point, material, radiusScale = 0.78) {{
-            const g = new THREE.SphereGeometry(Math.max(6.5, Rt * radiusScale), 22, 22);
-            const m = new THREE.Mesh(g, material);
-            m.position.copy(point);
-            return m;
+        function makeEndpointDisc(point, tangentDir, material, radiusScale = 0.92) {{
+            const r = Math.max(7.0, Rt * radiusScale);
+            const geo = new THREE.CylinderGeometry(r, r, Math.max(2.0, Rt * 0.22), 28);
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.position.copy(point);
+
+            const yAxis = new THREE.Vector3(0, 1, 0);
+            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, tangentDir.clone().normalize());
+            mesh.setRotationFromQuaternion(quat);
+
+            return mesh;
         }}
 
         let depositedMesh = null;
@@ -881,8 +936,13 @@ def viewer(
             const startWorld = localPointToWorld(localPts[0], theta);
             const endWorld = localPointToWorld(activeLocalEnd, theta);
 
-            startMarker = makeEndpoint(startWorld, markerStartMat, 0.78);
-            endMarker = makeEndpoint(endWorld, markerEndMat, 0.92);
+            const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
+            const endTangentLocal = localPts[i1].clone().sub(localPts[i0]);
+            const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
+            const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
+
+            startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.82);
+            endMarker = makeEndpointDisc(endWorld, endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld, markerEndMat, 0.96);
             overlayGroup.add(startMarker);
             overlayGroup.add(endMarker);
 
