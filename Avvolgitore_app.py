@@ -440,12 +440,12 @@ def viewer(
         const guideOffsetX = {float(guide_offset_x)};
         const aspoMode = {aspo_mode_json};
 
-        const finalWorldContactsRaw = {final_world_contacts_json};
-        const finalThetaRaw = {final_thetas_json};
-        const finalRadiusRaw = {final_radii_json};
-        const finalZRaw = {final_zs_json};
+        const localRaw = {final_local_points_json};
+        const thetaRaw = {final_thetas_json};
+        const radiusRaw = {final_radii_json};
+        const zRaw = {final_zs_json};
 
-        const worldPts = finalWorldContactsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: 0x6b7076,
@@ -489,7 +489,7 @@ def viewer(
         scene.add(machine);
 
         const depositedGroup = new THREE.Group();
-        scene.add(depositedGroup);
+        machine.add(depositedGroup);
 
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
@@ -572,6 +572,10 @@ def viewer(
             );
         }}
 
+        function localPointToWorld(ptLocal, theta) {{
+            return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
+        }}
+
         function disposeMaterial(mat) {{
             if (!mat) return;
             if (Array.isArray(mat)) {{
@@ -626,7 +630,7 @@ def viewer(
         let startMarker = null;
         let endMarker = null;
 
-        let drawIndex = animEnabled ? 2 : worldPts.length;
+        let drawIndex = animEnabled ? 2 : localPts.length;
         let drawAccumulator = 0.0;
         let builtUntil = 1;
 
@@ -639,14 +643,14 @@ def viewer(
             clearGroupObjects(depositedGroup, depositedSegments);
             clearGroupObjects(depositedGroup, depositedJoints);
 
-            if (worldPts.length === 0) return;
+            if (localPts.length === 0) return;
 
-            const firstJoint = createDiscMarker(worldPts[0], tubeMat, depositedGroup);
+            const firstJoint = createDiscMarker(localPts[0], tubeMat, depositedGroup);
             depositedJoints.push(firstJoint);
 
             for (let i = 1; i < idx; i++) {{
-                const p0 = worldPts[i - 1];
-                const p1 = worldPts[i];
+                const p0 = localPts[i - 1];
+                const p1 = localPts[i];
 
                 const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
                 if (seg) {{
@@ -663,10 +667,10 @@ def viewer(
 
         function appendOneSegment() {{
             const nextI = builtUntil + 1;
-            if (nextI >= drawIndex || nextI >= worldPts.length) return;
+            if (nextI >= drawIndex || nextI >= localPts.length) return;
 
-            const p0 = worldPts[nextI - 1];
-            const p1 = worldPts[nextI];
+            const p0 = localPts[nextI - 1];
+            const p1 = localPts[nextI];
 
             const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
             if (seg) {{
@@ -694,22 +698,24 @@ def viewer(
                 endMarker = null;
             }}
 
-            const safeIndex = Math.max(2, Math.min(drawIndex, worldPts.length));
+            const safeIndex = Math.max(2, Math.min(drawIndex, localPts.length));
             const i = safeIndex - 1;
 
-            const currentTheta = finalThetaRaw[i];
-            const currentRadius = finalRadiusRaw[i];
-            const currentZ = finalZRaw[i];
+            const currentTheta = thetaRaw[i];
+            const currentRadius = radiusRaw[i];
+            const currentZ = zRaw[i];
 
             machine.rotation.z = currentTheta;
 
-            startMarker = createDiscMarker(worldPts[0], startMat, overlayGroup);
-            endMarker = createDiscMarker(worldPts[i], endMat, overlayGroup);
+            const startWorld = localPointToWorld(localPts[0], currentTheta);
+            const endWorld = localPointToWorld(localPts[i], currentTheta);
 
-            const currentEndWorld = worldPts[i].clone();
+            startMarker = createDiscMarker(startWorld, startMat, overlayGroup);
+            endMarker = createDiscMarker(endWorld, endMat, overlayGroup);
+
             const guideWorld = guidePointWorld(currentRadius, currentZ);
 
-            const seg = makeTubeSegment(guideWorld, currentEndWorld, Rt, freeTubeMat);
+            const seg = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
             if (seg) {{
                 overlayGroup.add(seg);
                 freeMesh = seg;
@@ -736,22 +742,22 @@ def viewer(
         if (animEnabled) {{
             rebuildDepositedUpTo(drawIndex);
         }} else {{
-            rebuildDepositedUpTo(worldPts.length);
-            drawIndex = worldPts.length;
+            rebuildDepositedUpTo(localPts.length);
+            drawIndex = localPts.length;
         }}
         updateOverlay();
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && drawIndex < worldPts.length) {{
+            if (animEnabled && drawIndex < localPts.length) {{
                 drawAccumulator += Math.max(0.12, speed * 0.85);
                 const stepNow = Math.floor(drawAccumulator);
 
                 if (stepNow >= 1) {{
                     drawAccumulator -= stepNow;
                     const oldDrawIndex = drawIndex;
-                    drawIndex = Math.min(worldPts.length, drawIndex + stepNow);
+                    drawIndex = Math.min(localPts.length, drawIndex + stepNow);
 
                     for (let k = oldDrawIndex; k < drawIndex; k++) {{
                         appendOneSegment();
