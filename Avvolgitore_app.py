@@ -114,7 +114,7 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 gradi_start = 0.0
 pinza = 0.0
-guide_offset_x = 355.0
+guide_offset_x = 555.0
 
 # =========================
 # LOGO
@@ -775,7 +775,7 @@ def viewer(
         // ==========================================
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
-        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.74;
+        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.34;
 
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
