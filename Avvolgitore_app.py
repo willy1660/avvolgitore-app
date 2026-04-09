@@ -14,10 +14,6 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 if "lang" not in st.session_state:
     st.session_state.lang = "IT"
 
-# =========================
-# TEXTS
-# =========================
-
 TEXTS = {
     "IT": {
         "title": "Avvolgimento",
@@ -25,7 +21,6 @@ TEXTS = {
         "bobina": "🟦 Bobina",
         "tubo": "🟩 Tubo",
         "avvolg": "🟧 Avvolgimento",
-        "viewer": "⚙️ Viewer",
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
@@ -66,7 +61,6 @@ TEXTS = {
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Winding",
-        "viewer": "⚙️ Viewer",
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
@@ -103,10 +97,6 @@ TEXTS = {
     }
 }
 
-# =========================
-# CONSTANTS
-# =========================
-
 COPPER_SIZES_MM = {
     "1/4": 6.35,
     "3/8": 9.52,
@@ -118,12 +108,8 @@ COPPER_SIZES_MM = {
 
 EPS = 1e-9
 gradi_start = 0.0
-pinza = 0.0
 guide_offset_x = 555.0
 
-# =========================
-# LOGO
-# =========================
 
 def find_logo():
     candidates = [
@@ -145,18 +131,13 @@ def find_logo():
             return files[0]
     return None
 
+
 logo_path = find_logo()
 
-# =========================
-# HEADER
-# =========================
-
 top1, top2 = st.columns([1.0, 5.0])
-
 with top1:
     if logo_path:
         st.image(logo_path, width=110)
-
 with top2:
     st.markdown(f"## {TEXTS[st.session_state.lang]['title']}")
     lang_option = st.selectbox(
@@ -170,21 +151,21 @@ st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
 
-# =========================
-# GEOMETRY / SIMULATION
-# =========================
 
 def smoothstep(x: float) -> float:
     x = max(0.0, min(1.0, x))
     return x * x * (3.0 - 2.0 * x)
+
 
 def polyline_length(points: np.ndarray) -> float:
     if len(points) < 2:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
+
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
     return np.array([0.0, radius, z], dtype=float)
+
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     c = np.cos(theta)
@@ -193,7 +174,8 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     y = -pt_world[0] * s + pt_world[1] * c
     return np.array([x, y, pt_world[2]], dtype=float)
 
-def simulate_winding_center_plane_local(
+
+def simulate_winding_paths_segmented(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -217,11 +199,16 @@ def simulate_winding_center_plane_local(
     first_contact_world = deposit_point_world(current_layer_radius, z)
     first_local = world_to_spool_local(first_contact_world, theta)
 
-    contact_world = [first_contact_world]
-    deposited_local = [first_local]
-    theta_values = [theta]
-    radius_values = [current_layer_radius]
-    z_values = [z]
+    # Full motion path
+    full_local = [first_local]
+    full_theta = [theta]
+    full_radius = [current_layer_radius]
+    full_z = [z]
+
+    # Deposited segmented paths
+    deposited_segments = [[first_local.tolist()]]
+    dep_seg_idx_at_full = [0]
+    dep_seg_len_at_full = [1]
 
     deposited_len = 0.0
     direction = 1
@@ -233,7 +220,11 @@ def simulate_winding_center_plane_local(
     turn_start_radius = current_layer_radius
     turn_end_radius = current_layer_radius
 
+    current_seg_idx = 0
+
     for _ in range(1200000):
+        prev_mode = mode
+
         next_theta = theta - np.deg2rad(deg_step)
 
         next_z = z
@@ -245,6 +236,8 @@ def simulate_winding_center_plane_local(
         next_turn_start_radius = turn_start_radius
         next_turn_end_radius = turn_end_radius
         next_radius = current_layer_radius
+
+        turn_finished_this_step = False
 
         if mode == "axial":
             next_z = z + direction * passo * (deg_step / 360.0)
@@ -270,27 +263,27 @@ def simulate_winding_center_plane_local(
 
         else:
             next_z = next_turn_z
-
             if next_turn_delay <= 0.0:
                 next_radius = next_turn_end_radius
                 current_layer_radius = next_turn_end_radius
                 next_mode = "axial"
                 next_direction = -direction
+                turn_finished_this_step = True
             else:
                 next_turn_progress = turn_progress + deg_step
                 s = smoothstep(next_turn_progress / next_turn_delay)
                 next_radius = next_turn_start_radius + s * (next_turn_end_radius - next_turn_start_radius)
-
                 if next_turn_progress >= next_turn_delay:
                     next_radius = next_turn_end_radius
                     current_layer_radius = next_turn_end_radius
                     next_mode = "axial"
                     next_direction = -direction
+                    turn_finished_this_step = True
 
         new_contact_world = deposit_point_world(next_radius, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
 
-        prev_local = deposited_local[-1]
+        prev_local = full_local[-1]
         seg = float(np.linalg.norm(new_local - prev_local))
 
         if seg < max(0.25, Rt * 0.05):
@@ -305,33 +298,49 @@ def simulate_winding_center_plane_local(
             turn_end_radius = next_turn_end_radius
             continue
 
+        truncated = False
         if deposited_len + seg >= max_len:
             remain = max_len - deposited_len
             if seg > EPS and remain > 0.0:
                 a = remain / seg
                 final_theta = theta + a * (next_theta - theta)
                 final_z = z + a * (next_z - z)
-                prev_r = radius_values[-1]
+                prev_r = full_radius[-1]
                 final_r = prev_r + a * (next_radius - prev_r)
 
                 final_contact_world = deposit_point_world(final_r, final_z)
                 final_local = world_to_spool_local(final_contact_world, final_theta)
 
-                contact_world.append(final_contact_world)
-                deposited_local.append(final_local)
-                theta_values.append(final_theta)
-                radius_values.append(final_r)
-                z_values.append(final_z)
+                full_local.append(final_local)
+                full_theta.append(final_theta)
+                full_radius.append(final_r)
+                full_z.append(final_z)
 
+                if prev_mode == "axial":
+                    deposited_segments[current_seg_idx].append(final_local.tolist())
+                elif turn_finished_this_step:
+                    current_seg_idx += 1
+                    deposited_segments.append([final_local.tolist()])
+
+                dep_seg_idx_at_full.append(current_seg_idx)
+                dep_seg_len_at_full.append(len(deposited_segments[current_seg_idx]))
                 deposited_len += float(np.linalg.norm(final_local - prev_local))
-            break
+            truncated = True
+        else:
+            full_local.append(new_local)
+            full_theta.append(next_theta)
+            full_radius.append(next_radius)
+            full_z.append(next_z)
+            deposited_len += seg
 
-        contact_world.append(new_contact_world)
-        deposited_local.append(new_local)
-        theta_values.append(next_theta)
-        radius_values.append(next_radius)
-        z_values.append(next_z)
-        deposited_len += seg
+            if prev_mode == "axial":
+                deposited_segments[current_seg_idx].append(new_local.tolist())
+            elif turn_finished_this_step:
+                current_seg_idx += 1
+                deposited_segments.append([new_local.tolist()])
+
+            dep_seg_idx_at_full.append(current_seg_idx)
+            dep_seg_len_at_full.append(len(deposited_segments[current_seg_idx]))
 
         theta = next_theta
         z = next_z
@@ -343,72 +352,65 @@ def simulate_winding_center_plane_local(
         turn_start_radius = next_turn_start_radius
         turn_end_radius = next_turn_end_radius
 
+        if truncated:
+            break
+
     return (
-        np.array(contact_world, dtype=float),
-        np.array(deposited_local, dtype=float),
-        np.array(theta_values, dtype=float),
-        np.array(radius_values, dtype=float),
-        np.array(z_values, dtype=float),
-        deposited_len,
+        np.array(full_local, dtype=float),
+        np.array(full_theta, dtype=float),
+        np.array(full_radius, dtype=float),
+        np.array(full_z, dtype=float),
+        deposited_segments,
+        np.array(dep_seg_idx_at_full, dtype=int),
+        np.array(dep_seg_len_at_full, dtype=int),
     )
+
 
 def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
     if len(points) < 2:
         return float(d_tubo)
-
     xy = points[:, :2]
     max_samples = 1200
     if len(xy) > max_samples:
         idx = np.linspace(0, len(xy) - 1, max_samples).astype(int)
         xy = xy[idx]
-
     diff = xy[:, None, :] - xy[None, :, :]
     dist2 = np.sum(diff * diff, axis=2)
     max_centerline_span = float(np.sqrt(np.max(dist2)))
     return max_centerline_span + d_tubo
 
+
 def compute_metrics(points: np.ndarray, d_tubo: float):
     if len(points) == 0:
-        return {
-            "diam_radiale": 0.0,
-            "max_xy_span": 0.0,
-            "wound_length_m": 0.0,
-        }
-
+        return {"diam_radiale": 0.0, "max_xy_span": 0.0, "wound_length_m": 0.0}
     radial = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
     max_centerline_r = float(np.max(radial))
     diam_radiale = 2.0 * (max_centerline_r + d_tubo / 2.0)
     max_xy_span = compute_max_xy_span(points, d_tubo)
     wound_length_m = polyline_length(points) / 1000.0
-
     return {
         "diam_radiale": diam_radiale,
         "max_xy_span": max_xy_span,
         "wound_length_m": wound_length_m,
     }
 
-# =========================
-# VIEWER
-# =========================
 
 def viewer(
     d_aspo,
     spalla,
     d_tubo,
     altezza,
-    final_local_points,
-    final_thetas,
-    final_radii,
-    final_zs,
+    full_local_points,
+    full_thetas,
+    full_radii,
+    full_zs,
+    deposited_segments,
+    dep_seg_idx_at_full,
+    dep_seg_len_at_full,
     guide_offset_x,
     language,
 ):
-    final_local_points_json = json.dumps(final_local_points)
-    final_thetas_json = json.dumps(final_thetas)
-    final_radii_json = json.dumps(final_radii)
-    final_zs_json = json.dumps(final_zs)
     labels_json = json.dumps(TEXTS[language])
-
     return f"""
     <div id="viewer_root" style="
         width:100%;
@@ -421,22 +423,12 @@ def viewer(
         position:relative;
     ">
         <div id="viewer_topbar" style="
-            position:absolute;
-            top:12px;
-            left:12px;
-            z-index:20;
-            display:flex;
-            align-items:center;
-            gap:8px;
-            padding:10px 12px;
-            background:rgba(18,22,27,0.72);
-            color:#f0f0f0;
-            border:1px solid rgba(255,255,255,0.10);
-            border-radius:12px;
-            backdrop-filter: blur(8px);
-            font-family:Arial, sans-serif;
-            font-size:13px;
-            user-select:none;
+            position:absolute; top:12px; left:12px; z-index:20;
+            display:flex; align-items:center; gap:8px;
+            padding:10px 12px; background:rgba(18,22,27,0.72);
+            color:#f0f0f0; border:1px solid rgba(255,255,255,0.10);
+            border-radius:12px; backdrop-filter: blur(8px);
+            font-family:Arial, sans-serif; font-size:13px; user-select:none;
         ">
             <button id="play_pause_btn" class="viewer_btn">⏸</button>
             <button id="fullscreen_btn" class="viewer_btn">⛶</button>
@@ -445,23 +437,12 @@ def viewer(
         </div>
 
         <div id="viewer_sidepanel" style="
-            position:absolute;
-            top:12px;
-            right:12px;
-            z-index:20;
-            display:flex;
-            flex-direction:column;
-            gap:12px;
-            width:230px;
-            padding:14px;
-            background:rgba(18,22,27,0.72);
-            color:#f0f0f0;
-            border:1px solid rgba(255,255,255,0.10);
-            border-radius:12px;
-            backdrop-filter: blur(8px);
-            font-family:Arial, sans-serif;
-            font-size:13px;
-            user-select:none;
+            position:absolute; top:12px; right:12px; z-index:20;
+            display:flex; flex-direction:column; gap:12px; width:230px;
+            padding:14px; background:rgba(18,22,27,0.72); color:#f0f0f0;
+            border:1px solid rgba(255,255,255,0.10); border-radius:12px;
+            backdrop-filter: blur(8px); font-family:Arial, sans-serif;
+            font-size:13px; user-select:none;
         ">
             <div>
                 <div class="panel_label" id="animation_title"></div>
@@ -520,60 +501,15 @@ def viewer(
     </div>
 
     <style>
-        .viewer_btn {{
-            border:none;
-            border-radius:8px;
-            padding:7px 12px;
-            background:#f3f3f3;
-            color:#111;
-            font-weight:700;
-            cursor:pointer;
-        }}
-        .viewer_btn_small {{
-            border:none;
-            border-radius:8px;
-            padding:7px 10px;
-            background:#dcdcdc;
-            color:#111;
-            font-weight:600;
-            cursor:pointer;
-            text-align:left;
-        }}
-        .active_speed {{
-            outline:2px solid #ffffff;
-            background:#ffffff;
-        }}
-        .active_opt {{
-            outline:2px solid #ffffff;
-            background:#ffffff;
-        }}
-        .panel_label {{
-            font-size:12px;
-            opacity:0.82;
-            margin-bottom:6px;
-            text-transform:uppercase;
-            letter-spacing:0.04em;
-        }}
-        .btn_group_vertical {{
-            display:flex;
-            flex-direction:column;
-            gap:6px;
-        }}
-        .panel_check {{
-            display:flex;
-            align-items:center;
-            gap:8px;
-        }}
-        .panel_checks_block {{
-            display:flex;
-            flex-direction:column;
-            gap:8px;
-            padding-top:2px;
-        }}
-        .viewer_btn_disabled {{
-            opacity:0.45;
-            cursor:not-allowed;
-        }}
+        .viewer_btn {{ border:none; border-radius:8px; padding:7px 12px; background:#f3f3f3; color:#111; font-weight:700; cursor:pointer; }}
+        .viewer_btn_small {{ border:none; border-radius:8px; padding:7px 10px; background:#dcdcdc; color:#111; font-weight:600; cursor:pointer; text-align:left; }}
+        .active_speed {{ outline:2px solid #ffffff; background:#ffffff; }}
+        .active_opt {{ outline:2px solid #ffffff; background:#ffffff; }}
+        .panel_label {{ font-size:12px; opacity:0.82; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em; }}
+        .btn_group_vertical {{ display:flex; flex-direction:column; gap:6px; }}
+        .panel_check {{ display:flex; align-items:center; gap:8px; }}
+        .panel_checks_block {{ display:flex; flex-direction:column; gap:8px; padding-top:2px; }}
+        .viewer_btn_disabled {{ opacity:0.45; cursor:not-allowed; }}
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -583,16 +519,24 @@ def viewer(
     (() => {{
         const T = {labels_json};
 
+        const fullLocalPts = {json.dumps(full_local_points)}.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const thetaRaw = {json.dumps(full_thetas)};
+        const radiusRaw = {json.dumps(full_radii)};
+        const zRaw = {json.dumps(full_zs)};
+        const depositedSegmentsRaw = {json.dumps(deposited_segments)};
+        const depSegIdxAtFull = {json.dumps(dep_seg_idx_at_full)};
+        const depSegLenAtFull = {json.dumps(dep_seg_len_at_full)};
+
+        const depositedSegments = depositedSegmentsRaw.map(seg => seg.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+
         const host = document.getElementById("viewer_root");
         const playPauseBtn = document.getElementById("play_pause_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
         const progressSlider = document.getElementById("progress_slider");
         const animationCheck = document.getElementById("animation_check");
-
         const speedBtns = [...document.querySelectorAll(".speed_btn")];
         const spoolBtns = [...document.querySelectorAll(".spool_btn")];
         const tubeBtns = [...document.querySelectorAll(".tube_btn")];
-
         const gridCheck = document.getElementById("grid_check");
         const axesCheck = document.getElementById("axes_check");
         const sectionCheck = document.getElementById("section_check");
@@ -616,15 +560,11 @@ def viewer(
         const Hview = Math.max(host.clientHeight, 400);
 
         const scene = new THREE.Scene();
-
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
         camera.position.set(-1400, -2100, 200);
         camera.up.set(0, 0, 1);
 
-        const renderer = new THREE.WebGLRenderer({{
-            antialias: true,
-            powerPreference: "high-performance"
-        }});
+        const renderer = new THREE.WebGLRenderer({{ antialias: true, powerPreference: "high-performance" }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
@@ -650,13 +590,6 @@ def viewer(
         controls.target.set(10, 20, Hs * 0.52);
         camera.lookAt(10, 20, Hs * 0.52);
 
-        const localRaw = {final_local_points_json};
-        const thetaRaw = {final_thetas_json};
-        const radiusRaw = {final_radii_json};
-        const zRaw = {final_zs_json};
-
-        const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-
         let isPlaying = true;
         let animationEnabled = true;
         let speed = 1.0;
@@ -675,39 +608,17 @@ def viewer(
         function getTheme() {{
             if (tubeMode === "gelblack") {{
                 return {{
-                    bg: 0xffffff,
-                    tube: 0x111111,
-                    freeTube: 0x242424,
-                    activeTube: 0x050505,
-                    sectionFill: 0x000000,
-                    sectionFrame: 0x111111,
-                    gridMajor: 0x5c5c5c,
-                    gridMinor: 0xb8b8b8,
-                    gridOpacity: 0.72,
-                    hemiSky: 0xffffff,
-                    hemiGround: 0xd8d2ca,
-                    ambient: 0.12,
-                    fill: 0.32,
-                    rim: 0.52,
-                    exposure: 1.15,
+                    bg: 0xffffff, tube: 0x111111, freeTube: 0x242424, activeTube: 0x050505,
+                    sectionFill: 0x000000, sectionFrame: 0x111111,
+                    gridMajor: 0x5c5c5c, gridMinor: 0xb8b8b8, gridOpacity: 0.72,
+                    hemiSky: 0xffffff, hemiGround: 0xd8d2ca, ambient: 0.12, fill: 0.32, rim: 0.52, exposure: 1.15,
                 }};
             }}
             return {{
-                bg: 0x000000,
-                tube: 0xd8d8d6,
-                freeTube: 0xbebebc,
-                activeTube: 0xf0f0ee,
-                sectionFill: 0xffffff,
-                sectionFrame: 0xffffff,
-                gridMajor: 0x6f6f6f,
-                gridMinor: 0x2f2f2f,
-                gridOpacity: 0.34,
-                hemiSky: 0xd7dfe7,
-                hemiGround: 0x1a1d20,
-                ambient: 0.18,
-                fill: 0.40,
-                rim: 0.62,
-                exposure: 1.0,
+                bg: 0x000000, tube: 0xd8d8d6, freeTube: 0xbebebc, activeTube: 0xf0f0ee,
+                sectionFill: 0xffffff, sectionFrame: 0xffffff,
+                gridMajor: 0x6f6f6f, gridMinor: 0x2f2f2f, gridOpacity: 0.34,
+                hemiSky: 0xd7dfe7, hemiGround: 0x1a1d20, ambient: 0.18, fill: 0.40, rim: 0.62, exposure: 1.0,
             }};
         }}
 
@@ -728,49 +639,33 @@ def viewer(
         }}
 
         function setActiveButton(group, value, attr, activeClass="active_opt") {{
-            group.forEach(btn => {{
-                btn.classList.toggle(activeClass, btn.getAttribute(attr) === value);
-            }});
+            group.forEach(btn => btn.classList.toggle(activeClass, btn.getAttribute(attr) === value));
         }}
 
-        speedBtns.forEach(btn => {{
-            btn.addEventListener("click", () => {{
-                speed = parseFloat(btn.dataset.speed);
-                speedBtns.forEach(b => b.classList.remove("active_speed"));
-                btn.classList.add("active_speed");
-            }});
-        }});
+        speedBtns.forEach(btn => btn.addEventListener("click", () => {{
+            speed = parseFloat(btn.dataset.speed);
+            speedBtns.forEach(b => b.classList.remove("active_speed"));
+            btn.classList.add("active_speed");
+        }}));
 
-        spoolBtns.forEach(btn => {{
-            btn.addEventListener("click", () => {{
-                aspoMode = btn.dataset.spool;
-                setActiveButton(spoolBtns, aspoMode, "data-spool");
-                applyVisualState();
-            }});
-        }});
-
-        tubeBtns.forEach(btn => {{
-            btn.addEventListener("click", () => {{
-                tubeMode = btn.dataset.tube;
-                setActiveButton(tubeBtns, tubeMode, "data-tube");
-                applyVisualState(true);
-            }});
-        }});
-
-        gridCheck.addEventListener("change", () => {{
-            showGrid = gridCheck.checked;
+        spoolBtns.forEach(btn => btn.addEventListener("click", () => {{
+            aspoMode = btn.dataset.spool;
+            setActiveButton(spoolBtns, aspoMode, "data-spool");
             applyVisualState();
-        }});
+        }}));
 
-        axesCheck.addEventListener("change", () => {{
-            showAxes = axesCheck.checked;
-            applyVisualState();
-        }});
+        tubeBtns.forEach(btn => btn.addEventListener("click", () => {{
+            tubeMode = btn.dataset.tube;
+            setActiveButton(tubeBtns, tubeMode, "data-tube");
+            applyVisualState(true);
+        }}));
 
+        gridCheck.addEventListener("change", () => {{ showGrid = gridCheck.checked; applyVisualState(); }});
+        axesCheck.addEventListener("change", () => {{ showAxes = axesCheck.checked; applyVisualState(); }});
         sectionCheck.addEventListener("change", () => {{
             showSection = sectionCheck.checked;
             applySectionState();
-            rebuildDepositedMesh(Math.floor(drawPos), true);
+            rebuildDepositedMeshes(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
         }});
 
@@ -778,8 +673,8 @@ def viewer(
             animationEnabled = animationCheck.checked;
             if (!animationEnabled) {{
                 isPlaying = false;
-                drawPos = localPts.length - 1;
-                rebuildDepositedMesh(Math.floor(drawPos), true);
+                drawPos = fullLocalPts.length - 1;
+                rebuildDepositedMeshes(Math.floor(drawPos), true);
                 updateOverlayContinuous(true);
                 progressSlider.value = 1000;
             }} else {{
@@ -821,9 +716,9 @@ def viewer(
         }});
 
         progressSlider.addEventListener("input", () => {{
-            const maxPos = Math.max(1, localPts.length - 1);
+            const maxPos = Math.max(1, fullLocalPts.length - 1);
             drawPos = (parseInt(progressSlider.value) / 1000.0) * maxPos;
-            rebuildDepositedMesh(Math.floor(drawPos), true);
+            rebuildDepositedMeshes(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
         }});
 
@@ -838,51 +733,31 @@ def viewer(
 
         function makeWaffleKnurlTexture(size = 256) {{
             const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
+            canvas.width = size; canvas.height = size;
             const ctx = canvas.getContext("2d");
-
             ctx.fillStyle = "rgb(128,128,128)";
             ctx.fillRect(0, 0, size, size);
 
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
-
-            const pitch = 24.0;
-            const lineWidth = 4.0;
-            const depth = 95.0;
+            const pitch = 24.0, lineWidth = 4.0, depth = 95.0;
 
             for (let y = 0; y < size; y++) {{
                 for (let x = 0; x < size; x++) {{
-                    const u = x;
-                    const v = y;
-
+                    const u = x, v = y;
                     const d1 = Math.abs((((u + v) % pitch) + pitch) % pitch - pitch * 0.5);
                     const d2 = Math.abs((((u - v) % pitch) + pitch) % pitch - pitch * 0.5);
-
                     let value = 128;
-
                     if (d1 < lineWidth) value -= depth;
                     if (d2 < lineWidth) value -= depth;
-
-                    const cell =
-                        0.5 + 0.5 *
-                        Math.cos((u + v) * Math.PI / pitch) *
-                        Math.cos((u - v) * Math.PI / pitch);
-
+                    const cell = 0.5 + 0.5 * Math.cos((u + v) * Math.PI / pitch) * Math.cos((u - v) * Math.PI / pitch);
                     value += (cell - 0.5) * 30.0;
                     value = Math.max(0, Math.min(255, Math.round(value)));
-
                     const i = (y * size + x) * 4;
-                    data[i] = value;
-                    data[i + 1] = value;
-                    data[i + 2] = value;
-                    data[i + 3] = 255;
+                    data[i] = value; data[i + 1] = value; data[i + 2] = value; data[i + 3] = 255;
                 }}
             }}
-
             ctx.putImageData(img, 0, 0);
-
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
@@ -892,10 +767,8 @@ def viewer(
 
         function makeSteelTexture(size = 256) {{
             const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
+            canvas.width = size; canvas.height = size;
             const ctx = canvas.getContext("2d");
-
             const grad = ctx.createLinearGradient(0, 0, size, 0);
             grad.addColorStop(0.0, "#565c64");
             grad.addColorStop(0.18, "#d9dee3");
@@ -920,7 +793,6 @@ def viewer(
                 img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
             }}
             ctx.putImageData(img, 0, 0);
-
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
@@ -933,20 +805,14 @@ def viewer(
 
         function makeRedMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
-                color: 0x6d7278,
-                roughness: 0.55,
-                metalness: 0.85,
-                map: steelTex,
-                transparent: transparent,
-                opacity: opacity,
-                depthWrite: !transparent
+                color: 0x6d7278, roughness: 0.55, metalness: 0.85, map: steelTex,
+                transparent: transparent, opacity: opacity, depthWrite: !transparent
             }});
         }}
 
         function makeTubeMaterial(mode, active=false, free=false) {{
             const theme = getTheme();
             const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
-
             const m = new THREE.MeshStandardMaterial({{
                 color: chosen,
                 roughness: active ? 0.80 : (free ? 0.88 : 0.85),
@@ -956,7 +822,6 @@ def viewer(
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
-
             m.onBeforeCompile = (shader) => {{
                 shader.fragmentShader = shader.fragmentShader.replace(
                     '#include <roughnessmap_fragment>',
@@ -986,27 +851,18 @@ def viewer(
         let freeTubeMat = makeTubeMaterial(tubeMode, false, true);
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
-            color: 0x23a55a,
-            roughness: 0.45,
-            metalness: 0.02,
-            emissive: 0x0b2013,
-            emissiveIntensity: 0.12
+            color: 0x23a55a, roughness: 0.45, metalness: 0.02,
+            emissive: 0x0b2013, emissiveIntensity: 0.12
         }});
-
         const markerEndMat = new THREE.MeshStandardMaterial({{
-            color: 0xffb020,
-            roughness: 0.40,
-            metalness: 0.02,
-            emissive: 0x2a1800,
-            emissiveIntensity: 0.14
+            color: 0xffb020, roughness: 0.40, metalness: 0.02,
+            emissive: 0x2a1800, emissiveIntensity: 0.14
         }});
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(ambient);
-
         const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.30);
         scene.add(hemi);
-
         const keyLight = new THREE.DirectionalLight(0xffffff, 1.20);
         keyLight.position.set(300, -200, 600);
         keyLight.castShadow = true;
@@ -1015,29 +871,21 @@ def viewer(
         keyLight.shadow.camera.near = 50;
         keyLight.shadow.camera.far = 3000;
         scene.add(keyLight);
-
         const fillLight = new THREE.DirectionalLight(0xffffff, 0.40);
         fillLight.position.set(-400, 200, 200);
         scene.add(fillLight);
-
         const rimLight = new THREE.DirectionalLight(0xffffff, 0.62);
         rimLight.position.set(0, 400, 300);
         scene.add(rimLight);
 
         const machine = new THREE.Group();
         scene.add(machine);
-
-        // depositedGroup CORRECT: child of machine
         const depositedGroup = new THREE.Group();
         machine.add(depositedGroup);
-
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
-        const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, Hs, 96),
-            redMat
-        );
+        const mandrel = new THREE.Mesh(new THREE.CylinderGeometry(R, R, Hs, 96), redMat);
         mandrel.rotation.x = Math.PI / 2;
         mandrel.position.z = Hs / 2.0;
         mandrel.castShadow = true;
@@ -1047,20 +895,14 @@ def viewer(
         const flangeR = R + 150.0;
         const flangeTh = 4.0;
 
-        const base = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
-            redMat
-        );
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96), redMat);
         base.rotation.x = Math.PI / 2;
         base.position.z = 0.0;
         base.castShadow = true;
         base.receiveShadow = true;
         machine.add(base);
 
-        const top = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
-            redMat
-        );
+        const top = new THREE.Mesh(new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96), redMat);
         top.rotation.x = Math.PI / 2;
         top.position.z = Hs;
         top.castShadow = true;
@@ -1074,54 +916,33 @@ def viewer(
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
 
-        const guideBarrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false),
-            redMat
-        );
+        const guideBarrel = new THREE.Mesh(new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false), redMat);
         guideBarrel.rotation.z = Math.PI / 2;
-        guideBarrel.position.x = 0;
-        guideBarrel.castShadow = true;
-        guideBarrel.receiveShadow = true;
+        guideBarrel.castShadow = true; guideBarrel.receiveShadow = true;
         guideGroup.add(guideBarrel);
 
-        const guideShoulder = new THREE.Mesh(
-            new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false),
-            redMat
-        );
+        const guideShoulder = new THREE.Mesh(new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false), redMat);
         guideShoulder.rotation.z = Math.PI / 2;
         guideShoulder.position.x = 22 * guideScale;
-        guideShoulder.castShadow = true;
-        guideShoulder.receiveShadow = true;
+        guideShoulder.castShadow = true; guideShoulder.receiveShadow = true;
         guideGroup.add(guideShoulder);
 
-        const guideTaper = new THREE.Mesh(
-            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false),
-            redMat
-        );
+        const guideTaper = new THREE.Mesh(new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false), redMat);
         guideTaper.rotation.z = Math.PI / 2;
         guideTaper.position.x = 42 * guideScale;
-        guideTaper.castShadow = true;
-        guideTaper.receiveShadow = true;
+        guideTaper.castShadow = true; guideTaper.receiveShadow = true;
         guideGroup.add(guideTaper);
 
-        const guideNozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false),
-            redMat
-        );
+        const guideNozzle = new THREE.Mesh(new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false), redMat);
         guideNozzle.rotation.z = Math.PI / 2;
         guideNozzle.position.x = 58 * guideScale;
-        guideNozzle.castShadow = true;
-        guideNozzle.receiveShadow = true;
+        guideNozzle.castShadow = true; guideNozzle.receiveShadow = true;
         guideGroup.add(guideNozzle);
 
-        const guideBackCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false),
-            redMat
-        );
+        const guideBackCap = new THREE.Mesh(new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false), redMat);
         guideBackCap.rotation.z = Math.PI / 2;
         guideBackCap.position.x = -28 * guideScale;
-        guideBackCap.castShadow = true;
-        guideBackCap.receiveShadow = true;
+        guideBackCap.castShadow = true; guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
 
         function refreshThemeBackgroundAndLights() {{
@@ -1174,7 +995,6 @@ def viewer(
             }}
 
             renderer.localClippingEnabled = showSection;
-
             tubeMat = makeTubeMaterial(tubeMode, false, false);
             activeTubeMat = makeTubeMaterial(tubeMode, true, false);
             freeTubeMat = makeTubeMaterial(tubeMode, false, true);
@@ -1183,15 +1003,9 @@ def viewer(
         function buildGridIfNeeded() {{
             if (grid) scene.remove(grid);
             grid = null;
-
             if (showGrid) {{
                 const theme = getTheme();
-                grid = new THREE.GridHelper(
-                    2000,
-                    20,
-                    theme.gridMajor,
-                    theme.gridMinor
-                );
+                grid = new THREE.GridHelper(2000, 20, theme.gridMajor, theme.gridMinor);
                 grid.rotation.x = Math.PI / 2;
                 grid.position.z = 0;
                 grid.material.opacity = theme.gridOpacity;
@@ -1211,17 +1025,9 @@ def viewer(
 
         function applyVisualState(themeChanged=false) {{
             refreshThemeBackgroundAndLights();
-
             const useMat = aspoMode === "transparent" ? redMatTransparent : redMat;
-            mandrel.material = useMat;
-            base.material = useMat;
-            top.material = useMat;
-            guideBarrel.material = useMat;
-            guideShoulder.material = useMat;
-            guideTaper.material = useMat;
-            guideNozzle.material = useMat;
-            guideBackCap.material = useMat;
 
+            [mandrel, base, top, guideBarrel, guideShoulder, guideTaper, guideNozzle, guideBackCap].forEach(m => m.material = useMat);
             mandrel.visible = aspoMode !== "hidden";
             base.visible = aspoMode !== "hidden";
             top.visible = aspoMode !== "hidden";
@@ -1229,36 +1035,23 @@ def viewer(
             buildGridIfNeeded();
             buildAxesIfNeeded();
 
-            if (themeChanged) {{
-                applySectionState();
-            }}
+            if (themeChanged) applySectionState();
 
-            rebuildDepositedMesh(Math.floor(drawPos), true);
+            rebuildDepositedMeshes(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
         }}
 
         function guidePointWorld(radius, z) {{
-            return new THREE.Vector3(
-                -(radius + guideOffsetX),
-                radius,
-                z
-            );
+            return new THREE.Vector3(-(radius + guideOffsetX), radius, z);
         }}
 
         function localPointToWorldCurrent(ptLocal, theta) {{
             return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
         }}
 
-        function lerp(a, b, t) {{
-            return a + (b - a) * t;
-        }}
-
+        function lerp(a, b, t) {{ return a + (b - a) * t; }}
         function lerpVec3(a, b, t) {{
-            return new THREE.Vector3(
-                lerp(a.x, b.x, t),
-                lerp(a.y, b.y, t),
-                lerp(a.z, b.z, t)
-            );
+            return new THREE.Vector3(lerp(a.x,b.x,t), lerp(a.y,b.y,t), lerp(a.z,b.z,t));
         }}
 
         class PolylineCurve3 extends THREE.Curve {{
@@ -1267,31 +1060,22 @@ def viewer(
                 this.points = points || [];
                 this.arc = [0];
                 this.totalLength = 0;
-
                 for (let i = 1; i < this.points.length; i++) {{
                     const seg = this.points[i].distanceTo(this.points[i - 1]);
                     this.totalLength += seg;
                     this.arc.push(this.totalLength);
                 }}
             }}
-
             getPoint(t) {{
-                if (!this.points || this.points.length === 0) return new THREE.Vector3(0, 0, 0);
+                if (!this.points || this.points.length === 0) return new THREE.Vector3(0,0,0);
                 if (this.points.length === 1 || this.totalLength <= 1e-9) return this.points[0].clone();
-
                 const target = t * this.totalLength;
                 let i = 1;
                 while (i < this.arc.length && this.arc[i] < target) i++;
-
                 if (i >= this.points.length) return this.points[this.points.length - 1].clone();
-
-                const l0 = this.arc[i - 1];
-                const l1 = this.arc[i];
-                const p0 = this.points[i - 1];
-                const p1 = this.points[i];
-                const denom = Math.max(1e-9, l1 - l0);
-                const a = (target - l0) / denom;
-
+                const l0 = this.arc[i - 1], l1 = this.arc[i];
+                const p0 = this.points[i - 1], p1 = this.points[i];
+                const a = (target - l0) / Math.max(1e-9, l1 - l0);
                 return new THREE.Vector3(
                     p0.x + a * (p1.x - p0.x),
                     p0.y + a * (p1.y - p0.y),
@@ -1315,18 +1099,10 @@ def viewer(
 
         function makeTubeMeshFromPoints(points, radius, material) {{
             if (!points || points.length < 2) return null;
-
             let totalLen = 0;
-            for (let i = 1; i < points.length; i++) {{
-                totalLen += points[i].distanceTo(points[i - 1]);
-            }}
-
+            for (let i = 1; i < points.length; i++) totalLen += points[i].distanceTo(points[i - 1]);
             const curve = new PolylineCurve3(points);
-            const tubularSegments = Math.max(
-                18,
-                Math.min(2600, Math.floor(totalLen / Math.max(1.25, radius * 0.48)))
-            );
-
+            const tubularSegments = Math.max(18, Math.min(2600, Math.floor(totalLen / Math.max(1.25, radius * 0.48))));
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
             geo.computeVertexNormals();
             const mesh = new THREE.Mesh(geo, material);
@@ -1339,19 +1115,15 @@ def viewer(
             const dir = new THREE.Vector3().subVectors(p1, p0);
             const len = dir.length();
             if (len < 1e-6) return null;
-
             const geo = new THREE.CylinderGeometry(radius, radius, len, 16, 1, false);
             const mesh = new THREE.Mesh(geo, material);
-
             const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
             mesh.position.copy(mid);
-
             const yAxis = new THREE.Vector3(0, 1, 0);
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
             mesh.setRotationFromQuaternion(quat);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-
             return mesh;
         }}
 
@@ -1361,68 +1133,77 @@ def viewer(
             const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 28);
             const mesh = new THREE.Mesh(geo, material);
             mesh.position.copy(point);
-
             const yAxis = new THREE.Vector3(0, 1, 0);
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, tangentDir.clone().normalize());
             mesh.setRotationFromQuaternion(quat);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-
             return mesh;
         }}
 
-        let depositedMesh = null;
+        let depositedMeshes = [];
         let freeMesh = null;
         let activeCoilMesh = null;
         let startMarker = null;
         let endMarker = null;
 
         let drawPos = 1.0;
-        let lastRebuiltCompleted = -1;
+        let lastDepSegIdx = -1;
+        let lastDepSegLen = -1;
 
-        function rebuildDepositedMesh(completedIndex, force=false) {{
-            if (completedIndex < 1) return;
-            if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
-            lastRebuiltCompleted = completedIndex;
+        function clearDepositedMeshes() {{
+            depositedMeshes.forEach(m => disposeObj(m, depositedGroup));
+            depositedMeshes = [];
+        }}
 
-            if (depositedMesh) {{
-                disposeObj(depositedMesh, depositedGroup);
-                depositedMesh = null;
+        function rebuildDepositedMeshes(fullIndex, force=false) {{
+            if (fullIndex < 0) return;
+
+            const segIdx = depSegIdxAtFull[Math.min(fullIndex, depSegIdxAtFull.length - 1)];
+            const segLen = depSegLenAtFull[Math.min(fullIndex, depSegLenAtFull.length - 1)];
+
+            if (!force && segIdx === lastDepSegIdx && segLen === lastDepSegLen) return;
+            lastDepSegIdx = segIdx;
+            lastDepSegLen = segLen;
+
+            clearDepositedMeshes();
+
+            for (let s = 0; s < depositedSegments.length; s++) {{
+                let pts = null;
+                if (s < segIdx) {{
+                    pts = depositedSegments[s];
+                }} else if (s === segIdx) {{
+                    pts = depositedSegments[s].slice(0, segLen);
+                }} else {{
+                    break;
+                }}
+
+                if (pts && pts.length >= 2) {{
+                    const mesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
+                    if (mesh) {{
+                        depositedGroup.add(mesh);
+                        depositedMeshes.push(mesh);
+                    }}
+                }}
             }}
-
-            const pts = localPts.slice(0, completedIndex + 1);
-            depositedMesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
-            if (depositedMesh) depositedGroup.add(depositedMesh);
         }}
 
         function clearOverlay() {{
-            if (freeMesh) {{
-                disposeObj(freeMesh, overlayGroup);
-                freeMesh = null;
-            }}
-            if (activeCoilMesh) {{
-                disposeObj(activeCoilMesh, overlayGroup);
-                activeCoilMesh = null;
-            }}
-            if (startMarker) {{
-                disposeObj(startMarker, overlayGroup);
-                startMarker = null;
-            }}
-            if (endMarker) {{
-                disposeObj(endMarker, overlayGroup);
-                endMarker = null;
-            }}
+            if (freeMesh) {{ disposeObj(freeMesh, overlayGroup); freeMesh = null; }}
+            if (activeCoilMesh) {{ disposeObj(activeCoilMesh, overlayGroup); activeCoilMesh = null; }}
+            if (startMarker) {{ disposeObj(startMarker, overlayGroup); startMarker = null; }}
+            if (endMarker) {{ disposeObj(endMarker, overlayGroup); endMarker = null; }}
         }}
 
         function updateOverlayContinuous(force=false) {{
             clearOverlay();
-            if (localPts.length < 2) return;
+            if (fullLocalPts.length < 2) return;
 
-            const maxPos = localPts.length - 1;
+            const maxPos = fullLocalPts.length - 1;
             const clampedPos = Math.max(1.0, Math.min(drawPos, maxPos));
 
             const i0 = Math.floor(clampedPos);
-            const i1 = Math.min(i0 + 1, localPts.length - 1);
+            const i1 = Math.min(i0 + 1, fullLocalPts.length - 1);
             const frac = clampedPos - i0;
 
             const theta = lerp(thetaRaw[i0], thetaRaw[i1], frac);
@@ -1431,15 +1212,16 @@ def viewer(
 
             machine.rotation.z = theta;
 
-            const activeLocalStart = localPts[i0];
-            const activeLocalEnd = lerpVec3(localPts[i0], localPts[i1], frac);
+            const activeLocalStart = fullLocalPts[i0];
+            const activeLocalEnd = lerpVec3(fullLocalPts[i0], fullLocalPts[i1], frac);
 
-            const startWorld = localPointToWorldCurrent(localPts[0], theta);
+            const depStartLocal = depositedSegments[0][0];
+            const startWorld = localPointToWorldCurrent(depStartLocal, theta);
             const activeStartWorld = localPointToWorldCurrent(activeLocalStart, theta);
             const endWorld = localPointToWorldCurrent(activeLocalEnd, theta);
 
-            const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
-            const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
+            const depStartTan = depositedSegments[0][Math.min(1, depositedSegments[0].length - 1)].clone().sub(depositedSegments[0][0]);
+            const startTangentWorld = depStartTan.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
             const endTangentWorld = endWorld.clone().sub(activeStartWorld);
 
             startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.82);
@@ -1471,23 +1253,19 @@ def viewer(
 
         applySectionState();
         applyVisualState(true);
-        updateAnimationUI();
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animationEnabled && isPlaying && drawPos < localPts.length - 1) {{
+            if (animationEnabled && isPlaying && drawPos < fullLocalPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
                 const oldCompleted = Math.floor(drawPos);
-                drawPos = Math.min(localPts.length - 1, drawPos + advance);
+                drawPos = Math.min(fullLocalPts.length - 1, drawPos + advance);
                 const newCompleted = Math.floor(drawPos);
 
-                if (newCompleted > oldCompleted) {{
-                    rebuildDepositedMesh(newCompleted);
-                }}
-
+                if (newCompleted > oldCompleted) rebuildDepositedMeshes(newCompleted);
                 updateOverlayContinuous();
-                progressSlider.value = Math.round((drawPos / Math.max(1, localPts.length - 1)) * 1000);
+                progressSlider.value = Math.round((drawPos / Math.max(1, fullLocalPts.length - 1)) * 1000);
             }}
 
             controls.update();
@@ -1495,25 +1273,21 @@ def viewer(
         }}
 
         if (!animationEnabled) {{
-            drawPos = localPts.length - 1;
-            rebuildDepositedMesh(Math.floor(drawPos), true);
+            drawPos = fullLocalPts.length - 1;
+            rebuildDepositedMeshes(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
             progressSlider.value = 1000;
         }} else {{
-            rebuildDepositedMesh(1, true);
+            rebuildDepositedMeshes(1, true);
             updateOverlayContinuous(true);
         }}
 
         animate();
-
         window.addEventListener("resize", resizeViewer);
     }})();
     </script>
     """
 
-# =========================
-# UI
-# =========================
 
 colA, colB, colC = st.columns(3)
 
@@ -1536,20 +1310,17 @@ with colC:
     rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
     rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
 
-# =========================
-# BUILD
-# =========================
-
 d_tubo = d_rame + 2.0 * spessore
 
 (
-    world_contacts,
-    local_points,
-    theta_values,
-    radius_values,
-    z_values,
-    deposited_len_mm,
-) = simulate_winding_center_plane_local(
+    full_local_points,
+    full_theta_values,
+    full_radius_values,
+    full_z_values,
+    deposited_segments,
+    dep_seg_idx_at_full,
+    dep_seg_len_at_full,
+) = simulate_winding_paths_segmented(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
@@ -1562,7 +1333,9 @@ d_tubo = d_rame + 2.0 * spessore
     deg_step=2.0,
 )
 
-metrics = compute_metrics(local_points, d_tubo)
+# Metrics from deposited geometry only
+all_dep_points = np.array([p for seg in deposited_segments for p in seg], dtype=float)
+metrics = compute_metrics(all_dep_points, d_tubo)
 
 components.html(
     viewer(
@@ -1570,24 +1343,21 @@ components.html(
         spalla,
         d_tubo,
         760,
-        local_points.tolist(),
-        theta_values.tolist(),
-        radius_values.tolist(),
-        z_values.tolist(),
+        full_local_points.tolist(),
+        full_theta_values.tolist(),
+        full_radius_values.tolist(),
+        full_z_values.tolist(),
+        deposited_segments,
+        dep_seg_idx_at_full.tolist(),
+        dep_seg_len_at_full.tolist(),
         guide_offset_x,
         lang,
     ),
     height=760
 )
 
-# =========================
-# METRICS
-# =========================
-
 st.divider()
-
 m1, m2, m3, m4, m5, m6 = st.columns(6)
-
 m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
 m2.metric(t["metric2"], f"{passo:.2f} mm")
 m3.metric(t["metric3"], f"{incremento:.2f} mm")
