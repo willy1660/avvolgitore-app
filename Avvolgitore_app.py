@@ -114,7 +114,7 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 gradi_start = 0.0
 pinza = 0.0
-guide_offset_x = 150.0
+guide_offset_x = 260.0  # més lluny de l'aspo
 
 # =========================
 # LOGO
@@ -436,12 +436,13 @@ def viewer(
         const bgDark = bgMode === "dark";
         scene.background = new THREE.Color(bgDark ? 0x0b0f14 : 0xf4f4f1);
 
-        const tubeBaseColor = bgDark ? 0xffffff : 0x141414;
-        const freeTubeColor = bgDark ? 0xe8e8e8 : 0x202020;
-        const activeTubeColor = bgDark ? 0xf7f7f7 : 0x101010;
+        const tubeBaseColor = bgDark ? 0xffffff : 0x050505;
+        const freeTubeColor = bgDark ? 0xf0f0f0 : 0x080808;
+        const activeTubeColor = bgDark ? 0xffffff : 0x000000;
 
-        const camera = new THREE.PerspectiveCamera(36, W / Hview, 0.1, 20000);
-        camera.position.set(-650, -840, 470);
+        const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
+        // vista inicial plana del rotllo: mirant gairebé al llarg de l'eix Z
+        camera.position.set(0, -25, 1150);
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
@@ -454,14 +455,18 @@ def viewer(
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.06;
-        controls.rotateSpeed = 0.85;
-        controls.zoomSpeed = 1.0;
-        controls.panSpeed = 0.9;
-        controls.screenSpacePanning = true;
-        controls.minDistance = 180;
-        controls.maxDistance = 3500;
-        controls.maxPolarAngle = Math.PI * 0.495;
+        controls.dampingFactor = 0.055;
+        controls.rotateSpeed = 0.95;
+        controls.zoomSpeed = 1.05;
+        controls.panSpeed = 0.8;
+        controls.enablePan = true;
+        controls.screenSpacePanning = false;
+        controls.enableRotate = true;
+        controls.enableZoom = true;
+        controls.minDistance = 120;
+        controls.maxDistance = 5000;
+        controls.minPolarAngle = 0.0;
+        controls.maxPolarAngle = Math.PI;
         controls.target.set(0, 0, {spalla}/2);
 
         const R = {float(d_aspo)} / 2.0;
@@ -489,7 +494,7 @@ def viewer(
             const img = ctx.createImageData(size, size);
 
             for (let i = 0; i < img.data.length; i += 4) {{
-                const v = 120 + Math.floor(Math.random() * 30);
+                const v = 110 + Math.floor(Math.random() * 40);
                 img.data[i] = v;
                 img.data[i + 1] = v;
                 img.data[i + 2] = v;
@@ -500,7 +505,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(24, 4);
+            tex.repeat.set(28, 5);
             return tex;
         }}
 
@@ -521,40 +526,46 @@ def viewer(
             metalness: 0.18
         }});
 
+        // materials més sòlids visualment
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.95,
-            metalness: 0.02,
+            roughness: 0.58,
+            metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.6
+            bumpScale: 0.42
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.92,
-            metalness: 0.02,
+            roughness: 0.54,
+            metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.55
+            bumpScale: 0.36
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 0.92,
-            metalness: 0.02,
+            roughness: 0.56,
+            metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.45
+            bumpScale: 0.28
         }});
 
+        // endpoints molt més clars i precisos
         const markerStartMat = new THREE.MeshStandardMaterial({{
-            color: 0x3f7f56,
-            roughness: 0.80,
-            metalness: 0.06
+            color: 0x23a55a,
+            roughness: 0.40,
+            metalness: 0.05,
+            emissive: 0x0d2a17,
+            emissiveIntensity: 0.25
         }});
 
         const markerEndMat = new THREE.MeshStandardMaterial({{
-            color: 0xa88437,
-            roughness: 0.78,
-            metalness: 0.06
+            color: 0xffb020,
+            roughness: 0.35,
+            metalness: 0.05,
+            emissive: 0x3b2400,
+            emissiveIntensity: 0.30
         }});
 
         const machine = new THREE.Group();
@@ -598,10 +609,10 @@ def viewer(
         base.visible = aspoMode !== "hidden";
         top.visible = aspoMode !== "hidden";
 
-        // Guidatubo escalat a partir de nozzle Ø55
+        // Guidatubo exageradament gran
         const nozzleDiameter = 55.0;
-        const oldNozzleDiameter = Math.max(4.0, Rt * 0.56); // antic: 2 * Rt*0.28
-        const guideScale = nozzleDiameter / oldNozzleDiameter;
+        const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
+        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 1.9;
 
         const guide = new THREE.Mesh(
             new THREE.BoxGeometry(80 * guideScale, 60 * guideScale, 60 * guideScale),
@@ -620,7 +631,7 @@ def viewer(
         scene.add(guideFront);
 
         const guideNozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 22 * guideScale, 24),
+            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 22 * guideScale, 28),
             new THREE.MeshStandardMaterial({{
                 color: bgDark ? 0x9da3aa : 0x8a8e93,
                 roughness: 0.70,
@@ -630,29 +641,34 @@ def viewer(
         guideNozzle.rotation.z = Math.PI / 2;
         scene.add(guideNozzle);
 
-        scene.add(new THREE.AmbientLight(0xffffff, bgDark ? 0.74 : 0.82));
+        scene.add(new THREE.AmbientLight(0xffffff, bgDark ? 0.76 : 0.86));
 
-        const dLight1 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.62 : 0.52);
-        dLight1.position.set(500, -500, 800);
+        const dLight1 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.70 : 0.62);
+        dLight1.position.set(550, -500, 850);
         scene.add(dLight1);
 
-        const dLight2 = new THREE.DirectionalLight(bgDark ? 0xdfe3e8 : 0xffffff, bgDark ? 0.18 : 0.20);
-        dLight2.position.set(-600, 250, 300);
+        const dLight2 = new THREE.DirectionalLight(bgDark ? 0xdfe3e8 : 0xffffff, bgDark ? 0.22 : 0.24);
+        dLight2.position.set(-700, 350, 450);
         scene.add(dLight2);
 
-        const dLight3 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.10 : 0.08);
-        dLight3.position.set(0, -900, 500);
+        const dLight3 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.12 : 0.10);
+        dLight3.position.set(0, -950, 650);
         scene.add(dLight3);
 
         if (showGrid) {{
-            const grid = new THREE.GridHelper(2200, 28, bgDark ? 0x666666 : 0x999999, bgDark ? 0x2a2a2a : 0xd0d0d0);
+            const grid = new THREE.GridHelper(
+                2600,
+                32,
+                bgDark ? 0x777777 : 0x8d8d8d,
+                bgDark ? 0x2e2e2e : 0xd8d8d8
+            );
             grid.rotation.x = Math.PI / 2;
             grid.position.z = 0;
             scene.add(grid);
         }}
 
         if (showAxes) {{
-            const axes = new THREE.AxesHelper(300);
+            const axes = new THREE.AxesHelper(350);
             scene.add(axes);
         }}
 
@@ -742,11 +758,12 @@ def viewer(
 
             const curve = new PolylineCurve3(points);
             const tubularSegments = Math.max(
-                16,
-                Math.min(2400, Math.floor(totalLen / Math.max(1.5, radius * 0.55)))
+                18,
+                Math.min(2600, Math.floor(totalLen / Math.max(1.25, radius * 0.48)))
             );
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 12, false);
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
+            geo.computeVertexNormals();
             return new THREE.Mesh(geo, material);
         }}
 
@@ -755,7 +772,7 @@ def viewer(
             const len = dir.length();
             if (len < 1e-6) return null;
 
-            const geo = new THREE.CylinderGeometry(radius, radius, len, 12, 1, false);
+            const geo = new THREE.CylinderGeometry(radius, radius, len, 16, 1, false);
             const mesh = new THREE.Mesh(geo, material);
 
             const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
@@ -768,8 +785,8 @@ def viewer(
             return mesh;
         }}
 
-        function makeSphereMarker(point, material) {{
-            const g = new THREE.SphereGeometry(Math.max(3.5, Rt * 0.42), 18, 18);
+        function makeEndpoint(point, material, radiusScale = 0.78) {{
+            const g = new THREE.SphereGeometry(Math.max(6.5, Rt * radiusScale), 22, 22);
             const m = new THREE.Mesh(g, material);
             m.position.copy(point);
             return m;
@@ -841,8 +858,8 @@ def viewer(
             const startWorld = localPointToWorld(localPts[0], theta);
             const endWorld = localPointToWorld(activeLocalEnd, theta);
 
-            startMarker = makeSphereMarker(startWorld, markerStartMat);
-            endMarker = makeSphereMarker(endWorld, markerEndMat);
+            startMarker = makeEndpoint(startWorld, markerStartMat, 0.78);
+            endMarker = makeEndpoint(endWorld, markerEndMat, 0.92);
             overlayGroup.add(startMarker);
             overlayGroup.add(endMarker);
 
@@ -894,7 +911,6 @@ def viewer(
 
             if (animEnabled && drawPos < localPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
-
                 const oldCompleted = Math.floor(drawPos);
                 drawPos = Math.min(localPts.length - 1, drawPos + advance);
                 const newCompleted = Math.floor(drawPos);
