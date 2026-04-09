@@ -501,7 +501,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(200, 50);
+            tex.repeat.set(250, 100);
             return tex;
         }}
 
@@ -587,8 +587,8 @@ def viewer(
 
         const steelMat = new THREE.MeshStandardMaterial({{
             color: 0xb8bec4,
-            roughness: 0.35,
-            metalness: 1.0,
+            roughness: 0.5,
+            metalness: 1.2,
             map: steelTex
         }});
 
@@ -604,7 +604,7 @@ def viewer(
             roughness: 0.45,
             metalness: 0.02,
             emissive: 0x0b2013,
-            emissiveIntensity: 0.12
+            emissiveIntensity: 0.5
         }});
 
         const markerEndMat = new THREE.MeshStandardMaterial({{
@@ -612,7 +612,7 @@ def viewer(
             roughness: 0.40,
             metalness: 0.02,
             emissive: 0x2a1800,
-            emissiveIntensity: 0.14
+            emissiveIntensity: 0.5
         }});
 
         const machine = new THREE.Group();
