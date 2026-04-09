@@ -497,9 +497,9 @@ def viewer(
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
 
-            const pitch = 22.0;      // mida del patró
-            const lineWidth = 4.0;   // gruix de línia
-            const depth = 110.0;      // profunditat del relleu
+            const pitch = 30;      // mida del patró
+            const lineWidth = 8.0;   // gruix de línia
+            const depth = 140.0;      // profunditat del relleu
 
             for (let y = 0; y < size; y++) {{
                 for (let x = 0; x < size; x++) {{
@@ -536,7 +536,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(56, 12);
+            tex.repeat.set(200, 200);
             return tex;
         }}
 
