@@ -155,7 +155,7 @@ top1, top2 = st.columns([1.0, 5.0])
 
 with top1:
     if logo_path:
-        st.image(logo_path, width=110)
+        st.image(logo_path, width=310)
 
 with top2:
     st.markdown(f"## {TEXTS[st.session_state.lang]['title']}")
