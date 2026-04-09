@@ -571,87 +571,6 @@ def viewer(
             );
         }}
 
-        class PolylineCurve3 extends THREE.Curve {{
-            constructor(points) {{
-                super();
-                this.points = points || [];
-                this.arc = [0];
-                this.totalLength = 0;
-
-                for (let i = 1; i < this.points.length; i++) {{
-                    const seg = this.points[i].distanceTo(this.points[i - 1]);
-                    this.totalLength += seg;
-                    this.arc.push(this.totalLength);
-                }}
-            }}
-
-            getPoint(t) {{
-                if (!this.points || this.points.length === 0) {{
-                    return new THREE.Vector3(0, 0, 0);
-                }}
-                if (this.points.length === 1 || this.totalLength <= 1e-9) {{
-                    return this.points[0].clone();
-                }}
-
-                const target = t * this.totalLength;
-
-                let i = 1;
-                while (i < this.arc.length && this.arc[i] < target) {{
-                    i++;
-                }}
-
-                if (i >= this.points.length) {{
-                    return this.points[this.points.length - 1].clone();
-                }}
-
-                const l0 = this.arc[i - 1];
-                const l1 = this.arc[i];
-                const p0 = this.points[i - 1];
-                const p1 = this.points[i];
-
-                const denom = Math.max(1e-9, l1 - l0);
-                const a = (target - l0) / denom;
-
-                return new THREE.Vector3(
-                    p0.x + a * (p1.x - p0.x),
-                    p0.y + a * (p1.y - p0.y),
-                    p0.z + a * (p1.z - p0.z)
-                );
-            }}
-        }}
-
-        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
-            if (!points || points.length < 2) return null;
-
-            let totalLen = 0;
-            for (let i = 1; i < points.length; i++) {{
-                totalLen += points[i].distanceTo(points[i - 1]);
-            }}
-
-            const tubularSegments = Math.max(
-                12,
-                Math.min(4000, Math.floor(totalLen / Math.max(1.0, Rt * 0.35)))
-            );
-
-            const curve = new PolylineCurve3(points);
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
-            return new THREE.Mesh(geo, material);
-        }}
-
-        function createMarker(point, material, parentObj = scene) {{
-            const g = new THREE.CylinderGeometry(
-                Math.max(4, Rt * 0.8),
-                Math.max(4, Rt * 0.8),
-                Math.max(2.5, Rt * 0.32),
-                18
-            );
-            const m = new THREE.Mesh(g, material);
-            m.rotation.x = Math.PI / 2;
-            m.position.copy(point);
-            parentObj.add(m);
-            return m;
-        }}
-
         function disposeMaterial(mat) {{
             if (!mat) return;
             if (Array.isArray(mat)) {{
@@ -668,24 +587,100 @@ def viewer(
             disposeMaterial(obj.material);
         }}
 
-        let rollMesh = null;
+        function createDiscMarker(point, material, parentObj = scene) {{
+            const g = new THREE.CylinderGeometry(
+                Math.max(4, Rt * 0.8),
+                Math.max(4, Rt * 0.8),
+                Math.max(2.5, Rt * 0.32),
+                18
+            );
+            const m = new THREE.Mesh(g, material);
+            m.rotation.x = Math.PI / 2;
+            m.position.copy(point);
+            parentObj.add(m);
+            return m;
+        }}
+
+        function makeTubeSegment(p0, p1, radius, material) {{
+            const dir = new THREE.Vector3().subVectors(p1, p0);
+            const len = dir.length();
+            if (len < 1e-6) return null;
+
+            const geo = new THREE.CylinderGeometry(radius, radius, len, 12, 1, false);
+            const mesh = new THREE.Mesh(geo, material);
+
+            const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
+            mesh.position.copy(mid);
+
+            const yAxis = new THREE.Vector3(0, 1, 0);
+            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
+            mesh.setRotationFromQuaternion(quat);
+
+            return mesh;
+        }}
+
+        let depositedSegments = [];
+        let depositedJoints = [];
         let freeMesh = null;
         let startMarker = null;
         let endMarker = null;
 
         let drawIndex = animEnabled ? 2 : finalLocalPts.length;
         let drawAccumulator = 0.0;
-        let lastSafeIndex = -1;
+        let builtUntil = 1;
 
-        function rebuildView(force = false) {{
-            const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
-            if (!force && safeIndex === lastSafeIndex) return;
-            lastSafeIndex = safeIndex;
+        function clearDeposited() {{
+            for (const obj of depositedSegments) disposeObj(obj, rollGroup);
+            for (const obj of depositedJoints) disposeObj(obj, rollGroup);
+            depositedSegments = [];
+            depositedJoints = [];
+            builtUntil = 1;
+        }}
 
-            if (rollMesh) {{
-                disposeObj(rollMesh, rollGroup);
-                rollMesh = null;
+        function rebuildDepositedUpTo(idx) {{
+            clearDeposited();
+
+            if (finalLocalPts.length === 0) return;
+
+            const firstJoint = createDiscMarker(finalLocalPts[0], tubeMat, rollGroup);
+            depositedJoints.push(firstJoint);
+
+            for (let i = 1; i < idx; i++) {{
+                const p0 = finalLocalPts[i - 1];
+                const p1 = finalLocalPts[i];
+                const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
+                if (seg) {{
+                    rollGroup.add(seg);
+                    depositedSegments.push(seg);
+                }}
+
+                const joint = createDiscMarker(p1, tubeMat, rollGroup);
+                depositedJoints.push(joint);
             }}
+
+            builtUntil = Math.max(1, idx - 1);
+        }}
+
+        function appendOneSegment() {{
+            const nextI = builtUntil + 1;
+            if (nextI >= drawIndex || nextI >= finalLocalPts.length) return;
+
+            const p0 = finalLocalPts[nextI - 1];
+            const p1 = finalLocalPts[nextI];
+
+            const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
+            if (seg) {{
+                rollGroup.add(seg);
+                depositedSegments.push(seg);
+            }}
+
+            const joint = createDiscMarker(p1, tubeMat, rollGroup);
+            depositedJoints.push(joint);
+
+            builtUntil = nextI;
+        }}
+
+        function updateMarkersAndFreeTube() {{
             if (freeMesh) {{
                 disposeObj(freeMesh, scene);
                 freeMesh = null;
@@ -699,32 +694,29 @@ def viewer(
                 endMarker = null;
             }}
 
-            const visibleLocal = finalLocalPts.slice(0, safeIndex);
-
-            if (visibleLocal.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat);
-                if (rollMesh) rollGroup.add(rollMesh);
-
-                startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
-                endMarker = createMarker(visibleLocal[visibleLocal.length - 1], endMat, rollGroup);
-            }}
-
+            const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
             const i = safeIndex - 1;
+
             const currentTheta = finalThetaRaw[i];
             const currentRadius = finalRadiusRaw[i];
             const currentZ = finalZRaw[i];
 
             machine.rotation.z = currentTheta;
 
+            startMarker = createDiscMarker(finalLocalPts[0], startMat, rollGroup);
+            endMarker = createDiscMarker(finalLocalPts[i], endMat, rollGroup);
+
             const currentEndWorld = finalLocalPts[i].clone().applyAxisAngle(
                 new THREE.Vector3(0, 0, 1), currentTheta
             );
 
             const guideWorld = guidePointWorld(currentRadius, currentZ);
-            const freePts = [guideWorld, currentEndWorld];
 
-            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
-            if (freeMesh) scene.add(freeMesh);
+            const seg = makeTubeSegment(guideWorld, currentEndWorld, Rt, freeTubeMat);
+            if (seg) {{
+                freeMesh = seg;
+                scene.add(freeMesh);
+            }}
 
             guide.position.copy(guideWorld);
             guide.visible = true;
@@ -744,7 +736,13 @@ def viewer(
             guideNozzle.visible = true;
         }}
 
-        rebuildView(true);
+        if (animEnabled) {{
+            rebuildDepositedUpTo(drawIndex);
+        }} else {{
+            rebuildDepositedUpTo(finalLocalPts.length);
+            drawIndex = finalLocalPts.length;
+        }}
+        updateMarkersAndFreeTube();
 
         function animate() {{
             requestAnimationFrame(animate);
@@ -752,10 +750,17 @@ def viewer(
             if (animEnabled && drawIndex < finalLocalPts.length) {{
                 drawAccumulator += Math.max(0.12, speed * 0.85);
                 const stepNow = Math.floor(drawAccumulator);
+
                 if (stepNow >= 1) {{
                     drawAccumulator -= stepNow;
+                    const oldDrawIndex = drawIndex;
                     drawIndex = Math.min(finalLocalPts.length, drawIndex + stepNow);
-                    rebuildView(false);
+
+                    for (let k = oldDrawIndex; k < drawIndex; k++) {{
+                        appendOneSegment();
+                    }}
+
+                    updateMarkersAndFreeTube();
                 }}
             }}
 
