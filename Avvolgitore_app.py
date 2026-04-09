@@ -468,7 +468,6 @@ def viewer(
         controls.noPan = false;
         controls.noZoom = false;
         controls.noRotate = false;
-        controls.target.set(40,40, {spalla}/2);
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
@@ -479,6 +478,8 @@ def viewer(
         const aspoMode = {aspo_mode_json};
         const showGrid = {show_grid_json};
         const showAxes = {show_axes_json};
+
+        controls.target.set(40, 40, Hs * 0.52);
 
         const localRaw = {final_local_points_json};
         const thetaRaw = {final_thetas_json};
