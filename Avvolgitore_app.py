@@ -438,12 +438,12 @@ def viewer(
 
         scene.background = new THREE.Color(gelwhite ? 0x101317 : 0xf6f6f4);
 
-        const tubeBaseColor = gelwhite ? 0xd8d8d6 : 0x111111;
-        const freeTubeColor = gelwhite ? 0xbebebc : 0x242424;
-        const activeTubeColor = gelwhite ? 0xf0f0ee : 0x050505;
+        const tubeBaseColor = gelwhite ? 0xd4d4d4 : 0x050505;
+        const freeTubeColor = gelwhite ? 0xb8b8b8 : 0x0a0a0a;
+        const activeTubeColor = gelwhite ? 0xe7e7e7 : 0x000000;
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        camera.position.set(-820, -520, 260);
+        camera.position.set(0, -25, 1150);
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
@@ -452,11 +452,6 @@ def viewer(
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
-        renderer.physicallyCorrectLights = true;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = gelwhite ? 1.0 : 1.15;
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.TrackballControls(camera, renderer.domElement);
@@ -468,6 +463,7 @@ def viewer(
         controls.noPan = false;
         controls.noZoom = false;
         controls.noRotate = false;
+        controls.target.set(0, 0, {spalla}/2);
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
@@ -479,8 +475,6 @@ def viewer(
         const showGrid = {show_grid_json};
         const showAxes = {show_axes_json};
 
-        controls.target.set(40, 40, Hs * 0.52);
-
         const localRaw = {final_local_points_json};
         const thetaRaw = {final_thetas_json};
         const radiusRaw = {final_radii_json};
@@ -489,7 +483,7 @@ def viewer(
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
         // ==========================================
-        // TEXTURES
+        // WAFFLE / DIAMOND KNURL TEXTURE FOR TUBE
         // ==========================================
         function makeWaffleKnurlTexture(size = 256) {{
             const canvas = document.createElement("canvas");
@@ -503,9 +497,9 @@ def viewer(
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
 
-            const pitch = 24.0;
-            const lineWidth = 4.0;
-            const depth = 95.0;
+            const pitch = 24.0;      // mida del patró
+            const lineWidth = 4.5;   // gruix de línia
+            const depth = 130.0;      // profunditat del relleu
 
             for (let y = 0; y < size; y++) {{
                 for (let x = 0; x < size; x++) {{
@@ -525,7 +519,7 @@ def viewer(
                         Math.cos((u + v) * Math.PI / pitch) *
                         Math.cos((u - v) * Math.PI / pitch);
 
-                    value += (cell - 0.5) * 30.0;
+                    value += (cell - 0.5) * 52.0;
 
                     value = Math.max(0, Math.min(255, Math.round(value)));
 
@@ -542,7 +536,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(1.5, 1.5);
+            tex.repeat.set(1.0, 1.0);
             return tex;
         }}
 
@@ -553,24 +547,24 @@ def viewer(
             const ctx = canvas.getContext("2d");
 
             const grad = ctx.createLinearGradient(0, 0, size, 0);
-            grad.addColorStop(0.0, "#565c64");
-            grad.addColorStop(0.18, "#d9dee3");
-            grad.addColorStop(0.36, "#747b84");
-            grad.addColorStop(0.58, "#c2c8ce");
-            grad.addColorStop(0.82, "#666d76");
-            grad.addColorStop(1.0, "#e0e4e8");
+            grad.addColorStop(0.0, "#616870");
+            grad.addColorStop(0.18, "#dadfe3");
+            grad.addColorStop(0.36, "#7a8289");
+            grad.addColorStop(0.58, "#c7ccd1");
+            grad.addColorStop(0.82, "#6b727a");
+            grad.addColorStop(1.0, "#e1e5e8");
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, size, size);
 
             for (let y = 0; y < size; y += 2) {{
-                const a = 0.04 + Math.random() * 0.06;
+                const a = 0.05 + Math.random() * 0.08;
                 ctx.fillStyle = `rgba(255,255,255,${{a}})`;
                 ctx.fillRect(0, y, size, 1);
             }}
 
             const img = ctx.getImageData(0, 0, size, size);
             for (let i = 0; i < img.data.length; i += 4) {{
-                const n = Math.floor(Math.random() * 14) - 7;
+                const n = Math.floor(Math.random() * 18) - 9;
                 img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
                 img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
                 img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
@@ -580,55 +574,50 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(0.65, 0.65);
+            tex.repeat.set(0.5, 0.5);
             return tex;
         }}
 
         const bumpTex = makeWaffleKnurlTexture(256);
         const steelTex = makeSteelTexture(256);
 
-        // ==========================================
-        // MATERIALS
-        // ==========================================
         const redMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x6d7278 : 0x7a7f86,
-            roughness: 0.55,
-            metalness: 0.85,
-            map: steelTex,
+            color: gelwhite ? 0x676d74 : 0x7a7a7a,
+            roughness: 0.84,
+            metalness: 0.18,
             transparent: aspoMode === "transparent",
             opacity: aspoMode === "transparent" ? 0.18 : 1.0,
             depthWrite: aspoMode !== "transparent"
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x76808a : 0x8a939d,
-            roughness: 0.48,
-            metalness: 0.82,
-            map: steelTex
+            color: gelwhite ? 0x5e6670 : 0x737985,
+            roughness: 0.86,
+            metalness: 0.12
         }});
 
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.85,
-            metalness: 0.05,
+            roughness: 1.0,
+            metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.2
+            bumpScale: 3.0
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.80,
-            metalness: 0.05,
+            roughness: 1.0,
+            metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.25
+            bumpScale: 3.0
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 0.88,
-            metalness: 0.03,
+            roughness: 1.0,
+            metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.1
+            bumpScale: 3.0
         }});
 
         const steelMat = new THREE.MeshStandardMaterial({{
@@ -661,66 +650,6 @@ def viewer(
             emissiveIntensity: 0.14
         }});
 
-        function applyTubeShaderTweaks(material) {{
-            material.onBeforeCompile = (shader) => {{
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    '#include <roughnessmap_fragment>',
-                    `
-                    #include <roughnessmap_fragment>
-                    float anisotropyFake = abs(dot(normalize(vViewPosition), vec3(0.0, 1.0, 0.0)));
-                    roughnessFactor *= mix(0.85, 1.15, anisotropyFake);
-                    `
-                );
-
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-                    `
-                    float contactShade = pow(abs(dot(normal, vec3(0.0, 0.0, 1.0))), 1.8);
-                    outgoingLight *= mix(0.88, 1.0, contactShade);
-                    gl_FragColor = vec4( outgoingLight, diffuseColor.a );
-                    `
-                );
-            }};
-            material.needsUpdate = true;
-        }}
-
-        applyTubeShaderTweaks(tubeMat);
-        applyTubeShaderTweaks(activeTubeMat);
-        applyTubeShaderTweaks(freeTubeMat);
-
-        // ==========================================
-        // LIGHTING
-        // ==========================================
-        const ambient = new THREE.AmbientLight(0xffffff, gelwhite ? 0.18 : 0.12);
-        scene.add(ambient);
-
-        const hemi = new THREE.HemisphereLight(
-            gelwhite ? 0xd7dfe7 : 0xffffff,
-            gelwhite ? 0x1a1d20 : 0xd8d2ca,
-            gelwhite ? 0.30 : 0.24
-        );
-        scene.add(hemi);
-
-        const keyLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 1.20 : 1.05);
-        keyLight.position.set(300, -200, 600);
-        keyLight.castShadow = true;
-        keyLight.shadow.mapSize.width = 1024;
-        keyLight.shadow.mapSize.height = 1024;
-        keyLight.shadow.camera.near = 50;
-        keyLight.shadow.camera.far = 3000;
-        scene.add(keyLight);
-
-        const fillLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.32 : 0.26);
-        fillLight.position.set(-400, 200, 200);
-        scene.add(fillLight);
-
-        const rimLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.58 : 0.50);
-        rimLight.position.set(0, 400, 300);
-        scene.add(rimLight);
-
-        // ==========================================
-        // SCENE GROUPS
-        // ==========================================
         const machine = new THREE.Group();
         scene.add(machine);
 
@@ -730,17 +659,12 @@ def viewer(
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
-        // ==========================================
-        // MANDREL / SPOOLS
-        // ==========================================
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
             redMat
         );
         mandrel.rotation.x = Math.PI / 2;
         mandrel.position.z = Hs / 2.0;
-        mandrel.castShadow = true;
-        mandrel.receiveShadow = true;
         machine.add(mandrel);
 
         const flangeR = R + 150.0;
@@ -752,8 +676,6 @@ def viewer(
         );
         base.rotation.x = Math.PI / 2;
         base.position.z = 0.0;
-        base.castShadow = true;
-        base.receiveShadow = true;
         machine.add(base);
 
         const top = new THREE.Mesh(
@@ -762,17 +684,12 @@ def viewer(
         );
         top.rotation.x = Math.PI / 2;
         top.position.z = Hs;
-        top.castShadow = true;
-        top.receiveShadow = true;
         machine.add(top);
 
         mandrel.visible = aspoMode !== "hidden";
         base.visible = aspoMode !== "hidden";
         top.visible = aspoMode !== "hidden";
 
-        // ==========================================
-        // GUIDE
-        // ==========================================
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
         const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.74;
@@ -786,8 +703,6 @@ def viewer(
         );
         guideBarrel.rotation.z = Math.PI / 2;
         guideBarrel.position.x = 0;
-        guideBarrel.castShadow = true;
-        guideBarrel.receiveShadow = true;
         guideGroup.add(guideBarrel);
 
         const guideShoulder = new THREE.Mesh(
@@ -796,8 +711,6 @@ def viewer(
         );
         guideShoulder.rotation.z = Math.PI / 2;
         guideShoulder.position.x = 22 * guideScale;
-        guideShoulder.castShadow = true;
-        guideShoulder.receiveShadow = true;
         guideGroup.add(guideShoulder);
 
         const guideTaper = new THREE.Mesh(
@@ -806,8 +719,6 @@ def viewer(
         );
         guideTaper.rotation.z = Math.PI / 2;
         guideTaper.position.x = 42 * guideScale;
-        guideTaper.castShadow = true;
-        guideTaper.receiveShadow = true;
         guideGroup.add(guideTaper);
 
         const guideNozzle = new THREE.Mesh(
@@ -816,8 +727,6 @@ def viewer(
         );
         guideNozzle.rotation.z = Math.PI / 2;
         guideNozzle.position.x = 58 * guideScale;
-        guideNozzle.castShadow = true;
-        guideNozzle.receiveShadow = true;
         guideGroup.add(guideNozzle);
 
         const guideBackCap = new THREE.Mesh(
@@ -826,24 +735,34 @@ def viewer(
         );
         guideBackCap.rotation.z = Math.PI / 2;
         guideBackCap.position.x = -28 * guideScale;
-        guideBackCap.castShadow = true;
-        guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
 
-        // ==========================================
-        // HELPERS
-        // ==========================================
+        scene.add(new THREE.AmbientLight(0xffffff, gelwhite ? 0.34 : 0.26));
+
+        const hemi = new THREE.HemisphereLight(
+            gelwhite ? 0xcfd8e2 : 0xffffff,
+            gelwhite ? 0x1a1d20 : 0xd7d0c7,
+            gelwhite ? 0.30 : 0.20
+        );
+        scene.add(hemi);
+
+        const dLight1 = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.30 : 0.18);
+        dLight1.position.set(460, -380, 560);
+        scene.add(dLight1);
+
+        const dLight2 = new THREE.DirectionalLight(gelwhite ? 0xe2e8ef : 0xf1ede7, gelwhite ? 0.10 : 0.06);
+        dLight2.position.set(-520, 220, 260);
+        scene.add(dLight2);
+
         if (showGrid) {{
             const grid = new THREE.GridHelper(
-                2000,
-                20,
-                gelwhite ? 0x444444 : 0x8e8e8e,
-                gelwhite ? 0x222222 : 0xd8d8d8
+                2600,
+                32,
+                gelwhite ? 0x707070 : 0x9a9a9a,
+                gelwhite ? 0x2b2f33 : 0xdbdbdb
             );
             grid.rotation.x = Math.PI / 2;
             grid.position.z = 0;
-            grid.material.opacity = 0.25;
-            grid.material.transparent = true;
             scene.add(grid);
         }}
 
@@ -944,10 +863,7 @@ def viewer(
 
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
             geo.computeVertexNormals();
-            const mesh = new THREE.Mesh(geo, material);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            return mesh;
+            return new THREE.Mesh(geo, material);
         }}
 
         function makeTubeSegment(p0, p1, radius, material) {{
@@ -964,24 +880,19 @@ def viewer(
             const yAxis = new THREE.Vector3(0, 1, 0);
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
             mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
 
             return mesh;
         }}
 
         function makeEndpointDisc(point, tangentDir, material, radiusScale = 0.92) {{
             const r = Math.max(7.0, Rt * radiusScale);
-            const thickness = Math.max(2.0, Rt * 0.22);
-            const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 28);
+            const geo = new THREE.CylinderGeometry(r, r, Math.max(2.0, Rt * 0.22), 28);
             const mesh = new THREE.Mesh(geo, material);
             mesh.position.copy(point);
 
             const yAxis = new THREE.Vector3(0, 1, 0);
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, tangentDir.clone().normalize());
             mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
 
             return mesh;
         }}
@@ -1058,12 +969,7 @@ def viewer(
             const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
 
             startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.82);
-            endMarker = makeEndpointDisc(
-                endWorld,
-                endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld,
-                markerEndMat,
-                0.96
-            );
+            endMarker = makeEndpointDisc(endWorld, endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld, markerEndMat, 0.96);
             overlayGroup.add(startMarker);
             overlayGroup.add(endMarker);
 
