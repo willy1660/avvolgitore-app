@@ -175,6 +175,52 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     return np.array([x, y, pt_world[2]], dtype=float)
 
 
+def add_smooth_layer_bridge(segment, p_end, p_start, n_bridge=10):
+    """
+    Adds a short synthetic smooth connector between layers,
+    so the deposited geometry looks continuous without following
+    the square-wave trajectory of the guide.
+    """
+    p0 = np.array(p_end, dtype=float)
+    p1 = np.array(p_start, dtype=float)
+
+    if np.linalg.norm(p1 - p0) < 1e-9:
+        return segment
+
+    z0 = p0[2]
+    z1 = p1[2]
+    r0 = np.linalg.norm(p0[:2])
+    r1 = np.linalg.norm(p1[:2])
+
+    # Use average angle direction in local XY to keep bridge radial and smooth
+    a0 = np.arctan2(p0[1], p0[0])
+    a1 = np.arctan2(p1[1], p1[0])
+
+    # unwrap angle minimally
+    da = a1 - a0
+    while da > np.pi:
+        da -= 2 * np.pi
+    while da < -np.pi:
+        da += 2 * np.pi
+    a1u = a0 + da
+
+    for i in range(1, n_bridge + 1):
+        u = i / (n_bridge + 1)
+        s = smoothstep(u)
+
+        r = r0 + s * (r1 - r0)
+        z = z0 + s * (z1 - z0)
+
+        # tiny angle easing to avoid a hard corner
+        a = a0 + s * (a1u - a0)
+
+        x = r * np.cos(a)
+        y = r * np.sin(a)
+        segment.append([float(x), float(y), float(z)])
+
+    return segment
+
+
 def simulate_winding_paths_segmented(
     d_aspo: float,
     spalla: float,
@@ -319,6 +365,10 @@ def simulate_winding_paths_segmented(
                 if prev_mode == "axial":
                     deposited_segments[current_seg_idx].append(final_local.tolist())
                 elif turn_finished_this_step:
+                    prev_end = deposited_segments[current_seg_idx][-1]
+                    next_start = final_local.tolist()
+                    add_smooth_layer_bridge(deposited_segments[current_seg_idx], prev_end, next_start, n_bridge=10)
+
                     current_seg_idx += 1
                     deposited_segments.append([final_local.tolist()])
 
@@ -336,6 +386,10 @@ def simulate_winding_paths_segmented(
             if prev_mode == "axial":
                 deposited_segments[current_seg_idx].append(new_local.tolist())
             elif turn_finished_this_step:
+                prev_end = deposited_segments[current_seg_idx][-1]
+                next_start = new_local.tolist()
+                add_smooth_layer_bridge(deposited_segments[current_seg_idx], prev_end, next_start, n_bridge=10)
+
                 current_seg_idx += 1
                 deposited_segments.append([new_local.tolist()])
 
@@ -1333,7 +1387,6 @@ d_tubo = d_rame + 2.0 * spessore
     deg_step=2.0,
 )
 
-# Metrics from deposited geometry only
 all_dep_points = np.array([p for seg in deposited_segments for p in seg], dtype=float)
 metrics = compute_metrics(all_dep_points, d_tubo)
 
