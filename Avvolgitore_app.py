@@ -46,6 +46,11 @@ TEXTS = {
         "aspo_visible": "Visibile",
         "aspo_transparent": "Trasparente",
         "aspo_hidden": "Nascosto",
+        "bg_mode": "Sfondo",
+        "bg_dark": "Scuro",
+        "bg_light": "Chiaro",
+        "show_grid": "Mostra grid",
+        "show_axes": "Mostra assi",
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
@@ -76,6 +81,11 @@ TEXTS = {
         "aspo_visible": "Visible",
         "aspo_transparent": "Transparent",
         "aspo_hidden": "Hidden",
+        "bg_mode": "Background",
+        "bg_dark": "Dark",
+        "bg_light": "Light",
+        "show_grid": "Show grid",
+        "show_axes": "Show axes",
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
@@ -384,6 +394,9 @@ def viewer(
     final_zs,
     aspo_mode,
     guide_offset_x,
+    bg_mode,
+    show_grid,
+    show_axes,
 ):
     anim_js = "true" if anim else "false"
     final_local_points_json = json.dumps(final_local_points)
@@ -391,16 +404,19 @@ def viewer(
     final_radii_json = json.dumps(final_radii)
     final_zs_json = json.dumps(final_zs)
     aspo_mode_json = json.dumps(aspo_mode)
+    bg_mode_json = json.dumps(bg_mode)
+    show_grid_json = "true" if show_grid else "false"
+    show_axes_json = "true" if show_axes else "false"
 
     return f"""
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:#0b0f14;
+        background:{'#0b0f14' if bg_mode == 'dark' else '#f4f4f1'};
         border-radius:10px;
         overflow:hidden;
-        border:1px solid rgba(255,255,255,0.06);
-        box-shadow:0 10px 24px rgba(0,0,0,0.30);
+        border:1px solid rgba(0,0,0,0.08);
+        box-shadow:0 10px 24px rgba(0,0,0,0.18);
     "></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -415,10 +431,17 @@ def viewer(
         const Hview = Math.max(host.clientHeight, 400);
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0b0f14);
 
-        const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
-        camera.position.set(-520, -760, 420);
+        const bgMode = {bg_mode_json};
+        const bgDark = bgMode === "dark";
+        scene.background = new THREE.Color(bgDark ? 0x0b0f14 : 0xf4f4f1);
+
+        const tubeBaseColor = bgDark ? 0xffffff : 0x141414;
+        const freeTubeColor = bgDark ? 0xe8e8e8 : 0x202020;
+        const activeTubeColor = bgDark ? 0xf7f7f7 : 0x101010;
+
+        const camera = new THREE.PerspectiveCamera(36, W / Hview, 0.1, 20000);
+        camera.position.set(-650, -840, 470);
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
@@ -431,7 +454,14 @@ def viewer(
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.08;
+        controls.dampingFactor = 0.06;
+        controls.rotateSpeed = 0.85;
+        controls.zoomSpeed = 1.0;
+        controls.panSpeed = 0.9;
+        controls.screenSpacePanning = true;
+        controls.minDistance = 180;
+        controls.maxDistance = 3500;
+        controls.maxPolarAngle = Math.PI * 0.495;
         controls.target.set(0, 0, {spalla}/2);
 
         const R = {float(d_aspo)} / 2.0;
@@ -441,6 +471,8 @@ def viewer(
         const animEnabled = {anim_js};
         const guideOffsetX = {float(guide_offset_x)};
         const aspoMode = {aspo_mode_json};
+        const showGrid = {show_grid_json};
+        const showAxes = {show_axes_json};
 
         const localRaw = {final_local_points_json};
         const thetaRaw = {final_thetas_json};
@@ -449,8 +481,33 @@ def viewer(
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
+        function makeNoiseTexture(size = 128) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+            const img = ctx.createImageData(size, size);
+
+            for (let i = 0; i < img.data.length; i += 4) {{
+                const v = 120 + Math.floor(Math.random() * 30);
+                img.data[i] = v;
+                img.data[i + 1] = v;
+                img.data[i + 2] = v;
+                img.data[i + 3] = 255;
+            }}
+
+            ctx.putImageData(img, 0, 0);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(24, 4);
+            return tex;
+        }}
+
+        const bumpTex = makeNoiseTexture(128);
+
         const redMat = new THREE.MeshStandardMaterial({{
-            color: 0x6b7076,
+            color: bgDark ? 0x6b7076 : 0x777777,
             roughness: 0.78,
             metalness: 0.24,
             transparent: aspoMode === "transparent",
@@ -459,27 +516,33 @@ def viewer(
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
-            color: 0x555b63,
+            color: bgDark ? 0x555b63 : 0x707784,
             roughness: 0.82,
             metalness: 0.18
         }});
 
         const tubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xd6d9dd,
-            roughness: 0.72,
-            metalness: 0.08
+            color: tubeBaseColor,
+            roughness: 0.95,
+            metalness: 0.02,
+            bumpMap: bumpTex,
+            bumpScale: 0.6
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xe0e3e7,
-            roughness: 0.70,
-            metalness: 0.08
+            color: activeTubeColor,
+            roughness: 0.92,
+            metalness: 0.02,
+            bumpMap: bumpTex,
+            bumpScale: 0.55
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xb8bec6,
-            roughness: 0.78,
-            metalness: 0.04
+            color: freeTubeColor,
+            roughness: 0.92,
+            metalness: 0.02,
+            bumpMap: bumpTex,
+            bumpScale: 0.45
         }});
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
@@ -530,18 +593,26 @@ def viewer(
         top.position.z = Hs;
         machine.add(top);
 
-        machine.visible = aspoMode !== "hidden";
+        // En mode hidden: ocultem només l'aspo, no la bobina
+        mandrel.visible = aspoMode !== "hidden";
+        base.visible = aspoMode !== "hidden";
+        top.visible = aspoMode !== "hidden";
+
+        // Guidatubo escalat a partir de nozzle Ø55
+        const nozzleDiameter = 55.0;
+        const oldNozzleDiameter = Math.max(4.0, Rt * 0.56); // antic: 2 * Rt*0.28
+        const guideScale = nozzleDiameter / oldNozzleDiameter;
 
         const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(80, 60, 60),
+            new THREE.BoxGeometry(80 * guideScale, 60 * guideScale, 60 * guideScale),
             blueMat
         );
         scene.add(guide);
 
         const guideFront = new THREE.Mesh(
-            new THREE.BoxGeometry(18, 26, 26),
+            new THREE.BoxGeometry(18 * guideScale, 26 * guideScale, 26 * guideScale),
             new THREE.MeshStandardMaterial({{
-                color: 0x8b9198,
+                color: bgDark ? 0x8b9198 : 0x8b8f95,
                 roughness: 0.76,
                 metalness: 0.22
             }})
@@ -549,9 +620,9 @@ def viewer(
         scene.add(guideFront);
 
         const guideNozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(Math.max(4.0, Rt * 0.28), Math.max(4.0, Rt * 0.28), 22, 20),
+            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 22 * guideScale, 24),
             new THREE.MeshStandardMaterial({{
-                color: 0x9da3aa,
+                color: bgDark ? 0x9da3aa : 0x8a8e93,
                 roughness: 0.70,
                 metalness: 0.26
             }})
@@ -559,19 +630,31 @@ def viewer(
         guideNozzle.rotation.z = Math.PI / 2;
         scene.add(guideNozzle);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+        scene.add(new THREE.AmbientLight(0xffffff, bgDark ? 0.74 : 0.82));
 
-        const dLight1 = new THREE.DirectionalLight(0xffffff, 0.62);
+        const dLight1 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.62 : 0.52);
         dLight1.position.set(500, -500, 800);
         scene.add(dLight1);
 
-        const dLight2 = new THREE.DirectionalLight(0xdfe3e8, 0.18);
+        const dLight2 = new THREE.DirectionalLight(bgDark ? 0xdfe3e8 : 0xffffff, bgDark ? 0.18 : 0.20);
         dLight2.position.set(-600, 250, 300);
         scene.add(dLight2);
 
-        const dLight3 = new THREE.DirectionalLight(0xffffff, 0.10);
+        const dLight3 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.10 : 0.08);
         dLight3.position.set(0, -900, 500);
         scene.add(dLight3);
+
+        if (showGrid) {{
+            const grid = new THREE.GridHelper(2200, 28, bgDark ? 0x666666 : 0x999999, bgDark ? 0x2a2a2a : 0xd0d0d0);
+            grid.rotation.x = Math.PI / 2;
+            grid.position.z = 0;
+            scene.add(grid);
+        }}
+
+        if (showAxes) {{
+            const axes = new THREE.AxesHelper(300);
+            scene.add(axes);
+        }}
 
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
@@ -612,29 +695,19 @@ def viewer(
             }}
 
             getPoint(t) {{
-                if (!this.points || this.points.length === 0) {{
-                    return new THREE.Vector3(0, 0, 0);
-                }}
-                if (this.points.length === 1 || this.totalLength <= 1e-9) {{
-                    return this.points[0].clone();
-                }}
+                if (!this.points || this.points.length === 0) return new THREE.Vector3(0, 0, 0);
+                if (this.points.length === 1 || this.totalLength <= 1e-9) return this.points[0].clone();
 
                 const target = t * this.totalLength;
-
                 let i = 1;
-                while (i < this.arc.length && this.arc[i] < target) {{
-                    i++;
-                }}
+                while (i < this.arc.length && this.arc[i] < target) i++;
 
-                if (i >= this.points.length) {{
-                    return this.points[this.points.length - 1].clone();
-                }}
+                if (i >= this.points.length) return this.points[this.points.length - 1].clone();
 
                 const l0 = this.arc[i - 1];
                 const l1 = this.arc[i];
                 const p0 = this.points[i - 1];
                 const p1 = this.points[i];
-
                 const denom = Math.max(1e-9, l1 - l0);
                 const a = (target - l0) / denom;
 
@@ -648,11 +721,8 @@ def viewer(
 
         function disposeMaterial(mat) {{
             if (!mat) return;
-            if (Array.isArray(mat)) {{
-                mat.forEach(m => m && m.dispose && m.dispose());
-            }} else if (mat.dispose) {{
-                mat.dispose();
-            }}
+            if (Array.isArray(mat)) mat.forEach(m => m && m.dispose && m.dispose());
+            else if (mat.dispose) mat.dispose();
         }}
 
         function disposeObj(obj, parentObj = scene) {{
@@ -676,14 +746,7 @@ def viewer(
                 Math.min(2400, Math.floor(totalLen / Math.max(1.5, radius * 0.55)))
             );
 
-            const geo = new THREE.TubeGeometry(
-                curve,
-                tubularSegments,
-                radius,
-                12,
-                false
-            );
-
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 12, false);
             return new THREE.Mesh(geo, material);
         }}
 
@@ -719,7 +782,6 @@ def viewer(
         let endMarker = null;
 
         let drawPos = animEnabled ? 1.0 : (localPts.length - 1);
-        let builtUntil = 1;
         let lastRebuiltCompleted = -1;
 
         function rebuildDepositedMesh(completedIndex) {{
@@ -734,9 +796,7 @@ def viewer(
 
             const pts = localPts.slice(0, completedIndex + 1);
             depositedMesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
-            if (depositedMesh) {{
-                depositedGroup.add(depositedMesh);
-            }}
+            if (depositedMesh) depositedGroup.add(depositedMesh);
         }}
 
         function clearOverlay() {{
@@ -760,7 +820,6 @@ def viewer(
 
         function updateOverlayContinuous() {{
             clearOverlay();
-
             if (localPts.length < 2) return;
 
             const maxPos = localPts.length - 1;
@@ -787,45 +846,44 @@ def viewer(
             overlayGroup.add(startMarker);
             overlayGroup.add(endMarker);
 
-            if (frac > 1e-6 && i1 > i0) {{
-                const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-                activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
-                if (activeCoilMesh) {{
-                    overlayGroup.add(activeCoilMesh);
+            if (animEnabled) {{
+                if (frac > 1e-6 && i1 > i0) {{
+                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
+                    activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
+                    if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
                 }}
+
+                const guideWorld = guidePointWorld(radius, z);
+                freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
+                if (freeMesh) overlayGroup.add(freeMesh);
+
+                guide.position.copy(guideWorld);
+                guide.visible = true;
+
+                guideFront.position.set(
+                    guideWorld.x + 49 * guideScale,
+                    guideWorld.y,
+                    guideWorld.z
+                );
+                guideFront.visible = true;
+
+                guideNozzle.position.set(
+                    guideWorld.x + 67 * guideScale,
+                    guideWorld.y,
+                    guideWorld.z
+                );
+                guideNozzle.visible = true;
+            }} else {{
+                guide.visible = false;
+                guideFront.visible = false;
+                guideNozzle.visible = false;
             }}
-
-            const guideWorld = guidePointWorld(radius, z);
-
-            freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
-            if (freeMesh) {{
-                overlayGroup.add(freeMesh);
-            }}
-
-            guide.position.copy(guideWorld);
-            guide.visible = true;
-
-            guideFront.position.set(
-                guideWorld.x + 49,
-                guideWorld.y,
-                guideWorld.z
-            );
-            guideFront.visible = true;
-
-            guideNozzle.position.set(
-                guideWorld.x + 67,
-                guideWorld.y,
-                guideWorld.z
-            );
-            guideNozzle.visible = true;
         }}
 
         if (animEnabled) {{
             rebuildDepositedMesh(1);
-            builtUntil = 1;
         }} else {{
             rebuildDepositedMesh(localPts.length - 1);
-            builtUntil = localPts.length - 1;
             drawPos = localPts.length - 1;
         }}
 
@@ -842,8 +900,7 @@ def viewer(
                 const newCompleted = Math.floor(drawPos);
 
                 if (newCompleted > oldCompleted) {{
-                    builtUntil = newCompleted;
-                    rebuildDepositedMesh(builtUntil);
+                    rebuildDepositedMesh(newCompleted);
                 }}
 
                 updateOverlayContinuous();
@@ -901,6 +958,13 @@ with colD:
         [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
         index=0
     )
+    bg_mode_label = st.selectbox(
+        t["bg_mode"],
+        [t["bg_dark"], t["bg_light"]],
+        index=0
+    )
+    show_grid = st.checkbox(t["show_grid"], True)
+    show_axes = st.checkbox(t["show_axes"], False)
 
 if aspo_mode_label == t["aspo_visible"]:
     aspo_mode = "visible"
@@ -908,6 +972,8 @@ elif aspo_mode_label == t["aspo_transparent"]:
     aspo_mode = "transparent"
 else:
     aspo_mode = "hidden"
+
+bg_mode = "dark" if bg_mode_label == t["bg_dark"] else "light"
 
 # =========================
 # BUILD
@@ -959,6 +1025,9 @@ components.html(
         z_values.tolist(),
         aspo_mode,
         guide_offset_x,
+        bg_mode,
+        show_grid,
+        show_axes,
     ),
     height=altezza
 )
