@@ -51,6 +51,7 @@ TEXTS = {
         "tube_gelblack": "Gelblack",
         "show_grid": "Mostra grid",
         "show_axes": "Mostra assi",
+        "cut_half": "Bobina tallada a meitat",
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
@@ -86,6 +87,7 @@ TEXTS = {
         "tube_gelblack": "Gelblack",
         "show_grid": "Show grid",
         "show_axes": "Show axes",
+        "cut_half": "Half-cut coil",
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
@@ -396,8 +398,10 @@ def viewer(
     tube_color_mode,
     show_grid,
     show_axes,
+    cut_half,
 ):
     anim_js = "true" if anim else "false"
+    cut_half_js = "true" if cut_half else "false"
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
     final_radii_json = json.dumps(final_radii)
@@ -418,7 +422,43 @@ def viewer(
         overflow:hidden;
         border:1px solid rgba(0,0,0,0.08);
         box-shadow:0 10px 24px rgba(0,0,0,0.18);
-    "></div>
+        position:relative;
+    ">
+        <div id="viewer_hud" style="
+            position:absolute;
+            top:12px;
+            left:12px;
+            z-index:20;
+            display:{'flex' if anim else 'none'};
+            align-items:center;
+            gap:10px;
+            padding:10px 12px;
+            background:rgba(18,22,27,0.72);
+            color:#f0f0f0;
+            border:1px solid rgba(255,255,255,0.10);
+            border-radius:12px;
+            backdrop-filter: blur(8px);
+            font-family:Arial, sans-serif;
+            font-size:13px;
+            user-select:none;
+        ">
+            <button id="play_pause_btn" style="
+                border:none;
+                border-radius:8px;
+                padding:7px 12px;
+                background:#f3f3f3;
+                color:#111;
+                font-weight:600;
+                cursor:pointer;
+            ">⏸ Pause</button>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span>Speed</span>
+                <input id="speed_slider_in_viewer" type="range" min="0.1" max="5.0" step="0.1" value="{float(vel)}" style="width:120px;" />
+                <span id="speed_value_label">{float(vel):.1f}x</span>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/TrackballControls.js"></script>
@@ -426,7 +466,9 @@ def viewer(
     <script>
     (() => {{
         const host = document.getElementById("viewer_root");
-        host.innerHTML = "";
+        const playPauseBtn = document.getElementById("play_pause_btn");
+        const speedSlider = document.getElementById("speed_slider_in_viewer");
+        const speedLabel = document.getElementById("speed_value_label");
 
         const W = Math.max(host.clientWidth, 600);
         const Hview = Math.max(host.clientHeight, 400);
@@ -458,13 +500,14 @@ def viewer(
         renderer.toneMappingExposure = gelwhite ? 1.0 : 1.15;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.localClippingEnabled = {cut_half_js};
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.TrackballControls(camera, renderer.domElement);
         controls.rotateSpeed = 3.8;
         controls.zoomSpeed = 0.8;
         controls.panSpeed = 0.1;
-        controls.dynamicDampingFactor = 0.095;
+        controls.dynamicDampingFactor = 0.2;
         controls.staticMoving = false;
         controls.noPan = false;
         controls.noZoom = false;
@@ -473,15 +516,16 @@ def viewer(
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
-        const speed = {float(vel)};
+        let speed = {float(vel)};
         const animEnabled = {anim_js};
+        const cutHalf = {cut_half_js};
         const guideOffsetX = {float(guide_offset_x)};
         const aspoMode = {aspo_mode_json};
         const showGrid = {show_grid_json};
         const showAxes = {show_axes_json};
 
         controls.target.set(10, 20, Hs * 0.52);
-        camera.lookAt(10,20, Hs*0.52);
+        camera.lookAt(10, 20, Hs * 0.52);
 
         const localRaw = {final_local_points_json};
         const thetaRaw = {final_thetas_json};
@@ -489,6 +533,32 @@ def viewer(
         const zRaw = {final_zs_json};
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+
+        let isPlaying = animEnabled;
+
+        if (speedSlider && speedLabel) {{
+            speedSlider.addEventListener("input", (e) => {{
+                speed = parseFloat(e.target.value);
+                speedLabel.textContent = speed.toFixed(1) + "x";
+            }});
+        }}
+
+        if (playPauseBtn) {{
+            playPauseBtn.addEventListener("click", () => {{
+                isPlaying = !isPlaying;
+                playPauseBtn.textContent = isPlaying ? "⏸ Pause" : "▶ Play";
+            }});
+        }}
+
+        // ==========================================
+        // CUTTING PLANE
+        // ==========================================
+        let clippingPlanes = [];
+        if (cutHalf) {{
+            // Talla vertical pel mig: conserva una meitat de la bobina
+            const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+            clippingPlanes = [cutPlane];
+        }}
 
         // ==========================================
         // TEXTURES
@@ -614,7 +684,9 @@ def viewer(
             roughness: 0.85,
             metalness: 0.05,
             bumpMap: bumpTex,
-            bumpScale: 1.2
+            bumpScale: 1.2,
+            clippingPlanes: clippingPlanes,
+            clipShadows: cutHalf
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
@@ -622,7 +694,9 @@ def viewer(
             roughness: 0.80,
             metalness: 0.05,
             bumpMap: bumpTex,
-            bumpScale: 1.25
+            bumpScale: 1.25,
+            clippingPlanes: clippingPlanes,
+            clipShadows: cutHalf
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
@@ -630,7 +704,9 @@ def viewer(
             roughness: 0.88,
             metalness: 0.03,
             bumpMap: bumpTex,
-            bumpScale: 1.1
+            bumpScale: 1.1,
+            clippingPlanes: clippingPlanes,
+            clipShadows: cutHalf
         }});
 
         const steelMat = new THREE.MeshStandardMaterial({{
@@ -1099,7 +1175,7 @@ def viewer(
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && drawPos < localPts.length - 1) {{
+            if (animEnabled && isPlaying && drawPos < localPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
                 const oldCompleted = Math.floor(drawPos);
                 drawPos = Math.min(localPts.length - 1, drawPos + advance);
@@ -1172,6 +1248,7 @@ with colD:
     )
     show_grid = st.checkbox(t["show_grid"], True)
     show_axes = st.checkbox(t["show_axes"], False)
+    cut_half = st.checkbox(t["cut_half"], False)
 
 if aspo_mode_label == t["aspo_visible"]:
     aspo_mode = "visible"
@@ -1235,6 +1312,7 @@ components.html(
         tube_color_mode,
         show_grid,
         show_axes,
+        cut_half,
     ),
     height=altezza
 )
