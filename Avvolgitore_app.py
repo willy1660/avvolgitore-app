@@ -170,6 +170,7 @@ def compact_profile(layer_points, z_tol=0.25):
         return None
 
     arr = sorted(layer_points, key=lambda x: x[0])
+
     z_out = []
     r_out = []
 
@@ -213,20 +214,14 @@ def interp_profile(profile, zq: float):
     a = (zq - z0) / (z1 - z0)
     return r0 + a * (r1 - r0)
 
-def min_admissible_radius_at_z(z_target: float, profiles, base_radius: float, d_tubo: float):
-    """
-    Radi mínim perquè el tub no interpenetri cap capa ja tancada.
-    Model simple, ràpid i estable:
-    a aquest z, si una capa existent té centre a radi r_prev,
-    el nou centre ha d'estar com a mínim a r_prev + d_tubo.
-    """
-    r_min = base_radius
+def clearance_radius_at_z(z_target: float, profiles, base_radius: float, d_tubo: float):
+    r_clear = base_radius
     for prof in profiles:
         r_prev = interp_profile(prof, z_target)
         if r_prev is None:
             continue
-        r_min = max(r_min, r_prev + d_tubo)
-    return r_min
+        r_clear = max(r_clear, r_prev + d_tubo)
+    return r_clear
 
 def simulate_winding_realistic(
     d_aspo: float,
@@ -240,13 +235,6 @@ def simulate_winding_realistic(
     gradi_start: float,
     deg_step: float = 0.75,
 ):
-    """
-    Lògica final:
-    - segueix sempre il passo assiale
-    - segueix sempre il incremento strato comandat
-    - però si aquest radi comandat no és admissible, puja fins a r_min_adm
-    - canvi strato suau perquè r_cmd fa smoothstep durant el turn
-    """
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
@@ -279,6 +267,9 @@ def simulate_winding_realistic(
     turn_start_cmd = r_cmd
     turn_end_cmd = r_cmd
 
+    turn_start_dep = r_dep
+    turn_target_dep = r_dep
+
     completed_profiles = []
     current_layer_points = [(z, r_dep)]
 
@@ -294,6 +285,9 @@ def simulate_winding_realistic(
         next_turn_start_cmd = turn_start_cmd
         next_turn_end_cmd = turn_end_cmd
         next_r_cmd = r_cmd
+
+        next_turn_start_dep = turn_start_dep
+        next_turn_target_dep = turn_target_dep
 
         entered_turn = False
         left_turn = False
@@ -346,19 +340,37 @@ def simulate_winding_realistic(
             if prof is not None:
                 completed_profiles.append(prof)
 
-        r_min_adm = min_admissible_radius_at_z(
-            z_target=next_z,
-            profiles=completed_profiles,
-            base_radius=base_radius,
-            d_tubo=d_tubo,
-        )
+            edge_clearance = clearance_radius_at_z(
+                z_target=next_z,
+                profiles=completed_profiles,
+                base_radius=base_radius,
+                d_tubo=d_tubo,
+            )
 
-        # Regla clau: seguir incremento strato, però sense solapar
-        next_r_dep = max(next_r_cmd, r_min_adm)
+            next_turn_start_dep = r_dep
+            next_turn_target_dep = max(next_turn_end_cmd, edge_clearance)
 
-        # petita relaxació només per treure dents numèriques
-        alpha = 0.75 if (next_mode == "turn" or mode == "turn") else 0.55
-        next_r_dep = r_dep + alpha * (next_r_dep - r_dep)
+        # =========================
+        # CALCULO R_DEP
+        # =========================
+        if next_mode == "turn" or mode == "turn":
+            if next_turn_delay <= 0.0:
+                next_r_dep = next_turn_target_dep
+            else:
+                s = smoothstep(next_turn_progress / max(next_turn_delay, 1e-9))
+                next_r_dep = next_turn_start_dep + s * (next_turn_target_dep - next_turn_start_dep)
+        else:
+            r_clear = clearance_radius_at_z(
+                z_target=next_z,
+                profiles=completed_profiles,
+                base_radius=base_radius,
+                d_tubo=d_tubo,
+            )
+            target_dep = max(next_r_cmd, r_clear)
+            alpha = 0.55
+            next_r_dep = r_dep + alpha * (target_dep - r_dep)
+
+        next_r_dep = max(base_radius, next_r_dep)
 
         new_contact_world = deposit_point_world(next_r_dep, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
@@ -376,6 +388,8 @@ def simulate_winding_realistic(
             turn_z = next_turn_z
             turn_start_cmd = next_turn_start_cmd
             turn_end_cmd = next_turn_end_cmd
+            turn_start_dep = next_turn_start_dep
+            turn_target_dep = next_turn_target_dep
             r_cmd = next_r_cmd
             r_dep = next_r_dep
             if left_turn:
@@ -424,6 +438,8 @@ def simulate_winding_realistic(
         turn_z = next_turn_z
         turn_start_cmd = next_turn_start_cmd
         turn_end_cmd = next_turn_end_cmd
+        turn_start_dep = next_turn_start_dep
+        turn_target_dep = next_turn_target_dep
         r_cmd = next_r_cmd
         r_dep = next_r_dep
 
@@ -540,7 +556,7 @@ def viewer(
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
-        controls.target.set(0, 0, {spalla}/2);
+        controls.target.set(0, 0, {float(spalla)}/2);
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
@@ -738,7 +754,11 @@ def viewer(
                 totalLen += points[i].distanceTo(points[i - 1]);
             }}
 
-            const tubularSegments = Math.max(20, Math.min(3500, Math.floor(totalLen / Math.max(0.7, Rt * 0.25))));
+            const tubularSegments = Math.max(
+                18,
+                Math.min(2600, Math.floor(totalLen / Math.max(1.2, Rt * 0.35)))
+            );
+
             const curve = new PolylineCurve3(points);
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
@@ -792,7 +812,7 @@ def viewer(
 
             const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
             let visibleLocal = finalLocalPts.slice(0, safeIndex);
-            visibleLocal = decimatePoints(visibleLocal, Math.max(0.5, Rt * 0.20));
+            visibleLocal = decimatePoints(visibleLocal, Math.max(0.9, Rt * 0.30));
 
             rollMesh = buildTubeMeshFromPolyline(visibleLocal, tubeMat, 14);
             if (rollMesh) rollGroup.add(rollMesh);
