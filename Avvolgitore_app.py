@@ -14,18 +14,14 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 if "lang" not in st.session_state:
     st.session_state.lang = "IT"
 
-lang_option = st.selectbox(
-    "🌍 Language",
-    ["🇮🇹 Italiano", "🇺🇸 English (US)"],
-    index=0 if st.session_state.lang == "IT" else 1
-)
-
-st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
-lang = st.session_state.lang
+# =========================
+# TEXTS
+# =========================
 
 TEXTS = {
     "IT": {
         "title": "Avvolgimento",
+        "language": "🌍 Language",
         "bobina": "🟦 Bobina",
         "tubo": "🟩 Tubo",
         "avvolg": "🟧 Avvolgimento",
@@ -39,29 +35,33 @@ TEXTS = {
         "incremento": "Incremento strato (mm)",
         "rit_min": "Ritardo base (°)",
         "rit_max": "Ritardo spalla (°)",
-        "altezza": "Altezza",
-        "animazione": "Animazione",
-        "velocita": "Velocità",
-        "aspo_mode": "Aspo",
-        "aspo_visible": "Visibile",
-        "aspo_transparent": "Trasparente",
-        "aspo_hidden": "Nascosto",
-        "tube_color_mode": "Colore tubo",
-        "tube_gelwhite": "Gelwhite",
-        "tube_gelblack": "Gelblack",
-        "show_grid": "Mostra grid",
-        "show_axes": "Mostra assi",
-        "cut_half": "Sezione bobina",
         "metric1": "Diametro tubo",
         "metric2": "Passo assiale",
         "metric3": "Incremento strato",
         "metric4": "Diametro radiale max",
         "metric5": "Ingombro max XY",
         "metric6": "Lunghezza avvolta",
-        "warning": "⚠️ Ingombro max XY superiore a 750 mm."
+        "warning": "⚠️ Ingombro max XY superiore a 750 mm.",
+        "play": "Play",
+        "pause": "Pause",
+        "fullscreen": "Fullscreen",
+        "exit": "Exit",
+        "progress": "Progresso",
+        "speed": "Velocità",
+        "spool": "Aspo",
+        "visible": "Visibile",
+        "transparent": "Trasparente",
+        "hidden": "Nascosto",
+        "tube_color": "Tubo",
+        "gelwhite": "Gelwhite",
+        "gelblack": "Gelblack",
+        "grid": "Grid",
+        "axes": "Assi",
+        "section": "Sezione",
     },
     "EN": {
         "title": "Coiling",
+        "language": "🌍 Language",
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Winding",
@@ -75,30 +75,31 @@ TEXTS = {
         "incremento": "Layer increment (mm)",
         "rit_min": "Bottom delay (°)",
         "rit_max": "Top delay (°)",
-        "altezza": "Height",
-        "animazione": "Animation",
-        "velocita": "Speed",
-        "aspo_mode": "Spool",
-        "aspo_visible": "Visible",
-        "aspo_transparent": "Transparent",
-        "aspo_hidden": "Hidden",
-        "tube_color_mode": "Tube color",
-        "tube_gelwhite": "Gelwhite",
-        "tube_gelblack": "Gelblack",
-        "show_grid": "Show grid",
-        "show_axes": "Show axes",
-        "cut_half": "Coil section",
         "metric1": "Tube diameter",
         "metric2": "Axial pitch",
         "metric3": "Layer increment",
         "metric4": "Max radial diameter",
         "metric5": "Max XY span",
         "metric6": "Wound length",
-        "warning": "⚠️ Max XY span exceeds 750 mm."
+        "warning": "⚠️ Max XY span exceeds 750 mm.",
+        "play": "Play",
+        "pause": "Pause",
+        "fullscreen": "Fullscreen",
+        "exit": "Exit",
+        "progress": "Progress",
+        "speed": "Speed",
+        "spool": "Spool",
+        "visible": "Visible",
+        "transparent": "Transparent",
+        "hidden": "Hidden",
+        "tube_color": "Tube",
+        "gelwhite": "Gelwhite",
+        "gelblack": "Gelblack",
+        "grid": "Grid",
+        "axes": "Axes",
+        "section": "Section",
     }
 }
-
-t = TEXTS[lang]
 
 # =========================
 # CONSTANTS
@@ -144,14 +145,28 @@ def find_logo():
 
 logo_path = find_logo()
 
-if logo_path:
-    c1, c2 = st.columns([0.7, 5.3])
-    with c1:
-        st.image(logo_path, width=140)
-    with c2:
-        st.markdown(f"## {t['title']}")
-else:
-    st.markdown(f"## {t['title']}")
+# =========================
+# HEADER
+# =========================
+
+top1, top2 = st.columns([1.0, 5.0])
+
+with top1:
+    if logo_path:
+        st.image(logo_path, width=110)
+
+with top2:
+    st.markdown(f"## {TEXTS[st.session_state.lang]['title']}")
+    lang_option = st.selectbox(
+        TEXTS[st.session_state.lang]["language"],
+        ["🇮🇹 Italiano", "🇺🇸 English (US)"],
+        index=0 if st.session_state.lang == "IT" else 1,
+        key="lang_selector_top",
+    )
+
+st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
+lang = st.session_state.lang
+t = TEXTS[lang]
 
 # =========================
 # GEOMETRY / SIMULATION
@@ -384,40 +399,25 @@ def viewer(
     rit_t,
     lunghezza,
     altezza,
-    anim,
-    vel,
-    gradi_start,
-    pinza,
     final_world_contacts,
     final_local_points,
     final_thetas,
     final_radii,
     final_zs,
-    aspo_mode,
     guide_offset_x,
-    tube_color_mode,
-    show_grid,
-    show_axes,
-    cut_half,
+    language,
 ):
-    anim_js = "true" if anim else "false"
-    cut_half_js = "true" if cut_half else "false"
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
     final_radii_json = json.dumps(final_radii)
     final_zs_json = json.dumps(final_zs)
-    aspo_mode_json = json.dumps(aspo_mode)
-    tube_color_mode_json = json.dumps(tube_color_mode)
-    show_grid_json = "true" if show_grid else "false"
-    show_axes_json = "true" if show_axes else "false"
-
-    bg = "#000000" if tube_color_mode == "gelwhite" else "#ffffff"
+    labels_json = json.dumps(TEXTS[language])
 
     return f"""
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:{bg};
+        background:#000000;
         border-radius:10px;
         overflow:hidden;
         border:1px solid rgba(0,0,0,0.08);
@@ -428,11 +428,12 @@ def viewer(
             position:absolute;
             top:12px;
             left:12px;
+            right:12px;
             z-index:20;
-            display:{'flex' if anim else 'none'};
-            align-items:center;
+            display:flex;
+            flex-direction:column;
             gap:10px;
-            padding:10px 12px;
+            padding:12px;
             background:rgba(18,22,27,0.72);
             color:#f0f0f0;
             border:1px solid rgba(255,255,255,0.10);
@@ -441,59 +442,118 @@ def viewer(
             font-family:Arial, sans-serif;
             font-size:13px;
             user-select:none;
+            max-width:560px;
         ">
-            <button id="play_pause_btn" style="
-                border:none;
-                border-radius:8px;
-                padding:7px 12px;
-                background:#f3f3f3;
-                color:#111;
-                font-weight:600;
-                cursor:pointer;
-            ">⏸ Pause</button>
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+                <button id="play_pause_btn" class="viewer_btn">⏸</button>
+                <button id="fullscreen_btn" class="viewer_btn">⛶</button>
 
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span>Speed</span>
-                <input id="speed_slider_in_viewer" type="range" min="0.1" max="5.0" step="0.1" value="{float(vel)}" style="width:120px;" />
-                <span id="speed_value_label">{float(vel):.1f}x</span>
+                <span style="margin-left:8px;">PROG</span>
+                <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:140px;" />
+
+                <span style="margin-left:8px;" id="speed_title"></span>
+                <button class="speed_btn viewer_btn_small" data-speed="0.1">x0.1</button>
+                <button class="speed_btn viewer_btn_small" data-speed="0.5">x0.5</button>
+                <button class="speed_btn viewer_btn_small active_speed" data-speed="1.0">x1</button>
+                <button class="speed_btn viewer_btn_small" data-speed="1.5">x1.5</button>
+                <button class="speed_btn viewer_btn_small" data-speed="2.0">x2</button>
+                <button class="speed_btn viewer_btn_small" data-speed="5.0">x5</button>
             </div>
 
-            <button id="fullscreen_btn" style="
-                border:none;
-                border-radius:8px;
-                padding:7px 12px;
-                background:#f3f3f3;
-                color:#111;
-                font-weight:600;
-                cursor:pointer;
-            ">⛶ Fullscreen</button>
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+                <span id="spool_title"></span>
+                <button class="spool_btn viewer_btn_small active_opt" data-spool="visible" id="spool_visible_btn"></button>
+                <button class="spool_btn viewer_btn_small" data-spool="transparent" id="spool_transparent_btn"></button>
+                <button class="spool_btn viewer_btn_small" data-spool="hidden" id="spool_hidden_btn"></button>
+
+                <span style="margin-left:8px;" id="tube_title"></span>
+                <button class="tube_btn viewer_btn_small active_opt" data-tube="gelwhite" id="tube_gelwhite_btn"></button>
+                <button class="tube_btn viewer_btn_small" data-tube="gelblack" id="tube_gelblack_btn"></button>
+
+                <label style="margin-left:8px; display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="grid_check" checked />
+                    <span id="grid_title"></span>
+                </label>
+
+                <label style="display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="axes_check" />
+                    <span id="axes_title"></span>
+                </label>
+
+                <label style="display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="section_check" />
+                    <span id="section_title"></span>
+                </label>
+            </div>
         </div>
     </div>
+
+    <style>
+        .viewer_btn {{
+            border:none;
+            border-radius:8px;
+            padding:7px 12px;
+            background:#f3f3f3;
+            color:#111;
+            font-weight:700;
+            cursor:pointer;
+        }}
+        .viewer_btn_small {{
+            border:none;
+            border-radius:8px;
+            padding:6px 10px;
+            background:#dcdcdc;
+            color:#111;
+            font-weight:600;
+            cursor:pointer;
+        }}
+        .active_speed {{
+            outline:2px solid #ffffff;
+            background:#ffffff;
+        }}
+        .active_opt {{
+            outline:2px solid #ffffff;
+            background:#ffffff;
+        }}
+    </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/TrackballControls.js"></script>
 
     <script>
     (() => {{
+        const T = {labels_json};
+
         const host = document.getElementById("viewer_root");
         const playPauseBtn = document.getElementById("play_pause_btn");
-        const speedSlider = document.getElementById("speed_slider_in_viewer");
-        const speedLabel = document.getElementById("speed_value_label");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
+        const progressSlider = document.getElementById("progress_slider");
+
+        const speedBtns = [...document.querySelectorAll(".speed_btn")];
+        const spoolBtns = [...document.querySelectorAll(".spool_btn")];
+        const tubeBtns = [...document.querySelectorAll(".tube_btn")];
+
+        const gridCheck = document.getElementById("grid_check");
+        const axesCheck = document.getElementById("axes_check");
+        const sectionCheck = document.getElementById("section_check");
+
+        document.getElementById("speed_title").textContent = T.speed;
+        document.getElementById("spool_title").textContent = T.spool;
+        document.getElementById("tube_title").textContent = T.tube_color;
+        document.getElementById("grid_title").textContent = T.grid;
+        document.getElementById("axes_title").textContent = T.axes;
+        document.getElementById("section_title").textContent = T.section;
+        document.getElementById("spool_visible_btn").textContent = T.visible;
+        document.getElementById("spool_transparent_btn").textContent = T.transparent;
+        document.getElementById("spool_hidden_btn").textContent = T.hidden;
+        document.getElementById("tube_gelwhite_btn").textContent = T.gelwhite;
+        document.getElementById("tube_gelblack_btn").textContent = T.gelblack;
 
         const W = Math.max(host.clientWidth, 600);
         const Hview = Math.max(host.clientHeight, 400);
 
         const scene = new THREE.Scene();
-
-        const tubeColorMode = {tube_color_mode_json};
-        const gelwhite = tubeColorMode === "gelwhite";
-
-        scene.background = new THREE.Color(gelwhite ? 0x000000 : 0xffffff);
-
-        const tubeBaseColor = gelwhite ? 0xd8d8d6 : 0x111111;
-        const freeTubeColor = gelwhite ? 0xbebebc : 0x242424;
-        const activeTubeColor = gelwhite ? 0xf0f0ee : 0x050505;
+        scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
         camera.position.set(-1400, -2100, 200);
@@ -508,10 +568,10 @@ def viewer(
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.physicallyCorrectLights = true;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = gelwhite ? 1.0 : 1.15;
+        renderer.toneMappingExposure = 1.0;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.localClippingEnabled = {cut_half_js};
+        renderer.localClippingEnabled = true;
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.TrackballControls(camera, renderer.domElement);
@@ -520,20 +580,11 @@ def viewer(
         controls.panSpeed = 0.1;
         controls.dynamicDampingFactor = 0.2;
         controls.staticMoving = false;
-        controls.noPan = false;
-        controls.noZoom = false;
-        controls.noRotate = false;
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
-        let speed = {float(vel)};
-        const animEnabled = {anim_js};
-        const cutHalf = {cut_half_js};
         const guideOffsetX = {float(guide_offset_x)};
-        const aspoMode = {aspo_mode_json};
-        const showGrid = {show_grid_json};
-        const showAxes = {show_axes_json};
 
         controls.target.set(10, 20, Hs * 0.52);
         camera.lookAt(10, 20, Hs * 0.52);
@@ -545,87 +596,117 @@ def viewer(
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-        let isPlaying = animEnabled;
+        let isPlaying = true;
+        let speed = 1.0;
+        let aspoMode = "visible";
+        let tubeMode = "gelwhite";
+        let showGrid = true;
+        let showAxes = false;
+        let showSection = false;
 
-        if (speedSlider && speedLabel) {{
-            speedSlider.addEventListener("input", (e) => {{
-                speed = parseFloat(e.target.value);
-                speedLabel.textContent = speed.toFixed(1) + "x";
-            }});
-        }}
-
-        if (playPauseBtn) {{
-            playPauseBtn.addEventListener("click", () => {{
-                isPlaying = !isPlaying;
-                playPauseBtn.textContent = isPlaying ? "⏸ Pause" : "▶ Play";
-            }});
-        }}
-
-        if (fullscreenBtn) {{
-            fullscreenBtn.addEventListener("click", async () => {{
-                try {{
-                    if (!document.fullscreenElement) {{
-                        await host.requestFullscreen();
-                        fullscreenBtn.textContent = "🡼 Exit";
-                    }} else {{
-                        await document.exitFullscreen();
-                        fullscreenBtn.textContent = "⛶ Fullscreen";
-                    }}
-                }} catch (err) {{
-                    console.error(err);
-                }}
-            }});
-        }}
-
-        document.addEventListener("fullscreenchange", () => {{
-            if (!document.fullscreenElement && fullscreenBtn) {{
-                fullscreenBtn.textContent = "⛶ Fullscreen";
-            }}
-            setTimeout(() => {{
-                const nw = Math.max(host.clientWidth, 600);
-                const nh = Math.max(host.clientHeight, 400);
-                camera.aspect = nw / nh;
-                camera.updateProjectionMatrix();
-                renderer.setSize(nw, nh);
-                controls.handleResize();
-            }}, 30);
-        }});
-
-        // ==========================================
-        // CUTTING PLANE
-        // ==========================================
         let clippingPlanes = [];
+        let grid = null;
+        let axes = null;
         let sectionPlaneHelper = null;
         let sectionFrame = null;
 
-        if (cutHalf) {{
-            const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
-            clippingPlanes = [cutPlane];
+        function updatePlayBtn() {{
+            playPauseBtn.textContent = isPlaying ? "⏸" : "▶";
+            playPauseBtn.title = isPlaying ? T.pause : T.play;
+        }}
+        updatePlayBtn();
 
-            const sectionMat = new THREE.MeshBasicMaterial({{
-                color: gelwhite ? 0xffffff : 0x000000,
-                transparent: true,
-                opacity: gelwhite ? 0.18 : 0.12,
-                side: THREE.DoubleSide,
-                depthWrite: false
+        function setActiveButton(group, value, attr, activeClass="active_opt") {{
+            group.forEach(btn => {{
+                btn.classList.toggle(activeClass, btn.getAttribute(attr) === value);
             }});
+        }}
 
-            const sectionGeo = new THREE.PlaneGeometry(2 * (R + 260), Hs + 260);
-            sectionPlaneHelper = new THREE.Mesh(sectionGeo, sectionMat);
-            sectionPlaneHelper.position.set(0, 0, Hs * 0.5);
-            sectionPlaneHelper.rotation.y = Math.PI / 2;
-            scene.add(sectionPlaneHelper);
-
-            const frameGeo = new THREE.EdgesGeometry(sectionGeo);
-            const frameMat = new THREE.LineBasicMaterial({{
-                color: gelwhite ? 0xffffff : 0x111111,
-                transparent: true,
-                opacity: gelwhite ? 0.45 : 0.35
+        speedBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                speed = parseFloat(btn.dataset.speed);
+                speedBtns.forEach(b => b.classList.remove("active_speed"));
+                btn.classList.add("active_speed");
             }});
-            sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
-            sectionFrame.position.copy(sectionPlaneHelper.position);
-            sectionFrame.rotation.copy(sectionPlaneHelper.rotation);
-            scene.add(sectionFrame);
+        }});
+
+        spoolBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                aspoMode = btn.dataset.spool;
+                setActiveButton(spoolBtns, aspoMode, "data-spool");
+                applyVisualState();
+            }});
+        }});
+
+        tubeBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                tubeMode = btn.dataset.tube;
+                setActiveButton(tubeBtns, tubeMode, "data-tube");
+                applyVisualState();
+            }});
+        }});
+
+        gridCheck.addEventListener("change", () => {{
+            showGrid = gridCheck.checked;
+            applyVisualState();
+        }});
+
+        axesCheck.addEventListener("change", () => {{
+            showAxes = axesCheck.checked;
+            applyVisualState();
+        }});
+
+        sectionCheck.addEventListener("change", () => {{
+            showSection = sectionCheck.checked;
+            applySectionState();
+            rebuildDepositedMesh(Math.floor(drawPos));
+            updateOverlayContinuous();
+        }});
+
+        playPauseBtn.addEventListener("click", () => {{
+            isPlaying = !isPlaying;
+            updatePlayBtn();
+        }});
+
+        fullscreenBtn.addEventListener("click", async () => {{
+            try {{
+                if (!document.fullscreenElement) {{
+                    await host.requestFullscreen();
+                    fullscreenBtn.textContent = "🡼";
+                    fullscreenBtn.title = T.exit;
+                }} else {{
+                    await document.exitFullscreen();
+                    fullscreenBtn.textContent = "⛶";
+                    fullscreenBtn.title = T.fullscreen;
+                }}
+            }} catch (err) {{
+                console.error(err);
+            }}
+        }});
+        fullscreenBtn.title = T.fullscreen;
+
+        document.addEventListener("fullscreenchange", () => {{
+            if (!document.fullscreenElement) {{
+                fullscreenBtn.textContent = "⛶";
+                fullscreenBtn.title = T.fullscreen;
+            }}
+            setTimeout(resizeViewer, 30);
+        }});
+
+        progressSlider.addEventListener("input", () => {{
+            const maxPos = Math.max(1, localPts.length - 1);
+            drawPos = (parseInt(progressSlider.value) / 1000.0) * maxPos;
+            rebuildDepositedMesh(Math.floor(drawPos));
+            updateOverlayContinuous();
+        }});
+
+        function resizeViewer() {{
+            const nw = Math.max(host.clientWidth, 600);
+            const nh = Math.max(host.clientHeight, 400);
+            camera.aspect = nw / nh;
+            camera.updateProjectionMatrix();
+            renderer.setSize(nw, nh);
+            controls.handleResize();
         }}
 
         // ==========================================
@@ -666,7 +747,6 @@ def viewer(
                         Math.cos((u - v) * Math.PI / pitch);
 
                     value += (cell - 0.5) * 30.0;
-
                     value = Math.max(0, Math.min(255, Math.round(value)));
 
                     const i = (y * size + x) * 4;
@@ -730,45 +810,72 @@ def viewer(
         // ==========================================
         // MATERIALS
         // ==========================================
-        const redMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x6d7278 : 0x7a7f86,
-            roughness: 0.55,
-            metalness: 0.85,
-            map: steelTex,
-            transparent: aspoMode === "transparent",
-            opacity: aspoMode === "transparent" ? 0.18 : 1.0,
-            depthWrite: aspoMode !== "transparent"
-        }});
+        function makeRedMat(opacity=1.0, transparent=false) {{
+            return new THREE.MeshStandardMaterial({{
+                color: 0x6d7278,
+                roughness: 0.55,
+                metalness: 0.85,
+                map: steelTex,
+                transparent: transparent,
+                opacity: opacity,
+                depthWrite: !transparent
+            }});
+        }}
 
-        const tubeMat = new THREE.MeshStandardMaterial({{
-            color: tubeBaseColor,
-            roughness: 0.85,
-            metalness: 0.05,
-            bumpMap: bumpTex,
-            bumpScale: 1.2,
-            clippingPlanes: clippingPlanes,
-            clipShadows: cutHalf
-        }});
+        function makeTubeMaterial(mode, active=false, free=false) {{
+            let baseColor = 0xd8d8d6;
+            let bgColor = 0x000000;
+            let freeColor = 0xbebebc;
+            let activeColor = 0xf0f0ee;
 
-        const activeTubeMat = new THREE.MeshStandardMaterial({{
-            color: activeTubeColor,
-            roughness: 0.80,
-            metalness: 0.05,
-            bumpMap: bumpTex,
-            bumpScale: 1.25,
-            clippingPlanes: clippingPlanes,
-            clipShadows: cutHalf
-        }});
+            if (mode === "gelblack") {{
+                baseColor = 0x111111;
+                bgColor = 0xffffff;
+                freeColor = 0x242424;
+                activeColor = 0x050505;
+            }}
 
-        const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: freeTubeColor,
-            roughness: 0.88,
-            metalness: 0.03,
-            bumpMap: bumpTex,
-            bumpScale: 1.1,
-            clippingPlanes: clippingPlanes,
-            clipShadows: cutHalf
-        }});
+            scene.background = new THREE.Color(bgColor);
+
+            const chosen = active ? activeColor : (free ? freeColor : baseColor);
+
+            const m = new THREE.MeshStandardMaterial({{
+                color: chosen,
+                roughness: active ? 0.80 : (free ? 0.88 : 0.85),
+                metalness: 0.05,
+                bumpMap: bumpTex,
+                bumpScale: active ? 1.25 : (free ? 1.1 : 1.2),
+                clippingPlanes: clippingPlanes,
+                clipShadows: showSection
+            }});
+
+            m.onBeforeCompile = (shader) => {{
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    '#include <roughnessmap_fragment>',
+                    `
+                    #include <roughnessmap_fragment>
+                    float anisotropyFake = abs(dot(normalize(vViewPosition), vec3(0.0, 1.0, 0.0)));
+                    roughnessFactor *= mix(0.85, 1.15, anisotropyFake);
+                    `
+                );
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+                    `
+                    float contactShade = pow(abs(dot(normal, vec3(0.0, 0.0, 1.0))), 1.8);
+                    outgoingLight *= mix(0.88, 1.0, contactShade);
+                    gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+                    `
+                );
+            }};
+            m.needsUpdate = true;
+            return m;
+        }}
+
+        let redMat = makeRedMat(1.0, false);
+        let redMatTransparent = makeRedMat(0.18, true);
+        let tubeMat = makeTubeMaterial(tubeMode, false, false);
+        let activeTubeMat = makeTubeMaterial(tubeMode, true, false);
+        let freeTubeMat = makeTubeMaterial(tubeMode, false, true);
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a,
@@ -786,47 +893,16 @@ def viewer(
             emissiveIntensity: 0.14
         }});
 
-        function applyTubeShaderTweaks(material) {{
-            material.onBeforeCompile = (shader) => {{
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    '#include <roughnessmap_fragment>',
-                    `
-                    #include <roughnessmap_fragment>
-                    float anisotropyFake = abs(dot(normalize(vViewPosition), vec3(0.0, 1.0, 0.0)));
-                    roughnessFactor *= mix(0.85, 1.15, anisotropyFake);
-                    `
-                );
-
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-                    `
-                    float contactShade = pow(abs(dot(normal, vec3(0.0, 0.0, 1.0))), 1.8);
-                    outgoingLight *= mix(0.88, 1.0, contactShade);
-                    gl_FragColor = vec4( outgoingLight, diffuseColor.a );
-                    `
-                );
-            }};
-            material.needsUpdate = true;
-        }}
-
-        applyTubeShaderTweaks(tubeMat);
-        applyTubeShaderTweaks(activeTubeMat);
-        applyTubeShaderTweaks(freeTubeMat);
-
         // ==========================================
         // LIGHTING
         // ==========================================
-        const ambient = new THREE.AmbientLight(0xffffff, gelwhite ? 0.18 : 0.12);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(ambient);
 
-        const hemi = new THREE.HemisphereLight(
-            gelwhite ? 0xd7dfe7 : 0xffffff,
-            gelwhite ? 0x1a1d20 : 0xd8d2ca,
-            gelwhite ? 0.30 : 0.24
-        );
+        const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.30);
         scene.add(hemi);
 
-        const keyLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 1.20 : 1.05);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.20);
         keyLight.position.set(300, -200, 600);
         keyLight.castShadow = true;
         keyLight.shadow.mapSize.width = 1024;
@@ -835,11 +911,11 @@ def viewer(
         keyLight.shadow.camera.far = 3000;
         scene.add(keyLight);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.40 : 0.32);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.40);
         fillLight.position.set(-400, 200, 200);
         scene.add(fillLight);
 
-        const rimLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.62 : 0.52);
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.62);
         rimLight.position.set(0, 400, 300);
         scene.add(rimLight);
 
@@ -891,12 +967,8 @@ def viewer(
         top.receiveShadow = true;
         machine.add(top);
 
-        mandrel.visible = aspoMode !== "hidden";
-        base.visible = aspoMode !== "hidden";
-        top.visible = aspoMode !== "hidden";
-
         // ==========================================
-        // GUIDE (same material as spool)
+        // GUIDE
         // ==========================================
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
@@ -955,28 +1027,105 @@ def viewer(
         guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
 
+        function applySectionState() {{
+            clippingPlanes = [];
+            if (sectionPlaneHelper) scene.remove(sectionPlaneHelper);
+            if (sectionFrame) scene.remove(sectionFrame);
+            sectionPlaneHelper = null;
+            sectionFrame = null;
+
+            if (showSection) {{
+                const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+                clippingPlanes = [cutPlane];
+
+                const sectionMat = new THREE.MeshBasicMaterial({{
+                    color: tubeMode === "gelwhite" ? 0xffffff : 0x000000,
+                    transparent: true,
+                    opacity: tubeMode === "gelwhite" ? 0.18 : 0.12,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                }});
+
+                const sectionGeo = new THREE.PlaneGeometry(2 * (R + 260), Hs + 260);
+                sectionPlaneHelper = new THREE.Mesh(sectionGeo, sectionMat);
+                sectionPlaneHelper.position.set(0, 0, Hs * 0.5);
+                sectionPlaneHelper.rotation.y = Math.PI / 2;
+                scene.add(sectionPlaneHelper);
+
+                const frameGeo = new THREE.EdgesGeometry(sectionGeo);
+                const frameMat = new THREE.LineBasicMaterial({{
+                    color: tubeMode === "gelwhite" ? 0xffffff : 0x111111,
+                    transparent: true,
+                    opacity: tubeMode === "gelwhite" ? 0.45 : 0.35
+                }});
+                sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
+                sectionFrame.position.copy(sectionPlaneHelper.position);
+                sectionFrame.rotation.copy(sectionPlaneHelper.rotation);
+                scene.add(sectionFrame);
+            }}
+
+            renderer.localClippingEnabled = showSection;
+
+            tubeMat = makeTubeMaterial(tubeMode, false, false);
+            activeTubeMat = makeTubeMaterial(tubeMode, true, false);
+            freeTubeMat = makeTubeMaterial(tubeMode, false, true);
+
+            applyVisualState();
+        }}
+
+        function buildGridIfNeeded() {{
+            if (grid) scene.remove(grid);
+            grid = null;
+
+            if (showGrid) {{
+                grid = new THREE.GridHelper(
+                    2000,
+                    20,
+                    tubeMode === "gelwhite" ? 0x6f6f6f : 0x5c5c5c,
+                    tubeMode === "gelwhite" ? 0x2f2f2f : 0xb8b8b8
+                );
+                grid.rotation.x = Math.PI / 2;
+                grid.position.z = 0;
+                grid.material.opacity = tubeMode === "gelwhite" ? 0.34 : 0.72;
+                grid.material.transparent = true;
+                scene.add(grid);
+            }}
+        }}
+
+        function buildAxesIfNeeded() {{
+            if (axes) scene.remove(axes);
+            axes = null;
+            if (showAxes) {{
+                axes = new THREE.AxesHelper(350);
+                scene.add(axes);
+            }}
+        }}
+
+        function applyVisualState() {{
+            const useMat = aspoMode === "transparent" ? redMatTransparent : redMat;
+            mandrel.material = useMat;
+            base.material = useMat;
+            top.material = useMat;
+            guideBarrel.material = useMat;
+            guideShoulder.material = useMat;
+            guideTaper.material = useMat;
+            guideNozzle.material = useMat;
+            guideBackCap.material = useMat;
+
+            mandrel.visible = aspoMode !== "hidden";
+            base.visible = aspoMode !== "hidden";
+            top.visible = aspoMode !== "hidden";
+            guideGroup.visible = aspoMode !== "hidden" || true;
+
+            buildGridIfNeeded();
+            buildAxesIfNeeded();
+            rebuildDepositedMesh(Math.floor(drawPos));
+            updateOverlayContinuous();
+        }}
+
         // ==========================================
         // HELPERS
         // ==========================================
-        if (showGrid) {{
-            const grid = new THREE.GridHelper(
-                2000,
-                20,
-                gelwhite ? 0x6f6f6f : 0x5c5c5c,
-                gelwhite ? 0x2f2f2f : 0xb8b8b8
-            );
-            grid.rotation.x = Math.PI / 2;
-            grid.position.z = 0;
-            grid.material.opacity = gelwhite ? 0.34 : 0.72;
-            grid.material.transparent = true;
-            scene.add(grid);
-        }}
-
-        if (showAxes) {{
-            const axes = new THREE.AxesHelper(350);
-            scene.add(axes);
-        }}
-
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -1117,12 +1266,12 @@ def viewer(
         let startMarker = null;
         let endMarker = null;
 
-        let drawPos = animEnabled ? 1.0 : (localPts.length - 1);
+        let drawPos = 1.0;
         let lastRebuiltCompleted = -1;
 
         function rebuildDepositedMesh(completedIndex) {{
             if (completedIndex < 1) return;
-            if (completedIndex === lastRebuiltCompleted) return;
+            if (completedIndex === lastRebuiltCompleted && depositedMesh) return;
             lastRebuiltCompleted = completedIndex;
 
             if (depositedMesh) {{
@@ -1192,37 +1341,27 @@ def viewer(
             overlayGroup.add(startMarker);
             overlayGroup.add(endMarker);
 
-            if (animEnabled) {{
-                if (frac > 1e-6 && i1 > i0) {{
-                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-                    activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
-                    if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
-                }}
-
-                const guideWorld = guidePointWorld(radius, z);
-                freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
-                if (freeMesh) overlayGroup.add(freeMesh);
-
-                guideGroup.position.copy(guideWorld);
-                guideGroup.visible = true;
-            }} else {{
-                guideGroup.visible = false;
+            if (frac > 1e-6 && i1 > i0) {{
+                const activeStartWorld = localPointToWorld(activeLocalStart, theta);
+                activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
+                if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
             }}
+
+            const guideWorld = guidePointWorld(radius, z);
+            freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
+            if (freeMesh) overlayGroup.add(freeMesh);
+
+            guideGroup.position.copy(guideWorld);
+            guideGroup.visible = true;
         }}
 
-        if (animEnabled) {{
-            rebuildDepositedMesh(1);
-        }} else {{
-            rebuildDepositedMesh(localPts.length - 1);
-            drawPos = localPts.length - 1;
-        }}
-
-        updateOverlayContinuous();
+        applySectionState();
+        applyVisualState();
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animEnabled && isPlaying && drawPos < localPts.length - 1) {{
+            if (isPlaying && drawPos < localPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
                 const oldCompleted = Math.floor(drawPos);
                 drawPos = Math.min(localPts.length - 1, drawPos + advance);
@@ -1233,22 +1372,18 @@ def viewer(
                 }}
 
                 updateOverlayContinuous();
+                progressSlider.value = Math.round((drawPos / Math.max(1, localPts.length - 1)) * 1000);
             }}
 
             controls.update();
             renderer.render(scene, camera);
         }}
 
+        rebuildDepositedMesh(1);
+        updateOverlayContinuous();
         animate();
 
-        window.addEventListener("resize", () => {{
-            const nw = Math.max(host.clientWidth, 600);
-            const nh = Math.max(host.clientHeight, 400);
-            camera.aspect = nw / nh;
-            camera.updateProjectionMatrix();
-            renderer.setSize(nw, nh);
-            controls.handleResize();
-        }});
+        window.addEventListener("resize", resizeViewer);
     }})();
     </script>
     """
@@ -1257,7 +1392,7 @@ def viewer(
 # UI
 # =========================
 
-colA, colB, colC, colD = st.columns(4)
+colA, colB, colC = st.columns(3)
 
 with colA:
     st.markdown(f"#### {t['bobina']}")
@@ -1277,34 +1412,6 @@ with colC:
     incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
     rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
     rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
-
-with colD:
-    st.markdown(f"#### {t['viewer']}")
-    altezza = st.slider(t["altezza"], 400, 900, 700)
-    anim = st.checkbox(t["animazione"], True)
-    vel = st.slider(t["velocita"], 0.1, 5.0, 1.0)
-    aspo_mode_label = st.selectbox(
-        t["aspo_mode"],
-        [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
-        index=0
-    )
-    tube_color_mode_label = st.selectbox(
-        t["tube_color_mode"],
-        [t["tube_gelwhite"], t["tube_gelblack"]],
-        index=0
-    )
-    show_grid = st.checkbox(t["show_grid"], True)
-    show_axes = st.checkbox(t["show_axes"], False)
-    cut_half = st.checkbox(t["cut_half"], False)
-
-if aspo_mode_label == t["aspo_visible"]:
-    aspo_mode = "visible"
-elif aspo_mode_label == t["aspo_transparent"]:
-    aspo_mode = "transparent"
-else:
-    aspo_mode = "hidden"
-
-tube_color_mode = "gelwhite" if tube_color_mode_label == t["tube_gelwhite"] else "gelblack"
 
 # =========================
 # BUILD
@@ -1344,24 +1451,16 @@ components.html(
         rit_b,
         rit_t,
         lunghezza,
-        altezza,
-        anim,
-        vel,
-        gradi_start,
-        pinza,
+        760,
         world_contacts.tolist(),
         local_points.tolist(),
         theta_values.tolist(),
         radius_values.tolist(),
         z_values.tolist(),
-        aspo_mode,
         guide_offset_x,
-        tube_color_mode,
-        show_grid,
-        show_axes,
-        cut_half,
+        lang,
     ),
-    height=altezza
+    height=760
 )
 
 # =========================
