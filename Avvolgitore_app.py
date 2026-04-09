@@ -408,7 +408,7 @@ def viewer(
     show_grid_json = "true" if show_grid else "false"
     show_axes_json = "true" if show_axes else "false"
 
-    bg = "#101317" if tube_color_mode == "gelwhite" else "#ece8e1"
+    bg = "#101317" if tube_color_mode == "gelwhite" else "#f6f6f4"
 
     return f"""
     <div id="viewer_root" style="
@@ -437,7 +437,7 @@ def viewer(
         const tubeColorMode = {tube_color_mode_json};
         const gelwhite = tubeColorMode === "gelwhite";
 
-        scene.background = new THREE.Color(gelwhite ? 0x101317 : 0xece8e1);
+        scene.background = new THREE.Color(gelwhite ? 0x101317 : 0xf6f6f4);
 
         const tubeBaseColor = gelwhite ? 0xd4d4d4 : 0x050505;
         const freeTubeColor = gelwhite ? 0xb8b8b8 : 0x0a0a0a;
@@ -457,21 +457,21 @@ def viewer(
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.045;
+        controls.dampingFactor = 0.04;
         controls.rotateSpeed = 0.95;
         controls.zoomSpeed = 1.0;
         controls.panSpeed = 0.8;
         controls.enablePan = true;
         controls.enableRotate = true;
         controls.enableZoom = true;
-        controls.screenSpacePanning = false;
+        controls.screenSpacePanning = true;
         controls.minDistance = 120;
         controls.maxDistance = 5000;
         controls.minPolarAngle = 0.0;
         controls.maxPolarAngle = Math.PI;
         controls.target.set(0, 0, {spalla}/2);
 
-        // Pan girat respecte a l'anterior
+        // intent de fer el pan més "càmera-relatiu"
         controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
         controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
         controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
@@ -501,7 +501,7 @@ def viewer(
             const img = ctx.createImageData(size, size);
 
             for (let i = 0; i < img.data.length; i += 4) {{
-                const v = 60 + Math.floor(Math.random() * 140);
+                const v = 45 + Math.floor(Math.random() * 170);
                 img.data[i] = v;
                 img.data[i + 1] = v;
                 img.data[i + 2] = v;
@@ -512,28 +512,35 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(72, 12);
+            tex.repeat.set(96, 18);
             return tex;
         }}
 
-        function makeSteelTexture(size = 128) {{
+        function makeSteelTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
             canvas.height = size;
             const ctx = canvas.getContext("2d");
 
-            const grad = ctx.createLinearGradient(0, 0, size, size);
-            grad.addColorStop(0.0, "#6f767d");
-            grad.addColorStop(0.22, "#c1c7cc");
-            grad.addColorStop(0.45, "#7e858b");
-            grad.addColorStop(0.72, "#d0d5da");
-            grad.addColorStop(1.0, "#6e757c");
+            const grad = ctx.createLinearGradient(0, 0, size, 0);
+            grad.addColorStop(0.0, "#5f666d");
+            grad.addColorStop(0.16, "#d1d6da");
+            grad.addColorStop(0.34, "#81888f");
+            grad.addColorStop(0.55, "#bcc2c8");
+            grad.addColorStop(0.78, "#70777e");
+            grad.addColorStop(1.0, "#d9dde1");
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, size, size);
 
+            for (let y = 0; y < size; y += 2) {{
+                const alpha = 0.02 + Math.random() * 0.04;
+                ctx.fillStyle = `rgba(255,255,255,${{alpha}})`;
+                ctx.fillRect(0, y, size, 1);
+            }}
+
             const img = ctx.getImageData(0, 0, size, size);
             for (let i = 0; i < img.data.length; i += 4) {{
-                const n = Math.floor(Math.random() * 24) - 12;
+                const n = Math.floor(Math.random() * 18) - 9;
                 img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
                 img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
                 img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
@@ -543,12 +550,12 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(3, 3);
+            tex.repeat.set(2.2, 2.2);
             return tex;
         }}
 
         const bumpTex = makeNoiseTexture(128);
-        const steelTex = makeSteelTexture(128);
+        const steelTex = makeSteelTexture(256);
 
         const redMat = new THREE.MeshStandardMaterial({{
             color: gelwhite ? 0x676d74 : 0x7a7a7a,
@@ -567,44 +574,44 @@ def viewer(
 
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.96,
+            roughness: 0.97,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.65
+            bumpScale: 2.1
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.93,
+            roughness: 0.94,
+            metalness: 0.0,
+            bumpMap: bumpTex,
+            bumpScale: 1.7
+        }});
+
+        const freeTubeMat = new THREE.MeshStandardMaterial({{
+            color: freeTubeColor,
+            roughness: 0.95,
             metalness: 0.0,
             bumpMap: bumpTex,
             bumpScale: 1.35
         }});
 
-        const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: freeTubeColor,
-            roughness: 0.94,
-            metalness: 0.0,
-            bumpMap: bumpTex,
-            bumpScale: 1.05
-        }});
-
         const steelMat = new THREE.MeshStandardMaterial({{
-            color: 0xb0b7bd,
-            roughness: 0.48,
-            metalness: 0.78,
+            color: 0xb8bec4,
+            roughness: 0.42,
+            metalness: 0.82,
             map: steelTex,
             bumpMap: steelTex,
-            bumpScale: 0.16
+            bumpScale: 0.10
         }});
 
         const steelDarkMat = new THREE.MeshStandardMaterial({{
-            color: 0x889098,
-            roughness: 0.52,
-            metalness: 0.72,
+            color: 0x8a9299,
+            roughness: 0.48,
+            metalness: 0.76,
             map: steelTex,
             bumpMap: steelTex,
-            bumpScale: 0.12
+            bumpScale: 0.08
         }});
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
@@ -663,7 +670,6 @@ def viewer(
         base.visible = aspoMode !== "hidden";
         top.visible = aspoMode !== "hidden";
 
-        // guidatubo estilitzat amb textura acer
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
         const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.74;
@@ -709,7 +715,6 @@ def viewer(
         guideBackCap.position.x = -30 * guideScale;
         guideGroup.add(guideBackCap);
 
-        // llum natural més viva al dark i suau al light
         scene.add(new THREE.AmbientLight(0xffffff, gelwhite ? 0.34 : 0.26));
 
         const hemi = new THREE.HemisphereLight(
