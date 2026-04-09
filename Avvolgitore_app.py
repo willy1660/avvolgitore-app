@@ -160,7 +160,7 @@ def deposit_point_world(radius: float, z: float) -> np.ndarray:
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     c = np.cos(theta)
     s = np.sin(theta)
-    x =  pt_world[0] * c + pt_world[1] * s
+    x = pt_world[0] * c + pt_world[1] * s
     y = -pt_world[0] * s + pt_world[1] * c
     return np.array([x, y, pt_world[2]], dtype=float)
 
@@ -420,8 +420,11 @@ def viewer(
         const camera = new THREE.PerspectiveCamera(38, W / Hview, 0.1, 20000);
         camera.position.set(-520, -760, 420);
 
-        const renderer = new THREE.WebGLRenderer({{ antialias: true }});
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        const renderer = new THREE.WebGLRenderer({{
+            antialias: true,
+            powerPreference: "high-performance"
+        }});
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
         host.appendChild(renderer.domElement);
@@ -451,7 +454,8 @@ def viewer(
             roughness: 0.78,
             metalness: 0.24,
             transparent: aspoMode === "transparent",
-            opacity: aspoMode === "transparent" ? 0.18 : 1.0
+            opacity: aspoMode === "transparent" ? 0.18 : 1.0,
+            depthWrite: aspoMode !== "transparent"
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
@@ -478,13 +482,13 @@ def viewer(
             metalness: 0.04
         }});
 
-        const startMat = new THREE.MeshStandardMaterial({{
+        const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x3f7f56,
             roughness: 0.80,
             metalness: 0.06
         }});
 
-        const endMat = new THREE.MeshStandardMaterial({{
+        const markerEndMat = new THREE.MeshStandardMaterial({{
             color: 0xa88437,
             roughness: 0.78,
             metalness: 0.06
@@ -593,6 +597,55 @@ def viewer(
             );
         }}
 
+        class PolylineCurve3 extends THREE.Curve {{
+            constructor(points) {{
+                super();
+                this.points = points || [];
+                this.arc = [0];
+                this.totalLength = 0;
+
+                for (let i = 1; i < this.points.length; i++) {{
+                    const seg = this.points[i].distanceTo(this.points[i - 1]);
+                    this.totalLength += seg;
+                    this.arc.push(this.totalLength);
+                }}
+            }}
+
+            getPoint(t) {{
+                if (!this.points || this.points.length === 0) {{
+                    return new THREE.Vector3(0, 0, 0);
+                }}
+                if (this.points.length === 1 || this.totalLength <= 1e-9) {{
+                    return this.points[0].clone();
+                }}
+
+                const target = t * this.totalLength;
+
+                let i = 1;
+                while (i < this.arc.length && this.arc[i] < target) {{
+                    i++;
+                }}
+
+                if (i >= this.points.length) {{
+                    return this.points[this.points.length - 1].clone();
+                }}
+
+                const l0 = this.arc[i - 1];
+                const l1 = this.arc[i];
+                const p0 = this.points[i - 1];
+                const p1 = this.points[i];
+
+                const denom = Math.max(1e-9, l1 - l0);
+                const a = (target - l0) / denom;
+
+                return new THREE.Vector3(
+                    p0.x + a * (p1.x - p0.x),
+                    p0.y + a * (p1.y - p0.y),
+                    p0.z + a * (p1.z - p0.z)
+                );
+            }}
+        }}
+
         function disposeMaterial(mat) {{
             if (!mat) return;
             if (Array.isArray(mat)) {{
@@ -609,18 +662,29 @@ def viewer(
             disposeMaterial(obj.material);
         }}
 
-        function createDiscMarker(point, material, parentObj = scene) {{
-            const g = new THREE.CylinderGeometry(
-                Math.max(4, Rt * 0.8),
-                Math.max(4, Rt * 0.8),
-                Math.max(2.5, Rt * 0.32),
-                18
+        function makeTubeMeshFromPoints(points, radius, material) {{
+            if (!points || points.length < 2) return null;
+
+            let totalLen = 0;
+            for (let i = 1; i < points.length; i++) {{
+                totalLen += points[i].distanceTo(points[i - 1]);
+            }}
+
+            const curve = new PolylineCurve3(points);
+            const tubularSegments = Math.max(
+                16,
+                Math.min(2400, Math.floor(totalLen / Math.max(1.5, radius * 0.55)))
             );
-            const m = new THREE.Mesh(g, material);
-            m.rotation.x = Math.PI / 2;
-            m.position.copy(point);
-            parentObj.add(m);
-            return m;
+
+            const geo = new THREE.TubeGeometry(
+                curve,
+                tubularSegments,
+                radius,
+                12,
+                false
+            );
+
+            return new THREE.Mesh(geo, material);
         }}
 
         function makeTubeSegment(p0, p1, radius, material) {{
@@ -641,9 +705,14 @@ def viewer(
             return mesh;
         }}
 
-        let depositedSegments = [];
-        let depositedJoints = [];
+        function makeSphereMarker(point, material) {{
+            const g = new THREE.SphereGeometry(Math.max(3.5, Rt * 0.42), 18, 18);
+            const m = new THREE.Mesh(g, material);
+            m.position.copy(point);
+            return m;
+        }}
 
+        let depositedMesh = null;
         let freeMesh = null;
         let activeCoilMesh = null;
         let startMarker = null;
@@ -651,56 +720,23 @@ def viewer(
 
         let drawPos = animEnabled ? 1.0 : (localPts.length - 1);
         let builtUntil = 1;
-        let drawAccumulator = 0.0;
+        let lastRebuiltCompleted = -1;
 
-        function clearGroupObjects(group, arr) {{
-            for (const obj of arr) disposeObj(obj, group);
-            arr.length = 0;
-        }}
+        function rebuildDepositedMesh(completedIndex) {{
+            if (completedIndex < 1) return;
+            if (completedIndex === lastRebuiltCompleted) return;
+            lastRebuiltCompleted = completedIndex;
 
-        function rebuildDepositedUpTo(idxInclusivePoint) {{
-            clearGroupObjects(depositedGroup, depositedSegments);
-            clearGroupObjects(depositedGroup, depositedJoints);
-
-            if (localPts.length === 0) return;
-
-            const firstJoint = createDiscMarker(localPts[0], tubeMat, depositedGroup);
-            depositedJoints.push(firstJoint);
-
-            for (let i = 1; i <= idxInclusivePoint; i++) {{
-                const p0 = localPts[i - 1];
-                const p1 = localPts[i];
-
-                const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
-                if (seg) {{
-                    depositedGroup.add(seg);
-                    depositedSegments.push(seg);
-                }}
-
-                const joint = createDiscMarker(p1, tubeMat, depositedGroup);
-                depositedJoints.push(joint);
+            if (depositedMesh) {{
+                disposeObj(depositedMesh, depositedGroup);
+                depositedMesh = null;
             }}
 
-            builtUntil = idxInclusivePoint;
-        }}
-
-        function appendCompletedSegment(nextIndex) {{
-            if (nextIndex < 1 || nextIndex >= localPts.length) return;
-            if (nextIndex <= builtUntil) return;
-
-            const p0 = localPts[nextIndex - 1];
-            const p1 = localPts[nextIndex];
-
-            const seg = makeTubeSegment(p0, p1, Rt, tubeMat);
-            if (seg) {{
-                depositedGroup.add(seg);
-                depositedSegments.push(seg);
+            const pts = localPts.slice(0, completedIndex + 1);
+            depositedMesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
+            if (depositedMesh) {{
+                depositedGroup.add(depositedMesh);
             }}
-
-            const joint = createDiscMarker(p1, tubeMat, depositedGroup);
-            depositedJoints.push(joint);
-
-            builtUntil = nextIndex;
         }}
 
         function clearOverlay() {{
@@ -746,8 +782,10 @@ def viewer(
             const startWorld = localPointToWorld(localPts[0], theta);
             const endWorld = localPointToWorld(activeLocalEnd, theta);
 
-            startMarker = createDiscMarker(startWorld, startMat, overlayGroup);
-            endMarker = createDiscMarker(endWorld, endMat, overlayGroup);
+            startMarker = makeSphereMarker(startWorld, markerStartMat);
+            endMarker = makeSphereMarker(endWorld, markerEndMat);
+            overlayGroup.add(startMarker);
+            overlayGroup.add(endMarker);
 
             if (frac > 1e-6 && i1 > i0) {{
                 const activeStartWorld = localPointToWorld(activeLocalStart, theta);
@@ -783,9 +821,11 @@ def viewer(
         }}
 
         if (animEnabled) {{
-            rebuildDepositedUpTo(1);
+            rebuildDepositedMesh(1);
+            builtUntil = 1;
         }} else {{
-            rebuildDepositedUpTo(localPts.length - 1);
+            rebuildDepositedMesh(localPts.length - 1);
+            builtUntil = localPts.length - 1;
             drawPos = localPts.length - 1;
         }}
 
@@ -795,16 +835,15 @@ def viewer(
             requestAnimationFrame(animate);
 
             if (animEnabled && drawPos < localPts.length - 1) {{
-                drawAccumulator += Math.max(0.01, speed * 0.035);
+                const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
 
                 const oldCompleted = Math.floor(drawPos);
-                drawPos = Math.min(localPts.length - 1, drawPos + drawAccumulator);
-                drawAccumulator = 0.0;
-
+                drawPos = Math.min(localPts.length - 1, drawPos + advance);
                 const newCompleted = Math.floor(drawPos);
 
-                for (let i = oldCompleted + 1; i <= newCompleted; i++) {{
-                    appendCompletedSegment(i);
+                if (newCompleted > oldCompleted) {{
+                    builtUntil = newCompleted;
+                    rebuildDepositedMesh(builtUntil);
                 }}
 
                 updateOverlayContinuous();
