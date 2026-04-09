@@ -155,59 +155,16 @@ def polyline_length(points: np.ndarray) -> float:
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
-    # pla de deposició x = 0
     return np.array([0.0, radius, z], dtype=float)
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     c = np.cos(theta)
     s = np.sin(theta)
-    x = pt_world[0] * c + pt_world[1] * s
+    x =  pt_world[0] * c + pt_world[1] * s
     y = -pt_world[0] * s + pt_world[1] * c
     return np.array([x, y, pt_world[2]], dtype=float)
 
-def solve_contact_radius_local(
-    z_target: float,
-    r_cmd: float,
-    deposited_local: list,
-    base_radius: float,
-    d_tubo: float,
-    ignore_tail: int = 18,
-    recent_points: int = 3500,
-):
-    """
-    Solver local de contacte.
-    Mira només punts ja dipositats:
-    - ignora els últims "ignore_tail" per no autocontactar amb el tram immediat
-    - mira només els últims "recent_points" per rendiment
-    - calcula el radi mínim admissible perquè la nova secció circular no interpenetri
-    """
-    if len(deposited_local) <= ignore_tail + 1:
-        return max(base_radius, r_cmd)
-
-    usable = deposited_local[:-ignore_tail]
-    if len(usable) > recent_points:
-        usable = usable[-recent_points:]
-
-    pts = np.asarray(usable, dtype=float)
-    z_prev = pts[:, 2]
-    r_prev = np.sqrt(pts[:, 0] ** 2 + pts[:, 1] ** 2)
-
-    dz = np.abs(z_prev - z_target)
-    mask = dz < d_tubo - 1e-9
-
-    if not np.any(mask):
-        return max(base_radius, r_cmd)
-
-    dz = dz[mask]
-    r_prev = r_prev[mask]
-
-    rise = np.sqrt(np.maximum(0.0, d_tubo * d_tubo - dz * dz))
-    r_need = r_prev + rise
-
-    r_contact = max(base_radius, float(np.max(r_need)))
-    return max(r_cmd, r_contact)
-
-def simulate_winding_contact(
+def simulate_winding_center_plane_local(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -217,24 +174,24 @@ def simulate_winding_contact(
     rit_t: float,
     lunghezza_m: float,
     gradi_start: float,
-    deg_step: float = 1.0,
+    deg_step: float = 2.0,
 ):
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
     H = spalla
-    base_radius = R + Rt
 
     theta = np.deg2rad(gradi_start)
     z = Rt
+    current_layer_radius = R + Rt
 
-    r_cmd = base_radius
-    r_dep = base_radius
+    first_contact_world = deposit_point_world(current_layer_radius, z)
+    first_local = world_to_spool_local(first_contact_world, theta)
 
-    points_world_contact = [deposit_point_world(r_dep, z)]
-    points_local = [world_to_spool_local(points_world_contact[0], theta)]
+    contact_world = [first_contact_world]
+    deposited_local = [first_local]
     theta_values = [theta]
-    radius_values = [r_dep]
+    radius_values = [current_layer_radius]
     z_values = [z]
 
     deposited_len = 0.0
@@ -245,10 +202,10 @@ def simulate_winding_contact(
     turn_progress = 0.0
     turn_delay = 0.0
     turn_z = z
-    turn_start_cmd = r_cmd
-    turn_end_cmd = r_cmd
+    turn_start_radius = current_layer_radius
+    turn_end_radius = current_layer_radius
 
-    for _ in range(1800000):
+    for _ in range(1200000):
         next_theta = theta - np.deg2rad(deg_step)
 
         next_z = z
@@ -257,13 +214,13 @@ def simulate_winding_contact(
         next_turn_progress = turn_progress
         next_turn_delay = turn_delay
         next_turn_z = turn_z
-        next_turn_start_cmd = turn_start_cmd
-        next_turn_end_cmd = turn_end_cmd
-        next_r_cmd = r_cmd
+        next_turn_start_radius = turn_start_radius
+        next_turn_end_radius = turn_end_radius
+        next_radius = current_layer_radius
 
         if mode == "axial":
             next_z = z + direction * passo * (deg_step / 360.0)
-            next_r_cmd = r_cmd
+            next_radius = current_layer_radius
 
             if next_z >= H - Rt:
                 next_z = H - Rt
@@ -271,8 +228,8 @@ def simulate_winding_contact(
                 next_turn_progress = 0.0
                 next_turn_delay = max(rit_t, 0.0)
                 next_turn_z = next_z
-                next_turn_start_cmd = r_cmd
-                next_turn_end_cmd = r_cmd + max(0.0, incremento)
+                next_turn_start_radius = current_layer_radius
+                next_turn_end_radius = current_layer_radius + max(0.0, incremento)
 
             elif next_z <= Rt:
                 next_z = Rt
@@ -280,48 +237,35 @@ def simulate_winding_contact(
                 next_turn_progress = 0.0
                 next_turn_delay = max(rit_b, 0.0)
                 next_turn_z = next_z
-                next_turn_start_cmd = r_cmd
-                next_turn_end_cmd = r_cmd + max(0.0, incremento)
+                next_turn_start_radius = current_layer_radius
+                next_turn_end_radius = current_layer_radius + max(0.0, incremento)
 
         else:
             next_z = next_turn_z
 
             if next_turn_delay <= 0.0:
-                next_r_cmd = next_turn_end_cmd
+                next_radius = next_turn_end_radius
+                current_layer_radius = next_turn_end_radius
                 next_mode = "axial"
                 next_direction = -direction
             else:
                 next_turn_progress = turn_progress + deg_step
-                s = smoothstep(next_turn_progress / max(next_turn_delay, 1e-9))
-                next_r_cmd = next_turn_start_cmd + s * (next_turn_end_cmd - next_turn_start_cmd)
+                s = smoothstep(next_turn_progress / next_turn_delay)
+                next_radius = next_turn_start_radius + s * (next_turn_end_radius - next_turn_start_radius)
 
                 if next_turn_progress >= next_turn_delay:
-                    next_r_cmd = next_turn_end_cmd
+                    next_radius = next_turn_end_radius
+                    current_layer_radius = next_turn_end_radius
                     next_mode = "axial"
                     next_direction = -direction
 
-        # contacte real local
-        target_r = solve_contact_radius_local(
-            z_target=next_z,
-            r_cmd=next_r_cmd,
-            deposited_local=points_local,
-            base_radius=base_radius,
-            d_tubo=d_tubo,
-            ignore_tail=18,
-            recent_points=3500,
-        )
-
-        # suavitzat radial lleu per evitar dents numèriques
-        alpha = 0.72 if next_mode == "turn" or mode == "turn" else 0.55
-        next_r_dep = r_dep + alpha * (target_r - r_dep)
-
-        new_contact_world = deposit_point_world(next_r_dep, next_z)
+        new_contact_world = deposit_point_world(next_radius, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
 
-        prev_local = points_local[-1]
+        prev_local = deposited_local[-1]
         seg = float(np.linalg.norm(new_local - prev_local))
 
-        if seg < max(0.10, Rt * 0.018):
+        if seg < max(0.25, Rt * 0.05):
             theta = next_theta
             z = next_z
             direction = next_direction
@@ -329,10 +273,8 @@ def simulate_winding_contact(
             turn_progress = next_turn_progress
             turn_delay = next_turn_delay
             turn_z = next_turn_z
-            turn_start_cmd = next_turn_start_cmd
-            turn_end_cmd = next_turn_end_cmd
-            r_cmd = next_r_cmd
-            r_dep = next_r_dep
+            turn_start_radius = next_turn_start_radius
+            turn_end_radius = next_turn_end_radius
             continue
 
         if deposited_len + seg >= max_len:
@@ -342,13 +284,13 @@ def simulate_winding_contact(
                 final_theta = theta + a * (next_theta - theta)
                 final_z = z + a * (next_z - z)
                 prev_r = radius_values[-1]
-                final_r = prev_r + a * (next_r_dep - prev_r)
+                final_r = prev_r + a * (next_radius - prev_r)
 
                 final_contact_world = deposit_point_world(final_r, final_z)
                 final_local = world_to_spool_local(final_contact_world, final_theta)
 
-                points_world_contact.append(final_contact_world)
-                points_local.append(final_local)
+                contact_world.append(final_contact_world)
+                deposited_local.append(final_local)
                 theta_values.append(final_theta)
                 radius_values.append(final_r)
                 z_values.append(final_z)
@@ -356,10 +298,10 @@ def simulate_winding_contact(
                 deposited_len += float(np.linalg.norm(final_local - prev_local))
             break
 
-        points_world_contact.append(new_contact_world)
-        points_local.append(new_local)
+        contact_world.append(new_contact_world)
+        deposited_local.append(new_local)
         theta_values.append(next_theta)
-        radius_values.append(next_r_dep)
+        radius_values.append(next_radius)
         z_values.append(next_z)
         deposited_len += seg
 
@@ -370,14 +312,12 @@ def simulate_winding_contact(
         turn_progress = next_turn_progress
         turn_delay = next_turn_delay
         turn_z = next_turn_z
-        turn_start_cmd = next_turn_start_cmd
-        turn_end_cmd = next_turn_end_cmd
-        r_cmd = next_r_cmd
-        r_dep = next_r_dep
+        turn_start_radius = next_turn_start_radius
+        turn_end_radius = next_turn_end_radius
 
     return (
-        np.array(points_world_contact, dtype=float),
-        np.array(points_local, dtype=float),
+        np.array(contact_world, dtype=float),
+        np.array(deposited_local, dtype=float),
         np.array(theta_values, dtype=float),
         np.array(radius_values, dtype=float),
         np.array(z_values, dtype=float),
@@ -389,7 +329,6 @@ def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
         return float(d_tubo)
 
     xy = points[:, :2]
-
     max_samples = 1200
     if len(xy) > max_samples:
         idx = np.linspace(0, len(xy) - 1, max_samples).astype(int)
@@ -447,6 +386,7 @@ def viewer(
     guide_offset_x,
 ):
     anim_js = "true" if anim else "false"
+    final_world_contacts_json = json.dumps(final_world_contacts)
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
     final_radii_json = json.dumps(final_radii)
@@ -484,25 +424,29 @@ def viewer(
         const renderer = new THREE.WebGLRenderer({{ antialias: true }});
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(W, Hview);
+        renderer.outputEncoding = THREE.sRGBEncoding;
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
-        controls.target.set(0, 0, {float(spalla)}/2);
+        controls.target.set(0, 0, {spalla}/2);
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
+        const Hs = {float(spalla)};
         const speed = {float(vel)};
         const animEnabled = {anim_js};
         const guideOffsetX = {float(guide_offset_x)};
         const aspoMode = {aspo_mode_json};
 
+        const finalWorldContactsRaw = {final_world_contacts_json};
         const finalLocalRaw = {final_local_points_json};
         const finalThetaRaw = {final_thetas_json};
         const finalRadiusRaw = {final_radii_json};
         const finalZRaw = {final_zs_json};
 
+        const finalWorldContacts = finalWorldContactsRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
         const finalLocalPts = finalLocalRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
         const redMat = new THREE.MeshStandardMaterial({{
@@ -547,11 +491,11 @@ def viewer(
         scene.add(machine);
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, {float(spalla)}, 96),
+            new THREE.CylinderGeometry(R, R, Hs, 96),
             redMat
         );
         mandrel.rotation.x = Math.PI / 2;
-        mandrel.position.z = {float(spalla)} / 2.0;
+        mandrel.position.z = Hs / 2.0;
         machine.add(mandrel);
 
         const flangeR = R + 150.0;
@@ -570,7 +514,7 @@ def viewer(
             redMat
         );
         top.rotation.x = Math.PI / 2;
-        top.position.z = {float(spalla)};
+        top.position.z = Hs;
         machine.add(top);
 
         machine.visible = aspoMode !== "hidden";
@@ -627,56 +571,14 @@ def viewer(
             );
         }}
 
-        class PolylineCurve3 extends THREE.Curve {{
-            constructor(points) {{
-                super();
-                this.points = points || [];
-                this.cumulative = [];
-                this.totalLength = 0;
-
-                if (this.points.length >= 2) {{
-                    this.cumulative = [0];
-                    for (let i = 1; i < this.points.length; i++) {{
-                        this.totalLength += this.points[i].distanceTo(this.points[i - 1]);
-                        this.cumulative.push(this.totalLength);
-                    }}
-                }}
-            }}
-
-            getPoint(t) {{
-                if (!this.points || this.points.length === 0) return new THREE.Vector3();
-                if (this.points.length === 1) return this.points[0].clone();
-
-                const target = THREE.MathUtils.clamp(t, 0, 1) * this.totalLength;
-
-                for (let i = 1; i < this.cumulative.length; i++) {{
-                    if (target <= this.cumulative[i]) {{
-                        const l0 = this.cumulative[i - 1];
-                        const l1 = this.cumulative[i];
-                        const segLen = Math.max(1e-9, l1 - l0);
-                        const a = (target - l0) / segLen;
-                        return this.points[i - 1].clone().lerp(this.points[i], a);
-                    }}
-                }}
-
-                return this.points[this.points.length - 1].clone();
-            }}
-        }}
-
-        function buildTubeMeshFromPolyline(points, material, radialSegments = 14) {{
+        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat, animated = false) {{
             if (!points || points.length < 2) return null;
 
-            let totalLen = 0;
-            for (let i = 1; i < points.length; i++) {{
-                totalLen += points[i].distanceTo(points[i - 1]);
-            }}
+            const curveType = animated ? "catmullrom" : "centripetal";
+            const tension = animated ? 0.0 : 0.08;
 
-            const tubularSegments = Math.max(
-                18,
-                Math.min(3000, Math.floor(totalLen / Math.max(1.0, Rt * 0.32)))
-            );
-
-            const curve = new PolylineCurve3(points);
+            const curve = new THREE.CatmullRomCurve3(points, false, curveType, tension);
+            const tubularSegments = Math.max(24, Math.min(2500, points.length * 2));
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
         }}
@@ -699,6 +601,7 @@ def viewer(
             if (!obj) return;
             parentObj.remove(obj);
             if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) obj.material.dispose();
         }}
 
         let rollMesh = null;
@@ -730,11 +633,13 @@ def viewer(
             const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
             const visibleLocal = finalLocalPts.slice(0, safeIndex);
 
-            rollMesh = buildTubeMeshFromPolyline(visibleLocal, tubeMat, 14);
-            if (rollMesh) rollGroup.add(rollMesh);
+            if (visibleLocal.length >= 2) {{
+                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat, animEnabled);
+                if (rollMesh) rollGroup.add(rollMesh);
 
-            startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
-            endMarker = createMarker(visibleLocal[visibleLocal.length - 1], endMat, rollGroup);
+                startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
+                endMarker = createMarker(visibleLocal[visibleLocal.length - 1], endMat, rollGroup);
+            }}
 
             const i = safeIndex - 1;
             const currentTheta = finalThetaRaw[i];
@@ -750,22 +655,25 @@ def viewer(
             const guideWorld = guidePointWorld(currentRadius, currentZ);
             const freePts = [guideWorld, currentEndWorld];
 
-            freeMesh = buildTubeMeshFromPolyline(freePts, freeTubeMat, 12);
+            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat, true);
             if (freeMesh) scene.add(freeMesh);
 
             guide.position.copy(guideWorld);
+            guide.visible = true;
 
             guideFront.position.set(
                 guideWorld.x + 49,
                 guideWorld.y,
                 guideWorld.z
             );
+            guideFront.visible = true;
 
             guideNozzle.position.set(
                 guideWorld.x + 67,
                 guideWorld.y,
                 guideWorld.z
             );
+            guideNozzle.visible = true;
         }}
 
         rebuildView();
@@ -774,7 +682,7 @@ def viewer(
             requestAnimationFrame(animate);
 
             if (animEnabled && drawIndex < finalLocalPts.length) {{
-                drawAccumulator += Math.max(0.10, speed * 1.0);
+                drawAccumulator += Math.max(0.12, speed * 0.85);
                 const stepNow = Math.floor(drawAccumulator);
                 if (stepNow >= 1) {{
                     drawAccumulator -= stepNow;
@@ -856,7 +764,7 @@ d_tubo = d_rame + 2.0 * spessore
     radius_values,
     z_values,
     deposited_len_mm,
-) = simulate_winding_contact(
+) = simulate_winding_center_plane_local(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
@@ -866,7 +774,7 @@ d_tubo = d_rame + 2.0 * spessore
     rit_t=rit_t,
     lunghezza_m=lunghezza,
     gradi_start=gradi_start,
-    deg_step=1.0,
+    deg_step=2.0,
 )
 
 metrics = compute_metrics(local_points, d_tubo)
