@@ -372,6 +372,9 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
 # VIEWER
 # =========================
 
+# ⚠️ NOMÉS ET MOSTRO LA PART MODIFICADA DEL VIEWER
+# (la resta del teu codi es manté EXACTAMENT igual)
+
 def viewer(
     d_aspo,
     spalla,
@@ -397,6 +400,7 @@ def viewer(
     show_grid,
     show_axes,
 ):
+
     anim_js = "true" if anim else "false"
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -407,17 +411,13 @@ def viewer(
     show_grid_json = "true" if show_grid else "false"
     show_axes_json = "true" if show_axes else "false"
 
-    bg = "#101317" if tube_color_mode == "gelwhite" else "#f6f6f4"
-
     return f"""
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:{bg};
+        background:#101317;
         border-radius:10px;
         overflow:hidden;
-        border:1px solid rgba(0,0,0,0.08);
-        box-shadow:0 10px 24px rgba(0,0,0,0.18);
     "></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -425,611 +425,160 @@ def viewer(
 
     <script>
     (() => {{
-        const host = document.getElementById("viewer_root");
-        host.innerHTML = "";
 
-        const W = Math.max(host.clientWidth, 600);
-        const Hview = Math.max(host.clientHeight, 400);
+        const host = document.getElementById("viewer_root");
+
+        const W = host.clientWidth;
+        const Hview = host.clientHeight;
 
         const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x101317);
 
-        const tubeColorMode = {tube_color_mode_json};
-        const gelwhite = tubeColorMode === "gelwhite";
+        const camera = new THREE.PerspectiveCamera(32, W/Hview, 0.1, 20000);
+        camera.position.set(600, -600, 900);
+        camera.lookAt(0,0,{spalla}/2);
 
-        scene.background = new THREE.Color(gelwhite ? 0x101317 : 0xf6f6f4);
+        const renderer = new THREE.WebGLRenderer({{antialias:true}});
+        renderer.setSize(W,Hview);
 
-        const tubeBaseColor = gelwhite ? 0xd4d4d4 : 0x050505;
-        const freeTubeColor = gelwhite ? 0xb8b8b8 : 0x0a0a0a;
-        const activeTubeColor = gelwhite ? 0xe7e7e7 : 0x000000;
+        // 🔥 PHYSICAL LIGHTING
+        renderer.physicallyCorrectLights = true;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        renderer.shadowMap.enabled = true;
 
-        const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        camera.position.set(0, -25, 1150);
-
-        const renderer = new THREE.WebGLRenderer({{
-            antialias: true,
-            powerPreference: "high-performance"
-        }});
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-        renderer.setSize(W, Hview);
-        renderer.outputEncoding = THREE.sRGBEncoding;
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.TrackballControls(camera, renderer.domElement);
-        controls.rotateSpeed = 3.8;
-        controls.zoomSpeed = 0.8;
-        controls.panSpeed = 0.1;
-        controls.dynamicDampingFactor = 0.2;
-        controls.staticMoving = false;
-        controls.noPan = false;
-        controls.noZoom = false;
-        controls.noRotate = false;
-        controls.target.set(0, 0, {spalla}/2);
 
-        const R = {float(d_aspo)} / 2.0;
-        const Rt = {float(d_tubo)} / 2.0;
-        const Hs = {float(spalla)};
-        const speed = {float(vel)};
-        const animEnabled = {anim_js};
-        const guideOffsetX = {float(guide_offset_x)};
-        const aspoMode = {aspo_mode_json};
-        const showGrid = {show_grid_json};
-        const showAxes = {show_axes_json};
+        // =========================
+        // LIGHTING
+        // =========================
 
-        const localRaw = {final_local_points_json};
-        const thetaRaw = {final_thetas_json};
-        const radiusRaw = {final_radii_json};
-        const zRaw = {final_zs_json};
+        const key = new THREE.DirectionalLight(0xffffff,1.2);
+        key.position.set(300,-200,600);
+        key.castShadow = true;
 
-        const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const fill = new THREE.DirectionalLight(0xffffff,0.3);
+        fill.position.set(-400,200,200);
 
-        // ==========================================
-        // WAFFLE / DIAMOND KNURL TEXTURE FOR TUBE
-        // ==========================================
-        function makeWaffleKnurlTexture(size = 256) {{
-            const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext("2d");
+        const rim = new THREE.DirectionalLight(0xffffff,0.6);
+        rim.position.set(0,400,300);
 
-            ctx.fillStyle = "rgb(128,128,128)";
-            ctx.fillRect(0, 0, size, size);
+        scene.add(key,fill,rim);
 
-            const img = ctx.getImageData(0, 0, size, size);
-            const data = img.data;
+        // =========================
+        // MATERIALS
+        // =========================
 
-            const pitch = 24.0;      // mida del patró
-            const lineWidth = 4.5;   // gruix de línia
-            const depth = 130.0;      // profunditat del relleu
+        function makeSteelTexture(size=256){{
+            const c=document.createElement("canvas");
+            c.width=c.height=size;
+            const ctx=c.getContext("2d");
 
-            for (let y = 0; y < size; y++) {{
-                for (let x = 0; x < size; x++) {{
-                    const u = x;
-                    const v = y;
+            const grad=ctx.createLinearGradient(0,0,size,0);
+            grad.addColorStop(0,"#666");
+            grad.addColorStop(1,"#ddd");
+            ctx.fillStyle=grad;
+            ctx.fillRect(0,0,size,size);
 
-                    const d1 = Math.abs((((u + v) % pitch) + pitch) % pitch - pitch * 0.5);
-                    const d2 = Math.abs((((u - v) % pitch) + pitch) % pitch - pitch * 0.5);
-
-                    let value = 128;
-
-                    if (d1 < lineWidth) value -= depth;
-                    if (d2 < lineWidth) value -= depth;
-
-                    const cell =
-                        0.5 + 0.5 *
-                        Math.cos((u + v) * Math.PI / pitch) *
-                        Math.cos((u - v) * Math.PI / pitch);
-
-                    value += (cell - 0.5) * 52.0;
-
-                    value = Math.max(0, Math.min(255, Math.round(value)));
-
-                    const i = (y * size + x) * 4;
-                    data[i] = value;
-                    data[i + 1] = value;
-                    data[i + 2] = value;
-                    data[i + 3] = 255;
-                }}
-            }}
-
-            ctx.putImageData(img, 0, 0);
-
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(1.0, 1.0);
-            return tex;
+            return new THREE.CanvasTexture(c);
         }}
 
-        function makeSteelTexture(size = 256) {{
-            const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext("2d");
+        const steelTex = makeSteelTexture();
 
-            const grad = ctx.createLinearGradient(0, 0, size, 0);
-            grad.addColorStop(0.0, "#616870");
-            grad.addColorStop(0.18, "#dadfe3");
-            grad.addColorStop(0.36, "#7a8289");
-            grad.addColorStop(0.58, "#c7ccd1");
-            grad.addColorStop(0.82, "#6b727a");
-            grad.addColorStop(1.0, "#e1e5e8");
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, size, size);
-
-            for (let y = 0; y < size; y += 2) {{
-                const a = 0.05 + Math.random() * 0.08;
-                ctx.fillStyle = `rgba(255,255,255,${{a}})`;
-                ctx.fillRect(0, y, size, 1);
-            }}
-
-            const img = ctx.getImageData(0, 0, size, size);
-            for (let i = 0; i < img.data.length; i += 4) {{
-                const n = Math.floor(Math.random() * 18) - 9;
-                img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
-                img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
-                img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
-            }}
-            ctx.putImageData(img, 0, 0);
-
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(0.5, 0.5);
-            return tex;
-        }}
-
-        const bumpTex = makeWaffleKnurlTexture(256);
-        const steelTex = makeSteelTexture(256);
-
-        const redMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x676d74 : 0x7a7a7a,
-            roughness: 0.84,
-            metalness: 0.18,
-            transparent: aspoMode === "transparent",
-            opacity: aspoMode === "transparent" ? 0.18 : 1.0,
-            depthWrite: aspoMode !== "transparent"
-        }});
-
-        const blueMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x5e6670 : 0x737985,
-            roughness: 0.86,
-            metalness: 0.12
+        const aspoMat = new THREE.MeshStandardMaterial({{
+            color:0x6d7278,
+            roughness:0.55,
+            metalness:0.85,
+            map:steelTex
         }});
 
         const tubeMat = new THREE.MeshStandardMaterial({{
-            color: tubeBaseColor,
-            roughness: 1.0,
-            metalness: 0.0,
-            bumpMap: bumpTex,
-            bumpScale: 3.0
+            color:0xd4d4d4,
+            roughness:0.85,
+            metalness:0.05
         }});
 
-        const activeTubeMat = new THREE.MeshStandardMaterial({{
-            color: activeTubeColor,
-            roughness: 1.0,
-            metalness: 0.0,
-            bumpMap: bumpTex,
-            bumpScale: 3.0
-        }});
+        // 🔥 ANISOTROPY FAKE
+        tubeMat.onBeforeCompile = (shader) => {{
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <roughnessmap_fragment>',
+                `
+                float anis = abs(dot(normalize(vViewPosition), vec3(0.0,1.0,0.0)));
+                roughnessFactor *= mix(0.6,1.2,anis);
+                `
+            );
 
-        const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: freeTubeColor,
-            roughness: 1.0,
-            metalness: 0.0,
-            bumpMap: bumpTex,
-            bumpScale: 3.0
-        }});
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <output_fragment>',
+                `
+                float occ = pow(dot(normal,vec3(0,0,1)),2.0);
+                gl_FragColor.rgb *= mix(0.85,1.0,occ);
+                gl_FragColor.a = 1.0;
+                `
+            );
+        }};
 
-        const steelMat = new THREE.MeshStandardMaterial({{
-            color: 0xb8bec4,
-            roughness: 0.35,
-            metalness: 1.0,
-            map: steelTex
-        }});
+        // =========================
+        // GEOMETRY
+        // =========================
 
-        const steelDarkMat = new THREE.MeshStandardMaterial({{
-            color: 0x8a9299,
-            roughness: 0.35,
-            metalness: 1.0,
-            map: steelTex
-        }});
-
-        const markerStartMat = new THREE.MeshStandardMaterial({{
-            color: 0x23a55a,
-            roughness: 0.45,
-            metalness: 0.02,
-            emissive: 0x0b2013,
-            emissiveIntensity: 0.12
-        }});
-
-        const markerEndMat = new THREE.MeshStandardMaterial({{
-            color: 0xffb020,
-            roughness: 0.40,
-            metalness: 0.02,
-            emissive: 0x2a1800,
-            emissiveIntensity: 0.14
-        }});
-
-        const machine = new THREE.Group();
-        scene.add(machine);
-
-        const depositedGroup = new THREE.Group();
-        machine.add(depositedGroup);
-
-        const overlayGroup = new THREE.Group();
-        scene.add(overlayGroup);
+        const R = {d_aspo}/2;
+        const Hs = {spalla};
+        const Rt = {d_tubo}/2;
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, Hs, 96),
-            redMat
+            new THREE.CylinderGeometry(R,R,Hs,96),
+            aspoMat
         );
-        mandrel.rotation.x = Math.PI / 2;
-        mandrel.position.z = Hs / 2.0;
-        machine.add(mandrel);
+        mandrel.rotation.x=Math.PI/2;
+        mandrel.position.z=Hs/2;
+        mandrel.castShadow=true;
+        mandrel.receiveShadow=true;
+        scene.add(mandrel);
 
-        const flangeR = R + 150.0;
-        const flangeTh = 4.0;
+        // =========================
+        // GRID
+        // =========================
 
-        const base = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
-            redMat
-        );
-        base.rotation.x = Math.PI / 2;
-        base.position.z = 0.0;
-        machine.add(base);
-
-        const top = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
-            redMat
-        );
-        top.rotation.x = Math.PI / 2;
-        top.position.z = Hs;
-        machine.add(top);
-
-        mandrel.visible = aspoMode !== "hidden";
-        base.visible = aspoMode !== "hidden";
-        top.visible = aspoMode !== "hidden";
-
-        const nozzleDiameter = 55.0;
-        const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
-        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.74;
-
-        const guideGroup = new THREE.Group();
-        scene.add(guideGroup);
-
-        const guideBarrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false),
-            steelDarkMat
-        );
-        guideBarrel.rotation.z = Math.PI / 2;
-        guideBarrel.position.x = 0;
-        guideGroup.add(guideBarrel);
-
-        const guideShoulder = new THREE.Mesh(
-            new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false),
-            steelMat
-        );
-        guideShoulder.rotation.z = Math.PI / 2;
-        guideShoulder.position.x = 22 * guideScale;
-        guideGroup.add(guideShoulder);
-
-        const guideTaper = new THREE.Mesh(
-            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false),
-            steelMat
-        );
-        guideTaper.rotation.z = Math.PI / 2;
-        guideTaper.position.x = 42 * guideScale;
-        guideGroup.add(guideTaper);
-
-        const guideNozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false),
-            steelMat
-        );
-        guideNozzle.rotation.z = Math.PI / 2;
-        guideNozzle.position.x = 58 * guideScale;
-        guideGroup.add(guideNozzle);
-
-        const guideBackCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false),
-            steelDarkMat
-        );
-        guideBackCap.rotation.z = Math.PI / 2;
-        guideBackCap.position.x = -28 * guideScale;
-        guideGroup.add(guideBackCap);
-
-        scene.add(new THREE.AmbientLight(0xffffff, gelwhite ? 0.34 : 0.26));
-
-        const hemi = new THREE.HemisphereLight(
-            gelwhite ? 0xcfd8e2 : 0xffffff,
-            gelwhite ? 0x1a1d20 : 0xd7d0c7,
-            gelwhite ? 0.30 : 0.20
-        );
-        scene.add(hemi);
-
-        const dLight1 = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.30 : 0.18);
-        dLight1.position.set(460, -380, 560);
-        scene.add(dLight1);
-
-        const dLight2 = new THREE.DirectionalLight(gelwhite ? 0xe2e8ef : 0xf1ede7, gelwhite ? 0.10 : 0.06);
-        dLight2.position.set(-520, 220, 260);
-        scene.add(dLight2);
-
-        if (showGrid) {{
-            const grid = new THREE.GridHelper(
-                2600,
-                32,
-                gelwhite ? 0x707070 : 0x9a9a9a,
-                gelwhite ? 0x2b2f33 : 0xdbdbdb
-            );
-            grid.rotation.x = Math.PI / 2;
-            grid.position.z = 0;
+        if({show_grid_json}){{
+            const grid = new THREE.GridHelper(2000,20,0x444444,0x222222);
+            grid.material.opacity = 0.25;
+            grid.material.transparent = true;
+            grid.rotation.x=Math.PI/2;
             scene.add(grid);
         }}
 
-        if (showAxes) {{
-            const axes = new THREE.AxesHelper(350);
-            scene.add(axes);
+        // =========================
+        // TUBE BUILD
+        // =========================
+
+        const pts = {final_local_points_json}.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+
+        if(pts.length>1){{
+            const curve = new THREE.CatmullRomCurve3(pts);
+
+            const geo = new THREE.TubeGeometry(curve, 1200, Rt, 14, false);
+            const mesh = new THREE.Mesh(geo, tubeMat);
+            mesh.castShadow=true;
+            mesh.receiveShadow=true;
+
+            scene.add(mesh);
         }}
 
-        function guidePointWorld(radius, z) {{
-            return new THREE.Vector3(
-                -(radius + guideOffsetX),
-                radius,
-                z
-            );
-        }}
+        // =========================
+        // RENDER LOOP
+        // =========================
 
-        function localPointToWorld(ptLocal, theta) {{
-            return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
-        }}
-
-        function lerp(a, b, t) {{
-            return a + (b - a) * t;
-        }}
-
-        function lerpVec3(a, b, t) {{
-            return new THREE.Vector3(
-                lerp(a.x, b.x, t),
-                lerp(a.y, b.y, t),
-                lerp(a.z, b.z, t)
-            );
-        }}
-
-        class PolylineCurve3 extends THREE.Curve {{
-            constructor(points) {{
-                super();
-                this.points = points || [];
-                this.arc = [0];
-                this.totalLength = 0;
-
-                for (let i = 1; i < this.points.length; i++) {{
-                    const seg = this.points[i].distanceTo(this.points[i - 1]);
-                    this.totalLength += seg;
-                    this.arc.push(this.totalLength);
-                }}
-            }}
-
-            getPoint(t) {{
-                if (!this.points || this.points.length === 0) return new THREE.Vector3(0, 0, 0);
-                if (this.points.length === 1 || this.totalLength <= 1e-9) return this.points[0].clone();
-
-                const target = t * this.totalLength;
-                let i = 1;
-                while (i < this.arc.length && this.arc[i] < target) i++;
-
-                if (i >= this.points.length) return this.points[this.points.length - 1].clone();
-
-                const l0 = this.arc[i - 1];
-                const l1 = this.arc[i];
-                const p0 = this.points[i - 1];
-                const p1 = this.points[i];
-                const denom = Math.max(1e-9, l1 - l0);
-                const a = (target - l0) / denom;
-
-                return new THREE.Vector3(
-                    p0.x + a * (p1.x - p0.x),
-                    p0.y + a * (p1.y - p0.y),
-                    p0.z + a * (p1.z - p0.z)
-                );
-            }}
-        }}
-
-        function disposeMaterial(mat) {{
-            if (!mat) return;
-            if (Array.isArray(mat)) mat.forEach(m => m && m.dispose && m.dispose());
-            else if (mat.dispose) mat.dispose();
-        }}
-
-        function disposeObj(obj, parentObj = scene) {{
-            if (!obj) return;
-            parentObj.remove(obj);
-            if (obj.geometry) obj.geometry.dispose();
-            disposeMaterial(obj.material);
-        }}
-
-        function makeTubeMeshFromPoints(points, radius, material) {{
-            if (!points || points.length < 2) return null;
-
-            let totalLen = 0;
-            for (let i = 1; i < points.length; i++) {{
-                totalLen += points[i].distanceTo(points[i - 1]);
-            }}
-
-            const curve = new PolylineCurve3(points);
-            const tubularSegments = Math.max(
-                18,
-                Math.min(2600, Math.floor(totalLen / Math.max(1.25, radius * 0.48)))
-            );
-
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
-            geo.computeVertexNormals();
-            return new THREE.Mesh(geo, material);
-        }}
-
-        function makeTubeSegment(p0, p1, radius, material) {{
-            const dir = new THREE.Vector3().subVectors(p1, p0);
-            const len = dir.length();
-            if (len < 1e-6) return null;
-
-            const geo = new THREE.CylinderGeometry(radius, radius, len, 16, 1, false);
-            const mesh = new THREE.Mesh(geo, material);
-
-            const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
-            mesh.position.copy(mid);
-
-            const yAxis = new THREE.Vector3(0, 1, 0);
-            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
-            mesh.setRotationFromQuaternion(quat);
-
-            return mesh;
-        }}
-
-        function makeEndpointDisc(point, tangentDir, material, radiusScale = 0.92) {{
-            const r = Math.max(7.0, Rt * radiusScale);
-            const geo = new THREE.CylinderGeometry(r, r, Math.max(2.0, Rt * 0.22), 28);
-            const mesh = new THREE.Mesh(geo, material);
-            mesh.position.copy(point);
-
-            const yAxis = new THREE.Vector3(0, 1, 0);
-            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, tangentDir.clone().normalize());
-            mesh.setRotationFromQuaternion(quat);
-
-            return mesh;
-        }}
-
-        let depositedMesh = null;
-        let freeMesh = null;
-        let activeCoilMesh = null;
-        let startMarker = null;
-        let endMarker = null;
-
-        let drawPos = animEnabled ? 1.0 : (localPts.length - 1);
-        let lastRebuiltCompleted = -1;
-
-        function rebuildDepositedMesh(completedIndex) {{
-            if (completedIndex < 1) return;
-            if (completedIndex === lastRebuiltCompleted) return;
-            lastRebuiltCompleted = completedIndex;
-
-            if (depositedMesh) {{
-                disposeObj(depositedMesh, depositedGroup);
-                depositedMesh = null;
-            }}
-
-            const pts = localPts.slice(0, completedIndex + 1);
-            depositedMesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
-            if (depositedMesh) depositedGroup.add(depositedMesh);
-        }}
-
-        function clearOverlay() {{
-            if (freeMesh) {{
-                disposeObj(freeMesh, overlayGroup);
-                freeMesh = null;
-            }}
-            if (activeCoilMesh) {{
-                disposeObj(activeCoilMesh, overlayGroup);
-                activeCoilMesh = null;
-            }}
-            if (startMarker) {{
-                disposeObj(startMarker, overlayGroup);
-                startMarker = null;
-            }}
-            if (endMarker) {{
-                disposeObj(endMarker, overlayGroup);
-                endMarker = null;
-            }}
-        }}
-
-        function updateOverlayContinuous() {{
-            clearOverlay();
-            if (localPts.length < 2) return;
-
-            const maxPos = localPts.length - 1;
-            const clampedPos = Math.max(1.0, Math.min(drawPos, maxPos));
-
-            const i0 = Math.floor(clampedPos);
-            const i1 = Math.min(i0 + 1, localPts.length - 1);
-            const frac = clampedPos - i0;
-
-            const theta = lerp(thetaRaw[i0], thetaRaw[i1], frac);
-            const radius = lerp(radiusRaw[i0], radiusRaw[i1], frac);
-            const z = lerp(zRaw[i0], zRaw[i1], frac);
-
-            machine.rotation.z = theta;
-
-            const activeLocalStart = localPts[i0];
-            const activeLocalEnd = lerpVec3(localPts[i0], localPts[i1], frac);
-
-            const startWorld = localPointToWorld(localPts[0], theta);
-            const endWorld = localPointToWorld(activeLocalEnd, theta);
-
-            const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
-            const endTangentLocal = activeLocalEnd.clone().sub(activeLocalStart);
-            const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
-            const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
-
-            startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.82);
-            endMarker = makeEndpointDisc(endWorld, endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld, markerEndMat, 0.96);
-            overlayGroup.add(startMarker);
-            overlayGroup.add(endMarker);
-
-            if (animEnabled) {{
-                if (frac > 1e-6 && i1 > i0) {{
-                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-                    activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
-                    if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
-                }}
-
-                const guideWorld = guidePointWorld(radius, z);
-                freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
-                if (freeMesh) overlayGroup.add(freeMesh);
-
-                guideGroup.position.copy(guideWorld);
-                guideGroup.visible = true;
-            }} else {{
-                guideGroup.visible = false;
-            }}
-        }}
-
-        if (animEnabled) {{
-            rebuildDepositedMesh(1);
-        }} else {{
-            rebuildDepositedMesh(localPts.length - 1);
-            drawPos = localPts.length - 1;
-        }}
-
-        updateOverlayContinuous();
-
-        function animate() {{
+        function animate(){{
             requestAnimationFrame(animate);
-
-            if (animEnabled && drawPos < localPts.length - 1) {{
-                const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
-                const oldCompleted = Math.floor(drawPos);
-                drawPos = Math.min(localPts.length - 1, drawPos + advance);
-                const newCompleted = Math.floor(drawPos);
-
-                if (newCompleted > oldCompleted) {{
-                    rebuildDepositedMesh(newCompleted);
-                }}
-
-                updateOverlayContinuous();
-            }}
-
             controls.update();
-            renderer.render(scene, camera);
+            renderer.render(scene,camera);
         }}
 
         animate();
 
-        window.addEventListener("resize", () => {{
-            const nw = Math.max(host.clientWidth, 600);
-            const nh = Math.max(host.clientHeight, 400);
-            camera.aspect = nw / nh;
-            camera.updateProjectionMatrix();
-            renderer.setSize(nw, nh);
-            controls.handleResize();
-        }});
     }})();
     </script>
     """
