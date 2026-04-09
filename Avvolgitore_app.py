@@ -46,9 +46,9 @@ TEXTS = {
         "aspo_visible": "Visibile",
         "aspo_transparent": "Trasparente",
         "aspo_hidden": "Nascosto",
-        "bg_mode": "Sfondo",
-        "bg_dark": "Scuro",
-        "bg_light": "Chiaro",
+        "tube_color_mode": "Colore tubo",
+        "tube_gelwhite": "Gelwhite",
+        "tube_gelblack": "Gelblack",
         "show_grid": "Mostra grid",
         "show_axes": "Mostra assi",
         "metric1": "Diametro tubo",
@@ -81,9 +81,9 @@ TEXTS = {
         "aspo_visible": "Visible",
         "aspo_transparent": "Transparent",
         "aspo_hidden": "Hidden",
-        "bg_mode": "Background",
-        "bg_dark": "Dark",
-        "bg_light": "Light",
+        "tube_color_mode": "Tube color",
+        "tube_gelwhite": "Gelwhite",
+        "tube_gelblack": "Gelblack",
         "show_grid": "Show grid",
         "show_axes": "Show axes",
         "metric1": "Tube diameter",
@@ -114,7 +114,7 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 gradi_start = 0.0
 pinza = 0.0
-guide_offset_x = 340.0  # més lluny de l'aspo
+guide_offset_x = 355.0
 
 # =========================
 # LOGO
@@ -394,7 +394,7 @@ def viewer(
     final_zs,
     aspo_mode,
     guide_offset_x,
-    bg_mode,
+    tube_color_mode,
     show_grid,
     show_axes,
 ):
@@ -404,7 +404,7 @@ def viewer(
     final_radii_json = json.dumps(final_radii)
     final_zs_json = json.dumps(final_zs)
     aspo_mode_json = json.dumps(aspo_mode)
-    bg_mode_json = json.dumps(bg_mode)
+    tube_color_mode_json = json.dumps(tube_color_mode)
     show_grid_json = "true" if show_grid else "false"
     show_axes_json = "true" if show_axes else "false"
 
@@ -412,7 +412,7 @@ def viewer(
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:{'#0b0f14' if bg_mode == 'dark' else '#f4f4f1'};
+        background:{'#0b0f14' if tube_color_mode == 'gelwhite' else '#f4f4f1'};
         border-radius:10px;
         overflow:hidden;
         border:1px solid rgba(0,0,0,0.08);
@@ -432,14 +432,13 @@ def viewer(
 
         const scene = new THREE.Scene();
 
-        const bgMode = {bg_mode_json};
-        const bgDark = bgMode === "dark";
-        scene.background = new THREE.Color(bgDark ? 0x0b0f14 : 0xf4f4f1);
+        const tubeColorMode = {tube_color_mode_json};
+        const gelwhite = tubeColorMode === "gelwhite";
+        scene.background = new THREE.Color(gelwhite ? 0x0b0f14 : 0xf4f4f1);
 
-        // blanc menys lluminós al dark, negre més fosc al light
-        const tubeBaseColor = bgDark ? 0xd8d8d8 : 0x050505;
-        const freeTubeColor = bgDark ? 0xc8c8c8 : 0x0a0a0a;
-        const activeTubeColor = bgDark ? 0xe6e6e6 : 0x000000;
+        const tubeBaseColor = gelwhite ? 0xd2d2d2 : 0x040404;
+        const freeTubeColor = gelwhite ? 0xbdbdbd : 0x0a0a0a;
+        const activeTubeColor = gelwhite ? 0xe1e1e1 : 0x000000;
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
         camera.position.set(0, -25, 1150);
@@ -455,21 +454,21 @@ def viewer(
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.055;
+        controls.dampingFactor = 0.05;
         controls.rotateSpeed = 0.95;
-        controls.zoomSpeed = 1.05;
+        controls.zoomSpeed = 1.0;
         controls.panSpeed = 0.8;
         controls.enablePan = true;
-        controls.screenSpacePanning = false;
         controls.enableRotate = true;
         controls.enableZoom = true;
+        controls.screenSpacePanning = false;
         controls.minDistance = 120;
         controls.maxDistance = 5000;
         controls.minPolarAngle = 0.0;
         controls.maxPolarAngle = Math.PI;
         controls.target.set(0, 0, {spalla}/2);
 
-        // arreglar pan invertit
+        // Tornem al pan "com abans" i rotació 360° sobre vertical
         controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
         controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
         controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
@@ -499,7 +498,7 @@ def viewer(
             const img = ctx.createImageData(size, size);
 
             for (let i = 0; i < img.data.length; i += 4) {{
-                const v = 115 + Math.floor(Math.random() * 30);
+                const v = 85 + Math.floor(Math.random() * 85);
                 img.data[i] = v;
                 img.data[i + 1] = v;
                 img.data[i + 2] = v;
@@ -510,65 +509,66 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(28, 5);
+            tex.repeat.set(52, 9);
             return tex;
         }}
 
         const bumpTex = makeNoiseTexture(128);
 
         const redMat = new THREE.MeshStandardMaterial({{
-            color: bgDark ? 0x6b7076 : 0x777777,
-            roughness: 0.78,
-            metalness: 0.24,
+            color: gelwhite ? 0x656a70 : 0x777777,
+            roughness: 0.82,
+            metalness: 0.20,
             transparent: aspoMode === "transparent",
             opacity: aspoMode === "transparent" ? 0.18 : 1.0,
             depthWrite: aspoMode !== "transparent"
         }});
 
         const blueMat = new THREE.MeshStandardMaterial({{
-            color: bgDark ? 0x555b63 : 0x707784,
-            roughness: 0.82,
-            metalness: 0.18
+            color: gelwhite ? 0x59616b : 0x6e7480,
+            roughness: 0.84,
+            metalness: 0.14
         }});
 
+        // textura molt més evident
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.78,
-            metalness: 0.01,
+            roughness: 0.92,
+            metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 0.32
+            bumpScale: 1.1
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.72,
-            metalness: 0.01,
+            roughness: 0.88,
+            metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 0.28
+            bumpScale: 0.95
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 0.74,
-            metalness: 0.01,
+            roughness: 0.90,
+            metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 0.22
+            bumpScale: 0.78
         }});
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a,
-            roughness: 0.40,
-            metalness: 0.05,
-            emissive: 0x0d2a17,
-            emissiveIntensity: 0.15
+            roughness: 0.45,
+            metalness: 0.02,
+            emissive: 0x0b2013,
+            emissiveIntensity: 0.12
         }});
 
         const markerEndMat = new THREE.MeshStandardMaterial({{
             color: 0xffb020,
-            roughness: 0.35,
-            metalness: 0.05,
-            emissive: 0x3b2400,
-            emissiveIntensity: 0.18
+            roughness: 0.40,
+            metalness: 0.02,
+            emissive: 0x2a1800,
+            emissiveIntensity: 0.14
         }});
 
         const machine = new THREE.Group();
@@ -611,62 +611,79 @@ def viewer(
         base.visible = aspoMode !== "hidden";
         top.visible = aspoMode !== "hidden";
 
-        // guidatubo molt més petit i més lluny
+        // guidatubo estilitzat, menys armatoste
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
-        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.78;
+        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.74;
 
-        const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(80 * guideScale, 50 * guideScale, 50 * guideScale),
-            blueMat
-        );
-        scene.add(guide);
+        const guideBodyMat = blueMat;
+        const guideMetalMat = new THREE.MeshStandardMaterial({{
+            color: gelwhite ? 0x8f959c : 0x8b8f95,
+            roughness: 0.74,
+            metalness: 0.24
+        }});
 
-        const guideFront = new THREE.Mesh(
-            new THREE.BoxGeometry(16 * guideScale, 20 * guideScale, 20 * guideScale),
-            new THREE.MeshStandardMaterial({{
-                color: bgDark ? 0x8b9198 : 0x8b8f95,
-                roughness: 0.76,
-                metalness: 0.22
-            }})
+        const guideGroup = new THREE.Group();
+        scene.add(guideGroup);
+
+        const guideMain = new THREE.Mesh(
+            new THREE.BoxGeometry(58 * guideScale, 34 * guideScale, 34 * guideScale),
+            guideBodyMat
         );
-        scene.add(guideFront);
+        guideGroup.add(guideMain);
+
+        const guideTaper = new THREE.Mesh(
+            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 20),
+            guideMetalMat
+        );
+        guideTaper.rotation.z = Math.PI / 2;
+        guideTaper.position.x = 32 * guideScale;
+        guideGroup.add(guideTaper);
 
         const guideNozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 18 * guideScale, 28),
+            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 28),
             new THREE.MeshStandardMaterial({{
-                color: bgDark ? 0x9da3aa : 0x8a8e93,
-                roughness: 0.70,
-                metalness: 0.26
+                color: gelwhite ? 0xa5abb2 : 0x8a8e93,
+                roughness: 0.68,
+                metalness: 0.28
             }})
         );
         guideNozzle.rotation.z = Math.PI / 2;
-        scene.add(guideNozzle);
+        guideNozzle.position.x = 47 * guideScale;
+        guideGroup.add(guideNozzle);
 
-        // llum més natural i menys exagerada
-        scene.add(new THREE.AmbientLight(0xffffff, bgDark ? 0.44 : 0.52));
+        const guideBackCap = new THREE.Mesh(
+            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 18),
+            guideMetalMat
+        );
+        guideBackCap.rotation.z = Math.PI / 2;
+        guideBackCap.position.x = -30 * guideScale;
+        guideGroup.add(guideBackCap);
+
+        // llum general molt més natural
+        scene.add(new THREE.AmbientLight(0xffffff, gelwhite ? 0.26 : 0.30));
 
         const hemi = new THREE.HemisphereLight(
-            bgDark ? 0xcdd8e6 : 0xffffff,
-            bgDark ? 0x1a1a1a : 0xd9d4cf,
-            bgDark ? 0.42 : 0.38
+            gelwhite ? 0xbcc7d4 : 0xf8f8f8,
+            gelwhite ? 0x171717 : 0xd8d1c9,
+            gelwhite ? 0.22 : 0.20
         );
         scene.add(hemi);
 
-        const dLight1 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.42 : 0.34);
-        dLight1.position.set(520, -460, 720);
+        const dLight1 = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.24 : 0.18);
+        dLight1.position.set(460, -380, 560);
         scene.add(dLight1);
 
-        const dLight2 = new THREE.DirectionalLight(bgDark ? 0xdfe3e8 : 0xf6f2ec, bgDark ? 0.14 : 0.10);
-        dLight2.position.set(-650, 260, 300);
+        const dLight2 = new THREE.DirectionalLight(gelwhite ? 0xd5dde7 : 0xf1ede7, gelwhite ? 0.08 : 0.06);
+        dLight2.position.set(-520, 220, 260);
         scene.add(dLight2);
 
         if (showGrid) {{
             const grid = new THREE.GridHelper(
                 2600,
                 32,
-                bgDark ? 0x666666 : 0x9c9c9c,
-                bgDark ? 0x2a2a2a : 0xdbdbdb
+                gelwhite ? 0x666666 : 0x9a9a9a,
+                gelwhite ? 0x292929 : 0xdbdbdb
             );
             grid.rotation.x = Math.PI / 2;
             grid.position.z = 0;
@@ -880,26 +897,10 @@ def viewer(
                 freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
                 if (freeMesh) overlayGroup.add(freeMesh);
 
-                guide.position.copy(guideWorld);
-                guide.visible = true;
-
-                guideFront.position.set(
-                    guideWorld.x + 38 * guideScale,
-                    guideWorld.y,
-                    guideWorld.z
-                );
-                guideFront.visible = true;
-
-                guideNozzle.position.set(
-                    guideWorld.x + 52 * guideScale,
-                    guideWorld.y,
-                    guideWorld.z
-                );
-                guideNozzle.visible = true;
+                guideGroup.position.copy(guideWorld);
+                guideGroup.visible = true;
             }} else {{
-                guide.visible = false;
-                guideFront.visible = false;
-                guideNozzle.visible = false;
+                guideGroup.visible = false;
             }}
         }}
 
@@ -980,9 +981,9 @@ with colD:
         [t["aspo_visible"], t["aspo_transparent"], t["aspo_hidden"]],
         index=0
     )
-    bg_mode_label = st.selectbox(
-        t["bg_mode"],
-        [t["bg_dark"], t["bg_light"]],
+    tube_color_mode_label = st.selectbox(
+        t["tube_color_mode"],
+        [t["tube_gelwhite"], t["tube_gelblack"]],
         index=0
     )
     show_grid = st.checkbox(t["show_grid"], True)
@@ -995,7 +996,7 @@ elif aspo_mode_label == t["aspo_transparent"]:
 else:
     aspo_mode = "hidden"
 
-bg_mode = "dark" if bg_mode_label == t["bg_dark"] else "light"
+tube_color_mode = "gelwhite" if tube_color_mode_label == t["tube_gelwhite"] else "gelblack"
 
 # =========================
 # BUILD
@@ -1047,7 +1048,7 @@ components.html(
         z_values.tolist(),
         aspo_mode,
         guide_offset_x,
-        bg_mode,
+        tube_color_mode,
         show_grid,
         show_axes,
     ),
