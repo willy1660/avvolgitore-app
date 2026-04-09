@@ -145,9 +145,9 @@ def find_logo():
 logo_path = find_logo()
 
 if logo_path:
-    c1, c2 = st.columns([1, 5])
+    c1, c2 = st.columns([0.7, 5.3])
     with c1:
-        st.image(logo_path, use_container_width=True)
+        st.image(logo_path, width=68)
     with c2:
         st.markdown(f"## {t['title']}")
 else:
@@ -596,6 +596,7 @@ def viewer(
         // ==========================================
         let clippingPlanes = [];
         let sectionPlaneHelper = null;
+        let sectionFrame = null;
 
         if (cutHalf) {{
             const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
@@ -604,7 +605,7 @@ def viewer(
             const sectionMat = new THREE.MeshBasicMaterial({{
                 color: gelwhite ? 0xffffff : 0x000000,
                 transparent: true,
-                opacity: gelwhite ? 0.12 : 0.08,
+                opacity: gelwhite ? 0.18 : 0.12,
                 side: THREE.DoubleSide,
                 depthWrite: false
             }});
@@ -614,6 +615,17 @@ def viewer(
             sectionPlaneHelper.position.set(0, 0, Hs * 0.5);
             sectionPlaneHelper.rotation.y = Math.PI / 2;
             scene.add(sectionPlaneHelper);
+
+            const frameGeo = new THREE.EdgesGeometry(sectionGeo);
+            const frameMat = new THREE.LineBasicMaterial({{
+                color: gelwhite ? 0xffffff : 0x111111,
+                transparent: true,
+                opacity: gelwhite ? 0.45 : 0.35
+            }});
+            sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
+            sectionFrame.position.copy(sectionPlaneHelper.position);
+            sectionFrame.rotation.copy(sectionPlaneHelper.rotation);
+            scene.add(sectionFrame);
         }}
 
         // ==========================================
@@ -728,13 +740,6 @@ def viewer(
             depthWrite: aspoMode !== "transparent"
         }});
 
-        const blueMat = new THREE.MeshStandardMaterial({{
-            color: gelwhite ? 0x76808a : 0x8a939d,
-            roughness: 0.48,
-            metalness: 0.82,
-            map: steelTex
-        }});
-
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
             roughness: 0.85,
@@ -763,20 +768,6 @@ def viewer(
             bumpScale: 1.1,
             clippingPlanes: clippingPlanes,
             clipShadows: cutHalf
-        }});
-
-        const steelMat = new THREE.MeshStandardMaterial({{
-            color: 0xb8bec4,
-            roughness: 0.35,
-            metalness: 1.0,
-            map: steelTex
-        }});
-
-        const steelDarkMat = new THREE.MeshStandardMaterial({{
-            color: 0x8a9299,
-            roughness: 0.35,
-            metalness: 1.0,
-            map: steelTex
         }});
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
@@ -844,11 +835,11 @@ def viewer(
         keyLight.shadow.camera.far = 3000;
         scene.add(keyLight);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.32 : 0.26);
+        const fillLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.40 : 0.32);
         fillLight.position.set(-400, 200, 200);
         scene.add(fillLight);
 
-        const rimLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.58 : 0.50);
+        const rimLight = new THREE.DirectionalLight(0xffffff, gelwhite ? 0.62 : 0.52);
         rimLight.position.set(0, 400, 300);
         scene.add(rimLight);
 
@@ -905,7 +896,7 @@ def viewer(
         top.visible = aspoMode !== "hidden";
 
         // ==========================================
-        // GUIDE
+        // GUIDE (same material as spool)
         // ==========================================
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
@@ -916,7 +907,7 @@ def viewer(
 
         const guideBarrel = new THREE.Mesh(
             new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false),
-            steelDarkMat
+            redMat
         );
         guideBarrel.rotation.z = Math.PI / 2;
         guideBarrel.position.x = 0;
@@ -926,7 +917,7 @@ def viewer(
 
         const guideShoulder = new THREE.Mesh(
             new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false),
-            steelMat
+            redMat
         );
         guideShoulder.rotation.z = Math.PI / 2;
         guideShoulder.position.x = 22 * guideScale;
@@ -936,7 +927,7 @@ def viewer(
 
         const guideTaper = new THREE.Mesh(
             new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false),
-            steelMat
+            redMat
         );
         guideTaper.rotation.z = Math.PI / 2;
         guideTaper.position.x = 42 * guideScale;
@@ -946,7 +937,7 @@ def viewer(
 
         const guideNozzle = new THREE.Mesh(
             new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false),
-            steelMat
+            redMat
         );
         guideNozzle.rotation.z = Math.PI / 2;
         guideNozzle.position.x = 58 * guideScale;
@@ -956,7 +947,7 @@ def viewer(
 
         const guideBackCap = new THREE.Mesh(
             new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false),
-            steelDarkMat
+            redMat
         );
         guideBackCap.rotation.z = Math.PI / 2;
         guideBackCap.position.x = -28 * guideScale;
@@ -971,12 +962,12 @@ def viewer(
             const grid = new THREE.GridHelper(
                 2000,
                 20,
-                gelwhite ? 0x444444 : 0x8e8e8e,
-                gelwhite ? 0x222222 : 0xd8d8d8
+                gelwhite ? 0x6f6f6f : 0x5c5c5c,
+                gelwhite ? 0x2f2f2f : 0xb8b8b8
             );
             grid.rotation.x = Math.PI / 2;
             grid.position.z = 0;
-            grid.material.opacity = 0.25;
+            grid.material.opacity = gelwhite ? 0.34 : 0.72;
             grid.material.transparent = true;
             scene.add(grid);
         }}
