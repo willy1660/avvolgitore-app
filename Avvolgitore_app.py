@@ -612,10 +612,10 @@ def viewer(
         // Guidatubo exageradament gran
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
-        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 1.05;
+        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 1.005;
 
         const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(80 * guideScale, 60 * guideScale, 60 * guideScale),
+            new THREE.BoxGeometry(30 * guideScale, 20 * guideScale, 20 * guideScale),
             blueMat
         );
         scene.add(guide);
