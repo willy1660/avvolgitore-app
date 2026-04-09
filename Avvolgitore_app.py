@@ -486,7 +486,7 @@ def viewer(
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-        function makeNoiseTexture(size = 128) {{
+        function makeNoiseTexture(size = 300) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
             canvas.height = size;
@@ -529,26 +529,26 @@ def viewer(
         // materials més sòlids visualment
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.58,
+            roughness: 0.8,
             metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.42
+            bumpScale: 0.6
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.54,
+            roughness: 0.8,
             metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.36
+            bumpScale: 0.6
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 0.56,
+            roughness: 0.8,
             metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.28
+            bumpScale: 0.6
         }});
 
         // endpoints molt més clars i precisos
@@ -557,7 +557,7 @@ def viewer(
             roughness: 0.40,
             metalness: 0.05,
             emissive: 0x0d2a17,
-            emissiveIntensity: 0.25
+            emissiveIntensity: 0.5
         }});
 
         const markerEndMat = new THREE.MeshStandardMaterial({{
@@ -565,7 +565,7 @@ def viewer(
             roughness: 0.35,
             metalness: 0.05,
             emissive: 0x3b2400,
-            emissiveIntensity: 0.30
+            emissiveIntensity: 0.5
         }});
 
         const machine = new THREE.Group();
@@ -612,7 +612,7 @@ def viewer(
         // Guidatubo exageradament gran
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
-        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 1.9;
+        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 1.12;
 
         const guide = new THREE.Mesh(
             new THREE.BoxGeometry(80 * guideScale, 60 * guideScale, 60 * guideScale),
@@ -621,7 +621,7 @@ def viewer(
         scene.add(guide);
 
         const guideFront = new THREE.Mesh(
-            new THREE.BoxGeometry(18 * guideScale, 26 * guideScale, 26 * guideScale),
+            new THREE.BoxGeometry(18 * guideScale, 24 * guideScale, 24 * guideScale),
             new THREE.MeshStandardMaterial({{
                 color: bgDark ? 0x8b9198 : 0x8b8f95,
                 roughness: 0.76,
