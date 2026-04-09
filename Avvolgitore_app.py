@@ -501,7 +501,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(250, 100);
+            tex.repeat.set(100, 100);
             return tex;
         }}
 
@@ -539,7 +539,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(0.5, 0.5);
+            tex.repeat.set(0.5, 0.45);
             return tex;
         }}
 
@@ -594,8 +594,8 @@ def viewer(
 
         const steelDarkMat = new THREE.MeshStandardMaterial({{
             color: 0x8a9299,
-            roughness: 0.35,
-            metalness: 1.0,
+            roughness: 0.42,
+            metalness: 0.82,
             map: steelTex
         }});
 
