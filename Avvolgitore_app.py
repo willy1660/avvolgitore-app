@@ -443,7 +443,7 @@ def viewer(
         const activeTubeColor = gelwhite ? 0xf0f0ee : 0x050505;
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        camera.position.set(-820, -820, 160);
+        camera.position.set(-820, -520, 260);
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
@@ -1111,7 +1111,7 @@ def viewer(
             }}
 
             controls.update();
-            renderer.render(scene, );
+            renderer.render(scene, camera);
         }}
 
         animate();
@@ -1119,8 +1119,8 @@ def viewer(
         window.addEventListener("resize", () => {{
             const nw = Math.max(host.clientWidth, 600);
             const nh = Math.max(host.clientHeight, 400);
-            .aspect = nw / nh;
-            .updateProjectionMatrix();
+            camera.aspect = nw / nh;
+            camera.updateProjectionMatrix();
             renderer.setSize(nw, nh);
             controls.handleResize();
         }});
