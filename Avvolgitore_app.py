@@ -571,14 +571,69 @@ def viewer(
             );
         }}
 
-        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat, animated = false) {{
+        class PolylineCurve3 extends THREE.Curve {{
+            constructor(points) {{
+                super();
+                this.points = points || [];
+                this.arc = [0];
+                this.totalLength = 0;
+
+                for (let i = 1; i < this.points.length; i++) {{
+                    const seg = this.points[i].distanceTo(this.points[i - 1]);
+                    this.totalLength += seg;
+                    this.arc.push(this.totalLength);
+                }}
+            }}
+
+            getPoint(t) {{
+                if (!this.points || this.points.length === 0) {{
+                    return new THREE.Vector3(0, 0, 0);
+                }}
+                if (this.points.length === 1 || this.totalLength <= 1e-9) {{
+                    return this.points[0].clone();
+                }}
+
+                const target = t * this.totalLength;
+
+                let i = 1;
+                while (i < this.arc.length && this.arc[i] < target) {{
+                    i++;
+                }}
+
+                if (i >= this.points.length) {{
+                    return this.points[this.points.length - 1].clone();
+                }}
+
+                const l0 = this.arc[i - 1];
+                const l1 = this.arc[i];
+                const p0 = this.points[i - 1];
+                const p1 = this.points[i];
+
+                const denom = Math.max(1e-9, l1 - l0);
+                const a = (target - l0) / denom;
+
+                return new THREE.Vector3(
+                    p0.x + a * (p1.x - p0.x),
+                    p0.y + a * (p1.y - p0.y),
+                    p0.z + a * (p1.z - p0.z)
+                );
+            }}
+        }}
+
+        function buildTubeMeshFromPoints(points, radialSegments = 12, material = tubeMat) {{
             if (!points || points.length < 2) return null;
 
-            const curveType = animated ? "catmullrom" : "centripetal";
-            const tension = animated ? 0.0 : 0.08;
+            let totalLen = 0;
+            for (let i = 1; i < points.length; i++) {{
+                totalLen += points[i].distanceTo(points[i - 1]);
+            }}
 
-            const curve = new THREE.CatmullRomCurve3(points, false, curveType, tension);
-            const tubularSegments = Math.max(24, Math.min(2500, points.length * 2));
+            const tubularSegments = Math.max(
+                12,
+                Math.min(4000, Math.floor(totalLen / Math.max(1.0, Rt * 0.35)))
+            );
+
+            const curve = new PolylineCurve3(points);
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
         }}
@@ -597,11 +652,20 @@ def viewer(
             return m;
         }}
 
+        function disposeMaterial(mat) {{
+            if (!mat) return;
+            if (Array.isArray(mat)) {{
+                mat.forEach(m => m && m.dispose && m.dispose());
+            }} else if (mat.dispose) {{
+                mat.dispose();
+            }}
+        }}
+
         function disposeObj(obj, parentObj = scene) {{
             if (!obj) return;
             parentObj.remove(obj);
             if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) obj.material.dispose();
+            disposeMaterial(obj.material);
         }}
 
         let rollMesh = null;
@@ -611,8 +675,13 @@ def viewer(
 
         let drawIndex = animEnabled ? 2 : finalLocalPts.length;
         let drawAccumulator = 0.0;
+        let lastSafeIndex = -1;
 
-        function rebuildView() {{
+        function rebuildView(force = false) {{
+            const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
+            if (!force && safeIndex === lastSafeIndex) return;
+            lastSafeIndex = safeIndex;
+
             if (rollMesh) {{
                 disposeObj(rollMesh, rollGroup);
                 rollMesh = null;
@@ -630,11 +699,10 @@ def viewer(
                 endMarker = null;
             }}
 
-            const safeIndex = Math.max(2, Math.min(drawIndex, finalLocalPts.length));
             const visibleLocal = finalLocalPts.slice(0, safeIndex);
 
             if (visibleLocal.length >= 2) {{
-                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat, animEnabled);
+                rollMesh = buildTubeMeshFromPoints(visibleLocal, 12, tubeMat);
                 if (rollMesh) rollGroup.add(rollMesh);
 
                 startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
@@ -655,7 +723,7 @@ def viewer(
             const guideWorld = guidePointWorld(currentRadius, currentZ);
             const freePts = [guideWorld, currentEndWorld];
 
-            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat, true);
+            freeMesh = buildTubeMeshFromPoints(freePts, 10, freeTubeMat);
             if (freeMesh) scene.add(freeMesh);
 
             guide.position.copy(guideWorld);
@@ -676,7 +744,7 @@ def viewer(
             guideNozzle.visible = true;
         }}
 
-        rebuildView();
+        rebuildView(true);
 
         function animate() {{
             requestAnimationFrame(animate);
@@ -687,7 +755,7 @@ def viewer(
                 if (stepNow >= 1) {{
                     drawAccumulator -= stepNow;
                     drawIndex = Math.min(finalLocalPts.length, drawIndex + stepNow);
-                    rebuildView();
+                    rebuildView(false);
                 }}
             }}
 
