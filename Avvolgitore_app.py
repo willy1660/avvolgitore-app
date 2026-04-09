@@ -156,7 +156,7 @@ def polyline_length(points: np.ndarray) -> float:
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
-    # Punt de contacte instantani al pla x=0
+    # Punt de contacte instantani al pla x = 0
     return np.array([0.0, radius, z], dtype=float)
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
@@ -166,12 +166,11 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     y = -pt_world[0] * s + pt_world[1] * c
     return np.array([x, y, pt_world[2]], dtype=float)
 
-def z_bin_index(z: float, bin_w: float) -> int:
-    return int(np.floor(z / bin_w))
+def radial_of_local_point(p: np.ndarray) -> float:
+    return float(np.linalg.norm(p[:2]))
 
-def circle_pair_candidate_radius(z0: float, z1: float, d_tubo: float) -> float | None:
-    dz = abs(z0 - z1)
-    half = dz * 0.5
+def circle_pair_rise(d_tubo: float, dz: float) -> float | None:
+    half = abs(dz) * 0.5
     if half >= d_tubo:
         return None
     return math.sqrt(max(0.0, d_tubo * d_tubo - half * half))
@@ -182,81 +181,126 @@ def solve_deposit_radius_between_spires(
     deposited_local_points: list,
     base_radius: float,
     d_tubo: float,
-    z_window: float,
+    passo: float,
+    prev_r_dep: float,
 ):
     """
-    Retorna el radi real dipositat per a aquest z_target.
+    Resol radi real dipositat:
+    1) intenta encaixar entre dues espirals de la capa anterior
+    2) si no pot, recolzament sobre una sola
+    3) si no, queda limitat pel mandrí i pel comandament
 
-    Idea:
-    - El guidatubo imposa un radi màxim comandat r_cmd.
-    - El tub ideal rígid es col·loca al menor radi admissible.
-    - Es prioritza encaixar entre dues espires de la capa anterior.
-    - Si no hi ha parella útil, es busca contacte amb una sola espira.
-    - En cap cas es supera r_cmd.
+    El solver es restringeix a punts propers en z i propers a la capa esperada,
+    per evitar soroll i salts no físics.
     """
-    if len(deposited_local_points) < 1:
+    if len(deposited_local_points) < 2:
         return min(r_cmd, base_radius)
 
-    z_vals = np.array([p[2] for p in deposited_local_points], dtype=float)
-    r_vals = np.array([np.linalg.norm(p[:2]) for p in deposited_local_points], dtype=float)
+    pts = deposited_local_points
+    z_vals = np.array([p[2] for p in pts], dtype=float)
+    r_vals = np.array([radial_of_local_point(p) for p in pts], dtype=float)
 
-    # candidats propers en z
-    mask = np.abs(z_vals - z_target) <= z_window
+    # busquem sobretot la capa immediatament anterior
+    expected_prev_layer = max(base_radius, prev_r_dep - max(0.0, d_tubo * 0.95))
+    z_window = max(passo * 1.15, d_tubo * 0.95)
+    r_window = max(d_tubo * 0.8, 2.0)
+
+    mask = (
+        (np.abs(z_vals - z_target) <= z_window) &
+        (np.abs(r_vals - expected_prev_layer) <= r_window)
+    )
+
     idx = np.where(mask)[0]
 
+    # fallback una mica més ampli si no hi ha prou candidats
+    if len(idx) < 2:
+        mask = (
+            (np.abs(z_vals - z_target) <= max(z_window, passo * 1.6)) &
+            (np.abs(r_vals - expected_prev_layer) <= max(r_window, d_tubo * 1.4))
+        )
+        idx = np.where(mask)[0]
+
     if len(idx) == 0:
-        return min(r_cmd, base_radius)
+        return max(base_radius, min(r_cmd, prev_r_dep))
 
-    # 1) prioritat: encaix entre dues espirals
-    best_pair_radius = None
+    # prioritat: parella d’espirals de la capa anterior
+    best_pair = None
+    best_pair_score = None
 
-    # Limitem als punts més propers en radi comandat per evitar barrejar massa capes
-    local_idx = idx[np.argsort(np.abs(r_vals[idx] - min(r_cmd, np.min(r_vals[idx]))))]
-    local_idx = local_idx[:40]
+    # ordena per proximitat en z per reduir combinacions absurdes
+    idx = idx[np.argsort(np.abs(z_vals[idx] - z_target))]
+    idx = idx[:48]
 
-    for i in range(len(local_idx)):
-        for j in range(i + 1, len(local_idx)):
-            a = local_idx[i]
-            b = local_idx[j]
+    for a_i in range(len(idx)):
+        a = idx[a_i]
+        for b_i in range(a_i + 1, len(idx)):
+            b = idx[b_i]
 
             ra = r_vals[a]
             rb = r_vals[b]
 
-            # volem parelles relativament de la mateixa capa
-            if abs(ra - rb) > d_tubo * 0.35:
+            # volem quasi mateixa capa
+            if abs(ra - rb) > d_tubo * 0.28:
                 continue
 
-            r_base = 0.5 * (ra + rb)
-            rise = circle_pair_candidate_radius(z_vals[a], z_vals[b], d_tubo)
+            dz = abs(z_vals[a] - z_vals[b])
+
+            # volem veïnes axials "semblants" a l’espaiat real
+            if dz > max(d_tubo * 1.1, passo * 1.6):
+                continue
+
+            rise = circle_pair_rise(d_tubo, dz)
             if rise is None:
                 continue
 
+            r_base = 0.5 * (ra + rb)
             cand = r_base + rise
 
-            if cand <= r_cmd + 1e-9:
-                if best_pair_radius is None or cand < best_pair_radius:
-                    best_pair_radius = cand
+            if cand < base_radius - 1e-9 or cand > r_cmd + 1e-9:
+                continue
 
-    if best_pair_radius is not None:
-        return max(base_radius, best_pair_radius)
+            # score: prioritzar contacte amb parella prop de z_target i radi suau
+            z_mid = 0.5 * (z_vals[a] + z_vals[b])
+            score = (
+                abs(z_mid - z_target) * 2.5 +
+                abs(cand - prev_r_dep) * 1.5 +
+                abs(dz - passo) * 0.8
+            )
 
-    # 2) si no hi ha parella vàlida, contacte sobre una espira sola
-    #    idealment sobre la més baixa possible però admissible
+            if best_pair is None or score < best_pair_score:
+                best_pair = cand
+                best_pair_score = score
+
+    if best_pair is not None:
+        # petita estabilització per evitar soroll radial punt a punt
+        cand = best_pair
+        max_step_up = max(0.10, d_tubo * 0.22)
+        if cand > prev_r_dep + max_step_up:
+            cand = prev_r_dep + max_step_up
+        return max(base_radius, min(r_cmd, cand))
+
+    # segon cas: recolzament sobre una sola espira
     single_candidates = []
-    for k in local_idx:
+    for k in idx:
         dz = abs(z_vals[k] - z_target)
         if dz >= d_tubo:
             continue
         rise = math.sqrt(max(0.0, d_tubo * d_tubo - dz * dz))
         cand = r_vals[k] + rise
-        if cand <= r_cmd + 1e-9:
-            single_candidates.append(cand)
+        if cand < base_radius - 1e-9 or cand > r_cmd + 1e-9:
+            continue
+        score = abs(z_vals[k] - z_target) * 2.0 + abs(cand - prev_r_dep) * 1.5
+        single_candidates.append((score, cand))
 
     if single_candidates:
-        return max(base_radius, min(single_candidates))
+        single_candidates.sort(key=lambda x: x[0])
+        cand = single_candidates[0][1]
+        max_step_up = max(0.10, d_tubo * 0.28)
+        if cand > prev_r_dep + max_step_up:
+            cand = prev_r_dep + max_step_up
+        return max(base_radius, min(r_cmd, cand))
 
-    # 3) si ni així, el tub queda on li permet el comandament però no per sota del mandrí
-    return max(base_radius, r_cmd)
+    return max(base_radius, min(r_cmd, prev_r_dep))
 
 def simulate_winding_realistic(
     d_aspo: float,
@@ -268,7 +312,7 @@ def simulate_winding_realistic(
     rit_t: float,
     lunghezza_m: float,
     gradi_start: float,
-    deg_step: float = 2.0,
+    deg_step: float = 0.5,
 ):
     max_len = lunghezza_m * 1000.0
     R = d_aspo / 2.0
@@ -281,14 +325,15 @@ def simulate_winding_realistic(
 
     # comandament radial del guidatubo
     r_cmd = base_radius
+    r_dep = base_radius
 
-    first_contact_world = deposit_point_world(base_radius, z)
+    first_contact_world = deposit_point_world(r_dep, z)
     first_local = world_to_spool_local(first_contact_world, theta)
 
     contact_world = [first_contact_world]
     deposited_local = [first_local]
     theta_values = [theta]
-    radius_values = [base_radius]
+    radius_values = [r_dep]
     z_values = [z]
 
     deposited_len = 0.0
@@ -302,9 +347,7 @@ def simulate_winding_realistic(
     turn_start_cmd = r_cmd
     turn_end_cmd = r_cmd
 
-    z_window = max(d_tubo * 1.25, passo * 1.5)
-
-    for _ in range(1200000):
+    for _ in range(3000000):
         next_theta = theta - np.deg2rad(deg_step)
 
         next_z = z
@@ -356,14 +399,14 @@ def simulate_winding_realistic(
                     next_mode = "axial"
                     next_direction = -direction
 
-        # radi real dipositat per acomodació geomètrica
         next_r_dep = solve_deposit_radius_between_spires(
             z_target=next_z,
             r_cmd=next_r_cmd,
             deposited_local_points=deposited_local,
             base_radius=base_radius,
             d_tubo=d_tubo,
-            z_window=z_window,
+            passo=passo,
+            prev_r_dep=r_dep,
         )
 
         new_contact_world = deposit_point_world(next_r_dep, next_z)
@@ -372,7 +415,7 @@ def simulate_winding_realistic(
         prev_local = deposited_local[-1]
         seg = float(np.linalg.norm(new_local - prev_local))
 
-        if seg < max(0.25, Rt * 0.05):
+        if seg < max(0.10, Rt * 0.02):
             theta = next_theta
             z = next_z
             direction = next_direction
@@ -383,6 +426,7 @@ def simulate_winding_realistic(
             turn_start_cmd = next_turn_start_cmd
             turn_end_cmd = next_turn_end_cmd
             r_cmd = next_r_cmd
+            r_dep = next_r_dep
             continue
 
         if deposited_len + seg >= max_len:
@@ -423,6 +467,7 @@ def simulate_winding_realistic(
         turn_start_cmd = next_turn_start_cmd
         turn_end_cmd = next_turn_end_cmd
         r_cmd = next_r_cmd
+        r_dep = next_r_dep
 
     return (
         np.array(contact_world, dtype=float),
@@ -724,7 +769,7 @@ def viewer(
                 totalLen += points[i].distanceTo(points[i - 1]);
             }}
 
-            const tubularSegments = Math.max(8, Math.min(2500, Math.floor(totalLen / Math.max(1.5, Rt * 0.35))));
+            const tubularSegments = Math.max(12, Math.min(5000, Math.floor(totalLen / Math.max(0.8, Rt * 0.18))));
             const curve = new PolylineCurve3(points);
             const geo = new THREE.TubeGeometry(curve, tubularSegments, Rt, radialSegments, false);
             return new THREE.Mesh(geo, material);
@@ -781,7 +826,7 @@ def viewer(
             const visibleLocal = finalLocalPts.slice(0, safeIndex);
 
             if (visibleLocal.length >= 2) {{
-                rollMesh = buildTubeMeshFromPolyline(visibleLocal, 12, tubeMat);
+                rollMesh = buildTubeMeshFromPolyline(visibleLocal, 14, tubeMat);
                 if (rollMesh) rollGroup.add(rollMesh);
 
                 startMarker = createMarker(visibleLocal[0], startMat, rollGroup);
@@ -802,7 +847,7 @@ def viewer(
             const guideWorld = guidePointWorld(currentRadius, currentZ);
             const freePts = [guideWorld, currentEndWorld];
 
-            freeMesh = buildTubeMeshFromPolyline(freePts, 10, freeTubeMat);
+            freeMesh = buildTubeMeshFromPolyline(freePts, 12, freeTubeMat);
             if (freeMesh) scene.add(freeMesh);
 
             guide.position.copy(guideWorld);
@@ -829,7 +874,7 @@ def viewer(
             requestAnimationFrame(animate);
 
             if (animEnabled && drawIndex < finalLocalPts.length) {{
-                drawAccumulator += Math.max(0.12, speed * 0.85);
+                drawAccumulator += Math.max(0.10, speed * 1.15);
                 const stepNow = Math.floor(drawAccumulator);
                 if (stepNow >= 1) {{
                     drawAccumulator -= stepNow;
@@ -921,7 +966,7 @@ d_tubo = d_rame + 2.0 * spessore
     rit_t=rit_t,
     lunghezza_m=lunghezza,
     gradi_start=gradi_start,
-    deg_step=2.0,
+    deg_step=0.5,
 )
 
 metrics = compute_metrics(local_points, d_tubo)
