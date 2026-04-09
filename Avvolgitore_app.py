@@ -114,7 +114,7 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 gradi_start = 0.0
 pinza = 0.0
-guide_offset_x = 260.0  # més lluny de l'aspo
+guide_offset_x = 340.0  # més lluny de l'aspo
 
 # =========================
 # LOGO
@@ -436,12 +436,12 @@ def viewer(
         const bgDark = bgMode === "dark";
         scene.background = new THREE.Color(bgDark ? 0x0b0f14 : 0xf4f4f1);
 
-        const tubeBaseColor = bgDark ? 0xffffff : 0x050505;
-        const freeTubeColor = bgDark ? 0xf0f0f0 : 0x080808;
-        const activeTubeColor = bgDark ? 0xffffff : 0x000000;
+        // blanc menys lluminós al dark, negre més fosc al light
+        const tubeBaseColor = bgDark ? 0xd8d8d8 : 0x050505;
+        const freeTubeColor = bgDark ? 0xc8c8c8 : 0x0a0a0a;
+        const activeTubeColor = bgDark ? 0xe6e6e6 : 0x000000;
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        // vista inicial plana del rotllo: mirant gairebé al llarg de l'eix Z
         camera.position.set(0, -25, 1150);
 
         const renderer = new THREE.WebGLRenderer({{
@@ -469,6 +469,11 @@ def viewer(
         controls.maxPolarAngle = Math.PI;
         controls.target.set(0, 0, {spalla}/2);
 
+        // arreglar pan invertit
+        controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+        controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+        controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
@@ -486,7 +491,7 @@ def viewer(
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-        function makeNoiseTexture(size = 300) {{
+        function makeNoiseTexture(size = 128) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
             canvas.height = size;
@@ -494,7 +499,7 @@ def viewer(
             const img = ctx.createImageData(size, size);
 
             for (let i = 0; i < img.data.length; i += 4) {{
-                const v = 110 + Math.floor(Math.random() * 40);
+                const v = 115 + Math.floor(Math.random() * 30);
                 img.data[i] = v;
                 img.data[i + 1] = v;
                 img.data[i + 2] = v;
@@ -526,38 +531,36 @@ def viewer(
             metalness: 0.18
         }});
 
-        // materials més sòlids visualment
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.8,
+            roughness: 0.78,
             metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.6
+            bumpScale: 0.32
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.8,
+            roughness: 0.72,
             metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.6
+            bumpScale: 0.28
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 0.8,
+            roughness: 0.74,
             metalness: 0.01,
             bumpMap: bumpTex,
-            bumpScale: 0.6
+            bumpScale: 0.22
         }});
 
-        // endpoints molt més clars i precisos
         const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a,
             roughness: 0.40,
             metalness: 0.05,
             emissive: 0x0d2a17,
-            emissiveIntensity: 0.5
+            emissiveIntensity: 0.15
         }});
 
         const markerEndMat = new THREE.MeshStandardMaterial({{
@@ -565,7 +568,7 @@ def viewer(
             roughness: 0.35,
             metalness: 0.05,
             emissive: 0x3b2400,
-            emissiveIntensity: 0.5
+            emissiveIntensity: 0.18
         }});
 
         const machine = new THREE.Group();
@@ -604,24 +607,23 @@ def viewer(
         top.position.z = Hs;
         machine.add(top);
 
-        // En mode hidden: ocultem només l'aspo, no la bobina
         mandrel.visible = aspoMode !== "hidden";
         base.visible = aspoMode !== "hidden";
         top.visible = aspoMode !== "hidden";
 
-        // Guidatubo exageradament gran
+        // guidatubo molt més petit i més lluny
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
-        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 1.05;
+        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.78;
 
         const guide = new THREE.Mesh(
-            new THREE.BoxGeometry(30 * guideScale, 20 * guideScale, 20 * guideScale),
+            new THREE.BoxGeometry(80 * guideScale, 50 * guideScale, 50 * guideScale),
             blueMat
         );
         scene.add(guide);
 
         const guideFront = new THREE.Mesh(
-            new THREE.BoxGeometry(18 * guideScale, 20 * guideScale, 20 * guideScale),
+            new THREE.BoxGeometry(16 * guideScale, 20 * guideScale, 20 * guideScale),
             new THREE.MeshStandardMaterial({{
                 color: bgDark ? 0x8b9198 : 0x8b8f95,
                 roughness: 0.76,
@@ -631,7 +633,7 @@ def viewer(
         scene.add(guideFront);
 
         const guideNozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 22 * guideScale, 28),
+            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 18 * guideScale, 28),
             new THREE.MeshStandardMaterial({{
                 color: bgDark ? 0x9da3aa : 0x8a8e93,
                 roughness: 0.70,
@@ -641,26 +643,30 @@ def viewer(
         guideNozzle.rotation.z = Math.PI / 2;
         scene.add(guideNozzle);
 
-        scene.add(new THREE.AmbientLight(0xffffff, bgDark ? 0.76 : 0.86));
+        // llum més natural i menys exagerada
+        scene.add(new THREE.AmbientLight(0xffffff, bgDark ? 0.44 : 0.52));
 
-        const dLight1 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.70 : 0.62);
-        dLight1.position.set(550, -500, 850);
+        const hemi = new THREE.HemisphereLight(
+            bgDark ? 0xcdd8e6 : 0xffffff,
+            bgDark ? 0x1a1a1a : 0xd9d4cf,
+            bgDark ? 0.42 : 0.38
+        );
+        scene.add(hemi);
+
+        const dLight1 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.42 : 0.34);
+        dLight1.position.set(520, -460, 720);
         scene.add(dLight1);
 
-        const dLight2 = new THREE.DirectionalLight(bgDark ? 0xdfe3e8 : 0xffffff, bgDark ? 0.22 : 0.24);
-        dLight2.position.set(-700, 350, 450);
+        const dLight2 = new THREE.DirectionalLight(bgDark ? 0xdfe3e8 : 0xf6f2ec, bgDark ? 0.14 : 0.10);
+        dLight2.position.set(-650, 260, 300);
         scene.add(dLight2);
-
-        const dLight3 = new THREE.DirectionalLight(0xffffff, bgDark ? 0.12 : 0.10);
-        dLight3.position.set(0, -950, 650);
-        scene.add(dLight3);
 
         if (showGrid) {{
             const grid = new THREE.GridHelper(
                 2600,
                 32,
-                bgDark ? 0x777777 : 0x8d8d8d,
-                bgDark ? 0x2e2e2e : 0xd8d8d8
+                bgDark ? 0x666666 : 0x9c9c9c,
+                bgDark ? 0x2a2a2a : 0xdbdbdb
             );
             grid.rotation.x = Math.PI / 2;
             grid.position.z = 0;
@@ -878,14 +884,14 @@ def viewer(
                 guide.visible = true;
 
                 guideFront.position.set(
-                    guideWorld.x + 100 * guideScale,
+                    guideWorld.x + 38 * guideScale,
                     guideWorld.y,
                     guideWorld.z
                 );
                 guideFront.visible = true;
 
                 guideNozzle.position.set(
-                    guideWorld.x + 180 * guideScale,
+                    guideWorld.x + 52 * guideScale,
                     guideWorld.y,
                     guideWorld.z
                 );
