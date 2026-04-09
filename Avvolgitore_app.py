@@ -522,7 +522,7 @@ def viewer(
             ctx.fillRect(0, 0, size, size);
 
             for (let y = 0; y < size; y += 2) {{
-                const a = 0.03 + Math.random() * 0.05;
+                const a = 0.05 + Math.random() * 0.08;
                 ctx.fillStyle = `rgba(255,255,255,${{a}})`;
                 ctx.fillRect(0, y, size, 1);
             }}
@@ -539,7 +539,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(3.0, 1.0);
+            tex.repeat.set(0.5, 0.5);
             return tex;
         }}
 
@@ -563,39 +563,39 @@ def viewer(
 
         const tubeMat = new THREE.MeshStandardMaterial({{
             color: tubeBaseColor,
-            roughness: 0.99,
+            roughness: 1,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 2.8
+            bumpScale: 4
         }});
 
         const activeTubeMat = new THREE.MeshStandardMaterial({{
             color: activeTubeColor,
-            roughness: 0.96,
+            roughness: 1,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 2.2
+            bumpScale: 4
         }});
 
         const freeTubeMat = new THREE.MeshStandardMaterial({{
             color: freeTubeColor,
-            roughness: 0.97,
+            roughness: 1,
             metalness: 0.0,
             bumpMap: bumpTex,
-            bumpScale: 1.8
+            bumpScale: 4
         }});
 
         const steelMat = new THREE.MeshStandardMaterial({{
             color: 0xb8bec4,
-            roughness: 0.42,
-            metalness: 0.82,
+            roughness: 0.35,
+            metalness: 1.0,
             map: steelTex
         }});
 
         const steelDarkMat = new THREE.MeshStandardMaterial({{
             color: 0x8a9299,
-            roughness: 0.48,
-            metalness: 0.76,
+            roughness: 0.35,
+            metalness: 1.0,
             map: steelTex
         }});
 
