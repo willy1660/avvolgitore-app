@@ -27,7 +27,7 @@ TEXTS = {
         "avvolg": "🟧 Avvolgimento",
         "viewer": "⚙️ Viewer",
         "download": "⬇️ Scarica curva .SLDCRV",
-        "download_help": "File XYZ della traiettoria avvolta, importabile in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
+        "download_help": "File XYZ della traiettoria avvolta. Importa in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
@@ -69,8 +69,8 @@ TEXTS = {
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Winding",
         "viewer": "⚙️ Viewer",
-        "download": "⬇️ Download .SLDCRV curve",
-        "download_help": "XYZ file of the wound trajectory, importable in SolidWorks with Insert → Curve → Curve Through XYZ Points.",
+        "download": "⬇️ Scarica curva .SLDCRV",
+        "download_help": "File XYZ della traiettoria avvolta. Importa in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
@@ -149,7 +149,6 @@ def find_logo():
             return files[0]
     return None
 
-
 logo_path = find_logo()
 
 # =========================
@@ -183,16 +182,13 @@ def smoothstep(x: float) -> float:
     x = max(0.0, min(1.0, x))
     return x * x * (3.0 - 2.0 * x)
 
-
 def polyline_length(points: np.ndarray) -> float:
     if len(points) < 2:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
-
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
     return np.array([0.0, radius, z], dtype=float)
-
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     c = np.cos(theta)
@@ -200,7 +196,6 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     x = pt_world[0] * c + pt_world[1] * s
     y = -pt_world[0] * s + pt_world[1] * c
     return np.array([x, y, pt_world[2]], dtype=float)
-
 
 def simulate_winding_center_plane_local(
     d_aspo: float,
@@ -361,7 +356,6 @@ def simulate_winding_center_plane_local(
         deposited_len,
     )
 
-
 def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
     if len(points) < 2:
         return float(d_tubo)
@@ -376,7 +370,6 @@ def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
     dist2 = np.sum(diff * diff, axis=2)
     max_centerline_span = float(np.sqrt(np.max(dist2)))
     return max_centerline_span + d_tubo
-
 
 def compute_metrics(points: np.ndarray, d_tubo: float):
     if len(points) == 0:
@@ -401,9 +394,8 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
 
 def make_sldcrv_content(points: np.ndarray) -> bytes:
     """
-    Genera un file .SLDCRV compatibile con SolidWorks.
-    Ogni riga contiene X, Y, Z in mm, separati da tabulazione.
-    Non ci sono intestazioni.
+    Crea un file .SLDCRV / XYZ per SolidWorks.
+    Cada línia conté X, Y, Z en mm separats per tabulació, sense capçalera.
     """
     if points is None or len(points) == 0:
         return b""
@@ -417,7 +409,7 @@ def make_sldcrv_content(points: np.ndarray) -> bytes:
 
 
 def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
-    safe_rame = rame.replace("/", "_")
+    safe_rame = str(rame).replace("/", "_")
     return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
 
 # =========================
@@ -872,7 +864,6 @@ def viewer(
         // ==========================================
         // TEXTURES
         // ==========================================
-
         function makeWaffleKnurlTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
@@ -971,7 +962,6 @@ def viewer(
         // ==========================================
         // MATERIALS / THEME
         // ==========================================
-
         function makeRedMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
                 color: 0x6d7278,
@@ -1045,7 +1035,6 @@ def viewer(
         // ==========================================
         // LIGHTING
         // ==========================================
-
         const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(ambient);
 
@@ -1072,7 +1061,6 @@ def viewer(
         // ==========================================
         // SCENE GROUPS
         // ==========================================
-
         const machine = new THREE.Group();
         scene.add(machine);
 
@@ -1085,7 +1073,6 @@ def viewer(
         // ==========================================
         // MANDREL / SPOOLS
         // ==========================================
-
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
             redMat
@@ -1122,7 +1109,6 @@ def viewer(
         // ==========================================
         // GUIDE
         // ==========================================
-
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
         const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.34;
@@ -1296,7 +1282,6 @@ def viewer(
         // ==========================================
         // HELPERS
         // ==========================================
-
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -1632,9 +1617,19 @@ metrics = compute_metrics(local_points, d_tubo)
 sldcrv_data = make_sldcrv_content(local_points)
 sldcrv_filename = make_sldcrv_filename(rame, d_tubo, lunghezza)
 
-download_col1, download_col2 = st.columns([1.4, 4.6])
+# Botó principal: queda just abans del visor 3D.
+st.download_button(
+    label=t["download"],
+    data=sldcrv_data,
+    file_name=sldcrv_filename,
+    mime="text/plain",
+    help=t["download_help"],
+    use_container_width=True,
+)
 
-with download_col1:
+# Botó duplicat a la sidebar: així sempre és visible encara que el visor ocupi pantalla.
+with st.sidebar:
+    st.markdown("### Export")
     st.download_button(
         label=t["download"],
         data=sldcrv_data,
@@ -1642,16 +1637,11 @@ with download_col1:
         mime="text/plain",
         help=t["download_help"],
         use_container_width=True,
+        key="sidebar_sldcrv_download",
     )
 
-with download_col2:
-    st.caption(t["download_help"])
-
+st.caption(t["download_help"])
 st.divider()
-
-# =========================
-# VIEWER RENDER
-# =========================
 
 components.html(
     viewer(
