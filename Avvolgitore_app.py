@@ -26,6 +26,8 @@ TEXTS = {
         "tubo": "🟩 Tubo",
         "avvolg": "🟧 Avvolgimento",
         "viewer": "⚙️ Viewer",
+        "download": "⬇️ Scarica curva .SLDCRV",
+        "download_help": "File XYZ della traiettoria avvolta, importabile in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
@@ -67,6 +69,8 @@ TEXTS = {
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Winding",
         "viewer": "⚙️ Viewer",
+        "download": "⬇️ Download .SLDCRV curve",
+        "download_help": "XYZ file of the wound trajectory, importable in SolidWorks with Insert → Curve → Curve Through XYZ Points.",
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
@@ -386,6 +390,26 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
         "max_xy_span": max_xy_span,
         "wound_length_m": wound_length_m,
     }
+
+def make_sldcrv_content(points: np.ndarray) -> bytes:
+    """
+    Genera un file .SLDCRV compatibile con SolidWorks:
+    ogni riga contiene X Y Z, separati da tabulazione, senza intestazioni.
+    Le coordinate sono in mm.
+    """
+    if points is None or len(points) == 0:
+        return b""
+
+    lines = []
+    for p in points:
+        x, y, z = float(p[0]), float(p[1]), float(p[2])
+        lines.append(f"{x:.6f}\t{y:.6f}\t{z:.6f}")
+
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
+    safe_rame = rame.replace("/", "_")
+    return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
 
 # =========================
 # VIEWER
@@ -1600,6 +1624,27 @@ components.html(
     ),
     height=760
 )
+
+# =========================
+# DOWNLOAD SLDCRV
+# =========================
+
+st.divider()
+
+download_col1, download_col2 = st.columns([1.2, 4.8])
+
+with download_col1:
+    st.download_button(
+        label=t["download"],
+        data=make_sldcrv_content(local_points),
+        file_name=make_sldcrv_filename(rame, d_tubo, lunghezza),
+        mime="text/plain",
+        help=t["download_help"],
+        use_container_width=True,
+    )
+
+with download_col2:
+    st.caption(t["download_help"])
 
 # =========================
 # METRICS
