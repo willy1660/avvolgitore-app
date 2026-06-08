@@ -1,11 +1,23 @@
 import os
 import glob
 import json
+import tempfile
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
 
+try:
+    import cadquery as cq
+    from cadquery import exporters
+    CADQUERY_AVAILABLE = True
+    CADQUERY_ERROR = ""
+except Exception as e:
+    CADQUERY_AVAILABLE = False
+    CADQUERY_ERROR = str(e)
+
 st.set_page_config(page_title="Avvolgimento", layout="wide")
+
+st.success("VERSIONE NUOVA - EXPORT SLDCRV + STEP SOLIDO")
 
 # =========================
 # LANGUAGE
@@ -28,6 +40,10 @@ TEXTS = {
         "viewer": "⚙️ Viewer",
         "download": "⬇️ Scarica curva .SLDCRV",
         "download_help": "File XYZ della traiettoria avvolta, importabile in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
+        "download_step_solid": "⬇️ Scarica solido .STEP",
+        "download_step_solid_help": "File STEP solido generato come tubo 3D lungo la traiettoria dell’avvolgimento.",
+        "generate_step_solid": "Genera STEP solido",
+        "cadquery_missing": "CadQuery non è installato. Aggiungi 'cadquery' al requirements.txt per esportare il solido STEP.",
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
@@ -71,6 +87,10 @@ TEXTS = {
         "viewer": "⚙️ Viewer",
         "download": "⬇️ Download .SLDCRV curve",
         "download_help": "XYZ file of the wound trajectory, importable in SolidWorks with Insert → Curve → Curve Through XYZ Points.",
+        "download_step_solid": "⬇️ Download solid .STEP",
+        "download_step_solid_help": "Solid STEP file generated as a 3D tube swept along the winding trajectory.",
+        "generate_step_solid": "Generate solid STEP",
+        "cadquery_missing": "CadQuery is not installed. Add 'cadquery' to requirements.txt to export the solid STEP.",
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
@@ -140,14 +160,18 @@ def find_logo():
         "logo.jpeg",
         "logo.webp",
     ]
+
     for name in candidates:
         if os.path.exists(name):
             return name
+
     for pattern in ("*.png", "*.svg", "*.jpg", "*.jpeg", "*.webp"):
         files = glob.glob(pattern)
         if files:
             return files[0]
+
     return None
+
 
 logo_path = find_logo()
 
@@ -182,13 +206,16 @@ def smoothstep(x: float) -> float:
     x = max(0.0, min(1.0, x))
     return x * x * (3.0 - 2.0 * x)
 
+
 def polyline_length(points: np.ndarray) -> float:
     if len(points) < 2:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
+
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
     return np.array([0.0, radius, z], dtype=float)
+
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     c = np.cos(theta)
@@ -196,6 +223,7 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     x = pt_world[0] * c + pt_world[1] * s
     y = -pt_world[0] * s + pt_world[1] * c
     return np.array([x, y, pt_world[2]], dtype=float)
+
 
 def simulate_winding_center_plane_local(
     d_aspo: float,
@@ -311,6 +339,7 @@ def simulate_winding_center_plane_local(
 
         if deposited_len + seg >= max_len:
             remain = max_len - deposited_len
+
             if seg > EPS and remain > 0.0:
                 a = remain / seg
                 final_theta = theta + a * (next_theta - theta)
@@ -328,6 +357,7 @@ def simulate_winding_center_plane_local(
                 z_values.append(final_z)
 
                 deposited_len += float(np.linalg.norm(final_local - prev_local))
+
             break
 
         contact_world.append(new_contact_world)
@@ -356,12 +386,14 @@ def simulate_winding_center_plane_local(
         deposited_len,
     )
 
+
 def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
     if len(points) < 2:
         return float(d_tubo)
 
     xy = points[:, :2]
     max_samples = 1200
+
     if len(xy) > max_samples:
         idx = np.linspace(0, len(xy) - 1, max_samples).astype(int)
         xy = xy[idx]
@@ -369,7 +401,9 @@ def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
     diff = xy[:, None, :] - xy[None, :, :]
     dist2 = np.sum(diff * diff, axis=2)
     max_centerline_span = float(np.sqrt(np.max(dist2)))
+
     return max_centerline_span + d_tubo
+
 
 def compute_metrics(points: np.ndarray, d_tubo: float):
     if len(points) == 0:
@@ -391,6 +425,10 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
         "wound_length_m": wound_length_m,
     }
 
+# =========================
+# EXPORT SLDCRV
+# =========================
+
 def make_sldcrv_content(points: np.ndarray) -> bytes:
     """
     Genera un file .SLDCRV compatibile con SolidWorks:
@@ -401,15 +439,153 @@ def make_sldcrv_content(points: np.ndarray) -> bytes:
         return b""
 
     lines = []
+
     for p in points:
         x, y, z = float(p[0]), float(p[1]), float(p[2])
         lines.append(f"{x:.6f}\t{y:.6f}\t{z:.6f}")
 
     return ("\n".join(lines) + "\n").encode("utf-8")
 
+
 def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
     safe_rame = rame.replace("/", "_")
     return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
+
+# =========================
+# EXPORT STEP SOLIDO
+# =========================
+
+def make_step_solid_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
+    safe_rame = rame.replace("/", "_")
+    return f"avvolgimento_SOLID_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.step"
+
+
+def resample_polyline(points: np.ndarray, target_step_mm: float = 8.0) -> np.ndarray:
+    """
+    Ricampiona la traiettoria per rendere lo STEP più leggero e più stabile.
+    """
+    if points is None or len(points) < 2:
+        return points
+
+    pts = np.asarray(points, dtype=float)
+    new_pts = [pts[0]]
+    acc = 0.0
+
+    for i in range(1, len(pts)):
+        p0 = pts[i - 1].copy()
+        p1 = pts[i].copy()
+        seg_vec = p1 - p0
+        seg_len = float(np.linalg.norm(seg_vec))
+
+        if seg_len <= 1e-9:
+            continue
+
+        while acc + seg_len >= target_step_mm:
+            remain = target_step_mm - acc
+            a = remain / seg_len
+            new_p = p0 + a * seg_vec
+            new_pts.append(new_p)
+
+            p0 = new_p
+            seg_vec = p1 - p0
+            seg_len = float(np.linalg.norm(seg_vec))
+            acc = 0.0
+
+            if seg_len <= 1e-9:
+                break
+
+        acc += seg_len
+
+    if np.linalg.norm(new_pts[-1] - pts[-1]) > 1e-6:
+        new_pts.append(pts[-1])
+
+    return np.asarray(new_pts, dtype=float)
+
+
+def make_step_solid_content(
+    points: np.ndarray,
+    d_tubo: float,
+    file_name: str,
+    resample_step_mm: float = 10.0,
+) -> bytes:
+    """
+    Genera un file STEP solido facendo uno sweep circolare lungo la traiettoria.
+    Richiede CadQuery/OpenCascade.
+    """
+    if not CADQUERY_AVAILABLE:
+        raise RuntimeError(CADQUERY_ERROR)
+
+    if points is None or len(points) < 2:
+        return b""
+
+    pts = np.asarray(points, dtype=float)
+    pts = resample_polyline(pts, target_step_mm=resample_step_mm)
+
+    if len(pts) < 2:
+        return b""
+
+    radius = float(d_tubo) / 2.0
+
+    start = pts[0].copy()
+    pts_rel = pts - start
+
+    vectors = [
+        cq.Vector(float(p[0]), float(p[1]), float(p[2]))
+        for p in pts_rel
+    ]
+
+    path = cq.Wire.makePolygon(vectors, close=False)
+
+    tangent = pts_rel[1] - pts_rel[0]
+    tangent_norm = float(np.linalg.norm(tangent))
+
+    if tangent_norm <= 1e-9:
+        tangent = np.array([0.0, 1.0, 0.0], dtype=float)
+    else:
+        tangent = tangent / tangent_norm
+
+    normal_vec = cq.Vector(
+        float(tangent[0]),
+        float(tangent[1]),
+        float(tangent[2]),
+    )
+
+    ref = cq.Vector(0, 0, 1)
+
+    if abs(normal_vec.dot(ref)) > 0.95:
+        ref = cq.Vector(0, 1, 0)
+
+    x_dir = ref.cross(normal_vec).normalized()
+
+    start_plane = cq.Plane(
+        origin=(0, 0, 0),
+        xDir=x_dir,
+        normal=normal_vec,
+    )
+
+    solid = (
+        cq.Workplane(start_plane)
+        .circle(radius)
+        .sweep(path, isFrenet=True)
+        .translate((float(start[0]), float(start[1]), float(start[2])))
+    )
+
+    with tempfile.NamedTemporaryFile(suffix=".step", delete=False) as tmp:
+        tmp_path = tmp.name
+
+    try:
+        exporters.export(solid, tmp_path)
+
+        with open(tmp_path, "rb") as f:
+            data = f.read()
+
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+    return data
 
 # =========================
 # VIEWER
@@ -860,9 +1036,6 @@ def viewer(
             controls.handleResize();
         }}
 
-        // ==========================================
-        // TEXTURES
-        // ==========================================
         function makeWaffleKnurlTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
@@ -958,9 +1131,6 @@ def viewer(
         const bumpTex = makeWaffleKnurlTexture(256);
         const steelTex = makeSteelTexture(256);
 
-        // ==========================================
-        // MATERIALS / THEME
-        // ==========================================
         function makeRedMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
                 color: 0x6d7278,
@@ -987,24 +1157,6 @@ def viewer(
                 clipShadows: showSection
             }});
 
-            m.onBeforeCompile = (shader) => {{
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    '#include <roughnessmap_fragment>',
-                    `
-                    #include <roughnessmap_fragment>
-                    float anisotropyFake = abs(dot(normalize(vViewPosition), vec3(0.0, 1.0, 0.0)));
-                    roughnessFactor *= mix(0.85, 1.15, anisotropyFake);
-                    `
-                );
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-                    `
-                    float contactShade = pow(abs(dot(normal, vec3(0.0, 0.0, 1.0))), 1.8);
-                    outgoingLight *= mix(0.88, 1.0, contactShade);
-                    gl_FragColor = vec4( outgoingLight, diffuseColor.a );
-                    `
-                );
-            }};
             m.needsUpdate = true;
             return m;
         }}
@@ -1031,9 +1183,6 @@ def viewer(
             emissiveIntensity: 0.14
         }});
 
-        // ==========================================
-        // LIGHTING
-        // ==========================================
         const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(ambient);
 
@@ -1057,9 +1206,6 @@ def viewer(
         rimLight.position.set(0, 400, 300);
         scene.add(rimLight);
 
-        // ==========================================
-        // SCENE GROUPS
-        // ==========================================
         const machine = new THREE.Group();
         scene.add(machine);
 
@@ -1069,9 +1215,6 @@ def viewer(
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
-        // ==========================================
-        // MANDREL / SPOOLS
-        // ==========================================
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
             redMat
@@ -1105,9 +1248,6 @@ def viewer(
         top.receiveShadow = true;
         machine.add(top);
 
-        // ==========================================
-        // GUIDE
-        // ==========================================
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
         const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.34;
@@ -1278,9 +1418,6 @@ def viewer(
             updateOverlayContinuous(true);
         }}
 
-        // ==========================================
-        // HELPERS
-        // ==========================================
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
                 -(radius + guideOffsetX),
@@ -1609,6 +1746,71 @@ d_tubo = d_rame + 2.0 * spessore
 
 metrics = compute_metrics(local_points, d_tubo)
 
+# =========================
+# DOWNLOAD EXPORTS
+# =========================
+
+st.divider()
+
+sldcrv_filename = make_sldcrv_filename(rame, d_tubo, lunghezza)
+step_solid_filename = make_step_solid_filename(rame, d_tubo, lunghezza)
+
+download_col1, download_col2, download_col3 = st.columns([1.2, 1.2, 3.6])
+
+with download_col1:
+    st.download_button(
+        label=t["download"],
+        data=make_sldcrv_content(local_points),
+        file_name=sldcrv_filename,
+        mime="text/plain",
+        help=t["download_help"],
+        use_container_width=True,
+    )
+
+with download_col2:
+    if not CADQUERY_AVAILABLE:
+        st.warning(t["cadquery_missing"])
+        with st.expander("Errore CadQuery"):
+            st.code(CADQUERY_ERROR)
+    else:
+        if st.button(
+            t["generate_step_solid"],
+            help=t["download_step_solid_help"],
+            use_container_width=True,
+        ):
+            with st.spinner("Generazione STEP solido..."):
+                try:
+                    st.session_state["step_solid_data"] = make_step_solid_content(
+                        local_points,
+                        d_tubo,
+                        step_solid_filename,
+                        resample_step_mm=max(8.0, d_tubo * 0.50),
+                    )
+                    st.session_state["step_solid_filename"] = step_solid_filename
+                    st.success("STEP solido generato.")
+                except Exception as e:
+                    st.error(f"Errore durante la generazione dello STEP solido: {e}")
+
+        if "step_solid_data" in st.session_state:
+            st.download_button(
+                label=t["download_step_solid"],
+                data=st.session_state["step_solid_data"],
+                file_name=st.session_state.get("step_solid_filename", step_solid_filename),
+                mime="application/step",
+                help=t["download_step_solid_help"],
+                use_container_width=True,
+            )
+
+with download_col3:
+    st.caption(t["download_help"])
+    st.caption(t["download_step_solid_help"])
+
+st.divider()
+
+# =========================
+# VIEWER RENDER
+# =========================
+
 components.html(
     viewer(
         diametro_aspo,
@@ -1622,29 +1824,8 @@ components.html(
         guide_offset_x,
         lang,
     ),
-    height=760
+    height=760,
 )
-
-# =========================
-# DOWNLOAD SLDCRV
-# =========================
-
-st.divider()
-
-download_col1, download_col2 = st.columns([1.2, 4.8])
-
-with download_col1:
-    st.download_button(
-        label=t["download"],
-        data=make_sldcrv_content(local_points),
-        file_name=make_sldcrv_filename(rame, d_tubo, lunghezza),
-        mime="text/plain",
-        help=t["download_help"],
-        use_container_width=True,
-    )
-
-with download_col2:
-    st.caption(t["download_help"])
 
 # =========================
 # METRICS
