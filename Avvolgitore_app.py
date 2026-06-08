@@ -17,8 +17,6 @@ except Exception as e:
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
-st.success("VERSIONE NUOVA - EXPORT SLDCRV + STEP SOLIDO")
-
 # =========================
 # LANGUAGE
 # =========================
