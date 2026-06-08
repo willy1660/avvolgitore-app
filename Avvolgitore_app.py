@@ -25,6 +25,9 @@ TEXTS = {
         "bobina": "🟦 Bobina",
         "tubo": "🟩 Tubo",
         "avvolg": "🟧 Avvolgimento",
+        "viewer": "⚙️ Viewer",
+        "download": "⬇️ Scarica curva .SLDCRV",
+        "download_help": "File XYZ della traiettoria avvolta, importabile in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
@@ -46,8 +49,18 @@ TEXTS = {
         "fullscreen": "Fullscreen",
         "exit": "Exit",
         "progress": "Progresso",
-        "download": "Scarica curva SLDCRV",
-        "export_note": "Il pulsante ⬇ SLDCRV è dentro il viewer 3D, accanto a Play e Fullscreen.",
+        "speed": "Velocità",
+        "spool": "Aspo",
+        "visible": "Visibile",
+        "transparent": "Trasparente",
+        "hidden": "Nascosto",
+        "tube_color": "Tubo",
+        "gelwhite": "Gelwhite",
+        "gelblack": "Gelblack",
+        "grid": "Grid",
+        "axes": "Assi",
+        "section": "Sezione",
+        "animation": "Animazione",
     },
     "EN": {
         "title": "Coiling",
@@ -55,6 +68,9 @@ TEXTS = {
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Winding",
+        "viewer": "⚙️ Viewer",
+        "download": "⬇️ Download .SLDCRV curve",
+        "download_help": "XYZ file of the wound trajectory, importable in SolidWorks with Insert → Curve → Curve Through XYZ Points.",
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
@@ -76,9 +92,19 @@ TEXTS = {
         "fullscreen": "Fullscreen",
         "exit": "Exit",
         "progress": "Progress",
-        "download": "Download SLDCRV curve",
-        "export_note": "The ⬇ SLDCRV button is inside the 3D viewer, next to Play and Fullscreen.",
-    },
+        "speed": "Speed",
+        "spool": "Spool",
+        "visible": "Visible",
+        "transparent": "Transparent",
+        "hidden": "Hidden",
+        "tube_color": "Tube",
+        "gelwhite": "Gelwhite",
+        "gelblack": "Gelblack",
+        "grid": "Grid",
+        "axes": "Axes",
+        "section": "Section",
+        "animation": "Animation",
+    }
 }
 
 # =========================
@@ -96,6 +122,7 @@ COPPER_SIZES_MM = {
 
 EPS = 1e-9
 gradi_start = 0.0
+pinza = 0.0
 guide_offset_x = 555.0
 
 # =========================
@@ -113,18 +140,14 @@ def find_logo():
         "logo.jpeg",
         "logo.webp",
     ]
-
     for name in candidates:
         if os.path.exists(name):
             return name
-
     for pattern in ("*.png", "*.svg", "*.jpg", "*.jpeg", "*.webp"):
         files = glob.glob(pattern)
         if files:
             return files[0]
-
     return None
-
 
 logo_path = find_logo()
 
@@ -159,26 +182,20 @@ def smoothstep(x: float) -> float:
     x = max(0.0, min(1.0, x))
     return x * x * (3.0 - 2.0 * x)
 
-
 def polyline_length(points: np.ndarray) -> float:
     if len(points) < 2:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
-
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
     return np.array([0.0, radius, z], dtype=float)
-
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
     c = np.cos(theta)
     s = np.sin(theta)
-
     x = pt_world[0] * c + pt_world[1] * s
     y = -pt_world[0] * s + pt_world[1] * c
-
     return np.array([x, y, pt_world[2]], dtype=float)
-
 
 def simulate_winding_center_plane_local(
     d_aspo: float,
@@ -193,7 +210,6 @@ def simulate_winding_center_plane_local(
     deg_step: float = 2.0,
 ):
     max_len = lunghezza_m * 1000.0
-
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
     H = spalla
@@ -227,7 +243,6 @@ def simulate_winding_center_plane_local(
         next_z = z
         next_direction = direction
         next_mode = mode
-
         next_turn_progress = turn_progress
         next_turn_delay = turn_delay
         next_turn_z = turn_z
@@ -268,11 +283,7 @@ def simulate_winding_center_plane_local(
             else:
                 next_turn_progress = turn_progress + deg_step
                 s = smoothstep(next_turn_progress / next_turn_delay)
-
-                next_radius = (
-                    next_turn_start_radius
-                    + s * (next_turn_end_radius - next_turn_start_radius)
-                )
+                next_radius = next_turn_start_radius + s * (next_turn_end_radius - next_turn_start_radius)
 
                 if next_turn_progress >= next_turn_delay:
                     next_radius = next_turn_end_radius
@@ -300,10 +311,8 @@ def simulate_winding_center_plane_local(
 
         if deposited_len + seg >= max_len:
             remain = max_len - deposited_len
-
             if seg > EPS and remain > 0.0:
                 a = remain / seg
-
                 final_theta = theta + a * (next_theta - theta)
                 final_z = z + a * (next_z - z)
                 prev_r = radius_values[-1]
@@ -319,7 +328,6 @@ def simulate_winding_center_plane_local(
                 z_values.append(final_z)
 
                 deposited_len += float(np.linalg.norm(final_local - prev_local))
-
             break
 
         contact_world.append(new_contact_world)
@@ -327,7 +335,6 @@ def simulate_winding_center_plane_local(
         theta_values.append(next_theta)
         radius_values.append(next_radius)
         z_values.append(next_z)
-
         deposited_len += seg
 
         theta = next_theta
@@ -349,13 +356,11 @@ def simulate_winding_center_plane_local(
         deposited_len,
     )
 
-
 def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
     if len(points) < 2:
         return float(d_tubo)
 
     xy = points[:, :2]
-
     max_samples = 1200
     if len(xy) > max_samples:
         idx = np.linspace(0, len(xy) - 1, max_samples).astype(int)
@@ -363,11 +368,8 @@ def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
 
     diff = xy[:, None, :] - xy[None, :, :]
     dist2 = np.sum(diff * diff, axis=2)
-
     max_centerline_span = float(np.sqrt(np.max(dist2)))
-
     return max_centerline_span + d_tubo
-
 
 def compute_metrics(points: np.ndarray, d_tubo: float):
     if len(points) == 0:
@@ -379,7 +381,6 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
 
     radial = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
     max_centerline_r = float(np.max(radial))
-
     diam_radiale = 2.0 * (max_centerline_r + d_tubo / 2.0)
     max_xy_span = compute_max_xy_span(points, d_tubo)
     wound_length_m = polyline_length(points) / 1000.0
@@ -390,8 +391,23 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
         "wound_length_m": wound_length_m,
     }
 
+def make_sldcrv_content(points: np.ndarray) -> bytes:
+    """
+    Genera un file .SLDCRV compatibile con SolidWorks:
+    ogni riga contiene X Y Z, separati da tabulazione, senza intestazioni.
+    Le coordinate sono in mm.
+    """
+    if points is None or len(points) == 0:
+        return b""
 
-def make_safe_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
+    lines = []
+    for p in points:
+        x, y, z = float(p[0]), float(p[1]), float(p[2])
+        lines.append(f"{x:.6f}\t{y:.6f}\t{z:.6f}")
+
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
     safe_rame = rame.replace("/", "_")
     return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
 
@@ -410,14 +426,12 @@ def viewer(
     final_zs,
     guide_offset_x,
     language,
-    file_name,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
     final_radii_json = json.dumps(final_radii)
     final_zs_json = json.dumps(final_zs)
     labels_json = json.dumps(TEXTS[language])
-    file_name_json = json.dumps(file_name)
 
     return f"""
     <div id="viewer_root" style="
@@ -450,7 +464,6 @@ def viewer(
         ">
             <button id="play_pause_btn" class="viewer_btn">⏸</button>
             <button id="fullscreen_btn" class="viewer_btn">⛶</button>
-            <button id="download_sldcrv_btn" class="viewer_btn">⬇ SLDCRV</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
         </div>
@@ -463,7 +476,7 @@ def viewer(
             display:flex;
             flex-direction:column;
             gap:12px;
-            width:220px;
+            width:230px;
             padding:14px;
             background:rgba(18,22,27,0.72);
             color:#f0f0f0;
@@ -475,8 +488,16 @@ def viewer(
             user-select:none;
         ">
             <div>
-                <div class="panel_label">Velocità</div>
-                <div class="btn_group_vertical">
+                <div class="panel_label" id="animation_title"></div>
+                <label class="panel_check">
+                    <input type="checkbox" id="animation_check" checked />
+                    <span id="animation_label_text"></span>
+                </label>
+            </div>
+
+            <div>
+                <div class="panel_label" id="speed_title"></div>
+                <div class="btn_group_vertical" id="speed_group">
                     <button class="speed_btn viewer_btn_small" data-speed="0.1">x0.1</button>
                     <button class="speed_btn viewer_btn_small" data-speed="0.5">x0.5</button>
                     <button class="speed_btn viewer_btn_small active_speed" data-speed="1.0">x1</button>
@@ -486,20 +507,37 @@ def viewer(
                 </div>
             </div>
 
+            <div>
+                <div class="panel_label" id="spool_title"></div>
+                <div class="btn_group_vertical">
+                    <button class="spool_btn viewer_btn_small active_opt" data-spool="visible" id="spool_visible_btn"></button>
+                    <button class="spool_btn viewer_btn_small" data-spool="transparent" id="spool_transparent_btn"></button>
+                    <button class="spool_btn viewer_btn_small" data-spool="hidden" id="spool_hidden_btn"></button>
+                </div>
+            </div>
+
+            <div>
+                <div class="panel_label" id="tube_title"></div>
+                <div class="btn_group_vertical">
+                    <button class="tube_btn viewer_btn_small active_opt" data-tube="gelwhite" id="tube_gelwhite_btn"></button>
+                    <button class="tube_btn viewer_btn_small" data-tube="gelblack" id="tube_gelblack_btn"></button>
+                </div>
+            </div>
+
             <div class="panel_checks_block">
                 <label class="panel_check">
                     <input type="checkbox" id="grid_check" checked />
-                    <span>Grid</span>
+                    <span id="grid_title"></span>
                 </label>
 
                 <label class="panel_check">
                     <input type="checkbox" id="axes_check" />
-                    <span>Assi</span>
+                    <span id="axes_title"></span>
                 </label>
 
                 <label class="panel_check">
-                    <input type="checkbox" id="animation_check" checked />
-                    <span>Animazione</span>
+                    <input type="checkbox" id="section_check" />
+                    <span id="section_title"></span>
                 </label>
             </div>
         </div>
@@ -514,13 +552,7 @@ def viewer(
             color:#111;
             font-weight:700;
             cursor:pointer;
-            white-space:nowrap;
         }}
-
-        .viewer_btn:hover {{
-            background:#ffffff;
-        }}
-
         .viewer_btn_small {{
             border:none;
             border-radius:8px;
@@ -531,16 +563,14 @@ def viewer(
             cursor:pointer;
             text-align:left;
         }}
-
-        .viewer_btn_small:hover {{
-            background:#ffffff;
-        }}
-
         .active_speed {{
             outline:2px solid #ffffff;
             background:#ffffff;
         }}
-
+        .active_opt {{
+            outline:2px solid #ffffff;
+            background:#ffffff;
+        }}
         .panel_label {{
             font-size:12px;
             opacity:0.82;
@@ -548,24 +578,25 @@ def viewer(
             text-transform:uppercase;
             letter-spacing:0.04em;
         }}
-
         .btn_group_vertical {{
             display:flex;
             flex-direction:column;
             gap:6px;
         }}
-
         .panel_check {{
             display:flex;
             align-items:center;
             gap:8px;
         }}
-
         .panel_checks_block {{
             display:flex;
             flex-direction:column;
             gap:8px;
             padding-top:2px;
+        }}
+        .viewer_btn_disabled {{
+            opacity:0.45;
+            cursor:not-allowed;
         }}
     </style>
 
@@ -575,41 +606,57 @@ def viewer(
     <script>
     (() => {{
         const T = {labels_json};
-        const fileName = {file_name_json};
 
         const host = document.getElementById("viewer_root");
         const playPauseBtn = document.getElementById("play_pause_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
-        const downloadSldcrvBtn = document.getElementById("download_sldcrv_btn");
         const progressSlider = document.getElementById("progress_slider");
         const animationCheck = document.getElementById("animation_check");
+
+        const speedBtns = [...document.querySelectorAll(".speed_btn")];
+        const spoolBtns = [...document.querySelectorAll(".spool_btn")];
+        const tubeBtns = [...document.querySelectorAll(".tube_btn")];
+
         const gridCheck = document.getElementById("grid_check");
         const axesCheck = document.getElementById("axes_check");
-        const speedBtns = [...document.querySelectorAll(".speed_btn")];
+        const sectionCheck = document.getElementById("section_check");
 
         document.getElementById("progress_title").textContent = T.progress;
+        document.getElementById("speed_title").textContent = T.speed;
+        document.getElementById("spool_title").textContent = T.spool;
+        document.getElementById("tube_title").textContent = T.tube_color;
+        document.getElementById("grid_title").textContent = T.grid;
+        document.getElementById("axes_title").textContent = T.axes;
+        document.getElementById("section_title").textContent = T.section;
+        document.getElementById("animation_title").textContent = T.animation;
+        document.getElementById("animation_label_text").textContent = T.animation;
+        document.getElementById("spool_visible_btn").textContent = T.visible;
+        document.getElementById("spool_transparent_btn").textContent = T.transparent;
+        document.getElementById("spool_hidden_btn").textContent = T.hidden;
+        document.getElementById("tube_gelwhite_btn").textContent = T.gelwhite;
+        document.getElementById("tube_gelblack_btn").textContent = T.gelblack;
 
         const W = Math.max(host.clientWidth, 600);
         const Hview = Math.max(host.clientHeight, 400);
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        camera.position.set(-1400, -2100, 260);
+        camera.position.set(-1400, -2100, 200);
         camera.up.set(0, 0, 1);
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
             powerPreference: "high-performance"
         }});
-
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.physicallyCorrectLights = true;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
+        renderer.localClippingEnabled = true;
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.TrackballControls(camera, renderer.domElement);
@@ -634,42 +681,137 @@ def viewer(
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-        function downloadSldcrv() {{
-            const content = localRaw
-                .map(p => `${{Number(p[0]).toFixed(6)}}\\t${{Number(p[1]).toFixed(6)}}\\t${{Number(p[2]).toFixed(6)}}`)
-                .join("\\n") + "\\n";
-
-            const blob = new Blob([content], {{
-                type: "text/plain;charset=utf-8"
-            }});
-
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-
-            a.href = url;
-            a.download = fileName;
-
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            URL.revokeObjectURL(url);
-        }}
-
-        downloadSldcrvBtn.addEventListener("click", downloadSldcrv);
-
         let isPlaying = true;
         let animationEnabled = true;
         let speed = 1.0;
+        let aspoMode = "visible";
+        let tubeMode = "gelwhite";
         let showGrid = true;
         let showAxes = false;
+        let showSection = false;
+
+        let clippingPlanes = [];
+        let grid = null;
+        let axes = null;
+        let sectionPlaneHelper = null;
+        let sectionFrame = null;
+
+        function getTheme() {{
+            if (tubeMode === "gelblack") {{
+                return {{
+                    bg: 0xffffff,
+                    tube: 0x111111,
+                    freeTube: 0x242424,
+                    activeTube: 0x050505,
+                    sectionFill: 0x000000,
+                    sectionFrame: 0x111111,
+                    gridMajor: 0x5c5c5c,
+                    gridMinor: 0xb8b8b8,
+                    gridOpacity: 0.72,
+                    hemiSky: 0xffffff,
+                    hemiGround: 0xd8d2ca,
+                    ambient: 0.12,
+                    fill: 0.32,
+                    rim: 0.52,
+                    exposure: 1.15,
+                }};
+            }}
+            return {{
+                bg: 0x000000,
+                tube: 0xd8d8d6,
+                freeTube: 0xbebebc,
+                activeTube: 0xf0f0ee,
+                sectionFill: 0xffffff,
+                sectionFrame: 0xffffff,
+                gridMajor: 0x6f6f6f,
+                gridMinor: 0x2f2f2f,
+                gridOpacity: 0.34,
+                hemiSky: 0xd7dfe7,
+                hemiGround: 0x1a1d20,
+                ambient: 0.18,
+                fill: 0.40,
+                rim: 0.62,
+                exposure: 1.0,
+            }};
+        }}
 
         function updatePlayBtn() {{
             playPauseBtn.textContent = isPlaying ? "⏸" : "▶";
             playPauseBtn.title = isPlaying ? T.pause : T.play;
         }}
-
         updatePlayBtn();
+
+        function updateAnimationUI() {{
+            if (animationEnabled) {{
+                playPauseBtn.classList.remove("viewer_btn_disabled");
+                playPauseBtn.disabled = false;
+            }} else {{
+                playPauseBtn.classList.add("viewer_btn_disabled");
+                playPauseBtn.disabled = true;
+            }}
+        }}
+
+        function setActiveButton(group, value, attr, activeClass="active_opt") {{
+            group.forEach(btn => {{
+                btn.classList.toggle(activeClass, btn.getAttribute(attr) === value);
+            }});
+        }}
+
+        speedBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                speed = parseFloat(btn.dataset.speed);
+                speedBtns.forEach(b => b.classList.remove("active_speed"));
+                btn.classList.add("active_speed");
+            }});
+        }});
+
+        spoolBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                aspoMode = btn.dataset.spool;
+                setActiveButton(spoolBtns, aspoMode, "data-spool");
+                applyVisualState();
+            }});
+        }});
+
+        tubeBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                tubeMode = btn.dataset.tube;
+                setActiveButton(tubeBtns, tubeMode, "data-tube");
+                applyVisualState(true);
+            }});
+        }});
+
+        gridCheck.addEventListener("change", () => {{
+            showGrid = gridCheck.checked;
+            applyVisualState();
+        }});
+
+        axesCheck.addEventListener("change", () => {{
+            showAxes = axesCheck.checked;
+            applyVisualState();
+        }});
+
+        sectionCheck.addEventListener("change", () => {{
+            showSection = sectionCheck.checked;
+            applySectionState();
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
+        }});
+
+        animationCheck.addEventListener("change", () => {{
+            animationEnabled = animationCheck.checked;
+            if (!animationEnabled) {{
+                isPlaying = false;
+                drawPos = localPts.length - 1;
+                rebuildDepositedMesh(Math.floor(drawPos), true);
+                updateOverlayContinuous(true);
+                progressSlider.value = 1000;
+            }} else {{
+                isPlaying = true;
+            }}
+            updatePlayBtn();
+            updateAnimationUI();
+        }});
 
         playPauseBtn.addEventListener("click", () => {{
             if (!animationEnabled) return;
@@ -692,6 +834,7 @@ def viewer(
                 console.error(err);
             }}
         }});
+        fullscreenBtn.title = T.fullscreen;
 
         document.addEventListener("fullscreenchange", () => {{
             if (!document.fullscreenElement) {{
@@ -701,108 +844,209 @@ def viewer(
             setTimeout(resizeViewer, 30);
         }});
 
-        speedBtns.forEach(btn => {{
-            btn.addEventListener("click", () => {{
-                speed = parseFloat(btn.dataset.speed);
-                speedBtns.forEach(b => b.classList.remove("active_speed"));
-                btn.classList.add("active_speed");
-            }});
-        }});
-
-        animationCheck.addEventListener("change", () => {{
-            animationEnabled = animationCheck.checked;
-
-            if (!animationEnabled) {{
-                isPlaying = false;
-                drawPos = localPts.length - 1;
-                progressSlider.value = 1000;
-                rebuildSceneAt(drawPos);
-            }} else {{
-                isPlaying = true;
-            }}
-
-            updatePlayBtn();
-        }});
-
-        gridCheck.addEventListener("change", () => {{
-            showGrid = gridCheck.checked;
-            grid.visible = showGrid;
-        }});
-
-        axesCheck.addEventListener("change", () => {{
-            showAxes = axesCheck.checked;
-            axes.visible = showAxes;
-        }});
-
         progressSlider.addEventListener("input", () => {{
             const maxPos = Math.max(1, localPts.length - 1);
             drawPos = (parseInt(progressSlider.value) / 1000.0) * maxPos;
-            rebuildSceneAt(drawPos);
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
         }});
 
         function resizeViewer() {{
             const nw = Math.max(host.clientWidth, 600);
             const nh = Math.max(host.clientHeight, 400);
-
             camera.aspect = nw / nh;
             camera.updateProjectionMatrix();
-
             renderer.setSize(nw, nh);
             controls.handleResize();
         }}
 
-        // =========================
-        // MATERIALS
-        // =========================
+        // ==========================================
+        // TEXTURES
+        // ==========================================
+        function makeWaffleKnurlTexture(size = 256) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
 
-        const metalMat = new THREE.MeshStandardMaterial({{
-            color: 0x6d7278,
-            roughness: 0.55,
-            metalness: 0.85
-        }});
+            ctx.fillStyle = "rgb(128,128,128)";
+            ctx.fillRect(0, 0, size, size);
 
-        const tubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xd8d8d6,
-            roughness: 0.85,
-            metalness: 0.05
-        }});
+            const img = ctx.getImageData(0, 0, size, size);
+            const data = img.data;
 
-        const activeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xffffff,
-            roughness: 0.78,
-            metalness: 0.05
-        }});
+            const pitch = 24.0;
+            const lineWidth = 4.0;
+            const depth = 95.0;
 
-        const freeTubeMat = new THREE.MeshStandardMaterial({{
-            color: 0xbebebc,
-            roughness: 0.90,
-            metalness: 0.05
-        }});
+            for (let y = 0; y < size; y++) {{
+                for (let x = 0; x < size; x++) {{
+                    const u = x;
+                    const v = y;
 
-        const startMat = new THREE.MeshStandardMaterial({{
+                    const d1 = Math.abs((((u + v) % pitch) + pitch) % pitch - pitch * 0.5);
+                    const d2 = Math.abs((((u - v) % pitch) + pitch) % pitch - pitch * 0.5);
+
+                    let value = 128;
+
+                    if (d1 < lineWidth) value -= depth;
+                    if (d2 < lineWidth) value -= depth;
+
+                    const cell =
+                        0.5 + 0.5 *
+                        Math.cos((u + v) * Math.PI / pitch) *
+                        Math.cos((u - v) * Math.PI / pitch);
+
+                    value += (cell - 0.5) * 30.0;
+                    value = Math.max(0, Math.min(255, Math.round(value)));
+
+                    const i = (y * size + x) * 4;
+                    data[i] = value;
+                    data[i + 1] = value;
+                    data[i + 2] = value;
+                    data[i + 3] = 255;
+                }}
+            }}
+
+            ctx.putImageData(img, 0, 0);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(1.5, 1.5);
+            return tex;
+        }}
+
+        function makeSteelTexture(size = 256) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+
+            const grad = ctx.createLinearGradient(0, 0, size, 0);
+            grad.addColorStop(0.0, "#565c64");
+            grad.addColorStop(0.18, "#d9dee3");
+            grad.addColorStop(0.36, "#747b84");
+            grad.addColorStop(0.58, "#c2c8ce");
+            grad.addColorStop(0.82, "#666d76");
+            grad.addColorStop(1.0, "#e0e4e8");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+
+            for (let y = 0; y < size; y += 2) {{
+                const a = 0.04 + Math.random() * 0.06;
+                ctx.fillStyle = `rgba(255,255,255,${{a}})`;
+                ctx.fillRect(0, y, size, 1);
+            }}
+
+            const img = ctx.getImageData(0, 0, size, size);
+            for (let i = 0; i < img.data.length; i += 4) {{
+                const n = Math.floor(Math.random() * 14) - 7;
+                img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
+                img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
+                img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
+            }}
+            ctx.putImageData(img, 0, 0);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(0.65, 0.65);
+            return tex;
+        }}
+
+        const bumpTex = makeWaffleKnurlTexture(256);
+        const steelTex = makeSteelTexture(256);
+
+        // ==========================================
+        // MATERIALS / THEME
+        // ==========================================
+        function makeRedMat(opacity=1.0, transparent=false) {{
+            return new THREE.MeshStandardMaterial({{
+                color: 0x6d7278,
+                roughness: 0.55,
+                metalness: 0.85,
+                map: steelTex,
+                transparent: transparent,
+                opacity: opacity,
+                depthWrite: !transparent
+            }});
+        }}
+
+        function makeTubeMaterial(mode, active=false, free=false) {{
+            const theme = getTheme();
+            const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
+
+            const m = new THREE.MeshStandardMaterial({{
+                color: chosen,
+                roughness: active ? 0.80 : (free ? 0.88 : 0.85),
+                metalness: 0.05,
+                bumpMap: bumpTex,
+                bumpScale: active ? 1.25 : (free ? 1.1 : 1.2),
+                clippingPlanes: clippingPlanes,
+                clipShadows: showSection
+            }});
+
+            m.onBeforeCompile = (shader) => {{
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    '#include <roughnessmap_fragment>',
+                    `
+                    #include <roughnessmap_fragment>
+                    float anisotropyFake = abs(dot(normalize(vViewPosition), vec3(0.0, 1.0, 0.0)));
+                    roughnessFactor *= mix(0.85, 1.15, anisotropyFake);
+                    `
+                );
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+                    `
+                    float contactShade = pow(abs(dot(normal, vec3(0.0, 0.0, 1.0))), 1.8);
+                    outgoingLight *= mix(0.88, 1.0, contactShade);
+                    gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+                    `
+                );
+            }};
+            m.needsUpdate = true;
+            return m;
+        }}
+
+        let redMat = makeRedMat(1.0, false);
+        let redMatTransparent = makeRedMat(0.18, true);
+        let tubeMat = makeTubeMaterial(tubeMode, false, false);
+        let activeTubeMat = makeTubeMaterial(tubeMode, true, false);
+        let freeTubeMat = makeTubeMaterial(tubeMode, false, true);
+
+        const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a,
             roughness: 0.45,
-            metalness: 0.02
+            metalness: 0.02,
+            emissive: 0x0b2013,
+            emissiveIntensity: 0.12
         }});
 
-        const endMat = new THREE.MeshStandardMaterial({{
+        const markerEndMat = new THREE.MeshStandardMaterial({{
             color: 0xffb020,
             roughness: 0.40,
-            metalness: 0.02
+            metalness: 0.02,
+            emissive: 0x2a1800,
+            emissiveIntensity: 0.14
         }});
 
-        // =========================
-        // LIGHTS
-        // =========================
+        // ==========================================
+        // LIGHTING
+        // ==========================================
+        const ambient = new THREE.AmbientLight(0xffffff, 0.18);
+        scene.add(ambient);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.22));
-
-        const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.32);
+        const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.30);
         scene.add(hemi);
 
         const keyLight = new THREE.DirectionalLight(0xffffff, 1.20);
         keyLight.position.set(300, -200, 600);
         keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 1024;
+        keyLight.shadow.mapSize.height = 1024;
+        keyLight.shadow.camera.near = 50;
+        keyLight.shadow.camera.far = 3000;
         scene.add(keyLight);
 
         const fillLight = new THREE.DirectionalLight(0xffffff, 0.40);
@@ -813,25 +1057,25 @@ def viewer(
         rimLight.position.set(0, 400, 300);
         scene.add(rimLight);
 
-        // =========================
-        // GROUPS
-        // =========================
-
+        // ==========================================
+        // SCENE GROUPS
+        // ==========================================
         const machine = new THREE.Group();
         scene.add(machine);
 
-        const dynamicGroup = new THREE.Group();
-        scene.add(dynamicGroup);
+        const depositedGroup = new THREE.Group();
+        machine.add(depositedGroup);
 
-        // =========================
-        // SPOOL
-        // =========================
+        const overlayGroup = new THREE.Group();
+        scene.add(overlayGroup);
 
+        // ==========================================
+        // MANDREL / SPOOLS
+        // ==========================================
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
-            metalMat
+            redMat
         );
-
         mandrel.rotation.x = Math.PI / 2;
         mandrel.position.z = Hs / 2.0;
         mandrel.castShadow = true;
@@ -843,9 +1087,8 @@ def viewer(
 
         const base = new THREE.Mesh(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
-            metalMat
+            redMat
         );
-
         base.rotation.x = Math.PI / 2;
         base.position.z = 0.0;
         base.castShadow = true;
@@ -854,49 +1097,212 @@ def viewer(
 
         const top = new THREE.Mesh(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
-            metalMat
+            redMat
         );
-
         top.rotation.x = Math.PI / 2;
         top.position.z = Hs;
         top.castShadow = true;
         top.receiveShadow = true;
         machine.add(top);
 
-        // =========================
-        // GRID / AXES
-        // =========================
+        // ==========================================
+        // GUIDE
+        // ==========================================
+        const nozzleDiameter = 55.0;
+        const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
+        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.34;
 
-        const grid = new THREE.GridHelper(2000, 20, 0x6f6f6f, 0x2f2f2f);
-        grid.rotation.x = Math.PI / 2;
-        grid.position.z = 0;
-        grid.material.opacity = 0.34;
-        grid.material.transparent = true;
-        scene.add(grid);
+        const guideGroup = new THREE.Group();
+        scene.add(guideGroup);
 
-        const axes = new THREE.AxesHelper(350);
-        axes.visible = false;
-        scene.add(axes);
+        const guideBarrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false),
+            redMat
+        );
+        guideBarrel.rotation.z = Math.PI / 2;
+        guideBarrel.position.x = 0;
+        guideBarrel.castShadow = true;
+        guideBarrel.receiveShadow = true;
+        guideGroup.add(guideBarrel);
 
-        // =========================
-        // HELPERS
-        // =========================
+        const guideShoulder = new THREE.Mesh(
+            new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false),
+            redMat
+        );
+        guideShoulder.rotation.z = Math.PI / 2;
+        guideShoulder.position.x = 22 * guideScale;
+        guideShoulder.castShadow = true;
+        guideShoulder.receiveShadow = true;
+        guideGroup.add(guideShoulder);
 
-        function clearDynamicGroup() {{
-            while (dynamicGroup.children.length > 0) {{
-                const child = dynamicGroup.children[0];
-                dynamicGroup.remove(child);
+        const guideTaper = new THREE.Mesh(
+            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false),
+            redMat
+        );
+        guideTaper.rotation.z = Math.PI / 2;
+        guideTaper.position.x = 42 * guideScale;
+        guideTaper.castShadow = true;
+        guideTaper.receiveShadow = true;
+        guideGroup.add(guideTaper);
 
-                if (child.geometry) child.geometry.dispose();
+        const guideNozzle = new THREE.Mesh(
+            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false),
+            redMat
+        );
+        guideNozzle.rotation.z = Math.PI / 2;
+        guideNozzle.position.x = 58 * guideScale;
+        guideNozzle.castShadow = true;
+        guideNozzle.receiveShadow = true;
+        guideGroup.add(guideNozzle);
 
-                if (child.material) {{
-                    if (Array.isArray(child.material)) {{
-                        child.material.forEach(m => m.dispose && m.dispose());
-                    }} else {{
-                        child.material.dispose && child.material.dispose();
-                    }}
-                }}
+        const guideBackCap = new THREE.Mesh(
+            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false),
+            redMat
+        );
+        guideBackCap.rotation.z = Math.PI / 2;
+        guideBackCap.position.x = -28 * guideScale;
+        guideBackCap.castShadow = true;
+        guideBackCap.receiveShadow = true;
+        guideGroup.add(guideBackCap);
+
+        function refreshThemeBackgroundAndLights() {{
+            const theme = getTheme();
+            scene.background = new THREE.Color(theme.bg);
+            renderer.toneMappingExposure = theme.exposure;
+            ambient.intensity = theme.ambient;
+            hemi.color.setHex(theme.hemiSky);
+            hemi.groundColor.setHex(theme.hemiGround);
+            fillLight.intensity = theme.fill;
+            rimLight.intensity = theme.rim;
+        }}
+
+        function applySectionState() {{
+            clippingPlanes = [];
+            if (sectionPlaneHelper) scene.remove(sectionPlaneHelper);
+            if (sectionFrame) scene.remove(sectionFrame);
+            sectionPlaneHelper = null;
+            sectionFrame = null;
+
+            if (showSection) {{
+                const theme = getTheme();
+                const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+                clippingPlanes = [cutPlane];
+
+                const sectionMat = new THREE.MeshBasicMaterial({{
+                    color: theme.sectionFill,
+                    transparent: true,
+                    opacity: tubeMode === "gelwhite" ? 0.18 : 0.12,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                }});
+
+                const sectionGeo = new THREE.PlaneGeometry(2 * (R + 260), Hs + 260);
+                sectionPlaneHelper = new THREE.Mesh(sectionGeo, sectionMat);
+                sectionPlaneHelper.position.set(0, 0, Hs * 0.5);
+                sectionPlaneHelper.rotation.y = Math.PI / 2;
+                scene.add(sectionPlaneHelper);
+
+                const frameGeo = new THREE.EdgesGeometry(sectionGeo);
+                const frameMat = new THREE.LineBasicMaterial({{
+                    color: theme.sectionFrame,
+                    transparent: true,
+                    opacity: tubeMode === "gelwhite" ? 0.45 : 0.35
+                }});
+                sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
+                sectionFrame.position.copy(sectionPlaneHelper.position);
+                sectionFrame.rotation.copy(sectionPlaneHelper.rotation);
+                scene.add(sectionFrame);
             }}
+
+            renderer.localClippingEnabled = showSection;
+
+            tubeMat = makeTubeMaterial(tubeMode, false, false);
+            activeTubeMat = makeTubeMaterial(tubeMode, true, false);
+            freeTubeMat = makeTubeMaterial(tubeMode, false, true);
+        }}
+
+        function buildGridIfNeeded() {{
+            if (grid) scene.remove(grid);
+            grid = null;
+
+            if (showGrid) {{
+                const theme = getTheme();
+                grid = new THREE.GridHelper(
+                    2000,
+                    20,
+                    theme.gridMajor,
+                    theme.gridMinor
+                );
+                grid.rotation.x = Math.PI / 2;
+                grid.position.z = 0;
+                grid.material.opacity = theme.gridOpacity;
+                grid.material.transparent = true;
+                scene.add(grid);
+            }}
+        }}
+
+        function buildAxesIfNeeded() {{
+            if (axes) scene.remove(axes);
+            axes = null;
+            if (showAxes) {{
+                axes = new THREE.AxesHelper(350);
+                scene.add(axes);
+            }}
+        }}
+
+        function applyVisualState(themeChanged=false) {{
+            refreshThemeBackgroundAndLights();
+
+            const useMat = aspoMode === "transparent" ? redMatTransparent : redMat;
+            mandrel.material = useMat;
+            base.material = useMat;
+            top.material = useMat;
+            guideBarrel.material = useMat;
+            guideShoulder.material = useMat;
+            guideTaper.material = useMat;
+            guideNozzle.material = useMat;
+            guideBackCap.material = useMat;
+
+            mandrel.visible = aspoMode !== "hidden";
+            base.visible = aspoMode !== "hidden";
+            top.visible = aspoMode !== "hidden";
+
+            buildGridIfNeeded();
+            buildAxesIfNeeded();
+
+            if (themeChanged) {{
+                applySectionState();
+            }}
+
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
+        }}
+
+        // ==========================================
+        // HELPERS
+        // ==========================================
+        function guidePointWorld(radius, z) {{
+            return new THREE.Vector3(
+                -(radius + guideOffsetX),
+                radius,
+                z
+            );
+        }}
+
+        function localPointToWorld(ptLocal, theta) {{
+            return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
+        }}
+
+        function lerp(a, b, t) {{
+            return a + (b - a) * t;
+        }}
+
+        function lerpVec3(a, b, t) {{
+            return new THREE.Vector3(
+                lerp(a.x, b.x, t),
+                lerp(a.y, b.y, t),
+                lerp(a.z, b.z, t)
+            );
         }}
 
         class PolylineCurve3 extends THREE.Curve {{
@@ -914,30 +1320,19 @@ def viewer(
             }}
 
             getPoint(t) {{
-                if (!this.points || this.points.length === 0) {{
-                    return new THREE.Vector3(0, 0, 0);
-                }}
-
-                if (this.points.length === 1 || this.totalLength <= 1e-9) {{
-                    return this.points[0].clone();
-                }}
+                if (!this.points || this.points.length === 0) return new THREE.Vector3(0, 0, 0);
+                if (this.points.length === 1 || this.totalLength <= 1e-9) return this.points[0].clone();
 
                 const target = t * this.totalLength;
                 let i = 1;
+                while (i < this.arc.length && this.arc[i] < target) i++;
 
-                while (i < this.arc.length && this.arc[i] < target) {{
-                    i++;
-                }}
-
-                if (i >= this.points.length) {{
-                    return this.points[this.points.length - 1].clone();
-                }}
+                if (i >= this.points.length) return this.points[this.points.length - 1].clone();
 
                 const l0 = this.arc[i - 1];
                 const l1 = this.arc[i];
                 const p0 = this.points[i - 1];
                 const p1 = this.points[i];
-
                 const denom = Math.max(1e-9, l1 - l0);
                 const a = (target - l0) / denom;
 
@@ -949,17 +1344,28 @@ def viewer(
             }}
         }}
 
+        function disposeMaterial(mat) {{
+            if (!mat) return;
+            if (Array.isArray(mat)) mat.forEach(m => m && m.dispose && m.dispose());
+            else if (mat.dispose) mat.dispose();
+        }}
+
+        function disposeObj(obj, parentObj = scene) {{
+            if (!obj) return;
+            parentObj.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            disposeMaterial(obj.material);
+        }}
+
         function makeTubeMeshFromPoints(points, radius, material) {{
             if (!points || points.length < 2) return null;
 
             let totalLen = 0;
-
             for (let i = 1; i < points.length; i++) {{
                 totalLen += points[i].distanceTo(points[i - 1]);
             }}
 
             const curve = new PolylineCurve3(points);
-
             const tubularSegments = Math.max(
                 18,
                 Math.min(2600, Math.floor(totalLen / Math.max(1.25, radius * 0.48)))
@@ -967,18 +1373,15 @@ def viewer(
 
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
             geo.computeVertexNormals();
-
             const mesh = new THREE.Mesh(geo, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
-
             return mesh;
         }}
 
         function makeTubeSegment(p0, p1, radius, material) {{
             const dir = new THREE.Vector3().subVectors(p1, p0);
             const len = dir.length();
-
             if (len < 1e-6) return null;
 
             const geo = new THREE.CylinderGeometry(radius, radius, len, 16, 1, false);
@@ -989,7 +1392,6 @@ def viewer(
 
             const yAxis = new THREE.Vector3(0, 1, 0);
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
-
             mesh.setRotationFromQuaternion(quat);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -1000,57 +1402,68 @@ def viewer(
         function makeEndpointDisc(point, tangentDir, material, radiusScale = 0.92) {{
             const r = Math.max(7.0, Rt * radiusScale);
             const thickness = Math.max(2.0, Rt * 0.22);
-
             const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 28);
             const mesh = new THREE.Mesh(geo, material);
-
             mesh.position.copy(point);
 
             const yAxis = new THREE.Vector3(0, 1, 0);
-            const safeDir = tangentDir.length() > 1e-6
-                ? tangentDir.clone().normalize()
-                : new THREE.Vector3(0, 1, 0);
-
-            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, safeDir);
+            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, tangentDir.clone().normalize());
             mesh.setRotationFromQuaternion(quat);
-
             mesh.castShadow = true;
             mesh.receiveShadow = true;
 
             return mesh;
         }}
 
-        function localPointToWorld(ptLocal, theta) {{
-            return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
+        let depositedMesh = null;
+        let freeMesh = null;
+        let activeCoilMesh = null;
+        let startMarker = null;
+        let endMarker = null;
+
+        let drawPos = 1.0;
+        let lastRebuiltCompleted = -1;
+
+        function rebuildDepositedMesh(completedIndex, force=false) {{
+            if (completedIndex < 1) return;
+            if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
+            lastRebuiltCompleted = completedIndex;
+
+            if (depositedMesh) {{
+                disposeObj(depositedMesh, depositedGroup);
+                depositedMesh = null;
+            }}
+
+            const pts = localPts.slice(0, completedIndex + 1);
+            depositedMesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
+            if (depositedMesh) depositedGroup.add(depositedMesh);
         }}
 
-        function guidePointWorld(radius, z) {{
-            return new THREE.Vector3(
-                -(radius + guideOffsetX),
-                radius,
-                z
-            );
+        function clearOverlay() {{
+            if (freeMesh) {{
+                disposeObj(freeMesh, overlayGroup);
+                freeMesh = null;
+            }}
+            if (activeCoilMesh) {{
+                disposeObj(activeCoilMesh, overlayGroup);
+                activeCoilMesh = null;
+            }}
+            if (startMarker) {{
+                disposeObj(startMarker, overlayGroup);
+                startMarker = null;
+            }}
+            if (endMarker) {{
+                disposeObj(endMarker, overlayGroup);
+                endMarker = null;
+            }}
         }}
 
-        function lerp(a, b, t) {{
-            return a + (b - a) * t;
-        }}
-
-        function lerpVec3(a, b, t) {{
-            return new THREE.Vector3(
-                lerp(a.x, b.x, t),
-                lerp(a.y, b.y, t),
-                lerp(a.z, b.z, t)
-            );
-        }}
-
-        function rebuildSceneAt(pos) {{
-            clearDynamicGroup();
-
+        function updateOverlayContinuous(force=false) {{
+            clearOverlay();
             if (localPts.length < 2) return;
 
             const maxPos = localPts.length - 1;
-            const clampedPos = Math.max(1.0, Math.min(pos, maxPos));
+            const clampedPos = Math.max(1.0, Math.min(drawPos, maxPos));
 
             const i0 = Math.floor(clampedPos);
             const i1 = Math.min(i0 + 1, localPts.length - 1);
@@ -1062,91 +1475,78 @@ def viewer(
 
             machine.rotation.z = theta;
 
-            const completedPts = localPts.slice(0, i0 + 1);
-            const depositedMesh = makeTubeMeshFromPoints(completedPts, Rt, tubeMat);
-
-            if (depositedMesh) {{
-                machine.add(depositedMesh);
-                dynamicGroup.add(depositedMesh);
-            }}
-
             const activeLocalStart = localPts[i0];
             const activeLocalEnd = lerpVec3(localPts[i0], localPts[i1], frac);
 
-            const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-            const activeEndWorld = localPointToWorld(activeLocalEnd, theta);
-
-            if (frac > 1e-6 && i1 > i0) {{
-                const activeSegment = makeTubeSegment(
-                    activeStartWorld,
-                    activeEndWorld,
-                    Rt,
-                    activeTubeMat
-                );
-
-                if (activeSegment) dynamicGroup.add(activeSegment);
-            }}
-
-            const guideWorld = guidePointWorld(radius, z);
-
-            if (animationEnabled) {{
-                const freeSegment = makeTubeSegment(
-                    guideWorld,
-                    activeEndWorld,
-                    Rt,
-                    freeTubeMat
-                );
-
-                if (freeSegment) dynamicGroup.add(freeSegment);
-
-                const guideGeo = new THREE.CylinderGeometry(27.5, 27.5, 70, 32);
-                const guideMesh = new THREE.Mesh(guideGeo, metalMat);
-
-                guideMesh.rotation.z = Math.PI / 2;
-                guideMesh.position.copy(guideWorld);
-                guideMesh.castShadow = true;
-                guideMesh.receiveShadow = true;
-
-                dynamicGroup.add(guideMesh);
-            }}
-
             const startWorld = localPointToWorld(localPts[0], theta);
-            const endWorld = activeEndWorld;
+            const endWorld = localPointToWorld(activeLocalEnd, theta);
 
             const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
             const endTangentLocal = activeLocalEnd.clone().sub(activeLocalStart);
+            const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
+            const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
 
-            const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
-            const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
+            startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.82);
+            endMarker = makeEndpointDisc(
+                endWorld,
+                endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld,
+                markerEndMat,
+                0.96
+            );
+            overlayGroup.add(startMarker);
+            overlayGroup.add(endMarker);
 
-            const startMarker = makeEndpointDisc(startWorld, startTangentWorld, startMat, 0.82);
-            const endMarker = makeEndpointDisc(endWorld, endTangentWorld, endMat, 0.96);
+            if (animationEnabled) {{
+                if (frac > 1e-6 && i1 > i0) {{
+                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
+                    activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
+                    if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
+                }}
 
-            dynamicGroup.add(startMarker);
-            dynamicGroup.add(endMarker);
+                const guideWorld = guidePointWorld(radius, z);
+                freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
+                if (freeMesh) overlayGroup.add(freeMesh);
+
+                guideGroup.position.copy(guideWorld);
+                guideGroup.visible = true;
+            }} else {{
+                guideGroup.visible = false;
+            }}
         }}
 
-        let drawPos = 1.0;
-
-        rebuildSceneAt(drawPos);
+        applySectionState();
+        applyVisualState(true);
+        updateAnimationUI();
 
         function animate() {{
             requestAnimationFrame(animate);
 
             if (animationEnabled && isPlaying && drawPos < localPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
-
+                const oldCompleted = Math.floor(drawPos);
                 drawPos = Math.min(localPts.length - 1, drawPos + advance);
+                const newCompleted = Math.floor(drawPos);
 
-                rebuildSceneAt(drawPos);
+                if (newCompleted > oldCompleted) {{
+                    rebuildDepositedMesh(newCompleted);
+                }}
 
-                progressSlider.value = Math.round(
-                    (drawPos / Math.max(1, localPts.length - 1)) * 1000
-                );
+                updateOverlayContinuous();
+                progressSlider.value = Math.round((drawPos / Math.max(1, localPts.length - 1)) * 1000);
             }}
 
             controls.update();
             renderer.render(scene, camera);
+        }}
+
+        if (!animationEnabled) {{
+            drawPos = localPts.length - 1;
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
+            progressSlider.value = 1000;
+        }} else {{
+            rebuildDepositedMesh(1, true);
+            updateOverlayContinuous(true);
         }}
 
         animate();
@@ -1209,10 +1609,6 @@ d_tubo = d_rame + 2.0 * spessore
 
 metrics = compute_metrics(local_points, d_tubo)
 
-file_name = make_safe_filename(rame, d_tubo, lunghezza)
-
-st.info(t["export_note"])
-
 components.html(
     viewer(
         diametro_aspo,
@@ -1225,10 +1621,30 @@ components.html(
         z_values.tolist(),
         guide_offset_x,
         lang,
-        file_name,
     ),
-    height=760,
+    height=760
 )
+
+# =========================
+# DOWNLOAD SLDCRV
+# =========================
+
+st.divider()
+
+download_col1, download_col2 = st.columns([1.2, 4.8])
+
+with download_col1:
+    st.download_button(
+        label=t["download"],
+        data=make_sldcrv_content(local_points),
+        file_name=make_sldcrv_filename(rame, d_tubo, lunghezza),
+        mime="text/plain",
+        help=t["download_help"],
+        use_container_width=True,
+    )
+
+with download_col2:
+    st.caption(t["download_help"])
 
 # =========================
 # METRICS
