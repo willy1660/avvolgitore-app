@@ -24,32 +24,26 @@ TEXTS = {
         "language": "🌍 Language",
         "bobina": "🟦 Bobina",
         "tubo": "🟩 Tubo",
-        "avvolg": "🟧 Simulazione visuale",
-        "export": "🧩 Export SolidWorks fisico",
-        "download": "⬇️ Scarica centerline fisica .SLDCRV",
-        "download_help": "File XYZ della centerline fisica, importabile in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
+        "avvolg": "🟧 Avvolgimento",
+        "viewer": "⚙️ Viewer",
+        "download": "⬇️ Scarica curva .SLDCRV",
+        "download_help": "File XYZ della traiettoria avvolta, importabile in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
         "isolamento": "Spessore guaina (mm)",
         "lunghezza": "Lunghezza rotolo (m)",
-        "passo_assiale": "Passo visuale (mm/rev)",
-        "incremento": "Incremento visuale strato (mm)",
+        "passo_assiale": "Passo assiale (mm/rev)",
+        "incremento": "Incremento strato (mm)",
         "rit_min": "Ritardo base (°)",
         "rit_max": "Ritardo spalla (°)",
-        "gioco_export": "Gioco export CAD (mm)",
-        "passo_export": "Passo export CAD (mm/rev)",
-        "max_points_export": "Max punti export",
-        "min_dist_export": "Distanza minima punti export (mm)",
-        "tol_export": "Tolleranza semplificazione (mm)",
         "metric1": "Diametro tubo",
-        "metric2": "Passo export",
-        "metric3": "Incremento export",
-        "metric4": "Punti viewer",
-        "metric5": "Punti export",
-        "metric6": "Lunghezza export",
+        "metric2": "Passo assiale",
+        "metric3": "Incremento strato",
+        "metric4": "Diametro radiale max",
+        "metric5": "Ingombro max XY",
+        "metric6": "Lunghezza avvolta",
         "warning": "⚠️ Ingombro max XY superiore a 750 mm.",
-        "physical_ok": "✅ Centerline fisica: passo e incremento calcolati per evitare sovrapposizioni.",
         "play": "Play",
         "pause": "Pause",
         "fullscreen": "Fullscreen",
@@ -73,32 +67,26 @@ TEXTS = {
         "language": "🌍 Language",
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
-        "avvolg": "🟧 Visual simulation",
-        "export": "🧩 Physical SolidWorks export",
-        "download": "⬇️ Download physical centerline .SLDCRV",
-        "download_help": "XYZ file of the physical centerline, importable in SolidWorks with Insert → Curve → Curve Through XYZ Points.",
+        "avvolg": "🟧 Winding",
+        "viewer": "⚙️ Viewer",
+        "download": "⬇️ Download .SLDCRV curve",
+        "download_help": "XYZ file of the wound trajectory, importable in SolidWorks with Insert → Curve → Curve Through XYZ Points.",
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
         "isolamento": "Foam thickness (mm)",
         "lunghezza": "Coil length (m)",
-        "passo_assiale": "Visual pitch (mm/rev)",
-        "incremento": "Visual layer increment (mm)",
+        "passo_assiale": "Axial pitch (mm/rev)",
+        "incremento": "Layer increment",
         "rit_min": "Bottom delay (°)",
         "rit_max": "Top delay (°)",
-        "gioco_export": "CAD export clearance (mm)",
-        "passo_export": "CAD export pitch (mm/rev)",
-        "max_points_export": "Max export points",
-        "min_dist_export": "Min export point distance (mm)",
-        "tol_export": "Simplification tolerance (mm)",
         "metric1": "Tube diameter",
-        "metric2": "Export pitch",
-        "metric3": "Export increment",
-        "metric4": "Viewer points",
-        "metric5": "Export points",
-        "metric6": "Export length",
+        "metric2": "Axial pitch",
+        "metric3": "Layer increment",
+        "metric4": "Max radial diameter",
+        "metric5": "Max XY span",
+        "metric6": "Wound length",
         "warning": "⚠️ Max XY span exceeds 750 mm.",
-        "physical_ok": "✅ Physical centerline: pitch and layer increment calculated to avoid overlaps.",
         "play": "Play",
         "pause": "Pause",
         "fullscreen": "Fullscreen",
@@ -134,6 +122,7 @@ COPPER_SIZES_MM = {
 
 EPS = 1e-9
 gradi_start = 0.0
+pinza = 0.0
 guide_offset_x = 555.0
 
 # =========================
@@ -190,7 +179,7 @@ lang = st.session_state.lang
 t = TEXTS[lang]
 
 # =========================
-# BASIC GEOMETRY HELPERS
+# GEOMETRY / SIMULATION
 # =========================
 
 def smoothstep(x: float) -> float:
@@ -199,7 +188,7 @@ def smoothstep(x: float) -> float:
 
 
 def polyline_length(points: np.ndarray) -> float:
-    if points is None or len(points) < 2:
+    if len(points) < 2:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
@@ -217,11 +206,8 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
 
     return np.array([x, y, pt_world[2]], dtype=float)
 
-# =========================
-# VISUAL SIMULATION
-# =========================
 
-def simulate_winding_visual(
+def simulate_winding_center_plane_local(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -234,13 +220,11 @@ def simulate_winding_visual(
     deg_step: float = 2.0,
 ):
     """
-    Simulazione visuale del guidatubo.
-    Questa curva serve solo per il viewer.
-
-    Il ritardo è espresso in gradi:
-    - guidatubo fermo in Z;
-    - mandrino continua a ruotare;
-    - raggio passa progressivamente allo strato successivo.
+    Logica corretta:
+    - il ritardo è espresso in gradi del mandrino;
+    - durante il ritardo il guidatubo resta fermo in Z;
+    - il raggio passa progressivamente allo strato successivo;
+    - non è un ritardo temporale.
     """
 
     max_len = lunghezza_m * 1000.0
@@ -420,291 +404,9 @@ def simulate_winding_visual(
         deposited_len,
     )
 
-# =========================
-# PHYSICAL CENTERLINE FOR SOLIDWORKS
-# =========================
-
-def compute_physical_pitch_and_layer_increment(
-    d_tubo: float,
-    passo_user: float,
-    gioco: float,
-):
-    """
-    Calcola passo e incremento fisici per evitare sovrapposizioni.
-
-    D = diametro esterno tubo
-    S = distanza minima centro-centro = D + gioco
-    P = passo assiale fisico
-
-    Per impaccamento triangolare:
-    h = sqrt(S^2 - (P/2)^2)
-
-    Se P è troppo grande per triangolare, h = S.
-    """
-
-    D = float(d_tubo)
-    S = max(D + float(gioco), D)
-
-    P = max(float(passo_user), S)
-
-    if P < 2.0 * S:
-        h = np.sqrt(max(S * S - (P / 2.0) ** 2, 0.0))
-    else:
-        h = S
-
-    h = max(h, D * 0.25)
-
-    return P, h, S
-
-
-def generate_physical_centerline(
-    d_aspo: float,
-    spalla: float,
-    d_tubo: float,
-    lunghezza_m: float,
-    passo_fisico: float,
-    incremento_fisico: float,
-    deg_step: float = 4.0,
-):
-    """
-    Genera una centerline fisica per SolidWorks.
-
-    La traiettoria è composta da eliche alternate per strati:
-    - uno strato sale da Zmin a Zmax;
-    - il successivo scende da Zmax a Zmin;
-    - il raggio aumenta di incremento_fisico a ogni strato;
-    - il passo assiale è sempre >= D + gioco.
-
-    Questa centerline è pensata per evitare autointersezioni del sweep.
-    """
-
-    D = float(d_tubo)
-    Rt = D / 2.0
-
-    R0 = float(d_aspo) / 2.0 + Rt
-    Zmin = Rt
-    Zmax = float(spalla) - Rt
-    W = Zmax - Zmin
-
-    max_len = float(lunghezza_m) * 1000.0
-
-    if W <= EPS or max_len <= EPS:
-        return np.zeros((0, 3), dtype=float), 0.0, 0.0, 0.0
-
-    P = max(float(passo_fisico), D)
-    h = max(float(incremento_fisico), D * 0.25)
-
-    theta_step = np.deg2rad(max(0.5, float(deg_step)))
-
-    points = []
-    deposited_len = 0.0
-
-    layer = 0
-    theta_global = 0.0
-
-    first = True
-
-    while deposited_len < max_len and layer < 10000:
-        R_layer = R0 + layer * h
-        direction = 1 if layer % 2 == 0 else -1
-
-        turns_layer = W / P
-        theta_layer_max = 2.0 * np.pi * turns_layer
-
-        theta_local = 0.0
-
-        while theta_local <= theta_layer_max + EPS:
-            if direction == 1:
-                z = Zmin + P * theta_local / (2.0 * np.pi)
-                z = min(z, Zmax)
-            else:
-                z = Zmax - P * theta_local / (2.0 * np.pi)
-                z = max(z, Zmin)
-
-            theta = theta_global + theta_local
-
-            x = R_layer * np.cos(theta)
-            y = R_layer * np.sin(theta)
-
-            p = np.array([x, y, z], dtype=float)
-
-            if first:
-                points.append(p)
-                first = False
-            else:
-                seg = float(np.linalg.norm(p - points[-1]))
-
-                if deposited_len + seg >= max_len:
-                    remain = max_len - deposited_len
-                    a = remain / max(seg, EPS)
-                    final_p = points[-1] + a * (p - points[-1])
-                    points.append(final_p)
-                    deposited_len = max_len
-                    break
-
-                points.append(p)
-                deposited_len += seg
-
-            theta_local += theta_step
-
-        if deposited_len >= max_len:
-            break
-
-        # Connessione fisica morbida tra strati:
-        # piccolo arco a Z fisso per passare al raggio successivo.
-        # Mantiene la continuità della centerline senza attraversare il layer precedente.
-        next_R = R0 + (layer + 1) * h
-        z_edge = Zmax if direction == 1 else Zmin
-
-        transition_angle = np.deg2rad(180.0)
-        n_steps_transition = max(8, int(transition_angle / theta_step))
-
-        for k in range(1, n_steps_transition + 1):
-            s = smoothstep(k / n_steps_transition)
-            R_tr = R_layer + s * (next_R - R_layer)
-            theta_tr = theta_global + theta_layer_max + k * (transition_angle / n_steps_transition)
-
-            x = R_tr * np.cos(theta_tr)
-            y = R_tr * np.sin(theta_tr)
-            z = z_edge
-
-            p = np.array([x, y, z], dtype=float)
-
-            seg = float(np.linalg.norm(p - points[-1]))
-
-            if deposited_len + seg >= max_len:
-                remain = max_len - deposited_len
-                a = remain / max(seg, EPS)
-                final_p = points[-1] + a * (p - points[-1])
-                points.append(final_p)
-                deposited_len = max_len
-                break
-
-            points.append(p)
-            deposited_len += seg
-
-        theta_global = theta_global + theta_layer_max + transition_angle
-        layer += 1
-
-    return np.array(points, dtype=float), P, h, deposited_len
-
-# =========================
-# CURVE SIMPLIFICATION
-# =========================
-
-def point_line_distance_3d(point, start, end):
-    point = np.asarray(point, dtype=float)
-    start = np.asarray(start, dtype=float)
-    end = np.asarray(end, dtype=float)
-
-    line = end - start
-    denom = np.dot(line, line)
-
-    if denom < EPS:
-        return float(np.linalg.norm(point - start))
-
-    u = np.dot(point - start, line) / denom
-    u = max(0.0, min(1.0, u))
-
-    projection = start + u * line
-    return float(np.linalg.norm(point - projection))
-
-
-def douglas_peucker_3d(points: np.ndarray, tolerance: float) -> np.ndarray:
-    """
-    Douglas-Peucker 3D iterativo.
-    """
-
-    if points is None or len(points) < 3:
-        return points
-
-    points = np.asarray(points, dtype=float)
-    n = len(points)
-
-    keep = np.zeros(n, dtype=bool)
-    keep[0] = True
-    keep[-1] = True
-
-    stack = [(0, n - 1)]
-
-    while stack:
-        start_idx, end_idx = stack.pop()
-
-        if end_idx <= start_idx + 1:
-            continue
-
-        start = points[start_idx]
-        end = points[end_idx]
-
-        max_dist = -1.0
-        max_idx = None
-
-        for i in range(start_idx + 1, end_idx):
-            d = point_line_distance_3d(points[i], start, end)
-
-            if d > max_dist:
-                max_dist = d
-                max_idx = i
-
-        if max_dist > tolerance and max_idx is not None:
-            keep[max_idx] = True
-            stack.append((start_idx, max_idx))
-            stack.append((max_idx, end_idx))
-
-    return points[keep]
-
-
-def resample_by_min_distance(points: np.ndarray, min_distance: float) -> np.ndarray:
-    """
-    Elimina punti troppo ravvicinati.
-    """
-
-    if points is None or len(points) < 2:
-        return points
-
-    points = np.asarray(points, dtype=float)
-
-    filtered = [points[0]]
-    last = points[0]
-
-    for p in points[1:-1]:
-        if np.linalg.norm(p - last) >= min_distance:
-            filtered.append(p)
-            last = p
-
-    filtered.append(points[-1])
-
-    return np.array(filtered, dtype=float)
-
-
-def simplify_curve_for_solidworks(
-    points: np.ndarray,
-    min_distance: float = 6.0,
-    tolerance: float = 2.0,
-    max_points: int = 800,
-) -> np.ndarray:
-    """
-    Semplifica la curva fisica per SolidWorks.
-    """
-
-    if points is None or len(points) < 2:
-        return points
-
-    simplified = resample_by_min_distance(points, min_distance)
-    simplified = douglas_peucker_3d(simplified, tolerance)
-
-    if len(simplified) > max_points:
-        idx = np.linspace(0, len(simplified) - 1, int(max_points)).astype(int)
-        simplified = simplified[idx]
-
-    return np.array(simplified, dtype=float)
-
-# =========================
-# METRICS
-# =========================
 
 def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
-    if points is None or len(points) < 2:
+    if len(points) < 2:
         return float(d_tubo)
 
     xy = points[:, :2]
@@ -722,7 +424,7 @@ def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
 
 
 def compute_metrics(points: np.ndarray, d_tubo: float):
-    if points is None or len(points) == 0:
+    if len(points) == 0:
         return {
             "diam_radiale": 0.0,
             "max_xy_span": 0.0,
@@ -761,7 +463,7 @@ def make_sldcrv_content(points: np.ndarray) -> bytes:
 
 def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
     safe_rame = rame.replace("/", "_")
-    return f"centerline_fisica_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
+    return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
 
 # =========================
 # VIEWER
@@ -1320,6 +1022,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
+
             tex.repeat.set(2.0, 18.0);
             tex.anisotropy = 8;
             tex.needsUpdate = true;
@@ -1332,7 +1035,7 @@ def viewer(
         const tubeBlackTex = makeTubeTexture(256, true);
 
         // ==========================================
-        // MATERIALS
+        // MATERIALS / THEME
         // ==========================================
 
         function makeRedMat(opacity=1.0, transparent=false) {{
@@ -1680,15 +1383,15 @@ def viewer(
             return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
         }}
 
-        function lerp(a, b, tt) {{
-            return a + (b - a) * tt;
+        function lerp(a, b, t) {{
+            return a + (b - a) * t;
         }}
 
-        function lerpVec3(a, b, tt) {{
+        function lerpVec3(a, b, t) {{
             return new THREE.Vector3(
-                lerp(a.x, b.x, tt),
-                lerp(a.y, b.y, tt),
-                lerp(a.z, b.z, tt)
+                lerp(a.x, b.x, t),
+                lerp(a.y, b.y, t),
+                lerp(a.z, b.z, t)
             );
         }}
 
@@ -1707,7 +1410,7 @@ def viewer(
                 }}
             }}
 
-            getPoint(tt) {{
+            getPoint(t) {{
                 if (!this.points || this.points.length === 0) {{
                     return new THREE.Vector3(0, 0, 0);
                 }}
@@ -1716,7 +1419,7 @@ def viewer(
                     return this.points[0].clone();
                 }}
 
-                const target = tt * this.totalLength;
+                const target = t * this.totalLength;
 
                 let i = 1;
 
@@ -2019,16 +1722,16 @@ with colB:
 
 with colC:
     st.markdown(f"#### {t['avvolg']}")
-    passo_visuale = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
-    incremento_visuale = st.number_input(t["incremento"], value=20.0, step=0.5)
+    passo = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
+    incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
     rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
     rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
 
-d_tubo = d_rame + 2.0 * spessore
+# =========================
+# BUILD
+# =========================
 
-# =========================
-# VISUAL BUILD
-# =========================
+d_tubo = d_rame + 2.0 * spessore
 
 (
     world_contacts,
@@ -2037,12 +1740,12 @@ d_tubo = d_rame + 2.0 * spessore
     radius_values,
     z_values,
     deposited_len_mm,
-) = simulate_winding_visual(
+) = simulate_winding_center_plane_local(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
-    passo=passo_visuale,
-    incremento=incremento_visuale,
+    passo=passo,
+    incremento=incremento,
     rit_b=rit_b,
     rit_t=rit_t,
     lunghezza_m=lunghezza,
@@ -2050,112 +1753,30 @@ d_tubo = d_rame + 2.0 * spessore
     deg_step=2.0,
 )
 
-visual_metrics = compute_metrics(local_points, d_tubo)
+metrics = compute_metrics(local_points, d_tubo)
 
 # =========================
-# PHYSICAL EXPORT BUILD
+# DOWNLOAD SLDCRV
 # =========================
 
 st.divider()
-st.markdown(f"#### {t['export']}")
 
-exp1, exp2, exp3, exp4 = st.columns(4)
-
-with exp1:
-    gioco_export = st.number_input(
-        t["gioco_export"],
-        value=1.0,
-        min_value=0.0,
-        max_value=10.0,
-        step=0.1,
-    )
-
-with exp2:
-    min_dist_export = st.number_input(
-        t["min_dist_export"],
-        value=6.0,
-        min_value=0.5,
-        max_value=50.0,
-        step=0.5,
-    )
-
-with exp3:
-    tol_export = st.number_input(
-        t["tol_export"],
-        value=2.0,
-        min_value=0.1,
-        max_value=25.0,
-        step=0.1,
-    )
-
-with exp4:
-    max_points_export = st.number_input(
-        t["max_points_export"],
-        value=800,
-        min_value=100,
-        max_value=5000,
-        step=50,
-    )
-
-passo_export, incremento_export, distanza_centri = compute_physical_pitch_and_layer_increment(
-    d_tubo=d_tubo,
-    passo_user=passo_visuale,
-    gioco=gioco_export,
-)
-
-physical_points_raw, passo_export, incremento_export, physical_len_mm = generate_physical_centerline(
-    d_aspo=diametro_aspo,
-    spalla=spalla,
-    d_tubo=d_tubo,
-    lunghezza_m=lunghezza,
-    passo_fisico=passo_export,
-    incremento_fisico=incremento_export,
-    deg_step=4.0,
-)
-
-physical_points_export = simplify_curve_for_solidworks(
-    physical_points_raw,
-    min_distance=float(min_dist_export),
-    tolerance=float(tol_export),
-    max_points=int(max_points_export),
-)
-
-st.success(t["physical_ok"])
-
-st.caption(
-    f"Viewer visuale → passo: {passo_visuale:.2f} mm/rev | "
-    f"incremento: {incremento_visuale:.2f} mm"
-)
-
-st.caption(
-    f"Export fisico → distanza minima centri: {distanza_centri:.2f} mm | "
-    f"passo: {passo_export:.2f} mm/rev | "
-    f"incremento layer: {incremento_export:.2f} mm"
-)
-
-st.caption(
-    f"Punti centerline fisica raw: {len(physical_points_raw):,} | "
-    f"Punti esportati: {len(physical_points_export):,}"
-)
+sldcrv_filename = make_sldcrv_filename(rame, d_tubo, lunghezza)
 
 download_col1, download_col2 = st.columns([1.2, 4.8])
 
 with download_col1:
     st.download_button(
         label=t["download"],
-        data=make_sldcrv_content(physical_points_export),
-        file_name=make_sldcrv_filename(rame, d_tubo, lunghezza),
+        data=make_sldcrv_content(local_points),
+        file_name=sldcrv_filename,
         mime="text/plain",
         help=t["download_help"],
         use_container_width=True,
     )
 
 with download_col2:
-    st.caption(
-        "Questa centerline è generata con logica fisica automatica: "
-        "passo assiale e incremento layer evitano la sovrapposizione del tubo. "
-        "Nel viewer puoi continuare a vedere la simulazione visuale."
-    )
+    st.caption(t["download_help"])
 
 st.divider()
 
@@ -2188,11 +1809,11 @@ st.divider()
 m1, m2, m3, m4, m5, m6 = st.columns(6)
 
 m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
-m2.metric(t["metric2"], f"{passo_export:.2f} mm")
-m3.metric(t["metric3"], f"{incremento_export:.2f} mm")
-m4.metric(t["metric4"], f"{len(local_points):,}")
-m5.metric(t["metric5"], f"{len(physical_points_export):,}")
-m6.metric(t["metric6"], f"{physical_len_mm / 1000.0:.3f} m")
+m2.metric(t["metric2"], f"{passo:.2f} mm")
+m3.metric(t["metric3"], f"{incremento:.2f} mm")
+m4.metric(t["metric4"], f"{metrics['diam_radiale']:.1f} mm")
+m5.metric(t["metric5"], f"{metrics['max_xy_span']:.1f} mm")
+m6.metric(t["metric6"], f"{metrics['wound_length_m']:.3f} m")
 
-if visual_metrics["max_xy_span"] > 750:
+if metrics["max_xy_span"] > 750:
     st.warning(t["warning"])
