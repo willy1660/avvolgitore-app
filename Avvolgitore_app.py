@@ -64,7 +64,6 @@ TEXTS = {
         "view_3d": "3D",
         "view_front": "Frontale",
         "view_side": "Laterale",
-        "view_top": "Superiore",
         "hud_length": "Lunghezza",
         "hud_layer": "Strato",
         "hud_radius": "Raggio",
@@ -116,7 +115,6 @@ TEXTS = {
         "view_3d": "3D",
         "view_front": "Front",
         "view_side": "Side",
-        "view_top": "Top",
         "hud_length": "Length",
         "hud_layer": "Layer",
         "hud_radius": "Radius",
@@ -513,7 +511,7 @@ def viewer(
         border-radius:16px;
         overflow:hidden;
         border:1px solid rgba(255,255,255,0.08);
-        box-shadow:0 18px 42px rgba(0,0,0,0.32);
+        box-shadow:0 18px 42px rgba(0,0,0,0.28);
         position:relative;
     ">
         <div id="viewer_topbar" style="
@@ -604,7 +602,6 @@ def viewer(
                     <button class="view_btn viewer_btn_small active_opt" data-view="3d" id="view_3d_btn"></button>
                     <button class="view_btn viewer_btn_small" data-view="front" id="view_front_btn"></button>
                     <button class="view_btn viewer_btn_small" data-view="side" id="view_side_btn"></button>
-                    <button class="view_btn viewer_btn_small" data-view="top" id="view_top_btn"></button>
                 </div>
             </div>
 
@@ -788,7 +785,6 @@ def viewer(
         document.getElementById("view_3d_btn").textContent = T.view_3d;
         document.getElementById("view_front_btn").textContent = T.view_front;
         document.getElementById("view_side_btn").textContent = T.view_side;
-        document.getElementById("view_top_btn").textContent = T.view_top;
 
         document.getElementById("hud_length_label").textContent = T.hud_length;
         document.getElementById("hud_layer_label").textContent = T.hud_layer;
@@ -866,41 +862,35 @@ def viewer(
         let sectionPlaneHelper = null;
         let sectionFrame = null;
         let floor = null;
-        let backdrop = null;
         let ghostLine = null;
 
         function getTheme() {{
             if (tubeMode === "gelblack") {{
                 return {{
-                    bgTop: 0xf3f3f1,
-                    bg: 0xe8e6e1,
-                    floor: 0xd8d5cd,
-                    backdrop: 0xefede7,
+                    bg: 0xffffff,
+                    floor: 0xf2f2f2,
                     tube: 0x303231,
                     freeTube: 0x3c3f3e,
                     activeTube: 0x252727,
-                    ghost: 0x3f4140,
+                    ghost: 0x222222,
                     sectionFill: 0x111111,
                     sectionFrame: 0x111111,
                     gridMajor: 0x6c6c6c,
-                    gridMinor: 0xb8b8b8,
-                    gridOpacity: 0.50,
+                    gridMinor: 0xd4d4d4,
+                    gridOpacity: 0.42,
                     hemiSky: 0xffffff,
-                    hemiGround: 0xd5d0c8,
-                    ambient: 0.32,
-                    key: 1.25,
-                    fill: 0.62,
-                    rim: 0.88,
-                    exposure: 1.14,
-                    hud: "dark"
+                    hemiGround: 0xd5d5d5,
+                    ambient: 0.34,
+                    key: 1.22,
+                    fill: 0.66,
+                    rim: 0.86,
+                    exposure: 1.12
                 }};
             }}
 
             return {{
-                bgTop: 0x15181d,
                 bg: 0x101216,
                 floor: 0x1b1e23,
-                backdrop: 0x181b20,
                 tube: 0xd8d6cf,
                 freeTube: 0xc5c2ba,
                 activeTube: 0xf2efe6,
@@ -913,11 +903,10 @@ def viewer(
                 hemiSky: 0xe2e8ef,
                 hemiGround: 0x151719,
                 ambient: 0.23,
-                key: 1.35,
+                key: 1.32,
                 fill: 0.52,
                 rim: 0.85,
-                exposure: 1.04,
-                hud: "light"
+                exposure: 1.04
             }};
         }}
 
@@ -1077,8 +1066,6 @@ def viewer(
                 camera.position.set(0, -1900, Hs * 0.52);
             }} else if (viewName === "side") {{
                 camera.position.set(-1900, 0, Hs * 0.52);
-            }} else if (viewName === "top") {{
-                camera.position.set(0, 0, 1900);
             }} else {{
                 camera.position.set(-950, -1500, 520);
             }}
@@ -1102,12 +1089,12 @@ def viewer(
 
             const grad = ctx.createLinearGradient(0, 0, size, 0);
 
-            grad.addColorStop(0.0, "#4f555d");
-            grad.addColorStop(0.16, "#d8dde2");
-            grad.addColorStop(0.34, "#69707a");
-            grad.addColorStop(0.56, "#c6ccd1");
-            grad.addColorStop(0.80, "#5c636c");
-            grad.addColorStop(1.0, "#e1e5e8");
+            grad.addColorStop(0.0, "#565c64");
+            grad.addColorStop(0.18, "#d9dee3");
+            grad.addColorStop(0.36, "#747b84");
+            grad.addColorStop(0.58, "#c2c8ce");
+            grad.addColorStop(0.82, "#666d76");
+            grad.addColorStop(1.0, "#e0e4e8");
 
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, size, size);
@@ -1121,7 +1108,7 @@ def viewer(
             const img = ctx.getImageData(0, 0, size, size);
 
             for (let i = 0; i < img.data.length; i += 4) {{
-                const n = Math.floor(Math.random() * 12) - 6;
+                const n = Math.floor(Math.random() * 14) - 7;
 
                 img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
                 img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
@@ -1133,7 +1120,7 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(0.70, 0.70);
+            tex.repeat.set(0.65, 0.65);
             tex.anisotropy = 8;
 
             return tex;
@@ -1146,7 +1133,7 @@ def viewer(
 
             const ctx = canvas.getContext("2d");
 
-            const base = dark ? 78 : 216;
+            const base = dark ? 74 : 214;
             ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
             ctx.fillRect(0, 0, size, size);
 
@@ -1157,7 +1144,7 @@ def viewer(
                 for (let x = 0; x < size; x++) {{
                     const i = (y * size + x) * 4;
 
-                    const grain = Math.random() * 22 - 11;
+                    const grain = Math.random() * 24 - 12;
                     const microLine = Math.sin((x + y * 0.18) * 0.50) * 3.2;
                     const longLine = Math.sin(y * 0.13) * 2.4;
                     const softBand = Math.sin((x * 0.09) + (y * 0.025)) * 2.0;
@@ -1165,9 +1152,9 @@ def viewer(
                     let v = base + grain + microLine + longLine + softBand;
 
                     if (dark) {{
-                        v = Math.max(46, Math.min(116, v));
+                        v = Math.max(42, Math.min(112, v));
                     }} else {{
-                        v = Math.max(158, Math.min(242, v));
+                        v = Math.max(150, Math.min(245, v));
                     }}
 
                     data[i] = v;
@@ -1197,23 +1184,11 @@ def viewer(
         // MATERIALS
         // ==========================================
 
-        function makeRedMat(opacity=1.0, transparent=false) {{
+        function makeSteelMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
-                color: 0x6d737b,
-                roughness: 0.48,
-                metalness: 0.88,
-                map: steelTex,
-                transparent: transparent,
-                opacity: opacity,
-                depthWrite: !transparent
-            }});
-        }}
-
-        function makeDarkSteelMat(opacity=1.0, transparent=false) {{
-            return new THREE.MeshStandardMaterial({{
-                color: 0x3d4248,
-                roughness: 0.42,
-                metalness: 0.92,
+                color: 0x6d7278,
+                roughness: 0.55,
+                metalness: 0.85,
                 map: steelTex,
                 transparent: transparent,
                 opacity: opacity,
@@ -1229,8 +1204,8 @@ def viewer(
             const m = new THREE.MeshStandardMaterial({{
                 color: chosen,
                 map: tex,
-                roughness: active ? 0.78 : (free ? 0.92 : 0.88),
-                metalness: 0.025,
+                roughness: active ? 0.82 : (free ? 0.94 : 0.90),
+                metalness: 0.02,
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
@@ -1238,10 +1213,8 @@ def viewer(
             return m;
         }}
 
-        let redMat = makeRedMat(1.0, false);
-        let redMatTransparent = makeRedMat(0.16, true);
-        let darkSteelMat = makeDarkSteelMat(1.0, false);
-        let darkSteelMatTransparent = makeDarkSteelMat(0.16, true);
+        let steelMat = makeSteelMat(1.0, false);
+        let steelMatTransparent = makeSteelMat(0.18, true);
 
         let tubeMat = makeTubeMaterial(tubeMode, false, false);
         let activeTubeMat = makeTubeMaterial(tubeMode, true, false);
@@ -1249,18 +1222,18 @@ def viewer(
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a,
-            roughness: 0.42,
-            metalness: 0.04,
+            roughness: 0.45,
+            metalness: 0.02,
             emissive: 0x0b2013,
-            emissiveIntensity: 0.14
+            emissiveIntensity: 0.12
         }});
 
         const markerEndMat = new THREE.MeshStandardMaterial({{
             color: 0xffb020,
-            roughness: 0.38,
-            metalness: 0.04,
+            roughness: 0.40,
+            metalness: 0.02,
             emissive: 0x2a1800,
-            emissiveIntensity: 0.18
+            emissiveIntensity: 0.14
         }});
 
         // ==========================================
@@ -1273,7 +1246,7 @@ def viewer(
         const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.34);
         scene.add(hemi);
 
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.32);
         keyLight.position.set(420, -520, 780);
         keyLight.castShadow = true;
         keyLight.shadow.mapSize.width = 2048;
@@ -1294,7 +1267,7 @@ def viewer(
         rimLight.position.set(-180, 760, 580);
         scene.add(rimLight);
 
-        const softTopLight = new THREE.PointLight(0xffffff, 0.40, 2200);
+        const softTopLight = new THREE.PointLight(0xffffff, 0.35, 2200);
         softTopLight.position.set(0, 0, 900);
         scene.add(softTopLight);
 
@@ -1314,10 +1287,10 @@ def viewer(
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
-        const machineParts = [];
+        const spoolParts = [];
 
         // ==========================================
-        // STUDIO FLOOR / BACKDROP
+        // STUDIO FLOOR ONLY
         // ==========================================
 
         function rebuildStudio() {{
@@ -1326,13 +1299,6 @@ def viewer(
                 floor.geometry.dispose();
                 floor.material.dispose();
                 floor = null;
-            }}
-
-            if (backdrop) {{
-                studioGroup.remove(backdrop);
-                backdrop.geometry.dispose();
-                backdrop.material.dispose();
-                backdrop = null;
             }}
 
             if (!showStudio) return;
@@ -1353,33 +1319,15 @@ def viewer(
             floor.position.set(0, 0, -38);
             floor.receiveShadow = true;
             studioGroup.add(floor);
-
-            const backdropMat = new THREE.MeshStandardMaterial({{
-                color: theme.backdrop,
-                roughness: 0.92,
-                metalness: 0.0,
-                transparent: true,
-                opacity: 0.92
-            }});
-
-            backdrop = new THREE.Mesh(
-                new THREE.PlaneGeometry(2600, 1300),
-                backdropMat
-            );
-
-            backdrop.position.set(0, 780, 520);
-            backdrop.rotation.x = Math.PI / 2;
-            backdrop.receiveShadow = false;
-            studioGroup.add(backdrop);
         }}
 
         // ==========================================
-        // MANDREL / INDUSTRIAL SPOOL
+        // SIMPLE SPOOL / ASPO
         // ==========================================
 
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 128),
-            redMat
+            steelMat
         );
 
         mandrel.rotation.x = Math.PI / 2;
@@ -1387,14 +1335,14 @@ def viewer(
         mandrel.castShadow = true;
         mandrel.receiveShadow = true;
         machine.add(mandrel);
-        machineParts.push(mandrel);
+        spoolParts.push(mandrel);
 
         const flangeR = R + 150.0;
-        const flangeTh = 5.0;
+        const flangeTh = 4.0;
 
         const base = new THREE.Mesh(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 128),
-            redMat
+            steelMat
         );
 
         base.rotation.x = Math.PI / 2;
@@ -1402,11 +1350,11 @@ def viewer(
         base.castShadow = true;
         base.receiveShadow = true;
         machine.add(base);
-        machineParts.push(base);
+        spoolParts.push(base);
 
         const top = new THREE.Mesh(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 128),
-            redMat
+            steelMat
         );
 
         top.rotation.x = Math.PI / 2;
@@ -1414,38 +1362,7 @@ def viewer(
         top.castShadow = true;
         top.receiveShadow = true;
         machine.add(top);
-        machineParts.push(top);
-
-        const shaftR = Math.max(28, R * 0.16);
-        const shaft = new THREE.Mesh(
-            new THREE.CylinderGeometry(shaftR, shaftR, Hs + 120, 96),
-            darkSteelMat
-        );
-
-        shaft.rotation.x = Math.PI / 2;
-        shaft.position.z = Hs / 2.0;
-        shaft.castShadow = true;
-        shaft.receiveShadow = true;
-        machine.add(shaft);
-        machineParts.push(shaft);
-
-        function addRing(radius, zPos, tubeRadius, mat) {{
-            const torus = new THREE.Mesh(
-                new THREE.TorusGeometry(radius, tubeRadius, 96, 14),
-                mat
-            );
-            torus.position.z = zPos;
-            torus.castShadow = true;
-            torus.receiveShadow = true;
-            machine.add(torus);
-            machineParts.push(torus);
-            return torus;
-        }}
-
-        addRing(flangeR * 0.86, -flangeTh * 0.55, 3.0, darkSteelMat);
-        addRing(flangeR * 0.58, -flangeTh * 0.65, 2.2, darkSteelMat);
-        addRing(flangeR * 0.86, Hs + flangeTh * 0.55, 3.0, darkSteelMat);
-        addRing(flangeR * 0.58, Hs + flangeTh * 0.65, 2.2, darkSteelMat);
+        spoolParts.push(top);
 
         // ==========================================
         // GUIDE
@@ -1460,7 +1377,7 @@ def viewer(
 
         const guideBarrel = new THREE.Mesh(
             new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 40, 1, false),
-            darkSteelMat
+            steelMat
         );
 
         guideBarrel.rotation.z = Math.PI / 2;
@@ -1471,7 +1388,7 @@ def viewer(
 
         const guideShoulder = new THREE.Mesh(
             new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 40, 1, false),
-            redMat
+            steelMat
         );
 
         guideShoulder.rotation.z = Math.PI / 2;
@@ -1482,7 +1399,7 @@ def viewer(
 
         const guideTaper = new THREE.Mesh(
             new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 40, 1, false),
-            redMat
+            steelMat
         );
 
         guideTaper.rotation.z = Math.PI / 2;
@@ -1493,7 +1410,7 @@ def viewer(
 
         const guideNozzle = new THREE.Mesh(
             new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 48, 1, false),
-            darkSteelMat
+            steelMat
         );
 
         guideNozzle.rotation.z = Math.PI / 2;
@@ -1504,7 +1421,7 @@ def viewer(
 
         const guideBackCap = new THREE.Mesh(
             new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 36, 1, false),
-            darkSteelMat
+            steelMat
         );
 
         guideBackCap.rotation.z = Math.PI / 2;
@@ -1617,19 +1534,18 @@ def viewer(
         }}
 
         function applySpoolMaterialState() {{
-            const mainMat = aspoMode === "transparent" ? redMatTransparent : redMat;
-            const secondaryMat = aspoMode === "transparent" ? darkSteelMatTransparent : darkSteelMat;
+            const useMat = aspoMode === "transparent" ? steelMatTransparent : steelMat;
 
-            machineParts.forEach((part, idx) => {{
+            spoolParts.forEach(part => {{
                 part.visible = aspoMode !== "hidden";
-                part.material = idx >= 3 ? secondaryMat : mainMat;
+                part.material = useMat;
             }});
 
-            guideBarrel.material = secondaryMat;
-            guideNozzle.material = secondaryMat;
-            guideBackCap.material = secondaryMat;
-            guideShoulder.material = mainMat;
-            guideTaper.material = mainMat;
+            guideBarrel.material = useMat;
+            guideShoulder.material = useMat;
+            guideTaper.material = useMat;
+            guideNozzle.material = useMat;
+            guideBackCap.material = useMat;
         }}
 
         function applyVisualState(themeChanged=false) {{
