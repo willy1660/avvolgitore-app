@@ -2065,28 +2065,28 @@ exp1, exp2, exp3, exp4 = st.columns(4)
 with exp1:
     simplify_min_distance = st.number_input(
         "Distanza minima punti (mm)",
-        value=2.0,
+        value=8.0,
         min_value=0.2,
-        max_value=30.0,
-        step=0.2,
+        max_value=50.0,
+        step=0.5,
     )
 
 with exp2:
     simplify_tolerance = st.number_input(
         "Tolleranza semplificazione (mm)",
-        value=0.8,
+        value=3.0,
         min_value=0.05,
-        max_value=15.0,
-        step=0.05,
+        max_value=30.0,
+        step=0.1,
     )
 
 with exp3:
     simplify_max_points = st.number_input(
         "Max punti curva/STL",
-        value=2500,
-        min_value=300,
-        max_value=12000,
-        step=100,
+        value=600,
+        min_value=100,
+        max_value=5000,
+        step=50,
     )
 
 with exp4:
