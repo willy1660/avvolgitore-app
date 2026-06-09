@@ -764,9 +764,9 @@ def viewer(
             if (tubeMode === "gelblack") {{
                 return {{
                     bg: 0xffffff,
-                    tube: 0x121212,
-                    freeTube: 0x202020,
-                    activeTube: 0x050505,
+                    tube: 0x2f3030,
+                    freeTube: 0x3a3b3b,
+                    activeTube: 0x242525,
                     sectionFill: 0x000000,
                     sectionFrame: 0x111111,
                     gridMajor: 0x5c5c5c,
@@ -774,10 +774,10 @@ def viewer(
                     gridOpacity: 0.72,
                     hemiSky: 0xffffff,
                     hemiGround: 0xd8d2ca,
-                    ambient: 0.16,
-                    fill: 0.40,
-                    rim: 0.62,
-                    exposure: 1.12,
+                    ambient: 0.24,
+                    fill: 0.55,
+                    rim: 0.78,
+                    exposure: 1.18,
                 }};
             }}
 
@@ -980,57 +980,54 @@ def viewer(
             return tex;
         }}
 
-        function makeTubeTexture(size = 256, dark=false) {{
-            const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
+ function makeTubeTexture(size = 256, dark=false) {
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
 
-            const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
 
-            const base = dark ? 34 : 214;
-            ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
-            ctx.fillRect(0, 0, size, size);
+    const base = dark ? 74 : 214;
+    ctx.fillStyle = `rgb(${base}, ${base}, ${base})`;
+    ctx.fillRect(0, 0, size, size);
 
-            const img = ctx.getImageData(0, 0, size, size);
-            const data = img.data;
+    const img = ctx.getImageData(0, 0, size, size);
+    const data = img.data;
 
-            for (let y = 0; y < size; y++) {{
-                for (let x = 0; x < size; x++) {{
-                    const i = (y * size + x) * 4;
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const i = (y * size + x) * 4;
 
-                    const grain = Math.random() * 34 - 17;
-                    const microLine = Math.sin((x + y * 0.22) * 0.55) * 5;
-                    const longLine = Math.sin(y * 0.16) * 4;
+            const grain = Math.random() * 28 - 14;
+            const microLine = Math.sin((x + y * 0.22) * 0.55) * 4;
+            const longLine = Math.sin(y * 0.16) * 3;
 
-                    let v = base + grain + microLine + longLine;
+            let v = base + grain + microLine + longLine;
 
-                    if (dark) {{
-                        v = Math.max(8, Math.min(72, v));
-                    }} else {{
-                        v = Math.max(150, Math.min(245, v));
-                    }}
+            if (dark) {
+                v = Math.max(42, Math.min(112, v));
+            } else {
+                v = Math.max(150, Math.min(245, v));
+            }
 
-                    data[i] = v;
-                    data[i + 1] = v;
-                    data[i + 2] = v;
-                    data[i + 3] = 255;
-                }}
-            }}
+            data[i] = v;
+            data[i + 1] = v;
+            data[i + 2] = v;
+            data[i + 3] = 255;
+        }
+    }
 
-            ctx.putImageData(img, 0, 0);
+    ctx.putImageData(img, 0, 0);
 
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2.0, 18.0);
+    tex.anisotropy = 8;
+    tex.needsUpdate = true;
 
-            // Textura fina. No és bumpMap, així no fa desaparèixer el material.
-            tex.repeat.set(2.0, 18.0);
-
-            tex.anisotropy = 8;
-            tex.needsUpdate = true;
-
-            return tex;
-        }}
+    return tex;
+}
 
         const steelTex = makeSteelTexture(256);
         const tubeWhiteTex = makeTubeTexture(256, false);
