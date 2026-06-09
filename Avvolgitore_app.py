@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import struct
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
@@ -27,7 +28,9 @@ TEXTS = {
         "avvolg": "🟧 Avvolgimento",
         "viewer": "⚙️ Viewer",
         "download": "⬇️ Scarica curva .SLDCRV",
+        "download_stl": "⬇️ Scarica tubo .STL",
         "download_help": "File XYZ della traiettoria avvolta, importabile in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
+        "download_stl_help": "File STL triangolato del tubo avvolto. Apribile in SolidWorks senza dover fare sweep.",
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
@@ -70,7 +73,9 @@ TEXTS = {
         "avvolg": "🟧 Winding",
         "viewer": "⚙️ Viewer",
         "download": "⬇️ Download .SLDCRV curve",
+        "download_stl": "⬇️ Download tube .STL",
         "download_help": "XYZ file of the wound trajectory, importable in SolidWorks with Insert → Curve → Curve Through XYZ Points.",
+        "download_stl_help": "Triangulated STL file of the wound tube. Openable in SolidWorks without creating a sweep.",
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
@@ -445,6 +450,115 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
     }
 
 # =========================
+# CURVE SIMPLIFICATION
+# =========================
+
+def point_line_distance_3d(point, start, end):
+    point = np.asarray(point, dtype=float)
+    start = np.asarray(start, dtype=float)
+    end = np.asarray(end, dtype=float)
+
+    line = end - start
+    denom = np.dot(line, line)
+
+    if denom < EPS:
+        return float(np.linalg.norm(point - start))
+
+    u = np.dot(point - start, line) / denom
+    u = max(0.0, min(1.0, u))
+
+    projection = start + u * line
+    return float(np.linalg.norm(point - projection))
+
+
+def douglas_peucker_3d(points: np.ndarray, tolerance: float) -> np.ndarray:
+    """
+    Douglas-Peucker 3D iterativo.
+    Evita ricorsioni troppo profonde con curve lunghe.
+    """
+    if points is None or len(points) < 3:
+        return points
+
+    points = np.asarray(points, dtype=float)
+    n = len(points)
+
+    keep = np.zeros(n, dtype=bool)
+    keep[0] = True
+    keep[-1] = True
+
+    stack = [(0, n - 1)]
+
+    while stack:
+        start_idx, end_idx = stack.pop()
+
+        if end_idx <= start_idx + 1:
+            continue
+
+        start = points[start_idx]
+        end = points[end_idx]
+
+        max_dist = -1.0
+        max_idx = None
+
+        for i in range(start_idx + 1, end_idx):
+            d = point_line_distance_3d(points[i], start, end)
+
+            if d > max_dist:
+                max_dist = d
+                max_idx = i
+
+        if max_dist > tolerance and max_idx is not None:
+            keep[max_idx] = True
+            stack.append((start_idx, max_idx))
+            stack.append((max_idx, end_idx))
+
+    return points[keep]
+
+
+def resample_by_min_distance(points: np.ndarray, min_distance: float) -> np.ndarray:
+    """
+    Elimina punti troppo ravvicinati lungo la traiettoria.
+    """
+    if points is None or len(points) < 2:
+        return points
+
+    points = np.asarray(points, dtype=float)
+
+    filtered = [points[0]]
+    last = points[0]
+
+    for p in points[1:-1]:
+        if np.linalg.norm(p - last) >= min_distance:
+            filtered.append(p)
+            last = p
+
+    filtered.append(points[-1])
+
+    return np.array(filtered, dtype=float)
+
+
+def simplify_curve_for_solidworks(
+    points: np.ndarray,
+    min_distance: float = 2.0,
+    tolerance: float = 0.8,
+    max_points: int = 3500,
+) -> np.ndarray:
+    """
+    Genera una curva più leggera per SolidWorks.
+    """
+    if points is None or len(points) < 2:
+        return points
+
+    simplified = resample_by_min_distance(points, min_distance)
+    simplified = douglas_peucker_3d(simplified, tolerance)
+
+    if len(simplified) > max_points:
+        idx = np.linspace(0, len(simplified) - 1, int(max_points)).astype(int)
+        simplified = simplified[idx]
+
+    return np.array(simplified, dtype=float)
+
+# =========================
 # EXPORT SLDCRV
 # =========================
 
@@ -464,6 +578,191 @@ def make_sldcrv_content(points: np.ndarray) -> bytes:
 def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
     safe_rame = rame.replace("/", "_")
     return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
+
+# =========================
+# EXPORT STL
+# =========================
+
+def normalize_vec(v: np.ndarray) -> np.ndarray:
+    n = float(np.linalg.norm(v))
+    if n < EPS:
+        return np.array([1.0, 0.0, 0.0], dtype=float)
+    return v / n
+
+
+def make_tube_mesh(points: np.ndarray, radius: float, radial_segments: int = 12):
+    """
+    Genera una mesh tubolare attorno a una polilinea 3D.
+    Output:
+    vertices: Nx3
+    faces: Mx3 indici
+    """
+    points = np.asarray(points, dtype=float)
+
+    if points is None or len(points) < 2:
+        return np.zeros((0, 3), dtype=float), np.zeros((0, 3), dtype=np.int32)
+
+    radial_segments = int(max(6, min(48, radial_segments)))
+
+    tangents = []
+
+    for i in range(len(points)):
+        if i == 0:
+            tng = points[1] - points[0]
+        elif i == len(points) - 1:
+            tng = points[-1] - points[-2]
+        else:
+            tng = points[i + 1] - points[i - 1]
+
+        tangents.append(normalize_vec(tng))
+
+    tangents = np.array(tangents, dtype=float)
+
+    # Normal iniziale stabile.
+    t0 = tangents[0]
+    ref = np.array([0.0, 0.0, 1.0], dtype=float)
+
+    if abs(np.dot(t0, ref)) > 0.92:
+        ref = np.array([1.0, 0.0, 0.0], dtype=float)
+
+    normal = normalize_vec(np.cross(t0, ref))
+    binormal = normalize_vec(np.cross(t0, normal))
+
+    normals = [normal]
+    binormals = [binormal]
+
+    # Parallel transport frame.
+    for i in range(1, len(points)):
+        prev_t = tangents[i - 1]
+        curr_t = tangents[i]
+
+        axis = np.cross(prev_t, curr_t)
+        axis_len = np.linalg.norm(axis)
+
+        if axis_len > EPS:
+            axis = axis / axis_len
+            angle = np.arccos(max(-1.0, min(1.0, np.dot(prev_t, curr_t))))
+
+            n_prev = normals[-1]
+            b_prev = binormals[-1]
+
+            n_new = (
+                n_prev * np.cos(angle)
+                + np.cross(axis, n_prev) * np.sin(angle)
+                + axis * np.dot(axis, n_prev) * (1.0 - np.cos(angle))
+            )
+
+            b_new = (
+                b_prev * np.cos(angle)
+                + np.cross(axis, b_prev) * np.sin(angle)
+                + axis * np.dot(axis, b_prev) * (1.0 - np.cos(angle))
+            )
+
+            n_new = normalize_vec(n_new)
+            b_new = normalize_vec(np.cross(curr_t, n_new))
+        else:
+            n_new = normals[-1]
+            b_new = normalize_vec(np.cross(curr_t, n_new))
+
+        normals.append(n_new)
+        binormals.append(b_new)
+
+    vertices = []
+
+    for i, p in enumerate(points):
+        n = normals[i]
+        b = binormals[i]
+
+        for j in range(radial_segments):
+            a = 2.0 * np.pi * j / radial_segments
+            v = p + radius * (np.cos(a) * n + np.sin(a) * b)
+            vertices.append(v)
+
+    faces = []
+
+    # Side faces.
+    for i in range(len(points) - 1):
+        base0 = i * radial_segments
+        base1 = (i + 1) * radial_segments
+
+        for j in range(radial_segments):
+            j2 = (j + 1) % radial_segments
+
+            a = base0 + j
+            b = base0 + j2
+            c = base1 + j
+            d = base1 + j2
+
+            faces.append([a, c, b])
+            faces.append([b, c, d])
+
+    # Cap iniziale.
+    start_center_idx = len(vertices)
+    vertices.append(points[0])
+
+    for j in range(radial_segments):
+        j2 = (j + 1) % radial_segments
+        faces.append([start_center_idx, j2, j])
+
+    # Cap finale.
+    end_center_idx = len(vertices)
+    vertices.append(points[-1])
+
+    end_base = (len(points) - 1) * radial_segments
+
+    for j in range(radial_segments):
+        j2 = (j + 1) % radial_segments
+        faces.append([end_center_idx, end_base + j, end_base + j2])
+
+    return np.array(vertices, dtype=float), np.array(faces, dtype=np.int32)
+
+
+def face_normal(v1, v2, v3):
+    n = np.cross(v2 - v1, v3 - v1)
+    ln = np.linalg.norm(n)
+
+    if ln < EPS:
+        return np.array([0.0, 0.0, 0.0], dtype=float)
+
+    return n / ln
+
+
+def make_stl_binary(points: np.ndarray, radius: float, radial_segments: int = 12) -> bytes:
+    """
+    STL binario del tubo avvolto.
+    Coordinate in mm.
+    """
+    vertices, faces = make_tube_mesh(points, radius, radial_segments)
+
+    if len(vertices) == 0 or len(faces) == 0:
+        return b""
+
+    header_text = b"Avvolgimento tube STL generated by Streamlit"
+    header = header_text + b" " * (80 - len(header_text))
+
+    out = bytearray()
+    out.extend(header)
+    out.extend(struct.pack("<I", len(faces)))
+
+    for f in faces:
+        v1 = vertices[f[0]]
+        v2 = vertices[f[1]]
+        v3 = vertices[f[2]]
+
+        n = face_normal(v1, v2, v3)
+
+        out.extend(struct.pack("<3f", float(n[0]), float(n[1]), float(n[2])))
+        out.extend(struct.pack("<3f", float(v1[0]), float(v1[1]), float(v1[2])))
+        out.extend(struct.pack("<3f", float(v2[0]), float(v2[1]), float(v2[2])))
+        out.extend(struct.pack("<3f", float(v3[0]), float(v3[1]), float(v3[2])))
+        out.extend(struct.pack("<H", 0))
+
+    return bytes(out)
+
+
+def make_stl_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
+    safe_rame = rame.replace("/", "_")
+    return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.stl"
 
 # =========================
 # VIEWER
@@ -1022,7 +1321,6 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-
             tex.repeat.set(2.0, 18.0);
             tex.anisotropy = 8;
             tex.needsUpdate = true;
@@ -1383,15 +1681,15 @@ def viewer(
             return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
         }}
 
-        function lerp(a, b, t) {{
-            return a + (b - a) * t;
+        function lerp(a, b, tt) {{
+            return a + (b - a) * tt;
         }}
 
-        function lerpVec3(a, b, t) {{
+        function lerpVec3(a, b, tt) {{
             return new THREE.Vector3(
-                lerp(a.x, b.x, t),
-                lerp(a.y, b.y, t),
-                lerp(a.z, b.z, t)
+                lerp(a.x, b.x, tt),
+                lerp(a.y, b.y, tt),
+                lerp(a.z, b.z, tt)
             );
         }}
 
@@ -1410,7 +1708,7 @@ def viewer(
                 }}
             }}
 
-            getPoint(t) {{
+            getPoint(tt) {{
                 if (!this.points || this.points.length === 0) {{
                     return new THREE.Vector3(0, 0, 0);
                 }}
@@ -1419,7 +1717,7 @@ def viewer(
                     return this.points[0].clone();
                 }}
 
-                const target = t * this.totalLength;
+                const target = tt * this.totalLength;
 
                 let i = 1;
 
@@ -1756,27 +2054,99 @@ d_tubo = d_rame + 2.0 * spessore
 metrics = compute_metrics(local_points, d_tubo)
 
 # =========================
-# DOWNLOAD SLDCRV
+# DOWNLOADS
 # =========================
 
 st.divider()
+st.markdown("#### Export SolidWorks / STL")
+
+exp1, exp2, exp3, exp4 = st.columns(4)
+
+with exp1:
+    simplify_min_distance = st.number_input(
+        "Distanza minima punti (mm)",
+        value=2.0,
+        min_value=0.2,
+        max_value=30.0,
+        step=0.2,
+    )
+
+with exp2:
+    simplify_tolerance = st.number_input(
+        "Tolleranza semplificazione (mm)",
+        value=0.8,
+        min_value=0.05,
+        max_value=15.0,
+        step=0.05,
+    )
+
+with exp3:
+    simplify_max_points = st.number_input(
+        "Max punti curva/STL",
+        value=2500,
+        min_value=300,
+        max_value=12000,
+        step=100,
+    )
+
+with exp4:
+    stl_radial_segments = st.number_input(
+        "Segmenti sezione STL",
+        value=12,
+        min_value=6,
+        max_value=32,
+        step=2,
+    )
+
+export_points = simplify_curve_for_solidworks(
+    local_points,
+    min_distance=float(simplify_min_distance),
+    tolerance=float(simplify_tolerance),
+    max_points=int(simplify_max_points),
+)
+
+st.caption(
+    f"Punti originali: {len(local_points):,} | "
+    f"Punti esportazione: {len(export_points):,} | "
+    f"Triangoli STL stimati: {max(0, (len(export_points) - 1) * int(stl_radial_segments) * 2 + int(stl_radial_segments) * 2):,}"
+)
 
 sldcrv_filename = make_sldcrv_filename(rame, d_tubo, lunghezza)
+stl_filename = make_stl_filename(rame, d_tubo, lunghezza)
 
-download_col1, download_col2 = st.columns([1.2, 4.8])
+download_col1, download_col2 = st.columns(2)
 
 with download_col1:
     st.download_button(
         label=t["download"],
-        data=make_sldcrv_content(local_points),
+        data=make_sldcrv_content(export_points),
         file_name=sldcrv_filename,
         mime="text/plain",
         help=t["download_help"],
         use_container_width=True,
     )
+    st.caption(
+        "Curva semplificata. Se SolidWorks continua a essere pesante, "
+        "aumenta la tolleranza o riduci il massimo di punti."
+    )
 
 with download_col2:
-    st.caption(t["download_help"])
+    st.download_button(
+        label=t["download_stl"],
+        data=make_stl_binary(
+            export_points,
+            radius=d_tubo / 2.0,
+            radial_segments=int(stl_radial_segments),
+        ),
+        file_name=stl_filename,
+        mime="model/stl",
+        help=t["download_stl_help"],
+        use_container_width=True,
+    )
+    st.caption(
+        "STL triangolato del tubo. Più punti e più segmenti = più qualità, "
+        "ma anche file più pesante."
+    )
 
 st.divider()
 
