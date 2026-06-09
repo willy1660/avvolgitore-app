@@ -24,10 +24,7 @@ TEXTS = {
         "language": "🌍 Language",
         "bobina": "🟦 Bobina",
         "tubo": "🟩 Tubo",
-        "avvolg": "🟧 Avvolgimento",
-        "viewer": "⚙️ Viewer",
-        "download": "⬇️ Scarica curva .SLDCRV",
-        "download_help": "File XYZ della traiettoria avvolta, importabile in SolidWorks con Inserisci → Curva → Curva tramite punti XYZ.",
+        "avvolg": "🟧 Simulazione",
         "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
@@ -61,23 +58,32 @@ TEXTS = {
         "axes": "Assi",
         "section": "Sezione",
         "animation": "Animazione",
+        "ghost": "Traiettoria futura",
+        "studio": "Studio render",
+        "view": "Vista",
+        "view_3d": "3D",
+        "view_front": "Frontale",
+        "view_side": "Laterale",
+        "view_top": "Superiore",
+        "hud_length": "Lunghezza",
+        "hud_layer": "Strato",
+        "hud_radius": "Raggio",
+        "hud_z": "Z guidatubo",
+        "hud_diameter": "Ø tubo",
     },
     "EN": {
         "title": "Coiling",
         "language": "🌍 Language",
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
-        "avvolg": "🟧 Winding",
-        "viewer": "⚙️ Viewer",
-        "download": "⬇️ Download .SLDCRV curve",
-        "download_help": "XYZ file of the wound trajectory, importable in SolidWorks with Insert → Curve → Curve Through XYZ Points.",
+        "avvolg": "🟧 Simulation",
         "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
         "isolamento": "Foam thickness (mm)",
         "lunghezza": "Coil length (m)",
         "passo_assiale": "Axial pitch (mm/rev)",
-        "incremento": "Layer increment",
+        "incremento": "Layer increment (mm)",
         "rit_min": "Bottom delay (°)",
         "rit_max": "Top delay (°)",
         "metric1": "Tube diameter",
@@ -104,6 +110,18 @@ TEXTS = {
         "axes": "Axes",
         "section": "Section",
         "animation": "Animation",
+        "ghost": "Future path",
+        "studio": "Studio render",
+        "view": "View",
+        "view_3d": "3D",
+        "view_front": "Front",
+        "view_side": "Side",
+        "view_top": "Top",
+        "hud_length": "Length",
+        "hud_layer": "Layer",
+        "hud_radius": "Radius",
+        "hud_z": "Guide Z",
+        "hud_diameter": "Tube Ø",
     },
 }
 
@@ -122,7 +140,6 @@ COPPER_SIZES_MM = {
 
 EPS = 1e-9
 gradi_start = 0.0
-pinza = 0.0
 guide_offset_x = 555.0
 
 # =========================
@@ -179,7 +196,7 @@ lang = st.session_state.lang
 t = TEXTS[lang]
 
 # =========================
-# GEOMETRY / SIMULATION
+# GEOMETRY HELPERS
 # =========================
 
 def smoothstep(x: float) -> float:
@@ -188,7 +205,7 @@ def smoothstep(x: float) -> float:
 
 
 def polyline_length(points: np.ndarray) -> float:
-    if len(points) < 2:
+    if points is None or len(points) < 2:
         return 0.0
     return float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
 
@@ -206,8 +223,11 @@ def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
 
     return np.array([x, y, pt_world[2]], dtype=float)
 
+# =========================
+# SIMULATION
+# =========================
 
-def simulate_winding_center_plane_local(
+def simulate_winding_visual(
     d_aspo: float,
     spalla: float,
     d_tubo: float,
@@ -219,14 +239,6 @@ def simulate_winding_center_plane_local(
     gradi_start: float,
     deg_step: float = 2.0,
 ):
-    """
-    Logica corretta:
-    - il ritardo è espresso in gradi del mandrino;
-    - durante il ritardo il guidatubo resta fermo in Z;
-    - il raggio passa progressivamente allo strato successivo;
-    - non è un ritardo temporale.
-    """
-
     max_len = lunghezza_m * 1000.0
 
     R = d_aspo / 2.0
@@ -235,7 +247,6 @@ def simulate_winding_center_plane_local(
 
     theta = np.deg2rad(gradi_start)
     z = Rt
-
     current_layer_radius = R + Rt
 
     first_contact_world = deposit_point_world(current_layer_radius, z)
@@ -246,10 +257,14 @@ def simulate_winding_center_plane_local(
     theta_values = [theta]
     radius_values = [current_layer_radius]
     z_values = [z]
+    mode_values = [0]
+    layer_values = [0]
+    length_values = [0.0]
 
     deposited_len = 0.0
     direction = 1
     mode = "axial"
+    layer = 0
 
     transition_progress = 0.0
     transition_delay = 0.0
@@ -264,6 +279,7 @@ def simulate_winding_center_plane_local(
         next_direction = direction
         next_mode = mode
         next_radius = current_layer_radius
+        next_layer = layer
 
         next_transition_progress = transition_progress
         next_transition_delay = transition_delay
@@ -289,6 +305,7 @@ def simulate_winding_center_plane_local(
                     current_layer_radius = next_transition_end_radius
                     next_mode = "axial"
                     next_direction = -direction
+                    next_layer = layer + 1
                 else:
                     next_mode = "transition"
                     next_radius = next_transition_start_radius
@@ -307,6 +324,7 @@ def simulate_winding_center_plane_local(
                     current_layer_radius = next_transition_end_radius
                     next_mode = "axial"
                     next_direction = -direction
+                    next_layer = layer + 1
                 else:
                     next_mode = "transition"
                     next_radius = next_transition_start_radius
@@ -327,10 +345,10 @@ def simulate_winding_center_plane_local(
             if next_transition_progress >= transition_delay:
                 next_radius = transition_end_radius
                 current_layer_radius = transition_end_radius
-
                 next_mode = "axial"
                 next_direction = -direction
                 next_transition_progress = transition_delay
+                next_layer = layer + 1
 
         new_contact_world = deposit_point_world(next_radius, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
@@ -343,6 +361,7 @@ def simulate_winding_center_plane_local(
             z = next_z
             direction = next_direction
             mode = next_mode
+            layer = next_layer
 
             transition_progress = next_transition_progress
             transition_delay = next_transition_delay
@@ -372,8 +391,11 @@ def simulate_winding_center_plane_local(
                 theta_values.append(final_theta)
                 radius_values.append(final_r)
                 z_values.append(final_z)
+                mode_values.append(1 if next_mode == "transition" else 0)
+                layer_values.append(next_layer)
 
                 deposited_len += float(np.linalg.norm(final_local - prev_local))
+                length_values.append(deposited_len)
 
             break
 
@@ -382,12 +404,17 @@ def simulate_winding_center_plane_local(
         theta_values.append(next_theta)
         radius_values.append(next_radius)
         z_values.append(next_z)
+        mode_values.append(1 if next_mode == "transition" else 0)
+        layer_values.append(next_layer)
+
         deposited_len += seg
+        length_values.append(deposited_len)
 
         theta = next_theta
         z = next_z
         direction = next_direction
         mode = next_mode
+        layer = next_layer
 
         transition_progress = next_transition_progress
         transition_delay = next_transition_delay
@@ -401,12 +428,18 @@ def simulate_winding_center_plane_local(
         np.array(theta_values, dtype=float),
         np.array(radius_values, dtype=float),
         np.array(z_values, dtype=float),
+        np.array(mode_values, dtype=int),
+        np.array(layer_values, dtype=int),
+        np.array(length_values, dtype=float),
         deposited_len,
     )
 
+# =========================
+# METRICS
+# =========================
 
 def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
-    if len(points) < 2:
+    if points is None or len(points) < 2:
         return float(d_tubo)
 
     xy = points[:, :2]
@@ -424,7 +457,7 @@ def compute_max_xy_span(points: np.ndarray, d_tubo: float) -> float:
 
 
 def compute_metrics(points: np.ndarray, d_tubo: float):
-    if len(points) == 0:
+    if points is None or len(points) == 0:
         return {
             "diam_radiale": 0.0,
             "max_xy_span": 0.0,
@@ -445,27 +478,6 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
     }
 
 # =========================
-# EXPORT SLDCRV
-# =========================
-
-def make_sldcrv_content(points: np.ndarray) -> bytes:
-    if points is None or len(points) == 0:
-        return b""
-
-    lines = []
-
-    for p in points:
-        x, y, z = float(p[0]), float(p[1]), float(p[2])
-        lines.append(f"{x:.6f}\t{y:.6f}\t{z:.6f}")
-
-    return ("\n".join(lines) + "\n").encode("utf-8")
-
-
-def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
-    safe_rame = rame.replace("/", "_")
-    return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
-
-# =========================
 # VIEWER
 # =========================
 
@@ -478,6 +490,9 @@ def viewer(
     final_thetas,
     final_radii,
     final_zs,
+    final_modes,
+    final_layers,
+    final_lengths,
     guide_offset_x,
     language,
 ):
@@ -485,33 +500,36 @@ def viewer(
     final_thetas_json = json.dumps(final_thetas)
     final_radii_json = json.dumps(final_radii)
     final_zs_json = json.dumps(final_zs)
+    final_modes_json = json.dumps(final_modes)
+    final_layers_json = json.dumps(final_layers)
+    final_lengths_json = json.dumps(final_lengths)
     labels_json = json.dumps(TEXTS[language])
 
     return f"""
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:#000000;
-        border-radius:10px;
+        background:#101216;
+        border-radius:16px;
         overflow:hidden;
-        border:1px solid rgba(0,0,0,0.08);
-        box-shadow:0 10px 24px rgba(0,0,0,0.18);
+        border:1px solid rgba(255,255,255,0.08);
+        box-shadow:0 18px 42px rgba(0,0,0,0.32);
         position:relative;
     ">
         <div id="viewer_topbar" style="
             position:absolute;
-            top:12px;
-            left:12px;
+            top:14px;
+            left:14px;
             z-index:20;
             display:flex;
             align-items:center;
             gap:8px;
             padding:10px 12px;
-            background:rgba(18,22,27,0.72);
+            background:rgba(18,22,27,0.74);
             color:#f0f0f0;
-            border:1px solid rgba(255,255,255,0.10);
-            border-radius:12px;
-            backdrop-filter: blur(8px);
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:14px;
+            backdrop-filter: blur(10px);
             font-family:Arial, sans-serif;
             font-size:13px;
             user-select:none;
@@ -522,21 +540,40 @@ def viewer(
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
         </div>
 
+        <div id="viewer_hud" style="
+            position:absolute;
+            left:14px;
+            bottom:14px;
+            z-index:20;
+            display:grid;
+            grid-template-columns:repeat(5, auto);
+            gap:8px;
+            font-family:Arial, sans-serif;
+            color:#f2f2f2;
+            user-select:none;
+        ">
+            <div class="hud_card"><div class="hud_label" id="hud_length_label"></div><div class="hud_value" id="hud_length_value">0.0 m</div></div>
+            <div class="hud_card"><div class="hud_label" id="hud_layer_label"></div><div class="hud_value" id="hud_layer_value">1</div></div>
+            <div class="hud_card"><div class="hud_label" id="hud_radius_label"></div><div class="hud_value" id="hud_radius_value">0 mm</div></div>
+            <div class="hud_card"><div class="hud_label" id="hud_z_label"></div><div class="hud_value" id="hud_z_value">0 mm</div></div>
+            <div class="hud_card"><div class="hud_label" id="hud_diameter_label"></div><div class="hud_value" id="hud_diameter_value"></div></div>
+        </div>
+
         <div id="viewer_sidepanel" style="
             position:absolute;
-            top:12px;
-            right:12px;
+            top:14px;
+            right:14px;
             z-index:20;
             display:flex;
             flex-direction:column;
             gap:12px;
-            width:230px;
+            width:238px;
             padding:14px;
-            background:rgba(18,22,27,0.72);
+            background:rgba(18,22,27,0.74);
             color:#f0f0f0;
-            border:1px solid rgba(255,255,255,0.10);
-            border-radius:12px;
-            backdrop-filter: blur(8px);
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:14px;
+            backdrop-filter: blur(10px);
             font-family:Arial, sans-serif;
             font-size:13px;
             user-select:none;
@@ -562,6 +599,16 @@ def viewer(
             </div>
 
             <div>
+                <div class="panel_label" id="view_title"></div>
+                <div class="btn_group_vertical">
+                    <button class="view_btn viewer_btn_small active_opt" data-view="3d" id="view_3d_btn"></button>
+                    <button class="view_btn viewer_btn_small" data-view="front" id="view_front_btn"></button>
+                    <button class="view_btn viewer_btn_small" data-view="side" id="view_side_btn"></button>
+                    <button class="view_btn viewer_btn_small" data-view="top" id="view_top_btn"></button>
+                </div>
+            </div>
+
+            <div>
                 <div class="panel_label" id="spool_title"></div>
                 <div class="btn_group_vertical">
                     <button class="spool_btn viewer_btn_small active_opt" data-spool="visible" id="spool_visible_btn"></button>
@@ -580,7 +627,17 @@ def viewer(
 
             <div class="panel_checks_block">
                 <label class="panel_check">
-                    <input type="checkbox" id="grid_check" checked />
+                    <input type="checkbox" id="studio_check" checked />
+                    <span id="studio_title"></span>
+                </label>
+
+                <label class="panel_check">
+                    <input type="checkbox" id="ghost_check" checked />
+                    <span id="ghost_title"></span>
+                </label>
+
+                <label class="panel_check">
+                    <input type="checkbox" id="grid_check" />
                     <span id="grid_title"></span>
                 </label>
 
@@ -600,9 +657,9 @@ def viewer(
     <style>
         .viewer_btn {{
             border:none;
-            border-radius:8px;
+            border-radius:9px;
             padding:7px 12px;
-            background:#f3f3f3;
+            background:#f4f4f4;
             color:#111;
             font-weight:700;
             cursor:pointer;
@@ -610,31 +667,32 @@ def viewer(
 
         .viewer_btn_small {{
             border:none;
-            border-radius:8px;
+            border-radius:9px;
             padding:7px 10px;
-            background:#dcdcdc;
+            background:rgba(235,235,235,0.88);
             color:#111;
             font-weight:600;
             cursor:pointer;
             text-align:left;
         }}
 
-        .active_speed {{
-            outline:2px solid #ffffff;
+        .viewer_btn_small:hover,
+        .viewer_btn:hover {{
             background:#ffffff;
         }}
 
+        .active_speed,
         .active_opt {{
             outline:2px solid #ffffff;
             background:#ffffff;
         }}
 
         .panel_label {{
-            font-size:12px;
+            font-size:11px;
             opacity:0.82;
             margin-bottom:6px;
             text-transform:uppercase;
-            letter-spacing:0.04em;
+            letter-spacing:0.06em;
         }}
 
         .btn_group_vertical {{
@@ -660,6 +718,30 @@ def viewer(
             opacity:0.45;
             cursor:not-allowed;
         }}
+
+        .hud_card {{
+            min-width:86px;
+            padding:10px 12px;
+            background:rgba(18,22,27,0.68);
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:13px;
+            backdrop-filter: blur(10px);
+            box-shadow:0 10px 24px rgba(0,0,0,0.22);
+        }}
+
+        .hud_label {{
+            font-size:10px;
+            opacity:0.70;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            margin-bottom:4px;
+        }}
+
+        .hud_value {{
+            font-size:15px;
+            font-weight:700;
+            white-space:nowrap;
+        }}
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -678,7 +760,10 @@ def viewer(
         const speedBtns = [...document.querySelectorAll(".speed_btn")];
         const spoolBtns = [...document.querySelectorAll(".spool_btn")];
         const tubeBtns = [...document.querySelectorAll(".tube_btn")];
+        const viewBtns = [...document.querySelectorAll(".view_btn")];
 
+        const studioCheck = document.getElementById("studio_check");
+        const ghostCheck = document.getElementById("ghost_check");
         const gridCheck = document.getElementById("grid_check");
         const axesCheck = document.getElementById("axes_check");
         const sectionCheck = document.getElementById("section_check");
@@ -687,9 +772,12 @@ def viewer(
         document.getElementById("speed_title").textContent = T.speed;
         document.getElementById("spool_title").textContent = T.spool;
         document.getElementById("tube_title").textContent = T.tube_color;
+        document.getElementById("view_title").textContent = T.view;
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
         document.getElementById("section_title").textContent = T.section;
+        document.getElementById("ghost_title").textContent = T.ghost;
+        document.getElementById("studio_title").textContent = T.studio;
         document.getElementById("animation_title").textContent = T.animation;
         document.getElementById("animation_label_text").textContent = T.animation;
         document.getElementById("spool_visible_btn").textContent = T.visible;
@@ -697,6 +785,17 @@ def viewer(
         document.getElementById("spool_hidden_btn").textContent = T.hidden;
         document.getElementById("tube_gelwhite_btn").textContent = T.gelwhite;
         document.getElementById("tube_gelblack_btn").textContent = T.gelblack;
+        document.getElementById("view_3d_btn").textContent = T.view_3d;
+        document.getElementById("view_front_btn").textContent = T.view_front;
+        document.getElementById("view_side_btn").textContent = T.view_side;
+        document.getElementById("view_top_btn").textContent = T.view_top;
+
+        document.getElementById("hud_length_label").textContent = T.hud_length;
+        document.getElementById("hud_layer_label").textContent = T.hud_layer;
+        document.getElementById("hud_radius_label").textContent = T.hud_radius;
+        document.getElementById("hud_z_label").textContent = T.hud_z;
+        document.getElementById("hud_diameter_label").textContent = T.hud_diameter;
+        document.getElementById("hud_diameter_value").textContent = "{float(d_tubo):.2f} mm";
 
         const W = Math.max(host.clientWidth, 600);
         const Hview = Math.max(host.clientHeight, 400);
@@ -704,7 +803,7 @@ def viewer(
         const scene = new THREE.Scene();
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        camera.position.set(-1400, -2100, 200);
+        camera.position.set(-950, -1500, 520);
         camera.up.set(0, 0, 1);
 
         const renderer = new THREE.WebGLRenderer({{
@@ -712,11 +811,12 @@ def viewer(
             powerPreference: "high-performance"
         }});
 
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.physicallyCorrectLights = true;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.04;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.localClippingEnabled = true;
@@ -724,10 +824,10 @@ def viewer(
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.TrackballControls(camera, renderer.domElement);
-        controls.rotateSpeed = 3.8;
+        controls.rotateSpeed = 3.2;
         controls.zoomSpeed = 0.8;
-        controls.panSpeed = 0.1;
-        controls.dynamicDampingFactor = 0.2;
+        controls.panSpeed = 0.12;
+        controls.dynamicDampingFactor = 0.18;
         controls.staticMoving = false;
 
         const R = {float(d_aspo)} / 2.0;
@@ -735,13 +835,16 @@ def viewer(
         const Hs = {float(spalla)};
         const guideOffsetX = {float(guide_offset_x)};
 
-        controls.target.set(10, 20, Hs * 0.52);
-        camera.lookAt(10, 20, Hs * 0.52);
+        controls.target.set(0, 0, Hs * 0.52);
+        camera.lookAt(0, 0, Hs * 0.52);
 
         const localRaw = {final_local_points_json};
         const thetaRaw = {final_thetas_json};
         const radiusRaw = {final_radii_json};
         const zRaw = {final_zs_json};
+        const modeRaw = {final_modes_json};
+        const layerRaw = {final_layers_json};
+        const lengthRaw = {final_lengths_json};
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
@@ -750,7 +853,10 @@ def viewer(
         let speed = 1.0;
         let aspoMode = "visible";
         let tubeMode = "gelwhite";
-        let showGrid = true;
+        let currentView = "3d";
+        let showStudio = true;
+        let showGhost = true;
+        let showGrid = false;
         let showAxes = false;
         let showSection = false;
 
@@ -759,44 +865,59 @@ def viewer(
         let axes = null;
         let sectionPlaneHelper = null;
         let sectionFrame = null;
+        let floor = null;
+        let backdrop = null;
+        let ghostLine = null;
 
         function getTheme() {{
             if (tubeMode === "gelblack") {{
                 return {{
-                    bg: 0xffffff,
-                    tube: 0x2f3030,
-                    freeTube: 0x3a3b3b,
-                    activeTube: 0x242525,
-                    sectionFill: 0x000000,
+                    bgTop: 0xf3f3f1,
+                    bg: 0xe8e6e1,
+                    floor: 0xd8d5cd,
+                    backdrop: 0xefede7,
+                    tube: 0x303231,
+                    freeTube: 0x3c3f3e,
+                    activeTube: 0x252727,
+                    ghost: 0x3f4140,
+                    sectionFill: 0x111111,
                     sectionFrame: 0x111111,
-                    gridMajor: 0x5c5c5c,
+                    gridMajor: 0x6c6c6c,
                     gridMinor: 0xb8b8b8,
-                    gridOpacity: 0.72,
+                    gridOpacity: 0.50,
                     hemiSky: 0xffffff,
-                    hemiGround: 0xd8d2ca,
-                    ambient: 0.24,
-                    fill: 0.55,
-                    rim: 0.78,
-                    exposure: 1.18,
+                    hemiGround: 0xd5d0c8,
+                    ambient: 0.32,
+                    key: 1.25,
+                    fill: 0.62,
+                    rim: 0.88,
+                    exposure: 1.14,
+                    hud: "dark"
                 }};
             }}
 
             return {{
-                bg: 0x000000,
-                tube: 0xd8d8d6,
-                freeTube: 0xbebebc,
-                activeTube: 0xf2f2ef,
+                bgTop: 0x15181d,
+                bg: 0x101216,
+                floor: 0x1b1e23,
+                backdrop: 0x181b20,
+                tube: 0xd8d6cf,
+                freeTube: 0xc5c2ba,
+                activeTube: 0xf2efe6,
+                ghost: 0xffffff,
                 sectionFill: 0xffffff,
                 sectionFrame: 0xffffff,
-                gridMajor: 0x6f6f6f,
-                gridMinor: 0x2f2f2f,
-                gridOpacity: 0.34,
-                hemiSky: 0xd7dfe7,
-                hemiGround: 0x1a1d20,
-                ambient: 0.22,
-                fill: 0.48,
-                rim: 0.72,
-                exposure: 1.0,
+                gridMajor: 0x747474,
+                gridMinor: 0x2d3035,
+                gridOpacity: 0.32,
+                hemiSky: 0xe2e8ef,
+                hemiGround: 0x151719,
+                ambient: 0.23,
+                key: 1.35,
+                fill: 0.52,
+                rim: 0.85,
+                exposure: 1.04,
+                hud: "light"
             }};
         }}
 
@@ -845,6 +966,24 @@ def viewer(
                 setActiveButton(tubeBtns, tubeMode, "data-tube");
                 applyVisualState(true);
             }});
+        }});
+
+        viewBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                currentView = btn.dataset.view;
+                setActiveButton(viewBtns, currentView, "data-view");
+                setCameraView(currentView);
+            }});
+        }});
+
+        studioCheck.addEventListener("change", () => {{
+            showStudio = studioCheck.checked;
+            applyVisualState();
+        }});
+
+        ghostCheck.addEventListener("change", () => {{
+            showGhost = ghostCheck.checked;
+            updateGhostLine();
         }});
 
         gridCheck.addEventListener("change", () => {{
@@ -931,6 +1070,25 @@ def viewer(
             controls.handleResize();
         }}
 
+        function setCameraView(viewName) {{
+            const target = new THREE.Vector3(0, 0, Hs * 0.52);
+
+            if (viewName === "front") {{
+                camera.position.set(0, -1900, Hs * 0.52);
+            }} else if (viewName === "side") {{
+                camera.position.set(-1900, 0, Hs * 0.52);
+            }} else if (viewName === "top") {{
+                camera.position.set(0, 0, 1900);
+            }} else {{
+                camera.position.set(-950, -1500, 520);
+            }}
+
+            camera.up.set(0, 0, 1);
+            controls.target.copy(target);
+            camera.lookAt(target);
+            controls.update();
+        }}
+
         // ==========================================
         // TEXTURES
         // ==========================================
@@ -944,12 +1102,12 @@ def viewer(
 
             const grad = ctx.createLinearGradient(0, 0, size, 0);
 
-            grad.addColorStop(0.0, "#565c64");
-            grad.addColorStop(0.18, "#d9dee3");
-            grad.addColorStop(0.36, "#747b84");
-            grad.addColorStop(0.58, "#c2c8ce");
-            grad.addColorStop(0.82, "#666d76");
-            grad.addColorStop(1.0, "#e0e4e8");
+            grad.addColorStop(0.0, "#4f555d");
+            grad.addColorStop(0.16, "#d8dde2");
+            grad.addColorStop(0.34, "#69707a");
+            grad.addColorStop(0.56, "#c6ccd1");
+            grad.addColorStop(0.80, "#5c636c");
+            grad.addColorStop(1.0, "#e1e5e8");
 
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, size, size);
@@ -963,7 +1121,7 @@ def viewer(
             const img = ctx.getImageData(0, 0, size, size);
 
             for (let i = 0; i < img.data.length; i += 4) {{
-                const n = Math.floor(Math.random() * 14) - 7;
+                const n = Math.floor(Math.random() * 12) - 6;
 
                 img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
                 img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
@@ -975,7 +1133,8 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(0.65, 0.65);
+            tex.repeat.set(0.70, 0.70);
+            tex.anisotropy = 8;
 
             return tex;
         }}
@@ -987,7 +1146,7 @@ def viewer(
 
             const ctx = canvas.getContext("2d");
 
-            const base = dark ? 74 : 214;
+            const base = dark ? 78 : 216;
             ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
             ctx.fillRect(0, 0, size, size);
 
@@ -998,16 +1157,17 @@ def viewer(
                 for (let x = 0; x < size; x++) {{
                     const i = (y * size + x) * 4;
 
-                    const grain = Math.random() * 28 - 14;
-                    const microLine = Math.sin((x + y * 0.22) * 0.55) * 4;
-                    const longLine = Math.sin(y * 0.16) * 3;
+                    const grain = Math.random() * 22 - 11;
+                    const microLine = Math.sin((x + y * 0.18) * 0.50) * 3.2;
+                    const longLine = Math.sin(y * 0.13) * 2.4;
+                    const softBand = Math.sin((x * 0.09) + (y * 0.025)) * 2.0;
 
-                    let v = base + grain + microLine + longLine;
+                    let v = base + grain + microLine + longLine + softBand;
 
                     if (dark) {{
-                        v = Math.max(42, Math.min(112, v));
+                        v = Math.max(46, Math.min(116, v));
                     }} else {{
-                        v = Math.max(150, Math.min(245, v));
+                        v = Math.max(158, Math.min(242, v));
                     }}
 
                     data[i] = v;
@@ -1022,9 +1182,8 @@ def viewer(
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-
             tex.repeat.set(2.0, 18.0);
-            tex.anisotropy = 8;
+            tex.anisotropy = 12;
             tex.needsUpdate = true;
 
             return tex;
@@ -1035,14 +1194,26 @@ def viewer(
         const tubeBlackTex = makeTubeTexture(256, true);
 
         // ==========================================
-        // MATERIALS / THEME
+        // MATERIALS
         // ==========================================
 
         function makeRedMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
-                color: 0x6d7278,
-                roughness: 0.55,
-                metalness: 0.85,
+                color: 0x6d737b,
+                roughness: 0.48,
+                metalness: 0.88,
+                map: steelTex,
+                transparent: transparent,
+                opacity: opacity,
+                depthWrite: !transparent
+            }});
+        }}
+
+        function makeDarkSteelMat(opacity=1.0, transparent=false) {{
+            return new THREE.MeshStandardMaterial({{
+                color: 0x3d4248,
+                roughness: 0.42,
+                metalness: 0.92,
                 map: steelTex,
                 transparent: transparent,
                 opacity: opacity,
@@ -1058,8 +1229,8 @@ def viewer(
             const m = new THREE.MeshStandardMaterial({{
                 color: chosen,
                 map: tex,
-                roughness: active ? 0.86 : (free ? 0.93 : 0.90),
-                metalness: 0.02,
+                roughness: active ? 0.78 : (free ? 0.92 : 0.88),
+                metalness: 0.025,
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
@@ -1068,57 +1239,71 @@ def viewer(
         }}
 
         let redMat = makeRedMat(1.0, false);
-        let redMatTransparent = makeRedMat(0.18, true);
+        let redMatTransparent = makeRedMat(0.16, true);
+        let darkSteelMat = makeDarkSteelMat(1.0, false);
+        let darkSteelMatTransparent = makeDarkSteelMat(0.16, true);
+
         let tubeMat = makeTubeMaterial(tubeMode, false, false);
         let activeTubeMat = makeTubeMaterial(tubeMode, true, false);
         let freeTubeMat = makeTubeMaterial(tubeMode, false, true);
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a,
-            roughness: 0.45,
-            metalness: 0.02,
+            roughness: 0.42,
+            metalness: 0.04,
             emissive: 0x0b2013,
-            emissiveIntensity: 0.12
+            emissiveIntensity: 0.14
         }});
 
         const markerEndMat = new THREE.MeshStandardMaterial({{
             color: 0xffb020,
-            roughness: 0.40,
-            metalness: 0.02,
+            roughness: 0.38,
+            metalness: 0.04,
             emissive: 0x2a1800,
-            emissiveIntensity: 0.14
+            emissiveIntensity: 0.18
         }});
 
         // ==========================================
         // LIGHTING
         // ==========================================
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.18);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.22);
         scene.add(ambient);
 
-        const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.30);
+        const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.34);
         scene.add(hemi);
 
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.20);
-        keyLight.position.set(300, -200, 600);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+        keyLight.position.set(420, -520, 780);
         keyLight.castShadow = true;
-        keyLight.shadow.mapSize.width = 1024;
-        keyLight.shadow.mapSize.height = 1024;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
         keyLight.shadow.camera.near = 50;
-        keyLight.shadow.camera.far = 3000;
+        keyLight.shadow.camera.far = 3600;
+        keyLight.shadow.camera.left = -1400;
+        keyLight.shadow.camera.right = 1400;
+        keyLight.shadow.camera.top = 1400;
+        keyLight.shadow.camera.bottom = -1400;
         scene.add(keyLight);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.40);
-        fillLight.position.set(-400, 200, 200);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.52);
+        fillLight.position.set(-700, 340, 360);
         scene.add(fillLight);
 
-        const rimLight = new THREE.DirectionalLight(0xffffff, 0.62);
-        rimLight.position.set(0, 400, 300);
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.85);
+        rimLight.position.set(-180, 760, 580);
         scene.add(rimLight);
+
+        const softTopLight = new THREE.PointLight(0xffffff, 0.40, 2200);
+        softTopLight.position.set(0, 0, 900);
+        scene.add(softTopLight);
 
         // ==========================================
         // SCENE GROUPS
         // ==========================================
+
+        const studioGroup = new THREE.Group();
+        scene.add(studioGroup);
 
         const machine = new THREE.Group();
         scene.add(machine);
@@ -1129,12 +1314,71 @@ def viewer(
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
+        const machineParts = [];
+
         // ==========================================
-        // MANDREL / SPOOLS
+        // STUDIO FLOOR / BACKDROP
+        // ==========================================
+
+        function rebuildStudio() {{
+            if (floor) {{
+                studioGroup.remove(floor);
+                floor.geometry.dispose();
+                floor.material.dispose();
+                floor = null;
+            }}
+
+            if (backdrop) {{
+                studioGroup.remove(backdrop);
+                backdrop.geometry.dispose();
+                backdrop.material.dispose();
+                backdrop = null;
+            }}
+
+            if (!showStudio) return;
+
+            const theme = getTheme();
+
+            const floorMat = new THREE.MeshStandardMaterial({{
+                color: theme.floor,
+                roughness: 0.86,
+                metalness: 0.0
+            }});
+
+            floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(2600, 2600),
+                floorMat
+            );
+
+            floor.position.set(0, 0, -38);
+            floor.receiveShadow = true;
+            studioGroup.add(floor);
+
+            const backdropMat = new THREE.MeshStandardMaterial({{
+                color: theme.backdrop,
+                roughness: 0.92,
+                metalness: 0.0,
+                transparent: true,
+                opacity: 0.92
+            }});
+
+            backdrop = new THREE.Mesh(
+                new THREE.PlaneGeometry(2600, 1300),
+                backdropMat
+            );
+
+            backdrop.position.set(0, 780, 520);
+            backdrop.rotation.x = Math.PI / 2;
+            backdrop.receiveShadow = false;
+            studioGroup.add(backdrop);
+        }}
+
+        // ==========================================
+        // MANDREL / INDUSTRIAL SPOOL
         // ==========================================
 
         const mandrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(R, R, Hs, 96),
+            new THREE.CylinderGeometry(R, R, Hs, 128),
             redMat
         );
 
@@ -1143,12 +1387,13 @@ def viewer(
         mandrel.castShadow = true;
         mandrel.receiveShadow = true;
         machine.add(mandrel);
+        machineParts.push(mandrel);
 
         const flangeR = R + 150.0;
-        const flangeTh = 4.0;
+        const flangeTh = 5.0;
 
         const base = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
+            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 128),
             redMat
         );
 
@@ -1157,9 +1402,10 @@ def viewer(
         base.castShadow = true;
         base.receiveShadow = true;
         machine.add(base);
+        machineParts.push(base);
 
         const top = new THREE.Mesh(
-            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
+            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 128),
             redMat
         );
 
@@ -1168,6 +1414,38 @@ def viewer(
         top.castShadow = true;
         top.receiveShadow = true;
         machine.add(top);
+        machineParts.push(top);
+
+        const shaftR = Math.max(28, R * 0.16);
+        const shaft = new THREE.Mesh(
+            new THREE.CylinderGeometry(shaftR, shaftR, Hs + 120, 96),
+            darkSteelMat
+        );
+
+        shaft.rotation.x = Math.PI / 2;
+        shaft.position.z = Hs / 2.0;
+        shaft.castShadow = true;
+        shaft.receiveShadow = true;
+        machine.add(shaft);
+        machineParts.push(shaft);
+
+        function addRing(radius, zPos, tubeRadius, mat) {{
+            const torus = new THREE.Mesh(
+                new THREE.TorusGeometry(radius, tubeRadius, 96, 14),
+                mat
+            );
+            torus.position.z = zPos;
+            torus.castShadow = true;
+            torus.receiveShadow = true;
+            machine.add(torus);
+            machineParts.push(torus);
+            return torus;
+        }}
+
+        addRing(flangeR * 0.86, -flangeTh * 0.55, 3.0, darkSteelMat);
+        addRing(flangeR * 0.58, -flangeTh * 0.65, 2.2, darkSteelMat);
+        addRing(flangeR * 0.86, Hs + flangeTh * 0.55, 3.0, darkSteelMat);
+        addRing(flangeR * 0.58, Hs + flangeTh * 0.65, 2.2, darkSteelMat);
 
         // ==========================================
         // GUIDE
@@ -1181,8 +1459,8 @@ def viewer(
         scene.add(guideGroup);
 
         const guideBarrel = new THREE.Mesh(
-            new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false),
-            redMat
+            new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 40, 1, false),
+            darkSteelMat
         );
 
         guideBarrel.rotation.z = Math.PI / 2;
@@ -1192,7 +1470,7 @@ def viewer(
         guideGroup.add(guideBarrel);
 
         const guideShoulder = new THREE.Mesh(
-            new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false),
+            new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 40, 1, false),
             redMat
         );
 
@@ -1203,7 +1481,7 @@ def viewer(
         guideGroup.add(guideShoulder);
 
         const guideTaper = new THREE.Mesh(
-            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false),
+            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 40, 1, false),
             redMat
         );
 
@@ -1214,8 +1492,8 @@ def viewer(
         guideGroup.add(guideTaper);
 
         const guideNozzle = new THREE.Mesh(
-            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false),
-            redMat
+            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 48, 1, false),
+            darkSteelMat
         );
 
         guideNozzle.rotation.z = Math.PI / 2;
@@ -1225,8 +1503,8 @@ def viewer(
         guideGroup.add(guideNozzle);
 
         const guideBackCap = new THREE.Mesh(
-            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false),
-            redMat
+            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 36, 1, false),
+            darkSteelMat
         );
 
         guideBackCap.rotation.z = Math.PI / 2;
@@ -1249,6 +1527,7 @@ def viewer(
             hemi.color.setHex(theme.hemiSky);
             hemi.groundColor.setHex(theme.hemiGround);
 
+            keyLight.intensity = theme.key;
             fillLight.intensity = theme.fill;
             rimLight.intensity = theme.rim;
         }}
@@ -1271,12 +1550,12 @@ def viewer(
                 const sectionMat = new THREE.MeshBasicMaterial({{
                     color: theme.sectionFill,
                     transparent: true,
-                    opacity: tubeMode === "gelwhite" ? 0.18 : 0.12,
+                    opacity: tubeMode === "gelwhite" ? 0.15 : 0.10,
                     side: THREE.DoubleSide,
                     depthWrite: false
                 }});
 
-                const sectionGeo = new THREE.PlaneGeometry(2 * (R + 260), Hs + 260);
+                const sectionGeo = new THREE.PlaneGeometry(2 * (R + 320), Hs + 300);
 
                 sectionPlaneHelper = new THREE.Mesh(sectionGeo, sectionMat);
                 sectionPlaneHelper.position.set(0, 0, Hs * 0.5);
@@ -1288,7 +1567,7 @@ def viewer(
                 const frameMat = new THREE.LineBasicMaterial({{
                     color: theme.sectionFrame,
                     transparent: true,
-                    opacity: tubeMode === "gelwhite" ? 0.45 : 0.35
+                    opacity: tubeMode === "gelwhite" ? 0.42 : 0.32
                 }});
 
                 sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
@@ -1312,14 +1591,14 @@ def viewer(
                 const theme = getTheme();
 
                 grid = new THREE.GridHelper(
-                    2000,
-                    20,
+                    2200,
+                    22,
                     theme.gridMajor,
                     theme.gridMinor
                 );
 
                 grid.rotation.x = Math.PI / 2;
-                grid.position.z = 0;
+                grid.position.z = -36;
                 grid.material.opacity = theme.gridOpacity;
                 grid.material.transparent = true;
 
@@ -1332,30 +1611,31 @@ def viewer(
             axes = null;
 
             if (showAxes) {{
-                axes = new THREE.AxesHelper(350);
+                axes = new THREE.AxesHelper(380);
                 scene.add(axes);
             }}
         }}
 
+        function applySpoolMaterialState() {{
+            const mainMat = aspoMode === "transparent" ? redMatTransparent : redMat;
+            const secondaryMat = aspoMode === "transparent" ? darkSteelMatTransparent : darkSteelMat;
+
+            machineParts.forEach((part, idx) => {{
+                part.visible = aspoMode !== "hidden";
+                part.material = idx >= 3 ? secondaryMat : mainMat;
+            }});
+
+            guideBarrel.material = secondaryMat;
+            guideNozzle.material = secondaryMat;
+            guideBackCap.material = secondaryMat;
+            guideShoulder.material = mainMat;
+            guideTaper.material = mainMat;
+        }}
+
         function applyVisualState(themeChanged=false) {{
             refreshThemeBackgroundAndLights();
-
-            const useMat = aspoMode === "transparent" ? redMatTransparent : redMat;
-
-            mandrel.material = useMat;
-            base.material = useMat;
-            top.material = useMat;
-
-            guideBarrel.material = useMat;
-            guideShoulder.material = useMat;
-            guideTaper.material = useMat;
-            guideNozzle.material = useMat;
-            guideBackCap.material = useMat;
-
-            mandrel.visible = aspoMode !== "hidden";
-            base.visible = aspoMode !== "hidden";
-            top.visible = aspoMode !== "hidden";
-
+            rebuildStudio();
+            applySpoolMaterialState();
             buildGridIfNeeded();
             buildAxesIfNeeded();
 
@@ -1365,6 +1645,7 @@ def viewer(
 
             rebuildDepositedMesh(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
+            updateGhostLine();
         }}
 
         // ==========================================
@@ -1383,15 +1664,15 @@ def viewer(
             return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
         }}
 
-        function lerp(a, b, t) {{
-            return a + (b - a) * t;
+        function lerp(a, b, tt) {{
+            return a + (b - a) * tt;
         }}
 
-        function lerpVec3(a, b, t) {{
+        function lerpVec3(a, b, tt) {{
             return new THREE.Vector3(
-                lerp(a.x, b.x, t),
-                lerp(a.y, b.y, t),
-                lerp(a.z, b.z, t)
+                lerp(a.x, b.x, tt),
+                lerp(a.y, b.y, tt),
+                lerp(a.z, b.z, tt)
             );
         }}
 
@@ -1410,7 +1691,7 @@ def viewer(
                 }}
             }}
 
-            getPoint(t) {{
+            getPoint(tt) {{
                 if (!this.points || this.points.length === 0) {{
                     return new THREE.Vector3(0, 0, 0);
                 }}
@@ -1419,7 +1700,7 @@ def viewer(
                     return this.points[0].clone();
                 }}
 
-                const target = t * this.totalLength;
+                const target = tt * this.totalLength;
 
                 let i = 1;
 
@@ -1480,11 +1761,11 @@ def viewer(
             const curve = new PolylineCurve3(points);
 
             const tubularSegments = Math.max(
-                18,
-                Math.min(2600, Math.floor(totalLen / Math.max(1.25, radius * 0.48)))
+                24,
+                Math.min(3200, Math.floor(totalLen / Math.max(1.10, radius * 0.40)))
             );
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 18, false);
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 22, false);
             geo.computeVertexNormals();
 
             const mesh = new THREE.Mesh(geo, material);
@@ -1500,7 +1781,7 @@ def viewer(
 
             if (len < 1e-6) return null;
 
-            const geo = new THREE.CylinderGeometry(radius, radius, len, 18, 1, false);
+            const geo = new THREE.CylinderGeometry(radius, radius, len, 22, 1, false);
             const mesh = new THREE.Mesh(geo, material);
 
             const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
@@ -1520,7 +1801,7 @@ def viewer(
             const r = Math.max(7.0, Rt * radiusScale);
             const thickness = Math.max(2.0, Rt * 0.22);
 
-            const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 28);
+            const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 32);
             const mesh = new THREE.Mesh(geo, material);
 
             mesh.position.copy(point);
@@ -1587,6 +1868,59 @@ def viewer(
             }}
         }}
 
+        function updateHud(index, radius, z) {{
+            const i = Math.max(0, Math.min(index, lengthRaw.length - 1));
+
+            const lengthM = (lengthRaw[i] || 0) / 1000.0;
+            const layer = (layerRaw[i] || 0) + 1;
+
+            document.getElementById("hud_length_value").textContent = `${{lengthM.toFixed(2)}} m`;
+            document.getElementById("hud_layer_value").textContent = `${{layer}}`;
+            document.getElementById("hud_radius_value").textContent = `${{radius.toFixed(1)}} mm`;
+            document.getElementById("hud_z_value").textContent = `${{z.toFixed(1)}} mm`;
+        }}
+
+        function updateGhostLine() {{
+            if (ghostLine) {{
+                scene.remove(ghostLine);
+                ghostLine.geometry.dispose();
+                ghostLine.material.dispose();
+                ghostLine = null;
+            }}
+
+            if (!showGhost || !animationEnabled || localPts.length < 3) return;
+
+            const i0 = Math.floor(drawPos);
+            const futureCount = 140;
+            const end = Math.min(localPts.length - 1, i0 + futureCount);
+
+            if (end <= i0 + 2) return;
+
+            const theta = thetaRaw[Math.max(0, Math.min(i0, thetaRaw.length - 1))];
+
+            const futurePts = [];
+
+            for (let i = i0; i <= end; i++) {{
+                futurePts.push(localPointToWorld(localPts[i], theta));
+            }}
+
+            const geo = new THREE.BufferGeometry().setFromPoints(futurePts);
+            const theme = getTheme();
+
+            const mat = new THREE.LineDashedMaterial({{
+                color: theme.ghost,
+                transparent: true,
+                opacity: tubeMode === "gelblack" ? 0.32 : 0.26,
+                dashSize: 18,
+                gapSize: 10,
+                linewidth: 1
+            }});
+
+            ghostLine = new THREE.Line(geo, mat);
+            ghostLine.computeLineDistances();
+            scene.add(ghostLine);
+        }}
+
         function updateOverlayContinuous(force=false) {{
             clearOverlay();
 
@@ -1651,6 +1985,12 @@ def viewer(
                 guideGroup.visible = true;
             }} else {{
                 guideGroup.visible = false;
+            }}
+
+            updateHud(i0, radius, z);
+
+            if (force || Math.random() < 0.09) {{
+                updateGhostLine();
             }}
         }}
 
@@ -1722,16 +2062,16 @@ with colB:
 
 with colC:
     st.markdown(f"#### {t['avvolg']}")
-    passo = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
-    incremento = st.number_input(t["incremento"], value=20.0, step=0.5)
+    passo_visuale = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
+    incremento_visuale = st.number_input(t["incremento"], value=20.0, step=0.5)
     rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
     rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
+
+d_tubo = d_rame + 2.0 * spessore
 
 # =========================
 # BUILD
 # =========================
-
-d_tubo = d_rame + 2.0 * spessore
 
 (
     world_contacts,
@@ -1739,13 +2079,16 @@ d_tubo = d_rame + 2.0 * spessore
     theta_values,
     radius_values,
     z_values,
+    mode_values,
+    layer_values,
+    length_values,
     deposited_len_mm,
-) = simulate_winding_center_plane_local(
+) = simulate_winding_visual(
     d_aspo=diametro_aspo,
     spalla=spalla,
     d_tubo=d_tubo,
-    passo=passo,
-    incremento=incremento,
+    passo=passo_visuale,
+    incremento=incremento_visuale,
     rit_b=rit_b,
     rit_t=rit_t,
     lunghezza_m=lunghezza,
@@ -1753,51 +2096,31 @@ d_tubo = d_rame + 2.0 * spessore
     deg_step=2.0,
 )
 
-metrics = compute_metrics(local_points, d_tubo)
-
-# =========================
-# DOWNLOAD SLDCRV
-# =========================
-
-st.divider()
-
-sldcrv_filename = make_sldcrv_filename(rame, d_tubo, lunghezza)
-
-download_col1, download_col2 = st.columns([1.2, 4.8])
-
-with download_col1:
-    st.download_button(
-        label=t["download"],
-        data=make_sldcrv_content(local_points),
-        file_name=sldcrv_filename,
-        mime="text/plain",
-        help=t["download_help"],
-        use_container_width=True,
-    )
-
-with download_col2:
-    st.caption(t["download_help"])
-
-st.divider()
+visual_metrics = compute_metrics(local_points, d_tubo)
 
 # =========================
 # VIEWER RENDER
 # =========================
+
+st.divider()
 
 components.html(
     viewer(
         diametro_aspo,
         spalla,
         d_tubo,
-        760,
+        820,
         local_points.tolist(),
         theta_values.tolist(),
         radius_values.tolist(),
         z_values.tolist(),
+        mode_values.tolist(),
+        layer_values.tolist(),
+        length_values.tolist(),
         guide_offset_x,
         lang,
     ),
-    height=760,
+    height=820,
 )
 
 # =========================
@@ -1809,11 +2132,11 @@ st.divider()
 m1, m2, m3, m4, m5, m6 = st.columns(6)
 
 m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
-m2.metric(t["metric2"], f"{passo:.2f} mm")
-m3.metric(t["metric3"], f"{incremento:.2f} mm")
-m4.metric(t["metric4"], f"{metrics['diam_radiale']:.1f} mm")
-m5.metric(t["metric5"], f"{metrics['max_xy_span']:.1f} mm")
-m6.metric(t["metric6"], f"{metrics['wound_length_m']:.3f} m")
+m2.metric(t["metric2"], f"{passo_visuale:.2f} mm")
+m3.metric(t["metric3"], f"{incremento_visuale:.2f} mm")
+m4.metric(t["metric4"], f"{visual_metrics['diam_radiale']:.1f} mm")
+m5.metric(t["metric5"], f"{visual_metrics['max_xy_span']:.1f} mm")
+m6.metric(t["metric6"], f"{visual_metrics['wound_length_m']:.3f} m")
 
-if metrics["max_xy_span"] > 750:
+if visual_metrics["max_xy_span"] > 750:
     st.warning(t["warning"])
