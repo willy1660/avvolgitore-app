@@ -59,15 +59,14 @@ TEXTS = {
         "section": "Sezione",
         "animation": "Animazione",
         "ghost": "Traiettoria futura",
-        "studio": "Studio render",
+        "studio": "Base render",
         "view": "Vista",
         "view_3d": "3D",
         "view_front": "Frontale",
         "view_side": "Laterale",
+        "reset_view": "Reset vista",
         "hud_length": "Lunghezza",
         "hud_layer": "Strato",
-        "hud_radius": "Raggio",
-        "hud_z": "Z guidatubo",
         "hud_diameter": "Ø tubo",
     },
     "EN": {
@@ -110,15 +109,14 @@ TEXTS = {
         "section": "Section",
         "animation": "Animation",
         "ghost": "Future path",
-        "studio": "Studio render",
+        "studio": "Render base",
         "view": "View",
         "view_3d": "3D",
         "view_front": "Front",
         "view_side": "Side",
+        "reset_view": "Reset view",
         "hud_length": "Length",
         "hud_layer": "Layer",
-        "hud_radius": "Radius",
-        "hud_z": "Guide Z",
         "hud_diameter": "Tube Ø",
     },
 }
@@ -533,6 +531,7 @@ def viewer(
             user-select:none;
         ">
             <button id="play_pause_btn" class="viewer_btn">⏸</button>
+            <button id="reset_view_btn" class="viewer_btn">↺</button>
             <button id="fullscreen_btn" class="viewer_btn">⛶</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
@@ -544,7 +543,7 @@ def viewer(
             bottom:14px;
             z-index:20;
             display:grid;
-            grid-template-columns:repeat(5, auto);
+            grid-template-columns:repeat(3, auto);
             gap:8px;
             font-family:Arial, sans-serif;
             color:#f2f2f2;
@@ -552,8 +551,6 @@ def viewer(
         ">
             <div class="hud_card"><div class="hud_label" id="hud_length_label"></div><div class="hud_value" id="hud_length_value">0.0 m</div></div>
             <div class="hud_card"><div class="hud_label" id="hud_layer_label"></div><div class="hud_value" id="hud_layer_value">1</div></div>
-            <div class="hud_card"><div class="hud_label" id="hud_radius_label"></div><div class="hud_value" id="hud_radius_value">0 mm</div></div>
-            <div class="hud_card"><div class="hud_label" id="hud_z_label"></div><div class="hud_value" id="hud_z_value">0 mm</div></div>
             <div class="hud_card"><div class="hud_label" id="hud_diameter_label"></div><div class="hud_value" id="hud_diameter_value"></div></div>
         </div>
 
@@ -719,11 +716,11 @@ def viewer(
         .hud_card {{
             min-width:86px;
             padding:10px 12px;
-            background:rgba(18,22,27,0.68);
+            background:rgba(18,22,27,0.56);
             border:1px solid rgba(255,255,255,0.12);
             border-radius:13px;
             backdrop-filter: blur(10px);
-            box-shadow:0 10px 24px rgba(0,0,0,0.22);
+            box-shadow:0 10px 24px rgba(0,0,0,0.18);
         }}
 
         .hud_label {{
@@ -750,6 +747,7 @@ def viewer(
 
         const host = document.getElementById("viewer_root");
         const playPauseBtn = document.getElementById("play_pause_btn");
+        const resetViewBtn = document.getElementById("reset_view_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
         const progressSlider = document.getElementById("progress_slider");
         const animationCheck = document.getElementById("animation_check");
@@ -785,11 +783,10 @@ def viewer(
         document.getElementById("view_3d_btn").textContent = T.view_3d;
         document.getElementById("view_front_btn").textContent = T.view_front;
         document.getElementById("view_side_btn").textContent = T.view_side;
+        resetViewBtn.title = T.reset_view;
 
         document.getElementById("hud_length_label").textContent = T.hud_length;
         document.getElementById("hud_layer_label").textContent = T.hud_layer;
-        document.getElementById("hud_radius_label").textContent = T.hud_radius;
-        document.getElementById("hud_z_label").textContent = T.hud_z;
         document.getElementById("hud_diameter_label").textContent = T.hud_diameter;
         document.getElementById("hud_diameter_value").textContent = "{float(d_tubo):.2f} mm";
 
@@ -838,7 +835,6 @@ def viewer(
         const thetaRaw = {final_thetas_json};
         const radiusRaw = {final_radii_json};
         const zRaw = {final_zs_json};
-        const modeRaw = {final_modes_json};
         const layerRaw = {final_layers_json};
         const lengthRaw = {final_lengths_json};
 
@@ -868,45 +864,45 @@ def viewer(
             if (tubeMode === "gelblack") {{
                 return {{
                     bg: 0xffffff,
-                    floor: 0xf2f2f2,
-                    tube: 0x303231,
-                    freeTube: 0x3c3f3e,
-                    activeTube: 0x252727,
-                    ghost: 0x222222,
+                    floor: 0xf3f3f3,
+                    tube: 0x343635,
+                    freeTube: 0x3d403f,
+                    activeTube: 0x252827,
+                    ghost: 0x2c2c2c,
                     sectionFill: 0x111111,
                     sectionFrame: 0x111111,
-                    gridMajor: 0x6c6c6c,
-                    gridMinor: 0xd4d4d4,
-                    gridOpacity: 0.42,
+                    gridMajor: 0x777777,
+                    gridMinor: 0xd5d5d5,
+                    gridOpacity: 0.38,
                     hemiSky: 0xffffff,
                     hemiGround: 0xd5d5d5,
                     ambient: 0.34,
-                    key: 1.22,
+                    key: 1.20,
                     fill: 0.66,
-                    rim: 0.86,
-                    exposure: 1.12
+                    rim: 0.80,
+                    exposure: 1.10
                 }};
             }}
 
             return {{
-                bg: 0x101216,
+                bg: 0x111419,
                 floor: 0x1b1e23,
                 tube: 0xd8d6cf,
-                freeTube: 0xc5c2ba,
+                freeTube: 0xc6c3bb,
                 activeTube: 0xf2efe6,
                 ghost: 0xffffff,
                 sectionFill: 0xffffff,
                 sectionFrame: 0xffffff,
                 gridMajor: 0x747474,
                 gridMinor: 0x2d3035,
-                gridOpacity: 0.32,
+                gridOpacity: 0.30,
                 hemiSky: 0xe2e8ef,
                 hemiGround: 0x151719,
                 ambient: 0.23,
-                key: 1.32,
+                key: 1.30,
                 fill: 0.52,
-                rim: 0.85,
-                exposure: 1.04
+                rim: 0.82,
+                exposure: 1.02
             }};
         }}
 
@@ -914,8 +910,6 @@ def viewer(
             playPauseBtn.textContent = isPlaying ? "⏸" : "▶";
             playPauseBtn.title = isPlaying ? T.pause : T.play;
         }}
-
-        updatePlayBtn();
 
         function updateAnimationUI() {{
             if (animationEnabled) {{
@@ -931,6 +925,23 @@ def viewer(
             group.forEach(btn => {{
                 btn.classList.toggle(activeClass, btn.getAttribute(attr) === value);
             }});
+        }}
+
+        function setCameraView(viewName) {{
+            const target = new THREE.Vector3(0, 0, Hs * 0.52);
+
+            if (viewName === "front") {{
+                camera.position.set(0, -1900, Hs * 0.52);
+            }} else if (viewName === "side") {{
+                camera.position.set(-1900, 0, Hs * 0.52);
+            }} else {{
+                camera.position.set(-950, -1500, 520);
+            }}
+
+            camera.up.set(0, 0, 1);
+            controls.target.copy(target);
+            camera.lookAt(target);
+            controls.update();
         }}
 
         speedBtns.forEach(btn => {{
@@ -963,6 +974,12 @@ def viewer(
                 setActiveButton(viewBtns, currentView, "data-view");
                 setCameraView(currentView);
             }});
+        }});
+
+        resetViewBtn.addEventListener("click", () => {{
+            currentView = "3d";
+            setActiveButton(viewBtns, currentView, "data-view");
+            setCameraView("3d");
         }});
 
         studioCheck.addEventListener("change", () => {{
@@ -1059,23 +1076,6 @@ def viewer(
             controls.handleResize();
         }}
 
-        function setCameraView(viewName) {{
-            const target = new THREE.Vector3(0, 0, Hs * 0.52);
-
-            if (viewName === "front") {{
-                camera.position.set(0, -1900, Hs * 0.52);
-            }} else if (viewName === "side") {{
-                camera.position.set(-1900, 0, Hs * 0.52);
-            }} else {{
-                camera.position.set(-950, -1500, 520);
-            }}
-
-            camera.up.set(0, 0, 1);
-            controls.target.copy(target);
-            camera.lookAt(target);
-            controls.update();
-        }}
-
         // ==========================================
         // TEXTURES
         // ==========================================
@@ -1088,7 +1088,6 @@ def viewer(
             const ctx = canvas.getContext("2d");
 
             const grad = ctx.createLinearGradient(0, 0, size, 0);
-
             grad.addColorStop(0.0, "#565c64");
             grad.addColorStop(0.18, "#d9dee3");
             grad.addColorStop(0.36, "#747b84");
@@ -1100,22 +1099,10 @@ def viewer(
             ctx.fillRect(0, 0, size, size);
 
             for (let y = 0; y < size; y += 2) {{
-                const a = 0.04 + Math.random() * 0.06;
+                const a = 0.035 + Math.random() * 0.04;
                 ctx.fillStyle = `rgba(255,255,255,${{a}})`;
                 ctx.fillRect(0, y, size, 1);
             }}
-
-            const img = ctx.getImageData(0, 0, size, size);
-
-            for (let i = 0; i < img.data.length; i += 4) {{
-                const n = Math.floor(Math.random() * 14) - 7;
-
-                img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
-                img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
-                img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
-            }}
-
-            ctx.putImageData(img, 0, 0);
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
@@ -1133,7 +1120,7 @@ def viewer(
 
             const ctx = canvas.getContext("2d");
 
-            const base = dark ? 74 : 214;
+            const base = dark ? 76 : 214;
             ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
             ctx.fillRect(0, 0, size, size);
 
@@ -1144,17 +1131,16 @@ def viewer(
                 for (let x = 0; x < size; x++) {{
                     const i = (y * size + x) * 4;
 
-                    const grain = Math.random() * 24 - 12;
-                    const microLine = Math.sin((x + y * 0.18) * 0.50) * 3.2;
-                    const longLine = Math.sin(y * 0.13) * 2.4;
-                    const softBand = Math.sin((x * 0.09) + (y * 0.025)) * 2.0;
+                    const grain = Math.random() * 18 - 9;
+                    const microLine = Math.sin((x + y * 0.18) * 0.50) * 2.4;
+                    const longLine = Math.sin(y * 0.13) * 2.0;
 
-                    let v = base + grain + microLine + longLine + softBand;
+                    let v = base + grain + microLine + longLine;
 
                     if (dark) {{
-                        v = Math.max(42, Math.min(112, v));
+                        v = Math.max(44, Math.min(112, v));
                     }} else {{
-                        v = Math.max(150, Math.min(245, v));
+                        v = Math.max(154, Math.min(244, v));
                     }}
 
                     data[i] = v;
@@ -1187,8 +1173,8 @@ def viewer(
         function makeSteelMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
                 color: 0x6d7278,
-                roughness: 0.55,
-                metalness: 0.85,
+                roughness: 0.58,
+                metalness: 0.82,
                 map: steelTex,
                 transparent: transparent,
                 opacity: opacity,
@@ -1201,7 +1187,7 @@ def viewer(
             const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
             const tex = mode === "gelblack" ? tubeBlackTex : tubeWhiteTex;
 
-            const m = new THREE.MeshStandardMaterial({{
+            return new THREE.MeshStandardMaterial({{
                 color: chosen,
                 map: tex,
                 roughness: active ? 0.82 : (free ? 0.94 : 0.90),
@@ -1209,8 +1195,6 @@ def viewer(
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
-
-            return m;
         }}
 
         let steelMat = makeSteelMat(1.0, false);
@@ -1246,7 +1230,7 @@ def viewer(
         const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.34);
         scene.add(hemi);
 
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.32);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.30);
         keyLight.position.set(420, -520, 780);
         keyLight.castShadow = true;
         keyLight.shadow.mapSize.width = 2048;
@@ -1263,11 +1247,11 @@ def viewer(
         fillLight.position.set(-700, 340, 360);
         scene.add(fillLight);
 
-        const rimLight = new THREE.DirectionalLight(0xffffff, 0.85);
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.82);
         rimLight.position.set(-180, 760, 580);
         scene.add(rimLight);
 
-        const softTopLight = new THREE.PointLight(0xffffff, 0.35, 2200);
+        const softTopLight = new THREE.PointLight(0xffffff, 0.32, 2200);
         softTopLight.position.set(0, 0, 900);
         scene.add(softTopLight);
 
@@ -1307,7 +1291,7 @@ def viewer(
 
             const floorMat = new THREE.MeshStandardMaterial({{
                 color: theme.floor,
-                roughness: 0.86,
+                roughness: 0.88,
                 metalness: 0.0
             }});
 
@@ -1322,7 +1306,7 @@ def viewer(
         }}
 
         // ==========================================
-        // SIMPLE SPOOL / ASPO
+        // SIMPLE ASPO
         // ==========================================
 
         const mandrel = new THREE.Mesh(
@@ -1365,7 +1349,7 @@ def viewer(
         spoolParts.push(top);
 
         // ==========================================
-        // GUIDE
+        // SIMPLE GUIDATUBO
         // ==========================================
 
         const nozzleDiameter = 55.0;
@@ -1467,7 +1451,7 @@ def viewer(
                 const sectionMat = new THREE.MeshBasicMaterial({{
                     color: theme.sectionFill,
                     transparent: true,
-                    opacity: tubeMode === "gelwhite" ? 0.15 : 0.10,
+                    opacity: tubeMode === "gelwhite" ? 0.12 : 0.08,
                     side: THREE.DoubleSide,
                     depthWrite: false
                 }});
@@ -1484,7 +1468,7 @@ def viewer(
                 const frameMat = new THREE.LineBasicMaterial({{
                     color: theme.sectionFrame,
                     transparent: true,
-                    opacity: tubeMode === "gelwhite" ? 0.42 : 0.32
+                    opacity: tubeMode === "gelwhite" ? 0.34 : 0.26
                 }});
 
                 sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
@@ -1784,7 +1768,7 @@ def viewer(
             }}
         }}
 
-        function updateHud(index, radius, z) {{
+        function updateHud(index) {{
             const i = Math.max(0, Math.min(index, lengthRaw.length - 1));
 
             const lengthM = (lengthRaw[i] || 0) / 1000.0;
@@ -1792,8 +1776,6 @@ def viewer(
 
             document.getElementById("hud_length_value").textContent = `${{lengthM.toFixed(2)}} m`;
             document.getElementById("hud_layer_value").textContent = `${{layer}}`;
-            document.getElementById("hud_radius_value").textContent = `${{radius.toFixed(1)}} mm`;
-            document.getElementById("hud_z_value").textContent = `${{z.toFixed(1)}} mm`;
         }}
 
         function updateGhostLine() {{
@@ -1826,10 +1808,9 @@ def viewer(
             const mat = new THREE.LineDashedMaterial({{
                 color: theme.ghost,
                 transparent: true,
-                opacity: tubeMode === "gelblack" ? 0.32 : 0.26,
+                opacity: tubeMode === "gelblack" ? 0.24 : 0.18,
                 dashSize: 18,
-                gapSize: 10,
-                linewidth: 1
+                gapSize: 10
             }});
 
             ghostLine = new THREE.Line(geo, mat);
@@ -1867,13 +1848,13 @@ def viewer(
             const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
             const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
 
-            startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.82);
+            startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.70);
 
             endMarker = makeEndpointDisc(
                 endWorld,
                 endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld,
                 markerEndMat,
-                0.96
+                0.82
             );
 
             overlayGroup.add(startMarker);
@@ -1903,9 +1884,9 @@ def viewer(
                 guideGroup.visible = false;
             }}
 
-            updateHud(i0, radius, z);
+            updateHud(i0);
 
-            if (force || Math.random() < 0.09) {{
+            if (force || Math.random() < 0.08) {{
                 updateGhostLine();
             }}
         }}
@@ -1913,6 +1894,7 @@ def viewer(
         applySectionState();
         applyVisualState(true);
         updateAnimationUI();
+        updatePlayBtn();
 
         function animate() {{
             requestAnimationFrame(animate);
