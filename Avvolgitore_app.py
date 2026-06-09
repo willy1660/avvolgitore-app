@@ -980,54 +980,55 @@ def viewer(
             return tex;
         }}
 
-            function makeTubeTexture(size = 256, dark=false) {
-                const canvas = document.createElement("canvas");
-                canvas.width = size;
-                canvas.height = size;
-            
-                const ctx = canvas.getContext("2d");
-            
-                const base = dark ? 74 : 214;
-                ctx.fillStyle = `rgb(${base}, ${base}, ${base})`;
-                ctx.fillRect(0, 0, size, size);
-            
-                const img = ctx.getImageData(0, 0, size, size);
-                const data = img.data;
-            
-                for (let y = 0; y < size; y++) {
-                    for (let x = 0; x < size; x++) {
-                        const i = (y * size + x) * 4;
-            
-                        const grain = Math.random() * 28 - 14;
-                        const microLine = Math.sin((x + y * 0.22) * 0.55) * 4;
-                        const longLine = Math.sin(y * 0.16) * 3;
-            
-                        let v = base + grain + microLine + longLine;
-            
-                        if (dark) {
-                            v = Math.max(42, Math.min(112, v));
-                        } else {
-                            v = Math.max(150, Math.min(245, v));
-                        }
-            
-                        data[i] = v;
-                        data[i + 1] = v;
-                        data[i + 2] = v;
-                        data[i + 3] = 255;
-                    }
-                }
-            
-                ctx.putImageData(img, 0, 0);
-            
-                const tex = new THREE.CanvasTexture(canvas);
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(2.0, 18.0);
-                tex.anisotropy = 8;
-                tex.needsUpdate = true;
-            
-                return tex;
-            }
+        function makeTubeTexture(size = 256, dark=false) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext("2d");
+
+            const base = dark ? 74 : 214;
+            ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
+            ctx.fillRect(0, 0, size, size);
+
+            const img = ctx.getImageData(0, 0, size, size);
+            const data = img.data;
+
+            for (let y = 0; y < size; y++) {{
+                for (let x = 0; x < size; x++) {{
+                    const i = (y * size + x) * 4;
+
+                    const grain = Math.random() * 28 - 14;
+                    const microLine = Math.sin((x + y * 0.22) * 0.55) * 4;
+                    const longLine = Math.sin(y * 0.16) * 3;
+
+                    let v = base + grain + microLine + longLine;
+
+                    if (dark) {{
+                        v = Math.max(42, Math.min(112, v));
+                    }} else {{
+                        v = Math.max(150, Math.min(245, v));
+                    }}
+
+                    data[i] = v;
+                    data[i + 1] = v;
+                    data[i + 2] = v;
+                    data[i + 3] = 255;
+                }}
+            }}
+
+            ctx.putImageData(img, 0, 0);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+
+            tex.repeat.set(2.0, 18.0);
+            tex.anisotropy = 8;
+            tex.needsUpdate = true;
+
+            return tex;
+        }}
 
         const steelTex = makeSteelTexture(256);
         const tubeWhiteTex = makeTubeTexture(256, false);
