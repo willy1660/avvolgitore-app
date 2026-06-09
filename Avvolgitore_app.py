@@ -25,7 +25,7 @@ TEXTS = {
         "bobina": "🟦 Bobina",
         "tubo": "🟩 Tubo",
         "avvolg": "🟧 Simulazione",
-        "diam_aspo": "Ø Aspo / Mandrino (mm)",
+        "diam_aspo": "Ø Aspo (mm)",
         "spalla": "Spalla (mm)",
         "rame": "Ø Rame",
         "isolamento": "Spessore guaina (mm)",
@@ -47,7 +47,7 @@ TEXTS = {
         "exit": "Exit",
         "progress": "Progresso",
         "speed": "Velocità",
-        "spool": "Mandrino",
+        "spool": "Aspo",
         "visible": "Visibile",
         "transparent": "Trasparente",
         "hidden": "Nascosto",
@@ -59,7 +59,7 @@ TEXTS = {
         "section": "Sezione",
         "animation": "Animazione",
         "ghost": "Traiettoria futura",
-        "studio": "Base render",
+        "studio": "Studio render",
         "view": "Vista",
         "view_3d": "3D",
         "view_front": "Frontale",
@@ -76,7 +76,7 @@ TEXTS = {
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Simulation",
-        "diam_aspo": "Spool / Mandrel Ø (mm)",
+        "diam_aspo": "Spool diameter (mm)",
         "spalla": "Width (mm)",
         "rame": "Copper size",
         "isolamento": "Foam thickness (mm)",
@@ -98,7 +98,7 @@ TEXTS = {
         "exit": "Exit",
         "progress": "Progress",
         "speed": "Speed",
-        "spool": "Mandrel",
+        "spool": "Spool",
         "visible": "Visible",
         "transparent": "Transparent",
         "hidden": "Hidden",
@@ -110,7 +110,7 @@ TEXTS = {
         "section": "Section",
         "animation": "Animation",
         "ghost": "Future path",
-        "studio": "Render base",
+        "studio": "Studio render",
         "view": "View",
         "view_3d": "3D",
         "view_front": "Front",
@@ -1201,7 +1201,7 @@ def viewer(
             const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
             const tex = mode === "gelblack" ? tubeBlackTex : tubeWhiteTex;
 
-            return new THREE.MeshStandardMaterial({{
+            const m = new THREE.MeshStandardMaterial({{
                 color: chosen,
                 map: tex,
                 roughness: active ? 0.82 : (free ? 0.94 : 0.90),
@@ -1209,6 +1209,8 @@ def viewer(
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
+
+            return m;
         }}
 
         let steelMat = makeSteelMat(1.0, false);
@@ -1270,7 +1272,7 @@ def viewer(
         scene.add(softTopLight);
 
         // ==========================================
-        // GROUPS
+        // SCENE GROUPS
         // ==========================================
 
         const studioGroup = new THREE.Group();
@@ -1286,7 +1288,6 @@ def viewer(
         scene.add(overlayGroup);
 
         const spoolParts = [];
-        const guideParts = [];
 
         // ==========================================
         // STUDIO FLOOR ONLY
@@ -1321,8 +1322,7 @@ def viewer(
         }}
 
         // ==========================================
-        // REALISTIC MANDREL
-        // Functional diameter = diametro_aspo
+        // SIMPLE SPOOL / ASPO
         // ==========================================
 
         const mandrel = new THREE.Mesh(
@@ -1337,197 +1337,98 @@ def viewer(
         machine.add(mandrel);
         spoolParts.push(mandrel);
 
-        const plateR = R + 155.0;
-        const plateTh = 4.0;
+        const flangeR = R + 150.0;
+        const flangeTh = 4.0;
 
-        const bottomPlate = new THREE.Mesh(
-            new THREE.CylinderGeometry(plateR, plateR, plateTh, 128),
+        const base = new THREE.Mesh(
+            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 128),
             steelMat
         );
 
-        bottomPlate.rotation.x = Math.PI / 2;
-        bottomPlate.position.z = 0.0;
-        bottomPlate.castShadow = true;
-        bottomPlate.receiveShadow = true;
-        machine.add(bottomPlate);
-        spoolParts.push(bottomPlate);
+        base.rotation.x = Math.PI / 2;
+        base.position.z = 0.0;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        machine.add(base);
+        spoolParts.push(base);
 
-        const topPlate = new THREE.Mesh(
-            new THREE.CylinderGeometry(plateR, plateR, plateTh, 128),
+        const top = new THREE.Mesh(
+            new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 128),
             steelMat
         );
 
-        topPlate.rotation.x = Math.PI / 2;
-        topPlate.position.z = Hs;
-        topPlate.castShadow = true;
-        topPlate.receiveShadow = true;
-        machine.add(topPlate);
-        spoolParts.push(topPlate);
-
-        // Three vertical supports inspired by the real mandrel.
-        const bladeCount = 3;
-        const bladeRadialDepth = Math.max(28, R * 0.18);
-        const bladeTangentialWidth = Math.max(32, R * 0.22);
-        const bladeHeight = Hs + 46;
-        const bladeRadius = R + bladeRadialDepth * 0.35;
-
-        for (let i = 0; i < bladeCount; i++) {{
-            const a = i * Math.PI * 2.0 / bladeCount;
-
-            const blade = new THREE.Mesh(
-                new THREE.BoxGeometry(bladeTangentialWidth, bladeRadialDepth, bladeHeight),
-                steelMat
-            );
-
-            blade.position.set(
-                Math.cos(a) * bladeRadius,
-                Math.sin(a) * bladeRadius,
-                Hs / 2.0
-            );
-
-            blade.rotation.z = a;
-            blade.castShadow = true;
-            blade.receiveShadow = true;
-            machine.add(blade);
-            spoolParts.push(blade);
-        }}
-
-        // Subtle upper guide ring, like the real retaining contour.
-        const upperRing = new THREE.Mesh(
-            new THREE.TorusGeometry(R + 55, 3.0, 16, 128),
-            steelMat
-        );
-
-        upperRing.position.z = Hs + plateTh * 0.75;
-        upperRing.castShadow = true;
-        upperRing.receiveShadow = true;
-        machine.add(upperRing);
-        spoolParts.push(upperRing);
+        top.rotation.x = Math.PI / 2;
+        top.position.z = Hs;
+        top.castShadow = true;
+        top.receiveShadow = true;
+        machine.add(top);
+        spoolParts.push(top);
 
         // ==========================================
-        // PARAMETRIC GUIDATUBO
+        // GUIDE
         // ==========================================
+
+        const nozzleDiameter = 55.0;
+        const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
+        const guideScale = (nozzleDiameter / oldNozzleDiameter) * 0.34;
 
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
 
-        const gtScale = Math.max(0.65, Math.min(1.55, Rt / 11.0));
-        const armLength = 250 * gtScale;
-        const armWidth = 24 * gtScale;
-        const armThick = 10 * gtScale;
-
-        const guideArm = new THREE.Mesh(
-            new THREE.BoxGeometry(armLength, armWidth, armThick),
+        const guideBarrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 40, 1, false),
             steelMat
         );
 
-        guideArm.position.x = -armLength * 0.45;
-        guideArm.castShadow = true;
-        guideArm.receiveShadow = true;
-        guideGroup.add(guideArm);
-        guideParts.push(guideArm);
+        guideBarrel.rotation.z = Math.PI / 2;
+        guideBarrel.position.x = 0;
+        guideBarrel.castShadow = true;
+        guideBarrel.receiveShadow = true;
+        guideGroup.add(guideBarrel);
 
-        const bodyBlock = new THREE.Mesh(
-            new THREE.BoxGeometry(58 * gtScale, 42 * gtScale, 34 * gtScale),
+        const guideShoulder = new THREE.Mesh(
+            new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 40, 1, false),
             steelMat
         );
 
-        bodyBlock.position.x = -armLength - 12 * gtScale;
-        bodyBlock.position.z = 0;
-        bodyBlock.castShadow = true;
-        bodyBlock.receiveShadow = true;
-        guideGroup.add(bodyBlock);
-        guideParts.push(bodyBlock);
+        guideShoulder.rotation.z = Math.PI / 2;
+        guideShoulder.position.x = 22 * guideScale;
+        guideShoulder.castShadow = true;
+        guideShoulder.receiveShadow = true;
+        guideGroup.add(guideShoulder);
 
-        const rollerR = Math.max(18, Rt * 1.45);
-        const rollerW = Math.max(14, Rt * 0.85);
-
-        const roller = new THREE.Mesh(
-            new THREE.CylinderGeometry(rollerR, rollerR, rollerW, 64),
+        const guideTaper = new THREE.Mesh(
+            new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 40, 1, false),
             steelMat
         );
 
-        roller.rotation.x = Math.PI / 2;
-        roller.position.x = -armLength * 0.15;
-        roller.position.y = 0;
-        roller.position.z = -8 * gtScale;
-        roller.castShadow = true;
-        roller.receiveShadow = true;
-        guideGroup.add(roller);
-        guideParts.push(roller);
+        guideTaper.rotation.z = Math.PI / 2;
+        guideTaper.position.x = 42 * guideScale;
+        guideTaper.castShadow = true;
+        guideTaper.receiveShadow = true;
+        guideGroup.add(guideTaper);
 
-        const rollerHole = new THREE.Mesh(
-            new THREE.CylinderGeometry(rollerR * 0.28, rollerR * 0.28, rollerW + 2, 48),
-            new THREE.MeshStandardMaterial({{
-                color: 0x111111,
-                roughness: 0.65,
-                metalness: 0.25
-            }})
-        );
-
-        rollerHole.rotation.x = Math.PI / 2;
-        rollerHole.position.copy(roller.position);
-        guideGroup.add(rollerHole);
-        guideParts.push(rollerHole);
-
-        const mouth = new THREE.Mesh(
-            new THREE.CylinderGeometry(Rt * 1.55, Rt * 1.35, 46 * gtScale, 48, 1, false),
+        const guideNozzle = new THREE.Mesh(
+            new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 48, 1, false),
             steelMat
         );
 
-        mouth.rotation.z = Math.PI / 2;
-        mouth.position.x = 24 * gtScale;
-        mouth.castShadow = true;
-        mouth.receiveShadow = true;
-        guideGroup.add(mouth);
-        guideParts.push(mouth);
+        guideNozzle.rotation.z = Math.PI / 2;
+        guideNozzle.position.x = 58 * guideScale;
+        guideNozzle.castShadow = true;
+        guideNozzle.receiveShadow = true;
+        guideGroup.add(guideNozzle);
 
-        const upperPlate = new THREE.Mesh(
-            new THREE.BoxGeometry(135 * gtScale, 10 * gtScale, 8 * gtScale),
+        const guideBackCap = new THREE.Mesh(
+            new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 36, 1, false),
             steelMat
         );
 
-        upperPlate.position.x = -armLength * 0.58;
-        upperPlate.position.y = armWidth * 0.82;
-        upperPlate.position.z = 17 * gtScale;
-        upperPlate.rotation.z = -0.08;
-        upperPlate.castShadow = true;
-        upperPlate.receiveShadow = true;
-        guideGroup.add(upperPlate);
-        guideParts.push(upperPlate);
-
-        const lowerPlate = new THREE.Mesh(
-            new THREE.BoxGeometry(135 * gtScale, 10 * gtScale, 8 * gtScale),
-            steelMat
-        );
-
-        lowerPlate.position.x = -armLength * 0.58;
-        lowerPlate.position.y = -armWidth * 0.82;
-        lowerPlate.position.z = -17 * gtScale;
-        lowerPlate.rotation.z = 0.08;
-        lowerPlate.castShadow = true;
-        lowerPlate.receiveShadow = true;
-        guideGroup.add(lowerPlate);
-        guideParts.push(lowerPlate);
-
-        // Small screws on the guide.
-        for (let i = 0; i < 3; i++) {{
-            const screw = new THREE.Mesh(
-                new THREE.CylinderGeometry(3.2 * gtScale, 3.2 * gtScale, 2.2 * gtScale, 24),
-                new THREE.MeshStandardMaterial({{
-                    color: 0x161616,
-                    roughness: 0.45,
-                    metalness: 0.65
-                }})
-            );
-
-            screw.rotation.x = Math.PI / 2;
-            screw.position.x = -armLength + i * 34 * gtScale;
-            screw.position.y = armWidth * 0.92;
-            screw.position.z = 21 * gtScale;
-            guideGroup.add(screw);
-            guideParts.push(screw);
-        }}
+        guideBackCap.rotation.z = Math.PI / 2;
+        guideBackCap.position.x = -28 * guideScale;
+        guideBackCap.castShadow = true;
+        guideBackCap.receiveShadow = true;
+        guideGroup.add(guideBackCap);
 
         // ==========================================
         // VISUAL STATE
@@ -1640,11 +1541,11 @@ def viewer(
                 part.material = useMat;
             }});
 
-            guideParts.forEach(part => {{
-                if (part.material && part.material.map === steelTex) {{
-                    part.material = useMat;
-                }}
-            }});
+            guideBarrel.material = useMat;
+            guideShoulder.material = useMat;
+            guideTaper.material = useMat;
+            guideNozzle.material = useMat;
+            guideBackCap.material = useMat;
         }}
 
         function applyVisualState(themeChanged=false) {{
