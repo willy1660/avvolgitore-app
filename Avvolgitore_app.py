@@ -183,12 +183,6 @@ t = TEXTS[lang]
 # =========================
 
 def smoothstep(x: float) -> float:
-    """
-    Interpolazione morbida 0 → 1.
-
-    Serve per rendere progressivo il cambio strato durante il ritardo,
-    senza fare uno step secco.
-    """
     x = max(0.0, min(1.0, x))
     return x * x * (3.0 - 2.0 * x)
 
@@ -200,32 +194,17 @@ def polyline_length(points: np.ndarray) -> float:
 
 
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
-    """
-    Punto di deposito nel mondo.
-
-    Il punto viene considerato sul piano centrale di contatto:
-    X = 0
-    Y = radius
-    Z = posizione assiale
-    """
     return np.array([0.0, radius, z], dtype=float)
 
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
-    """
-    Conversione da coordinate mondo a coordinate solidali con il mandrino.
-
-    Il mandrino ruota di theta.
-    La curva depositata viene salvata nel sistema locale del mandrino.
-    """
     c = np.cos(theta)
     s = np.sin(theta)
 
     x = pt_world[0] * c + pt_world[1] * s
     y = -pt_world[0] * s + pt_world[1] * c
-    z = pt_world[2]
 
-    return np.array([x, y, z], dtype=float)
+    return np.array([x, y, pt_world[2]], dtype=float)
 
 
 def simulate_winding_center_plane_local(
@@ -241,22 +220,11 @@ def simulate_winding_center_plane_local(
     deg_step: float = 2.0,
 ):
     """
-    Simulazione della traiettoria depositata sul mandrino.
-
-    LOGICA CORRETTA DEL RITARDO:
-
-    - Durante il tratto assiale, il guidatubo avanza da una spalla all'altra.
-    - Quando arriva alla base o alla spalla, il guidatubo resta fermo in Z.
-    - Il mandrino continua a ruotare per i gradi indicati dal ritardo.
-    - Durante questi gradi, il cambio strato avviene in modo progressivo.
-    - Quindi il cambio strato NON è uno step secco.
-    - Però il ritardo NON è un tempo: è un angolo di rotazione del mandrino.
-    - Finito il ritardo, il guidatubo riparte in direzione opposta.
-
-    In pratica:
-    z = costante durante il ritardo
-    theta = continua a ruotare
-    radius = passa morbidamente da strato attuale a strato successivo
+    Logica corretta:
+    - il ritardo è espresso in gradi del mandrino;
+    - durante il ritardo il guidatubo resta fermo in Z;
+    - il raggio passa progressivamente allo strato successivo;
+    - non è un ritardo temporale.
     """
 
     max_len = lunghezza_m * 1000.0
@@ -280,7 +248,6 @@ def simulate_winding_center_plane_local(
     z_values = [z]
 
     deposited_len = 0.0
-
     direction = 1
     mode = "axial"
 
@@ -304,15 +271,10 @@ def simulate_winding_center_plane_local(
         next_transition_start_radius = transition_start_radius
         next_transition_end_radius = transition_end_radius
 
-        # =========================
-        # TRATTO ASSIALE NORMALE
-        # =========================
-
         if mode == "axial":
             next_z = z + direction * passo * (deg_step / 360.0)
             next_radius = current_layer_radius
 
-            # Arrivo alla spalla superiore
             if next_z >= H - Rt:
                 next_z = H - Rt
 
@@ -323,17 +285,14 @@ def simulate_winding_center_plane_local(
                 next_transition_end_radius = current_layer_radius + max(0.0, incremento)
 
                 if next_transition_delay <= 0.0:
-                    # Nessun ritardo: cambio strato immediato.
                     next_radius = next_transition_end_radius
                     current_layer_radius = next_transition_end_radius
                     next_mode = "axial"
                     next_direction = -direction
                 else:
-                    # Ritardo: guidatubo fermo, mandrino gira, cambio strato morbido.
                     next_mode = "transition"
                     next_radius = next_transition_start_radius
 
-            # Arrivo alla base inferiore
             elif next_z <= Rt:
                 next_z = Rt
 
@@ -344,28 +303,18 @@ def simulate_winding_center_plane_local(
                 next_transition_end_radius = current_layer_radius + max(0.0, incremento)
 
                 if next_transition_delay <= 0.0:
-                    # Nessun ritardo: cambio strato immediato.
                     next_radius = next_transition_end_radius
                     current_layer_radius = next_transition_end_radius
                     next_mode = "axial"
                     next_direction = -direction
                 else:
-                    # Ritardo: guidatubo fermo, mandrino gira, cambio strato morbido.
                     next_mode = "transition"
                     next_radius = next_transition_start_radius
 
-        # =========================
-        # RITARDO / TRANSIZIONE STRATO
-        # =========================
-
         else:
-            # Il guidatubo resta fermo in Z.
             next_z = transition_z
-
-            # Il mandrino continua a ruotare.
             next_transition_progress = transition_progress + deg_step
 
-            # Il raggio passa progressivamente allo strato successivo.
             if transition_delay <= 0.0:
                 s = 1.0
             else:
@@ -375,7 +324,6 @@ def simulate_winding_center_plane_local(
                 transition_end_radius - transition_start_radius
             )
 
-            # Fine del ritardo angolare.
             if next_transition_progress >= transition_delay:
                 next_radius = transition_end_radius
                 current_layer_radius = transition_end_radius
@@ -384,17 +332,12 @@ def simulate_winding_center_plane_local(
                 next_direction = -direction
                 next_transition_progress = transition_delay
 
-        # =========================
-        # AGGIUNTA PUNTO
-        # =========================
-
         new_contact_world = deposit_point_world(next_radius, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
 
         prev_local = deposited_local[-1]
         seg = float(np.linalg.norm(new_local - prev_local))
 
-        # Evita punti troppo ravvicinati.
         if seg < max(0.25, Rt * 0.05):
             theta = next_theta
             z = next_z
@@ -409,7 +352,6 @@ def simulate_winding_center_plane_local(
 
             continue
 
-        # Taglio finale alla lunghezza richiesta.
         if deposited_len + seg >= max_len:
             remain = max_len - deposited_len
 
@@ -440,7 +382,6 @@ def simulate_winding_center_plane_local(
         theta_values.append(next_theta)
         radius_values.append(next_radius)
         z_values.append(next_z)
-
         deposited_len += seg
 
         theta = next_theta
@@ -491,10 +432,9 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
         }
 
     radial = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
-
     max_centerline_r = float(np.max(radial))
-    diam_radiale = 2.0 * (max_centerline_r + d_tubo / 2.0)
 
+    diam_radiale = 2.0 * (max_centerline_r + d_tubo / 2.0)
     max_xy_span = compute_max_xy_span(points, d_tubo)
     wound_length_m = polyline_length(points) / 1000.0
 
@@ -504,20 +444,11 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
         "wound_length_m": wound_length_m,
     }
 
-
 # =========================
 # EXPORT SLDCRV
 # =========================
 
 def make_sldcrv_content(points: np.ndarray) -> bytes:
-    """
-    Genera un file .SLDCRV compatibile con SolidWorks.
-
-    Formato:
-    X Y Z
-    separati da tabulazione, senza intestazioni.
-    Coordinate in mm.
-    """
     if points is None or len(points) == 0:
         return b""
 
@@ -533,7 +464,6 @@ def make_sldcrv_content(points: np.ndarray) -> bytes:
 def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
     safe_rame = rame.replace("/", "_")
     return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
-
 
 # =========================
 # VIEWER
@@ -834,8 +764,8 @@ def viewer(
             if (tubeMode === "gelblack") {{
                 return {{
                     bg: 0xffffff,
-                    tube: 0x111111,
-                    freeTube: 0x242424,
+                    tube: 0x121212,
+                    freeTube: 0x202020,
                     activeTube: 0x050505,
                     sectionFill: 0x000000,
                     sectionFrame: 0x111111,
@@ -844,10 +774,10 @@ def viewer(
                     gridOpacity: 0.72,
                     hemiSky: 0xffffff,
                     hemiGround: 0xd8d2ca,
-                    ambient: 0.12,
-                    fill: 0.32,
-                    rim: 0.52,
-                    exposure: 1.15,
+                    ambient: 0.16,
+                    fill: 0.40,
+                    rim: 0.62,
+                    exposure: 1.12,
                 }};
             }}
 
@@ -855,7 +785,7 @@ def viewer(
                 bg: 0x000000,
                 tube: 0xd8d8d6,
                 freeTube: 0xbebebc,
-                activeTube: 0xf0f0ee,
+                activeTube: 0xf2f2ef,
                 sectionFill: 0xffffff,
                 sectionFrame: 0xffffff,
                 gridMajor: 0x6f6f6f,
@@ -863,9 +793,9 @@ def viewer(
                 gridOpacity: 0.34,
                 hemiSky: 0xd7dfe7,
                 hemiGround: 0x1a1d20,
-                ambient: 0.18,
-                fill: 0.40,
-                rim: 0.62,
+                ambient: 0.22,
+                fill: 0.48,
+                rim: 0.72,
                 exposure: 1.0,
             }};
         }}
@@ -874,6 +804,8 @@ def viewer(
             playPauseBtn.textContent = isPlaying ? "⏸" : "▶";
             playPauseBtn.title = isPlaying ? T.pause : T.play;
         }}
+
+        updatePlayBtn();
 
         function updateAnimationUI() {{
             if (animationEnabled) {{
@@ -890,8 +822,6 @@ def viewer(
                 btn.classList.toggle(activeClass, btn.getAttribute(attr) === value);
             }});
         }}
-
-        updatePlayBtn();
 
         speedBtns.forEach(btn => {{
             btn.addEventListener("click", () => {{
@@ -1001,66 +931,9 @@ def viewer(
             controls.handleResize();
         }}
 
-        // =========================
+        // ==========================================
         // TEXTURES
-        // =========================
-
-        function makeWaffleKnurlTexture(size = 256) {{
-            const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
-
-            const ctx = canvas.getContext("2d");
-
-            ctx.fillStyle = "rgb(128,128,128)";
-            ctx.fillRect(0, 0, size, size);
-
-            const img = ctx.getImageData(0, 0, size, size);
-            const data = img.data;
-
-            const pitch = 24.0;
-            const lineWidth = 4.0;
-            const depth = 95.0;
-
-            for (let y = 0; y < size; y++) {{
-                for (let x = 0; x < size; x++) {{
-                    const u = x;
-                    const v = y;
-
-                    const d1 = Math.abs((((u + v) % pitch) + pitch) % pitch - pitch * 0.5);
-                    const d2 = Math.abs((((u - v) % pitch) + pitch) % pitch - pitch * 0.5);
-
-                    let value = 128;
-
-                    if (d1 < lineWidth) value -= depth;
-                    if (d2 < lineWidth) value -= depth;
-
-                    const cell =
-                        0.5 + 0.5 *
-                        Math.cos((u + v) * Math.PI / pitch) *
-                        Math.cos((u - v) * Math.PI / pitch);
-
-                    value += (cell - 0.5) * 30.0;
-                    value = Math.max(0, Math.min(255, Math.round(value)));
-
-                    const i = (y * size + x) * 4;
-
-                    data[i] = value;
-                    data[i + 1] = value;
-                    data[i + 2] = value;
-                    data[i + 3] = 255;
-                }}
-            }}
-
-            ctx.putImageData(img, 0, 0);
-
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(1.5, 1.5);
-
-            return tex;
-        }}
+        // ==========================================
 
         function makeSteelTexture(size = 256) {{
             const canvas = document.createElement("canvas");
@@ -1107,12 +980,65 @@ def viewer(
             return tex;
         }}
 
-        const bumpTex = makeWaffleKnurlTexture(256);
-        const steelTex = makeSteelTexture(256);
+        function makeTubeTexture(size = 256, dark=false) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
 
-        // =========================
-        // MATERIALS
-        // =========================
+            const ctx = canvas.getContext("2d");
+
+            const base = dark ? 34 : 214;
+            ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
+            ctx.fillRect(0, 0, size, size);
+
+            const img = ctx.getImageData(0, 0, size, size);
+            const data = img.data;
+
+            for (let y = 0; y < size; y++) {{
+                for (let x = 0; x < size; x++) {{
+                    const i = (y * size + x) * 4;
+
+                    const grain = Math.random() * 34 - 17;
+                    const microLine = Math.sin((x + y * 0.22) * 0.55) * 5;
+                    const longLine = Math.sin(y * 0.16) * 4;
+
+                    let v = base + grain + microLine + longLine;
+
+                    if (dark) {{
+                        v = Math.max(8, Math.min(72, v));
+                    }} else {{
+                        v = Math.max(150, Math.min(245, v));
+                    }}
+
+                    data[i] = v;
+                    data[i + 1] = v;
+                    data[i + 2] = v;
+                    data[i + 3] = 255;
+                }}
+            }}
+
+            ctx.putImageData(img, 0, 0);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+
+            // Textura fina. No és bumpMap, així no fa desaparèixer el material.
+            tex.repeat.set(2.0, 18.0);
+
+            tex.anisotropy = 8;
+            tex.needsUpdate = true;
+
+            return tex;
+        }}
+
+        const steelTex = makeSteelTexture(256);
+        const tubeWhiteTex = makeTubeTexture(256, false);
+        const tubeBlackTex = makeTubeTexture(256, true);
+
+        // ==========================================
+        // MATERIALS / THEME
+        // ==========================================
 
         function makeRedMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
@@ -1128,42 +1054,17 @@ def viewer(
 
         function makeTubeMaterial(mode, active=false, free=false) {{
             const theme = getTheme();
-
-            const chosen = active
-                ? theme.activeTube
-                : (free ? theme.freeTube : theme.tube);
+            const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
+            const tex = mode === "gelblack" ? tubeBlackTex : tubeWhiteTex;
 
             const m = new THREE.MeshStandardMaterial({{
                 color: chosen,
-                roughness: active ? 0.80 : (free ? 0.88 : 0.85),
-                metalness: 0.05,
-                bumpMap: bumpTex,
-                bumpScale: active ? 1.25 : (free ? 1.1 : 1.2),
+                map: tex,
+                roughness: active ? 0.86 : (free ? 0.93 : 0.90),
+                metalness: 0.02,
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
-
-            m.onBeforeCompile = (shader) => {{
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    '#include <roughnessmap_fragment>',
-                    `
-                    #include <roughnessmap_fragment>
-                    float anisotropyFake = abs(dot(normalize(vViewPosition), vec3(0.0, 1.0, 0.0)));
-                    roughnessFactor *= mix(0.85, 1.15, anisotropyFake);
-                    `
-                );
-
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-                    `
-                    float contactShade = pow(abs(dot(normal, vec3(0.0, 0.0, 1.0))), 1.8);
-                    outgoingLight *= mix(0.88, 1.0, contactShade);
-                    gl_FragColor = vec4( outgoingLight, diffuseColor.a );
-                    `
-                );
-            }};
-
-            m.needsUpdate = true;
 
             return m;
         }}
@@ -1190,9 +1091,9 @@ def viewer(
             emissiveIntensity: 0.14
         }});
 
-        // =========================
+        // ==========================================
         // LIGHTING
-        // =========================
+        // ==========================================
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(ambient);
@@ -1217,9 +1118,9 @@ def viewer(
         rimLight.position.set(0, 400, 300);
         scene.add(rimLight);
 
-        // =========================
+        // ==========================================
         // SCENE GROUPS
-        // =========================
+        // ==========================================
 
         const machine = new THREE.Group();
         scene.add(machine);
@@ -1230,9 +1131,9 @@ def viewer(
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
-        // =========================
+        // ==========================================
         // MANDREL / SPOOLS
-        // =========================
+        // ==========================================
 
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
@@ -1270,9 +1171,9 @@ def viewer(
         top.receiveShadow = true;
         machine.add(top);
 
-        // =========================
+        // ==========================================
         // GUIDE
-        // =========================
+        // ==========================================
 
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
@@ -1336,9 +1237,9 @@ def viewer(
         guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
 
-        // =========================
+        // ==========================================
         // VISUAL STATE
-        // =========================
+        // ==========================================
 
         function refreshThemeBackgroundAndLights() {{
             const theme = getTheme();
@@ -1468,9 +1369,9 @@ def viewer(
             updateOverlayContinuous(true);
         }}
 
-        // =========================
+        // ==========================================
         // HELPERS
-        // =========================
+        // ==========================================
 
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
@@ -1585,7 +1486,7 @@ def viewer(
                 Math.min(2600, Math.floor(totalLen / Math.max(1.25, radius * 0.48)))
             );
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 18, false);
             geo.computeVertexNormals();
 
             const mesh = new THREE.Mesh(geo, material);
@@ -1601,7 +1502,7 @@ def viewer(
 
             if (len < 1e-6) return null;
 
-            const geo = new THREE.CylinderGeometry(radius, radius, len, 16, 1, false);
+            const geo = new THREE.CylinderGeometry(radius, radius, len, 18, 1, false);
             const mesh = new THREE.Mesh(geo, material);
 
             const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
@@ -1802,7 +1703,6 @@ def viewer(
     }})();
     </script>
     """
-
 
 # =========================
 # UI
