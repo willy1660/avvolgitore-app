@@ -104,7 +104,7 @@ TEXTS = {
         "axes": "Axes",
         "section": "Section",
         "animation": "Animation",
-    }
+    },
 }
 
 # =========================
@@ -183,6 +183,12 @@ t = TEXTS[lang]
 # =========================
 
 def smoothstep(x: float) -> float:
+    """
+    Interpolazione morbida 0 → 1.
+
+    Serve per rendere progressivo il cambio strato durante il ritardo,
+    senza fare uno step secco.
+    """
     x = max(0.0, min(1.0, x))
     return x * x * (3.0 - 2.0 * x)
 
@@ -194,15 +200,32 @@ def polyline_length(points: np.ndarray) -> float:
 
 
 def deposit_point_world(radius: float, z: float) -> np.ndarray:
+    """
+    Punto di deposito nel mondo.
+
+    Il punto viene considerato sul piano centrale di contatto:
+    X = 0
+    Y = radius
+    Z = posizione assiale
+    """
     return np.array([0.0, radius, z], dtype=float)
 
 
 def world_to_spool_local(pt_world: np.ndarray, theta: float) -> np.ndarray:
+    """
+    Conversione da coordinate mondo a coordinate solidali con il mandrino.
+
+    Il mandrino ruota di theta.
+    La curva depositata viene salvata nel sistema locale del mandrino.
+    """
     c = np.cos(theta)
     s = np.sin(theta)
+
     x = pt_world[0] * c + pt_world[1] * s
     y = -pt_world[0] * s + pt_world[1] * c
-    return np.array([x, y, pt_world[2]], dtype=float)
+    z = pt_world[2]
+
+    return np.array([x, y, z], dtype=float)
 
 
 def simulate_winding_center_plane_local(
@@ -217,13 +240,34 @@ def simulate_winding_center_plane_local(
     gradi_start: float,
     deg_step: float = 2.0,
 ):
+    """
+    Simulazione della traiettoria depositata sul mandrino.
+
+    LOGICA CORRETTA DEL RITARDO:
+
+    - Durante il tratto assiale, il guidatubo avanza da una spalla all'altra.
+    - Quando arriva alla base o alla spalla, il guidatubo resta fermo in Z.
+    - Il mandrino continua a ruotare per i gradi indicati dal ritardo.
+    - Durante questi gradi, il cambio strato avviene in modo progressivo.
+    - Quindi il cambio strato NON è uno step secco.
+    - Però il ritardo NON è un tempo: è un angolo di rotazione del mandrino.
+    - Finito il ritardo, il guidatubo riparte in direzione opposta.
+
+    In pratica:
+    z = costante durante il ritardo
+    theta = continua a ruotare
+    radius = passa morbidamente da strato attuale a strato successivo
+    """
+
     max_len = lunghezza_m * 1000.0
+
     R = d_aspo / 2.0
     Rt = d_tubo / 2.0
     H = spalla
 
     theta = np.deg2rad(gradi_start)
     z = Rt
+
     current_layer_radius = R + Rt
 
     first_contact_world = deposit_point_world(current_layer_radius, z)
@@ -236,14 +280,15 @@ def simulate_winding_center_plane_local(
     z_values = [z]
 
     deposited_len = 0.0
+
     direction = 1
     mode = "axial"
 
-    turn_progress = 0.0
-    turn_delay = 0.0
-    turn_z = z
-    turn_start_radius = current_layer_radius
-    turn_end_radius = current_layer_radius
+    transition_progress = 0.0
+    transition_delay = 0.0
+    transition_z = z
+    transition_start_radius = current_layer_radius
+    transition_end_radius = current_layer_radius
 
     for _ in range(1200000):
         next_theta = theta - np.deg2rad(deg_step)
@@ -251,53 +296,97 @@ def simulate_winding_center_plane_local(
         next_z = z
         next_direction = direction
         next_mode = mode
-        next_turn_progress = turn_progress
-        next_turn_delay = turn_delay
-        next_turn_z = turn_z
-        next_turn_start_radius = turn_start_radius
-        next_turn_end_radius = turn_end_radius
         next_radius = current_layer_radius
+
+        next_transition_progress = transition_progress
+        next_transition_delay = transition_delay
+        next_transition_z = transition_z
+        next_transition_start_radius = transition_start_radius
+        next_transition_end_radius = transition_end_radius
+
+        # =========================
+        # TRATTO ASSIALE NORMALE
+        # =========================
 
         if mode == "axial":
             next_z = z + direction * passo * (deg_step / 360.0)
             next_radius = current_layer_radius
 
+            # Arrivo alla spalla superiore
             if next_z >= H - Rt:
                 next_z = H - Rt
-                next_mode = "turn"
-                next_turn_progress = 0.0
-                next_turn_delay = max(rit_t, 0.0)
-                next_turn_z = next_z
-                next_turn_start_radius = current_layer_radius
-                next_turn_end_radius = current_layer_radius + max(0.0, incremento)
 
-            elif next_z <= Rt:
-                next_z = Rt
-                next_mode = "turn"
-                next_turn_progress = 0.0
-                next_turn_delay = max(rit_b, 0.0)
-                next_turn_z = next_z
-                next_turn_start_radius = current_layer_radius
-                next_turn_end_radius = current_layer_radius + max(0.0, incremento)
+                next_transition_progress = 0.0
+                next_transition_delay = max(rit_t, 0.0)
+                next_transition_z = next_z
+                next_transition_start_radius = current_layer_radius
+                next_transition_end_radius = current_layer_radius + max(0.0, incremento)
 
-        else:
-            next_z = next_turn_z
-
-            if next_turn_delay <= 0.0:
-                next_radius = next_turn_end_radius
-                current_layer_radius = next_turn_end_radius
-                next_mode = "axial"
-                next_direction = -direction
-            else:
-                next_turn_progress = turn_progress + deg_step
-                s = smoothstep(next_turn_progress / next_turn_delay)
-                next_radius = next_turn_start_radius + s * (next_turn_end_radius - next_turn_start_radius)
-
-                if next_turn_progress >= next_turn_delay:
-                    next_radius = next_turn_end_radius
-                    current_layer_radius = next_turn_end_radius
+                if next_transition_delay <= 0.0:
+                    # Nessun ritardo: cambio strato immediato.
+                    next_radius = next_transition_end_radius
+                    current_layer_radius = next_transition_end_radius
                     next_mode = "axial"
                     next_direction = -direction
+                else:
+                    # Ritardo: guidatubo fermo, mandrino gira, cambio strato morbido.
+                    next_mode = "transition"
+                    next_radius = next_transition_start_radius
+
+            # Arrivo alla base inferiore
+            elif next_z <= Rt:
+                next_z = Rt
+
+                next_transition_progress = 0.0
+                next_transition_delay = max(rit_b, 0.0)
+                next_transition_z = next_z
+                next_transition_start_radius = current_layer_radius
+                next_transition_end_radius = current_layer_radius + max(0.0, incremento)
+
+                if next_transition_delay <= 0.0:
+                    # Nessun ritardo: cambio strato immediato.
+                    next_radius = next_transition_end_radius
+                    current_layer_radius = next_transition_end_radius
+                    next_mode = "axial"
+                    next_direction = -direction
+                else:
+                    # Ritardo: guidatubo fermo, mandrino gira, cambio strato morbido.
+                    next_mode = "transition"
+                    next_radius = next_transition_start_radius
+
+        # =========================
+        # RITARDO / TRANSIZIONE STRATO
+        # =========================
+
+        else:
+            # Il guidatubo resta fermo in Z.
+            next_z = transition_z
+
+            # Il mandrino continua a ruotare.
+            next_transition_progress = transition_progress + deg_step
+
+            # Il raggio passa progressivamente allo strato successivo.
+            if transition_delay <= 0.0:
+                s = 1.0
+            else:
+                s = smoothstep(next_transition_progress / transition_delay)
+
+            next_radius = transition_start_radius + s * (
+                transition_end_radius - transition_start_radius
+            )
+
+            # Fine del ritardo angolare.
+            if next_transition_progress >= transition_delay:
+                next_radius = transition_end_radius
+                current_layer_radius = transition_end_radius
+
+                next_mode = "axial"
+                next_direction = -direction
+                next_transition_progress = transition_delay
+
+        # =========================
+        # AGGIUNTA PUNTO
+        # =========================
 
         new_contact_world = deposit_point_world(next_radius, next_z)
         new_local = world_to_spool_local(new_contact_world, next_theta)
@@ -305,25 +394,31 @@ def simulate_winding_center_plane_local(
         prev_local = deposited_local[-1]
         seg = float(np.linalg.norm(new_local - prev_local))
 
+        # Evita punti troppo ravvicinati.
         if seg < max(0.25, Rt * 0.05):
             theta = next_theta
             z = next_z
             direction = next_direction
             mode = next_mode
-            turn_progress = next_turn_progress
-            turn_delay = next_turn_delay
-            turn_z = next_turn_z
-            turn_start_radius = next_turn_start_radius
-            turn_end_radius = next_turn_end_radius
+
+            transition_progress = next_transition_progress
+            transition_delay = next_transition_delay
+            transition_z = next_transition_z
+            transition_start_radius = next_transition_start_radius
+            transition_end_radius = next_transition_end_radius
+
             continue
 
+        # Taglio finale alla lunghezza richiesta.
         if deposited_len + seg >= max_len:
             remain = max_len - deposited_len
 
             if seg > EPS and remain > 0.0:
                 a = remain / seg
+
                 final_theta = theta + a * (next_theta - theta)
                 final_z = z + a * (next_z - z)
+
                 prev_r = radius_values[-1]
                 final_r = prev_r + a * (next_radius - prev_r)
 
@@ -345,17 +440,19 @@ def simulate_winding_center_plane_local(
         theta_values.append(next_theta)
         radius_values.append(next_radius)
         z_values.append(next_z)
+
         deposited_len += seg
 
         theta = next_theta
         z = next_z
         direction = next_direction
         mode = next_mode
-        turn_progress = next_turn_progress
-        turn_delay = next_turn_delay
-        turn_z = next_turn_z
-        turn_start_radius = next_turn_start_radius
-        turn_end_radius = next_turn_end_radius
+
+        transition_progress = next_transition_progress
+        transition_delay = next_transition_delay
+        transition_z = next_transition_z
+        transition_start_radius = next_transition_start_radius
+        transition_end_radius = next_transition_end_radius
 
     return (
         np.array(contact_world, dtype=float),
@@ -394,8 +491,10 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
         }
 
     radial = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
+
     max_centerline_r = float(np.max(radial))
     diam_radiale = 2.0 * (max_centerline_r + d_tubo / 2.0)
+
     max_xy_span = compute_max_xy_span(points, d_tubo)
     wound_length_m = polyline_length(points) / 1000.0
 
@@ -405,15 +504,19 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
         "wound_length_m": wound_length_m,
     }
 
+
 # =========================
 # EXPORT SLDCRV
 # =========================
 
 def make_sldcrv_content(points: np.ndarray) -> bytes:
     """
-    Genera un file .SLDCRV compatibile con SolidWorks:
-    ogni riga contiene X Y Z, separati da tabulazione, senza intestazioni.
-    Le coordinate sono in mm.
+    Genera un file .SLDCRV compatibile con SolidWorks.
+
+    Formato:
+    X Y Z
+    separati da tabulazione, senza intestazioni.
+    Coordinate in mm.
     """
     if points is None or len(points) == 0:
         return b""
@@ -430,6 +533,7 @@ def make_sldcrv_content(points: np.ndarray) -> bytes:
 def make_sldcrv_filename(rame: str, d_tubo: float, lunghezza: float) -> str:
     safe_rame = rame.replace("/", "_")
     return f"avvolgimento_{safe_rame}_Dtubo_{d_tubo:.2f}mm_L_{lunghezza:.0f}m.sldcrv"
+
 
 # =========================
 # VIEWER
@@ -573,6 +677,7 @@ def viewer(
             font-weight:700;
             cursor:pointer;
         }}
+
         .viewer_btn_small {{
             border:none;
             border-radius:8px;
@@ -583,14 +688,17 @@ def viewer(
             cursor:pointer;
             text-align:left;
         }}
+
         .active_speed {{
             outline:2px solid #ffffff;
             background:#ffffff;
         }}
+
         .active_opt {{
             outline:2px solid #ffffff;
             background:#ffffff;
         }}
+
         .panel_label {{
             font-size:12px;
             opacity:0.82;
@@ -598,22 +706,26 @@ def viewer(
             text-transform:uppercase;
             letter-spacing:0.04em;
         }}
+
         .btn_group_vertical {{
             display:flex;
             flex-direction:column;
             gap:6px;
         }}
+
         .panel_check {{
             display:flex;
             align-items:center;
             gap:8px;
         }}
+
         .panel_checks_block {{
             display:flex;
             flex-direction:column;
             gap:8px;
             padding-top:2px;
         }}
+
         .viewer_btn_disabled {{
             opacity:0.45;
             cursor:not-allowed;
@@ -669,6 +781,7 @@ def viewer(
             antialias: true,
             powerPreference: "high-performance"
         }});
+
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
@@ -677,6 +790,7 @@ def viewer(
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.localClippingEnabled = true;
+
         host.appendChild(renderer.domElement);
 
         const controls = new THREE.TrackballControls(camera, renderer.domElement);
@@ -736,6 +850,7 @@ def viewer(
                     exposure: 1.15,
                 }};
             }}
+
             return {{
                 bg: 0x000000,
                 tube: 0xd8d8d6,
@@ -759,7 +874,6 @@ def viewer(
             playPauseBtn.textContent = isPlaying ? "⏸" : "▶";
             playPauseBtn.title = isPlaying ? T.pause : T.play;
         }}
-        updatePlayBtn();
 
         function updateAnimationUI() {{
             if (animationEnabled) {{
@@ -776,6 +890,8 @@ def viewer(
                 btn.classList.toggle(activeClass, btn.getAttribute(attr) === value);
             }});
         }}
+
+        updatePlayBtn();
 
         speedBtns.forEach(btn => {{
             btn.addEventListener("click", () => {{
@@ -820,6 +936,7 @@ def viewer(
 
         animationCheck.addEventListener("change", () => {{
             animationEnabled = animationCheck.checked;
+
             if (!animationEnabled) {{
                 isPlaying = false;
                 drawPos = localPts.length - 1;
@@ -829,6 +946,7 @@ def viewer(
             }} else {{
                 isPlaying = true;
             }}
+
             updatePlayBtn();
             updateAnimationUI();
         }});
@@ -854,6 +972,7 @@ def viewer(
                 console.error(err);
             }}
         }});
+
         fullscreenBtn.title = T.fullscreen;
 
         document.addEventListener("fullscreenchange", () => {{
@@ -874,20 +993,23 @@ def viewer(
         function resizeViewer() {{
             const nw = Math.max(host.clientWidth, 600);
             const nh = Math.max(host.clientHeight, 400);
+
             camera.aspect = nw / nh;
             camera.updateProjectionMatrix();
+
             renderer.setSize(nw, nh);
             controls.handleResize();
         }}
 
-        // ==========================================
+        // =========================
         // TEXTURES
-        // ==========================================
+        // =========================
 
         function makeWaffleKnurlTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
             canvas.height = size;
+
             const ctx = canvas.getContext("2d");
 
             ctx.fillStyle = "rgb(128,128,128)";
@@ -922,6 +1044,7 @@ def viewer(
                     value = Math.max(0, Math.min(255, Math.round(value)));
 
                     const i = (y * size + x) * 4;
+
                     data[i] = value;
                     data[i + 1] = value;
                     data[i + 2] = value;
@@ -935,6 +1058,7 @@ def viewer(
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(1.5, 1.5);
+
             return tex;
         }}
 
@@ -942,15 +1066,18 @@ def viewer(
             const canvas = document.createElement("canvas");
             canvas.width = size;
             canvas.height = size;
+
             const ctx = canvas.getContext("2d");
 
             const grad = ctx.createLinearGradient(0, 0, size, 0);
+
             grad.addColorStop(0.0, "#565c64");
             grad.addColorStop(0.18, "#d9dee3");
             grad.addColorStop(0.36, "#747b84");
             grad.addColorStop(0.58, "#c2c8ce");
             grad.addColorStop(0.82, "#666d76");
             grad.addColorStop(1.0, "#e0e4e8");
+
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, size, size);
 
@@ -961,27 +1088,31 @@ def viewer(
             }}
 
             const img = ctx.getImageData(0, 0, size, size);
+
             for (let i = 0; i < img.data.length; i += 4) {{
                 const n = Math.floor(Math.random() * 14) - 7;
+
                 img.data[i] = Math.max(0, Math.min(255, img.data[i] + n));
                 img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1] + n));
                 img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2] + n));
             }}
+
             ctx.putImageData(img, 0, 0);
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(0.65, 0.65);
+
             return tex;
         }}
 
         const bumpTex = makeWaffleKnurlTexture(256);
         const steelTex = makeSteelTexture(256);
 
-        // ==========================================
-        // MATERIALS / THEME
-        // ==========================================
+        // =========================
+        // MATERIALS
+        // =========================
 
         function makeRedMat(opacity=1.0, transparent=false) {{
             return new THREE.MeshStandardMaterial({{
@@ -997,7 +1128,10 @@ def viewer(
 
         function makeTubeMaterial(mode, active=false, free=false) {{
             const theme = getTheme();
-            const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
+
+            const chosen = active
+                ? theme.activeTube
+                : (free ? theme.freeTube : theme.tube);
 
             const m = new THREE.MeshStandardMaterial({{
                 color: chosen,
@@ -1018,6 +1152,7 @@ def viewer(
                     roughnessFactor *= mix(0.85, 1.15, anisotropyFake);
                     `
                 );
+
                 shader.fragmentShader = shader.fragmentShader.replace(
                     'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
                     `
@@ -1027,7 +1162,9 @@ def viewer(
                     `
                 );
             }};
+
             m.needsUpdate = true;
+
             return m;
         }}
 
@@ -1053,9 +1190,9 @@ def viewer(
             emissiveIntensity: 0.14
         }});
 
-        // ==========================================
+        // =========================
         // LIGHTING
-        // ==========================================
+        // =========================
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(ambient);
@@ -1080,9 +1217,9 @@ def viewer(
         rimLight.position.set(0, 400, 300);
         scene.add(rimLight);
 
-        // ==========================================
+        // =========================
         // SCENE GROUPS
-        // ==========================================
+        // =========================
 
         const machine = new THREE.Group();
         scene.add(machine);
@@ -1093,14 +1230,15 @@ def viewer(
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
-        // ==========================================
+        // =========================
         // MANDREL / SPOOLS
-        // ==========================================
+        // =========================
 
         const mandrel = new THREE.Mesh(
             new THREE.CylinderGeometry(R, R, Hs, 96),
             redMat
         );
+
         mandrel.rotation.x = Math.PI / 2;
         mandrel.position.z = Hs / 2.0;
         mandrel.castShadow = true;
@@ -1114,6 +1252,7 @@ def viewer(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
             redMat
         );
+
         base.rotation.x = Math.PI / 2;
         base.position.z = 0.0;
         base.castShadow = true;
@@ -1124,15 +1263,16 @@ def viewer(
             new THREE.CylinderGeometry(flangeR, flangeR, flangeTh, 96),
             redMat
         );
+
         top.rotation.x = Math.PI / 2;
         top.position.z = Hs;
         top.castShadow = true;
         top.receiveShadow = true;
         machine.add(top);
 
-        // ==========================================
+        // =========================
         // GUIDE
-        // ==========================================
+        // =========================
 
         const nozzleDiameter = 55.0;
         const oldNozzleDiameter = Math.max(4.0, Rt * 0.56);
@@ -1145,6 +1285,7 @@ def viewer(
             new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 32, 1, false),
             redMat
         );
+
         guideBarrel.rotation.z = Math.PI / 2;
         guideBarrel.position.x = 0;
         guideBarrel.castShadow = true;
@@ -1155,6 +1296,7 @@ def viewer(
             new THREE.CylinderGeometry(27 * guideScale, 20 * guideScale, 18 * guideScale, 32, 1, false),
             redMat
         );
+
         guideShoulder.rotation.z = Math.PI / 2;
         guideShoulder.position.x = 22 * guideScale;
         guideShoulder.castShadow = true;
@@ -1165,6 +1307,7 @@ def viewer(
             new THREE.CylinderGeometry(12 * guideScale, 17 * guideScale, 22 * guideScale, 32, 1, false),
             redMat
         );
+
         guideTaper.rotation.z = Math.PI / 2;
         guideTaper.position.x = 42 * guideScale;
         guideTaper.castShadow = true;
@@ -1175,6 +1318,7 @@ def viewer(
             new THREE.CylinderGeometry(nozzleDiameter / 2, nozzleDiameter / 2, 14 * guideScale, 36, 1, false),
             redMat
         );
+
         guideNozzle.rotation.z = Math.PI / 2;
         guideNozzle.position.x = 58 * guideScale;
         guideNozzle.castShadow = true;
@@ -1185,32 +1329,43 @@ def viewer(
             new THREE.CylinderGeometry(15 * guideScale, 15 * guideScale, 10 * guideScale, 28, 1, false),
             redMat
         );
+
         guideBackCap.rotation.z = Math.PI / 2;
         guideBackCap.position.x = -28 * guideScale;
         guideBackCap.castShadow = true;
         guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
 
+        // =========================
+        // VISUAL STATE
+        // =========================
+
         function refreshThemeBackgroundAndLights() {{
             const theme = getTheme();
+
             scene.background = new THREE.Color(theme.bg);
             renderer.toneMappingExposure = theme.exposure;
+
             ambient.intensity = theme.ambient;
             hemi.color.setHex(theme.hemiSky);
             hemi.groundColor.setHex(theme.hemiGround);
+
             fillLight.intensity = theme.fill;
             rimLight.intensity = theme.rim;
         }}
 
         function applySectionState() {{
             clippingPlanes = [];
+
             if (sectionPlaneHelper) scene.remove(sectionPlaneHelper);
             if (sectionFrame) scene.remove(sectionFrame);
+
             sectionPlaneHelper = null;
             sectionFrame = null;
 
             if (showSection) {{
                 const theme = getTheme();
+
                 const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
                 clippingPlanes = [cutPlane];
 
@@ -1223,17 +1378,20 @@ def viewer(
                 }});
 
                 const sectionGeo = new THREE.PlaneGeometry(2 * (R + 260), Hs + 260);
+
                 sectionPlaneHelper = new THREE.Mesh(sectionGeo, sectionMat);
                 sectionPlaneHelper.position.set(0, 0, Hs * 0.5);
                 sectionPlaneHelper.rotation.y = Math.PI / 2;
                 scene.add(sectionPlaneHelper);
 
                 const frameGeo = new THREE.EdgesGeometry(sectionGeo);
+
                 const frameMat = new THREE.LineBasicMaterial({{
                     color: theme.sectionFrame,
                     transparent: true,
                     opacity: tubeMode === "gelwhite" ? 0.45 : 0.35
                 }});
+
                 sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
                 sectionFrame.position.copy(sectionPlaneHelper.position);
                 sectionFrame.rotation.copy(sectionPlaneHelper.rotation);
@@ -1253,16 +1411,19 @@ def viewer(
 
             if (showGrid) {{
                 const theme = getTheme();
+
                 grid = new THREE.GridHelper(
                     2000,
                     20,
                     theme.gridMajor,
                     theme.gridMinor
                 );
+
                 grid.rotation.x = Math.PI / 2;
                 grid.position.z = 0;
                 grid.material.opacity = theme.gridOpacity;
                 grid.material.transparent = true;
+
                 scene.add(grid);
             }}
         }}
@@ -1270,6 +1431,7 @@ def viewer(
         function buildAxesIfNeeded() {{
             if (axes) scene.remove(axes);
             axes = null;
+
             if (showAxes) {{
                 axes = new THREE.AxesHelper(350);
                 scene.add(axes);
@@ -1280,9 +1442,11 @@ def viewer(
             refreshThemeBackgroundAndLights();
 
             const useMat = aspoMode === "transparent" ? redMatTransparent : redMat;
+
             mandrel.material = useMat;
             base.material = useMat;
             top.material = useMat;
+
             guideBarrel.material = useMat;
             guideShoulder.material = useMat;
             guideTaper.material = useMat;
@@ -1304,9 +1468,9 @@ def viewer(
             updateOverlayContinuous(true);
         }}
 
-        // ==========================================
+        // =========================
         // HELPERS
-        // ==========================================
+        // =========================
 
         function guidePointWorld(radius, z) {{
             return new THREE.Vector3(
@@ -1335,6 +1499,7 @@ def viewer(
         class PolylineCurve3 extends THREE.Curve {{
             constructor(points) {{
                 super();
+
                 this.points = points || [];
                 this.arc = [0];
                 this.totalLength = 0;
@@ -1347,19 +1512,32 @@ def viewer(
             }}
 
             getPoint(t) {{
-                if (!this.points || this.points.length === 0) return new THREE.Vector3(0, 0, 0);
-                if (this.points.length === 1 || this.totalLength <= 1e-9) return this.points[0].clone();
+                if (!this.points || this.points.length === 0) {{
+                    return new THREE.Vector3(0, 0, 0);
+                }}
+
+                if (this.points.length === 1 || this.totalLength <= 1e-9) {{
+                    return this.points[0].clone();
+                }}
 
                 const target = t * this.totalLength;
-                let i = 1;
-                while (i < this.arc.length && this.arc[i] < target) i++;
 
-                if (i >= this.points.length) return this.points[this.points.length - 1].clone();
+                let i = 1;
+
+                while (i < this.arc.length && this.arc[i] < target) {{
+                    i++;
+                }}
+
+                if (i >= this.points.length) {{
+                    return this.points[this.points.length - 1].clone();
+                }}
 
                 const l0 = this.arc[i - 1];
                 const l1 = this.arc[i];
+
                 const p0 = this.points[i - 1];
                 const p1 = this.points[i];
+
                 const denom = Math.max(1e-9, l1 - l0);
                 const a = (target - l0) / denom;
 
@@ -1373,14 +1551,21 @@ def viewer(
 
         function disposeMaterial(mat) {{
             if (!mat) return;
-            if (Array.isArray(mat)) mat.forEach(m => m && m.dispose && m.dispose());
-            else if (mat.dispose) mat.dispose();
+
+            if (Array.isArray(mat)) {{
+                mat.forEach(m => m && m.dispose && m.dispose());
+            }} else if (mat.dispose) {{
+                mat.dispose();
+            }}
         }}
 
         function disposeObj(obj, parentObj = scene) {{
             if (!obj) return;
+
             parentObj.remove(obj);
+
             if (obj.geometry) obj.geometry.dispose();
+
             disposeMaterial(obj.material);
         }}
 
@@ -1388,11 +1573,13 @@ def viewer(
             if (!points || points.length < 2) return null;
 
             let totalLen = 0;
+
             for (let i = 1; i < points.length; i++) {{
                 totalLen += points[i].distanceTo(points[i - 1]);
             }}
 
             const curve = new PolylineCurve3(points);
+
             const tubularSegments = Math.max(
                 18,
                 Math.min(2600, Math.floor(totalLen / Math.max(1.25, radius * 0.48)))
@@ -1400,15 +1587,18 @@ def viewer(
 
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
             geo.computeVertexNormals();
+
             const mesh = new THREE.Mesh(geo, material);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
+
             return mesh;
         }}
 
         function makeTubeSegment(p0, p1, radius, material) {{
             const dir = new THREE.Vector3().subVectors(p1, p0);
             const len = dir.length();
+
             if (len < 1e-6) return null;
 
             const geo = new THREE.CylinderGeometry(radius, radius, len, 16, 1, false);
@@ -1419,6 +1609,7 @@ def viewer(
 
             const yAxis = new THREE.Vector3(0, 1, 0);
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
+
             mesh.setRotationFromQuaternion(quat);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -1429,12 +1620,15 @@ def viewer(
         function makeEndpointDisc(point, tangentDir, material, radiusScale = 0.92) {{
             const r = Math.max(7.0, Rt * radiusScale);
             const thickness = Math.max(2.0, Rt * 0.22);
+
             const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 28);
             const mesh = new THREE.Mesh(geo, material);
+
             mesh.position.copy(point);
 
             const yAxis = new THREE.Vector3(0, 1, 0);
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, tangentDir.clone().normalize());
+
             mesh.setRotationFromQuaternion(quat);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -1453,7 +1647,9 @@ def viewer(
 
         function rebuildDepositedMesh(completedIndex, force=false) {{
             if (completedIndex < 1) return;
+
             if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
+
             lastRebuiltCompleted = completedIndex;
 
             if (depositedMesh) {{
@@ -1462,8 +1658,12 @@ def viewer(
             }}
 
             const pts = localPts.slice(0, completedIndex + 1);
+
             depositedMesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
-            if (depositedMesh) depositedGroup.add(depositedMesh);
+
+            if (depositedMesh) {{
+                depositedGroup.add(depositedMesh);
+            }}
         }}
 
         function clearOverlay() {{
@@ -1471,14 +1671,17 @@ def viewer(
                 disposeObj(freeMesh, overlayGroup);
                 freeMesh = null;
             }}
+
             if (activeCoilMesh) {{
                 disposeObj(activeCoilMesh, overlayGroup);
                 activeCoilMesh = null;
             }}
+
             if (startMarker) {{
                 disposeObj(startMarker, overlayGroup);
                 startMarker = null;
             }}
+
             if (endMarker) {{
                 disposeObj(endMarker, overlayGroup);
                 endMarker = null;
@@ -1487,6 +1690,7 @@ def viewer(
 
         function updateOverlayContinuous(force=false) {{
             clearOverlay();
+
             if (localPts.length < 2) return;
 
             const maxPos = localPts.length - 1;
@@ -1510,16 +1714,19 @@ def viewer(
 
             const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
             const endTangentLocal = activeLocalEnd.clone().sub(activeLocalStart);
+
             const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
             const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
 
             startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.82);
+
             endMarker = makeEndpointDisc(
                 endWorld,
                 endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld,
                 markerEndMat,
                 0.96
             );
+
             overlayGroup.add(startMarker);
             overlayGroup.add(endMarker);
 
@@ -1527,12 +1734,19 @@ def viewer(
                 if (frac > 1e-6 && i1 > i0) {{
                     const activeStartWorld = localPointToWorld(activeLocalStart, theta);
                     activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
-                    if (activeCoilMesh) overlayGroup.add(activeCoilMesh);
+
+                    if (activeCoilMesh) {{
+                        overlayGroup.add(activeCoilMesh);
+                    }}
                 }}
 
                 const guideWorld = guidePointWorld(radius, z);
+
                 freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
-                if (freeMesh) overlayGroup.add(freeMesh);
+
+                if (freeMesh) {{
+                    overlayGroup.add(freeMesh);
+                }}
 
                 guideGroup.position.copy(guideWorld);
                 guideGroup.visible = true;
@@ -1550,8 +1764,11 @@ def viewer(
 
             if (animationEnabled && isPlaying && drawPos < localPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
+
                 const oldCompleted = Math.floor(drawPos);
+
                 drawPos = Math.min(localPts.length - 1, drawPos + advance);
+
                 const newCompleted = Math.floor(drawPos);
 
                 if (newCompleted > oldCompleted) {{
@@ -1559,7 +1776,10 @@ def viewer(
                 }}
 
                 updateOverlayContinuous();
-                progressSlider.value = Math.round((drawPos / Math.max(1, localPts.length - 1)) * 1000);
+
+                progressSlider.value = Math.round(
+                    (drawPos / Math.max(1, localPts.length - 1)) * 1000
+                );
             }}
 
             controls.update();
@@ -1582,6 +1802,7 @@ def viewer(
     }})();
     </script>
     """
+
 
 # =========================
 # UI
