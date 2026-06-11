@@ -83,7 +83,7 @@ TEXTS = {
     },
     "EN": {
         "title": "Coiling",
-        "language": "🌍 Lingua",
+        "language": "🌍 Language",
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Simulation",
@@ -105,8 +105,8 @@ TEXTS = {
         "warning": "⚠️ Max XY span exceeds 750 mm.",
         "play": "Play",
         "pause": "Pause",
-        "fullscreen": "Schermo intero",
-        "exit": "Esci",
+        "fullscreen": "Fullscreen",
+        "exit": "Exit",
         "progress": "Progress",
         "speed": "Speed",
         "spool": "Spool",
@@ -116,7 +116,7 @@ TEXTS = {
         "tube_color": "Tube",
         "gelwhite": "Gelwhite",
         "gelblack": "Gelblack",
-        "grid": "Griglia",
+        "grid": "Grid",
         "axes": "Axes",
         "section": "Section",
         "animation": "Animation",
@@ -143,6 +143,85 @@ TEXTS = {
         "presets_load_error": "Error loading presets",
     },
 }
+
+PARAM_LABELS = {
+    "IT": {
+        "Prodotto": "Prodotto",
+        "Diametro Rame": "Diametro rame",
+        "Spessore Guaina (mm)": "Spessore guaina (mm)",
+        "Diametro esterno Guaina (mm)": "Diametro esterno guaina (mm)",
+        "Lunghezza (m)": "Lunghezza (m)",
+        "Velocita linea (m/min)": "Velocità linea (m/min)",
+        "Boccole rulliera adrizzatubo": "Boccole rulliera adrizzatubo",
+        "Boccola uscita rulliera": "Boccola uscita rulliera",
+        "Rulliera adrizzatubo": "Rulliera adrizzatubo",
+        "Boccola uscita traino": "Boccola uscita traino",
+        "Rulli convogliatore (mm)": "Rulli convogliatore (mm)",
+        "Rulli estrusore(mm)": "Rulli estrusore (mm)",
+        "Ruote godronatore": "Ruote godronatore",
+        "Soffiatori aria (mm)": "Soffiatori aria (mm)",
+        "Rulli avvolgitore (mm)": "Rulli avvolgitore (mm)",
+        "Paleta ferma coda (mm)": "Paletta ferma coda (mm)",
+        "Guidatubo (mm)": "Guidatubo (mm)",
+        "Spalla (mm)": "Spalla (mm)",
+        "Diametro aspo (mm)": "Diametro aspo (mm)",
+        "Nº Spire": "Nº spire",
+        "Interasse regetta (mm)": "Interasse reggetta (mm)",
+        "Velocita recupero (m/min)": "Velocità recupero (m/min)",
+        "Quota start pinza (mm)": "Quota start pinza (mm)",
+        "Quota coda tubo (mm)": "Quota coda tubo (mm)",
+        "Quota chiusura morsa coda (mm)": "Quota chiusura morsa coda (mm)",
+        "Ritardo invers max (º)": "Ritardo invers. max (º)",
+        "Ritardo invers min (º)": "Ritardo invers. min (º)",
+        "Quota massima (mm)": "Quota massima (mm)",
+        "Quota minima (mm)": "Quota minima (mm)",
+        "Passo (mm)": "Passo (mm)",
+        "Incremento strato (mm)": "Incremento strato (mm)",
+        "Coppia lavoro (%)": "Coppia lavoro (%)",
+        "Riduzione coppia (%)": "Riduzione coppia (%)",
+        "Coppia recupero (%)": "Coppia recupero (%)",
+    },
+    "EN": {
+        "Prodotto": "Product",
+        "Diametro Rame": "Copper diameter",
+        "Spessore Guaina (mm)": "Foam thickness (mm)",
+        "Diametro esterno Guaina (mm)": "Outer foam diameter (mm)",
+        "Lunghezza (m)": "Length (m)",
+        "Velocita linea (m/min)": "Line speed (m/min)",
+        "Boccole rulliera adrizzatubo": "Straightener roller bushings",
+        "Boccola uscita rulliera": "Roller outlet bushing",
+        "Rulliera adrizzatubo": "Tube straightener rollers",
+        "Boccola uscita traino": "Puller outlet bushing",
+        "Rulli convogliatore (mm)": "Conveyor rollers (mm)",
+        "Rulli estrusore(mm)": "Extruder rollers (mm)",
+        "Ruote godronatore": "Knurling wheels",
+        "Soffiatori aria (mm)": "Air blowers (mm)",
+        "Rulli avvolgitore (mm)": "Coiler rollers (mm)",
+        "Paleta ferma coda (mm)": "Tail stop paddle (mm)",
+        "Guidatubo (mm)": "Tube guide (mm)",
+        "Spalla (mm)": "Width (mm)",
+        "Diametro aspo (mm)": "Spool diameter (mm)",
+        "Nº Spire": "No. of turns",
+        "Interasse regetta (mm)": "Strap spacing (mm)",
+        "Velocita recupero (m/min)": "Recovery speed (m/min)",
+        "Quota start pinza (mm)": "Clamp start position (mm)",
+        "Quota coda tubo (mm)": "Tube tail position (mm)",
+        "Quota chiusura morsa coda (mm)": "Tail clamp closing position (mm)",
+        "Ritardo invers max (º)": "Max reverse delay (º)",
+        "Ritardo invers min (º)": "Min reverse delay (º)",
+        "Quota massima (mm)": "Maximum position (mm)",
+        "Quota minima (mm)": "Minimum position (mm)",
+        "Passo (mm)": "Pitch (mm)",
+        "Incremento strato (mm)": "Layer increment (mm)",
+        "Coppia lavoro (%)": "Working torque (%)",
+        "Riduzione coppia (%)": "Torque reduction (%)",
+        "Coppia recupero (%)": "Recovery torque (%)",
+    },
+}
+
+
+def param_label(column_name, language):
+    return PARAM_LABELS.get(language, {}).get(column_name, column_name)
 
 # =========================
 # CONSTANTS
@@ -233,17 +312,19 @@ with top1:
         st.image(logo_path, width=150)
 
 with top2:
-    st.markdown(f"## {TEXTS[st.session_state.lang]['title']}")
+    title_placeholder = st.empty()
+    current_lang = st.session_state.lang
     lang_option = st.selectbox(
-        TEXTS[st.session_state.lang]["language"],
+        TEXTS[current_lang]["language"],
         ["🇮🇹 Italiano", "🇺🇸 English (US)"],
-        index=0 if st.session_state.lang == "IT" else 1,
+        index=0 if current_lang == "IT" else 1,
         key="lang_selector_top",
     )
 
 st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
+title_placeholder.markdown(f"## {t['title']}")
 
 # =========================
 # GEOMETRY HELPERS
@@ -2056,7 +2137,7 @@ with tab_presets:
 
             for card, column_name in zip(metric_cols, row_columns):
                 value = safe_value(selected_row, column_name)
-                card.metric(column_name, value)
+                card.metric(param_label(column_name, lang), value)
 
         note_value = safe_value(selected_row, "Note")
         if note_value != "-":
