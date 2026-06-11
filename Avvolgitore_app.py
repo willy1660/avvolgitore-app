@@ -356,9 +356,11 @@ def make_preset_visual(row, language):
             "layer": "Incremento strato",
             "rollers": "Rulli",
             "tail": "Paletta ferma coda",
-            "tube_note": "Sezione schematica del tubo isolato",
-            "coil_note": "Schema semplificato dell'avvolgimento",
+            "tube_note": "Sezione rappresentativa del tubo isolato",
+            "coil_note": "Schema planimetrico semplificato dell'avvolgimento",
             "outer_dim": "Diametro esterno",
+            "insulation": "Spessore guaina",
+            "feed": "Ingresso tubo",
         },
         "EN": {
             "tube_section": "Technical preview · Tube section",
@@ -375,9 +377,11 @@ def make_preset_visual(row, language):
             "layer": "Layer increment",
             "rollers": "Rollers",
             "tail": "Tail stop paddle",
-            "tube_note": "Schematic section of the insulated tube",
-            "coil_note": "Simplified coiling layout",
+            "tube_note": "Representative section of the insulated tube",
+            "coil_note": "Simplified top-view coiling layout",
             "outer_dim": "Outer diameter",
+            "insulation": "Foam thickness",
+            "feed": "Tube infeed",
         },
     }[language]
 
@@ -408,30 +412,32 @@ def make_preset_visual(row, language):
         --card-border: rgba(15,23,42,0.10);
         --text: #0f172a;
         --muted: rgba(15,23,42,0.64);
-        --line: rgba(15,23,42,0.14);
+        --line: rgba(15,23,42,0.18);
         --shadow: 0 10px 24px rgba(15,23,42,0.08);
         --accent: #2563eb;
         --accent-soft: rgba(37,99,235,0.08);
         --copper: #b8602b;
-        --copper-light: #dd955c;
-        --foam: #e8e4db;
+        --copper-light: #e4a56f;
+        --foam: #e7e2d8;
         --foam-stroke: #7e8691;
-        --steel: #6f7a86;
-        --steel-light: #aab4bf;
+        --steel: #8a95a3;
+        --steel-dark: #5f6b79;
+        --white-line: #f8fafc;
     }}
     html[data-theme="dark"] {{
         --card-bg: rgba(17,24,39,0.82);
         --card-border: rgba(255,255,255,0.10);
         --text: #f8fafc;
-        --muted: rgba(248,250,252,0.68);
-        --line: rgba(255,255,255,0.14);
+        --muted: rgba(248,250,252,0.70);
+        --line: rgba(255,255,255,0.16);
         --shadow: 0 16px 34px rgba(0,0,0,0.24);
         --accent: #60a5fa;
         --accent-soft: rgba(96,165,250,0.10);
-        --foam: #ddd7cc;
+        --foam: #d9d3c7;
         --foam-stroke: #8d96a0;
-        --steel: #9aa4af;
-        --steel-light: #d7dde3;
+        --steel: #aab3bf;
+        --steel-dark: #d6dde5;
+        --white-line: #f8fafc;
     }}
     html, body {{
         margin:0;
@@ -453,7 +459,7 @@ def make_preset_visual(row, language):
         backdrop-filter: blur(8px);
         border-radius:18px;
         padding:18px;
-        min-height:328px;
+        min-height:330px;
         box-sizing:border-box;
     }}
     .title {{
@@ -494,7 +500,11 @@ def make_preset_visual(row, language):
     .metric:last-child {{ border-bottom:none; }}
     .label {{ font-size:12px; color:var(--muted); font-weight:700; }}
     .value {{ font-size:18px; color:var(--text); font-weight:800; text-align:right; white-space:nowrap; }}
-    .callout {{ fill:var(--card-bg); stroke:var(--line); stroke-width:1.2; rx:8; }}
+    .callout-box {{ fill:var(--card-bg); stroke:var(--line); stroke-width:1.2; rx:10; }}
+    .d-label {{ fill:var(--muted); font-size:11px; font-weight:700; }}
+    .d-value {{ fill:var(--text); font-size:15px; font-weight:800; }}
+    .d-line {{ stroke:var(--white-line); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }}
+    .d-guide {{ stroke:var(--white-line); stroke-width:2; stroke-linecap:round; stroke-dasharray:6 6; }}
     @media (max-width: 920px) {{
         .preset-preview {{ grid-template-columns:1fr; }}
         .layout {{ grid-template-columns:1fr; }}
@@ -508,22 +518,31 @@ def make_preset_visual(row, language):
         <div class="subtitle">{html.escape(labels['tube_note'])}</div>
         <div class="layout">
             <div class="drawing">
-                <svg viewBox="0 0 320 240" role="img" aria-label="Tube section preview">
-                    <circle cx="108" cy="102" r="74" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
-                    <circle cx="108" cy="102" r="31" fill="var(--copper)" stroke="var(--copper)" stroke-width="3"/>
-                    <circle cx="108" cy="102" r="24" fill="var(--copper-light)" opacity="0.80"/>
-                    <line x1="108" y1="28" x2="248" y2="28" stroke="var(--text)" stroke-width="2" stroke-dasharray="5 5"/>
-                    <line x1="108" y1="102" x2="248" y2="102" stroke="var(--text)" stroke-width="2" stroke-dasharray="5 5"/>
-                    <line x1="248" y1="28" x2="248" y2="102" stroke="var(--text)" stroke-width="2"/>
-                    <polygon points="244,34 248,28 252,34" fill="var(--text)"/>
-                    <polygon points="244,96 248,102 252,96" fill="var(--text)"/>
-                    <rect x="204" y="114" width="96" height="52" class="callout"/>
-                    <text x="252" y="134" text-anchor="middle" fill="var(--muted)" font-size="11" font-weight="700">{html.escape(labels['outer_dim'])}</text>
-                    <text x="252" y="154" text-anchor="middle" fill="var(--text)" font-size="16" font-weight="800">{v(d_tubo)} mm</text>
-                    <line x1="30" y1="202" x2="186" y2="202" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="30" y1="188" x2="30" y2="216" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="186" y1="188" x2="186" y2="216" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <text x="108" y="194" text-anchor="middle" fill="var(--muted)" font-size="11" font-weight="700">{html.escape(labels['outer'])}</text>
+                <svg viewBox="0 0 340 240" role="img" aria-label="Tube section preview">
+                    <circle cx="112" cy="100" r="74" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
+                    <circle cx="112" cy="100" r="30" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
+                    <circle cx="112" cy="100" r="22" fill="var(--copper-light)" opacity="0.9"/>
+
+                    <line x1="188" y1="28" x2="188" y2="172" class="d-guide"/>
+                    <line x1="112" y1="26" x2="188" y2="26" class="d-guide"/>
+                    <line x1="112" y1="174" x2="188" y2="174" class="d-guide"/>
+                    <line x1="188" y1="26" x2="188" y2="174" class="d-line"/>
+                    <polygon points="184,34 188,26 192,34" fill="var(--white-line)"/>
+                    <polygon points="184,166 188,174 192,166" fill="var(--white-line)"/>
+
+                    <rect x="206" y="52" width="108" height="50" class="callout-box"/>
+                    <text x="260" y="72" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
+                    <text x="260" y="92" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
+
+                    <line x1="142" y1="84" x2="218" y2="118" class="d-guide"/>
+                    <rect x="216" y="108" width="96" height="40" class="callout-box"/>
+                    <text x="264" y="126" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
+                    <text x="264" y="144" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
+
+                    <line x1="36" y1="204" x2="188" y2="204" class="d-line"/>
+                    <line x1="36" y1="190" x2="36" y2="218" class="d-line"/>
+                    <line x1="188" y1="190" x2="188" y2="218" class="d-line"/>
+                    <text x="112" y="196" text-anchor="middle" class="d-label">{html.escape(labels['outer'])}</text>
                 </svg>
             </div>
             <div class="metrics">
@@ -542,20 +561,30 @@ def make_preset_visual(row, language):
         <div class="subtitle">{html.escape(labels['coil_note'])}</div>
         <div class="layout">
             <div class="drawing">
-                <svg viewBox="0 0 320 240" role="img" aria-label="Coiling layout preview">
-                    <rect x="24" y="36" width="196" height="124" rx="18" fill="none" stroke="var(--line)" stroke-width="2"/>
-                    <circle cx="102" cy="98" r="48" fill="none" stroke="var(--steel)" stroke-width="10"/>
-                    <circle cx="102" cy="98" r="28" fill="none" stroke="var(--steel-light)" stroke-width="8"/>
-                    <circle cx="102" cy="98" r="12" fill="none" stroke="var(--steel)" stroke-width="6"/>
-                    <line x1="150" y1="98" x2="188" y2="98" stroke="var(--text)" stroke-width="5" stroke-linecap="round"/>
-                    <circle cx="188" cy="78" r="10" fill="none" stroke="var(--steel)" stroke-width="4"/>
-                    <circle cx="188" cy="118" r="10" fill="none" stroke="var(--steel)" stroke-width="4"/>
-                    <rect x="204" y="82" width="22" height="32" rx="4" fill="none" stroke="var(--text)" stroke-width="3"/>
-                    <text x="102" y="186" text-anchor="middle" fill="var(--muted)" font-size="11" font-weight="700">{html.escape(labels['spool'])} · {html.escape(labels['width'])}</text>
-                    <line x1="34" y1="204" x2="170" y2="204" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="34" y1="192" x2="34" y2="216" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="170" y1="192" x2="170" y2="216" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <text x="102" y="198" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="800">{v(aspo)} mm · {v(spalla)} mm</text>
+                <svg viewBox="0 0 340 240" role="img" aria-label="Coiling layout preview">
+                    <rect x="34" y="36" width="182" height="124" rx="18" fill="none" stroke="var(--line)" stroke-width="2"/>
+                    <circle cx="112" cy="98" r="50" fill="none" stroke="var(--steel)" stroke-width="12"/>
+                    <circle cx="112" cy="98" r="32" fill="none" stroke="var(--steel-dark)" stroke-width="8"/>
+                    <circle cx="112" cy="98" r="14" fill="none" stroke="var(--steel)" stroke-width="6"/>
+
+                    <line x1="162" y1="98" x2="210" y2="98" class="d-line"/>
+                    <text x="187" y="88" text-anchor="middle" class="d-label">{html.escape(labels['feed'])}</text>
+
+                    <circle cx="232" cy="78" r="11" fill="none" stroke="var(--steel-dark)" stroke-width="4"/>
+                    <circle cx="232" cy="118" r="11" fill="none" stroke="var(--steel-dark)" stroke-width="4"/>
+                    <text x="252" y="102" class="d-label">{html.escape(labels['rollers'])}</text>
+
+                    <rect x="248" y="82" width="24" height="32" rx="4" fill="none" stroke="var(--white-line)" stroke-width="3"/>
+                    <text x="248" y="126" class="d-label">{html.escape(labels['tail'])}</text>
+
+                    <line x1="48" y1="206" x2="176" y2="206" class="d-line"/>
+                    <line x1="48" y1="192" x2="48" y2="220" class="d-line"/>
+                    <line x1="176" y1="192" x2="176" y2="220" class="d-line"/>
+                    <text x="112" y="198" text-anchor="middle" class="d-label">{html.escape(labels['spool'])} · {html.escape(labels['width'])}</text>
+
+                    <rect x="204" y="164" width="108" height="44" class="callout-box"/>
+                    <text x="258" y="182" text-anchor="middle" class="d-label">{html.escape(labels['spool'])} · {html.escape(labels['width'])}</text>
+                    <text x="258" y="200" text-anchor="middle" class="d-value">{v(aspo)} mm · {v(spalla)} mm</text>
                 </svg>
             </div>
             <div class="metrics">
