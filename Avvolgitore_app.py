@@ -1987,7 +1987,7 @@ with tab_presets:
     try:
         presets_df = load_presets("Presets.csv")
 
-        st.success(f"{len(presets_df)} preset caricati correttamente.")
+        st.caption(f"{len(presets_df)} preset caricati correttamente da Presets.csv")
 
         selected_product = st.selectbox(
             "Seleziona prodotto",
@@ -1996,31 +1996,62 @@ with tab_presets:
 
         selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
-        st.markdown("#### Scheda preset")
+        st.markdown(
+            f"""
+            <div style="
+                margin-top:12px;
+                margin-bottom:18px;
+                padding:22px 24px;
+                border-radius:18px;
+                background:linear-gradient(135deg, rgba(30,34,40,0.96), rgba(18,21,26,0.96));
+                border:1px solid rgba(255,255,255,0.10);
+                box-shadow:0 14px 34px rgba(0,0,0,0.22);
+            ">
+                <div style="font-size:13px; color:rgba(255,255,255,0.62); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">
+                    Scheda preset
+                </div>
+                <div style="font-size:30px; font-weight:800; color:#ffffff; line-height:1.15;">
+                    {selected_product}
+                </div>
+                <div style="font-size:14px; color:rgba(255,255,255,0.68); margin-top:8px;">
+                    Configurazione tecnica prodotto · valori caricati da CSV
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
+        st.markdown("#### 🟩 Tubo")
         c1, c2, c3, c4 = st.columns(4)
-
         c1.metric("Ø Rame", safe_value(selected_row, "Diametro Rame"))
         c2.metric("Spessore guaina", safe_value(selected_row, "Spessore Guaina (mm)", " mm"))
         c3.metric("Ø esterno guaina", safe_value(selected_row, "Diametro esterno Guaina (mm)", " mm"))
         c4.metric("Lunghezza", safe_value(selected_row, "Lunghezza (m)", " m"))
 
+        st.markdown("#### 🟦 Bobina / Aspo")
         c5, c6, c7, c8 = st.columns(4)
-
         c5.metric("Guidatubo", safe_value(selected_row, "Guidatubo (mm)", " mm"))
         c6.metric("Spalla", safe_value(selected_row, "Spalla (mm)", " mm"))
         c7.metric("Ø Aspo", safe_value(selected_row, "Diametro aspo (mm)", " mm"))
-        c8.metric("Passo", safe_value(selected_row, "Passo (mm)", " mm"))
+        c8.metric("Quota max", safe_value(selected_row, "Quota massima (mm)", " mm"))
 
+        st.markdown("#### 🟧 Parametri avvolgimento")
         c9, c10, c11, c12 = st.columns(4)
+        c9.metric("Passo", safe_value(selected_row, "Passo (mm)", " mm"))
+        c10.metric("Incremento strato", safe_value(selected_row, "Incremento strato (mm)", " mm"))
+        c11.metric("Ritardo invers max", safe_value(selected_row, "Ritardo invers max (º)", "º"))
+        c12.metric("Ritardo invers min", safe_value(selected_row, "Ritardo invers min (º)", "º"))
 
-        c9.metric("Incremento strato", safe_value(selected_row, "Incremento strato (mm)", " mm"))
-        c10.metric("Ritardo invers max", safe_value(selected_row, "Ritardo invers max (º)", "º"))
-        c11.metric("Ritardo invers min", safe_value(selected_row, "Ritardo invers min (º)", "º"))
-        c12.metric("Coppia lavoro", safe_value(selected_row, "Coppia lavoro (%)", " %"))
+        st.markdown("#### ⚙️ Macchina")
+        c13, c14, c15, c16 = st.columns(4)
+        c13.metric("Quota min", safe_value(selected_row, "Quota minima (mm)", " mm"))
+        c14.metric("Coppia lavoro", safe_value(selected_row, "Coppia lavoro (%)", " %"))
+        c15.metric("Tempo salita", safe_value(selected_row, "Tempo salita (s)", " s"))
+        c16.metric("Tempo discesa", safe_value(selected_row, "Tempo discesa (s)", " s"))
 
-        st.markdown("#### Tabella completa")
-        st.dataframe(presets_df, use_container_width=True, hide_index=True)
+        note_value = safe_value(selected_row, "Note")
+        if note_value != "-":
+            st.info(note_value)
 
         st.info(
             "In questo passaggio i presets sono solo consultabili. "
