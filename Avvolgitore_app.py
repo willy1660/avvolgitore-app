@@ -356,11 +356,10 @@ def make_preset_visual(row, language):
             "layer": "Incremento strato",
             "rollers": "Rulli",
             "tail": "Paletta ferma coda",
-            "tube_note": "Sezione rappresentativa del tubo isolato",
-            "coil_note": "Schema planimetrico semplificato dell'avvolgimento",
+            "tube_note": "Sezione schematica del tubo isolato",
+            "coil_note": "Rappresentazione schematica del tubo avvolto",
             "outer_dim": "Diametro esterno",
             "insulation": "Spessore guaina",
-            "feed": "Ingresso tubo",
         },
         "EN": {
             "tube_section": "Technical preview · Tube section",
@@ -377,11 +376,10 @@ def make_preset_visual(row, language):
             "layer": "Layer increment",
             "rollers": "Rollers",
             "tail": "Tail stop paddle",
-            "tube_note": "Representative section of the insulated tube",
-            "coil_note": "Simplified top-view coiling layout",
+            "tube_note": "Schematic section of the insulated tube",
+            "coil_note": "Schematic representation of the coiled tube",
             "outer_dim": "Outer diameter",
             "insulation": "Foam thickness",
-            "feed": "Tube infeed",
         },
     }[language]
 
@@ -420,8 +418,8 @@ def make_preset_visual(row, language):
         --copper-light: #e4a56f;
         --foam: #e7e2d8;
         --foam-stroke: #7e8691;
-        --steel: #8a95a3;
-        --steel-dark: #5f6b79;
+        --coil: #cfd6de;
+        --coil-dark: #98a4b1;
         --white-line: #f8fafc;
     }}
     html[data-theme="dark"] {{
@@ -435,8 +433,8 @@ def make_preset_visual(row, language):
         --accent-soft: rgba(96,165,250,0.10);
         --foam: #d9d3c7;
         --foam-stroke: #8d96a0;
-        --steel: #aab3bf;
-        --steel-dark: #d6dde5;
+        --coil: #d8dee5;
+        --coil-dark: #aab3bf;
         --white-line: #f8fafc;
     }}
     html, body {{
@@ -505,6 +503,8 @@ def make_preset_visual(row, language):
     .d-value {{ fill:var(--text); font-size:15px; font-weight:800; }}
     .d-line {{ stroke:var(--white-line); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }}
     .d-guide {{ stroke:var(--white-line); stroke-width:2; stroke-linecap:round; stroke-dasharray:6 6; }}
+    .coil-line {{ fill:none; stroke:var(--coil); stroke-width:12; stroke-linecap:round; stroke-linejoin:round; }}
+    .coil-line-inner {{ fill:none; stroke:var(--coil-dark); stroke-width:4; stroke-linecap:round; stroke-linejoin:round; opacity:0.6; }}
     @media (max-width: 920px) {{
         .preset-preview {{ grid-template-columns:1fr; }}
         .layout {{ grid-template-columns:1fr; }}
@@ -523,26 +523,19 @@ def make_preset_visual(row, language):
                     <circle cx="112" cy="100" r="30" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
                     <circle cx="112" cy="100" r="22" fill="var(--copper-light)" opacity="0.9"/>
 
-                    <line x1="188" y1="28" x2="188" y2="172" class="d-guide"/>
+                    <line x1="188" y1="26" x2="188" y2="174" class="d-line"/>
                     <line x1="112" y1="26" x2="188" y2="26" class="d-guide"/>
                     <line x1="112" y1="174" x2="188" y2="174" class="d-guide"/>
-                    <line x1="188" y1="26" x2="188" y2="174" class="d-line"/>
                     <polygon points="184,34 188,26 192,34" fill="var(--white-line)"/>
                     <polygon points="184,166 188,174 192,166" fill="var(--white-line)"/>
+                    <rect x="208" y="54" width="106" height="48" class="callout-box"/>
+                    <text x="261" y="73" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
+                    <text x="261" y="92" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
 
-                    <rect x="206" y="52" width="108" height="50" class="callout-box"/>
-                    <text x="260" y="72" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
-                    <text x="260" y="92" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
-
-                    <line x1="142" y1="84" x2="218" y2="118" class="d-guide"/>
-                    <rect x="216" y="108" width="96" height="40" class="callout-box"/>
-                    <text x="264" y="126" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
-                    <text x="264" y="144" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
-
-                    <line x1="36" y1="204" x2="188" y2="204" class="d-line"/>
-                    <line x1="36" y1="190" x2="36" y2="218" class="d-line"/>
-                    <line x1="188" y1="190" x2="188" y2="218" class="d-line"/>
-                    <text x="112" y="196" text-anchor="middle" class="d-label">{html.escape(labels['outer'])}</text>
+                    <line x1="142" y1="70" x2="220" y2="130" class="d-guide"/>
+                    <rect x="214" y="120" width="100" height="44" class="callout-box"/>
+                    <text x="264" y="139" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
+                    <text x="264" y="157" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
                 </svg>
             </div>
             <div class="metrics">
@@ -562,29 +555,34 @@ def make_preset_visual(row, language):
         <div class="layout">
             <div class="drawing">
                 <svg viewBox="0 0 340 240" role="img" aria-label="Coiling layout preview">
-                    <rect x="34" y="36" width="182" height="124" rx="18" fill="none" stroke="var(--line)" stroke-width="2"/>
-                    <circle cx="112" cy="98" r="50" fill="none" stroke="var(--steel)" stroke-width="12"/>
-                    <circle cx="112" cy="98" r="32" fill="none" stroke="var(--steel-dark)" stroke-width="8"/>
-                    <circle cx="112" cy="98" r="14" fill="none" stroke="var(--steel)" stroke-width="6"/>
+                    <path class="coil-line" d="M70 170
+                        C 40 170, 40 118, 76 118
+                        C 124 118, 124 188, 56 188
+                        C 20 188, 20 88, 98 88
+                        C 160 88, 160 212, 42 212
+                        C 12 212, 12 58, 126 58
+                        C 214 58, 214 230, 34 230"/>
+                    <path class="coil-line-inner" d="M70 170
+                        C 40 170, 40 118, 76 118
+                        C 124 118, 124 188, 56 188
+                        C 20 188, 20 88, 98 88
+                        C 160 88, 160 212, 42 212
+                        C 12 212, 12 58, 126 58
+                        C 214 58, 214 230, 34 230"/>
+                    <line x1="214" y1="230" x2="290" y2="230" class="d-line"/>
+                    <text x="252" y="218" text-anchor="middle" class="d-label">tubo avvolto</text>
 
-                    <line x1="162" y1="98" x2="210" y2="98" class="d-line"/>
-                    <text x="187" y="88" text-anchor="middle" class="d-label">{html.escape(labels['feed'])}</text>
+                    <line x1="48" y1="32" x2="200" y2="32" class="d-line"/>
+                    <line x1="48" y1="18" x2="48" y2="46" class="d-line"/>
+                    <line x1="200" y1="18" x2="200" y2="46" class="d-line"/>
+                    <text x="124" y="24" text-anchor="middle" class="d-label">{html.escape(labels['spool'])}</text>
+                    <text x="124" y="14" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
 
-                    <circle cx="232" cy="78" r="11" fill="none" stroke="var(--steel-dark)" stroke-width="4"/>
-                    <circle cx="232" cy="118" r="11" fill="none" stroke="var(--steel-dark)" stroke-width="4"/>
-                    <text x="252" y="102" class="d-label">{html.escape(labels['rollers'])}</text>
-
-                    <rect x="248" y="82" width="24" height="32" rx="4" fill="none" stroke="var(--white-line)" stroke-width="3"/>
-                    <text x="248" y="126" class="d-label">{html.escape(labels['tail'])}</text>
-
-                    <line x1="48" y1="206" x2="176" y2="206" class="d-line"/>
-                    <line x1="48" y1="192" x2="48" y2="220" class="d-line"/>
-                    <line x1="176" y1="192" x2="176" y2="220" class="d-line"/>
-                    <text x="112" y="198" text-anchor="middle" class="d-label">{html.escape(labels['spool'])} · {html.escape(labels['width'])}</text>
-
-                    <rect x="204" y="164" width="108" height="44" class="callout-box"/>
-                    <text x="258" y="182" text-anchor="middle" class="d-label">{html.escape(labels['spool'])} · {html.escape(labels['width'])}</text>
-                    <text x="258" y="200" text-anchor="middle" class="d-value">{v(aspo)} mm · {v(spalla)} mm</text>
+                    <line x1="230" y1="58" x2="230" y2="202" class="d-line"/>
+                    <line x1="216" y1="58" x2="244" y2="58" class="d-line"/>
+                    <line x1="216" y1="202" x2="244" y2="202" class="d-line"/>
+                    <text x="242" y="124" transform="rotate(90 242 124)" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
+                    <text x="256" y="124" transform="rotate(90 256 124)" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
                 </svg>
             </div>
             <div class="metrics">
