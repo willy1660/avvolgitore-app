@@ -1597,6 +1597,27 @@ def viewer(
             <div class="hud_card"><div class="hud_label" id="hud_diameter_label"></div><div class="hud_value" id="hud_diameter_value"></div></div>
         </div>
 
+        <div id="packaging_status_badge" style="
+            position:absolute;
+            left:14px;
+            bottom:14px;
+            z-index:22;
+            display:none;
+            min-width:220px;
+            padding:14px 16px;
+            background:rgba(18,22,27,0.78);
+            color:#f8fafc;
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:15px;
+            backdrop-filter:blur(10px);
+            font-family:Arial, sans-serif;
+            box-shadow:0 14px 30px rgba(0,0,0,0.24);
+        ">
+            <div style="font-size:11px; opacity:0.72; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:5px;">Packaging</div>
+            <div id="packaging_status_text" style="font-size:22px; font-weight:900; line-height:1.05;"></div>
+            <div id="packaging_status_reason" style="font-size:12px; opacity:0.78; margin-top:6px; line-height:1.32;"></div>
+        </div>
+
         <div id="viewer_sidepanel" style="
             position:absolute;
             top:14px;
@@ -1674,7 +1695,7 @@ def viewer(
                 </div>
 
                 <div class="panel_label" id="pack_roll_title"></div>
-                <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="5" style="
+                <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="{int(pack_roll_count)}" style="
                     width:100%;
                     box-sizing:border-box;
                     border:none;
@@ -1912,6 +1933,9 @@ def viewer(
         const packRollCountInput = document.getElementById("pack_roll_count");
         const packagingStats = document.getElementById("packaging_stats");
         const viewerHud = document.getElementById("viewer_hud");
+        const packagingStatusBadge = document.getElementById("packaging_status_badge");
+        const packagingStatusText = document.getElementById("packaging_status_text");
+        const packagingStatusReason = document.getElementById("packaging_status_reason");
 
         const studioCheck = document.getElementById("studio_check");
         const ghostCheck = document.getElementById("ghost_check");
@@ -2677,6 +2701,20 @@ def viewer(
             const ok = footprintOver <= 0.001 && heightOver <= 0.001;
             const statusText = ok ? (T.box_fit_ok || "OK") : (T.box_fit_over || "Fuori limite");
             const heightLimitText = `${{heightLimit.toFixed(0)}} mm`;
+            const reasonText = ok
+                ? (packagingMode === "box" ? (T.packaging_box_desc || "") : (containerMode === "40hc" ? (T.container_40hc_desc || "") : (T.container_20ft_desc || "")))
+                : (footprintOver > 0.001
+                    ? `${{T.coil_footprint || "Ingombro rotolo"}}: ${{coilFootprint.toFixed(1)}} mm > ${{palletSize.toFixed(0)}} mm`
+                    : `${{T.height_over || "Superamento altezza"}}: ${{heightOver.toFixed(1)}} mm`);
+
+            if (packagingStatusBadge) {{
+                packagingStatusBadge.style.display = sceneMode === "packaging" ? "block" : "none";
+                packagingStatusBadge.style.borderColor = ok ? "rgba(74,222,128,0.35)" : "rgba(252,165,165,0.42)";
+                packagingStatusBadge.style.background = ok ? "rgba(20,83,45,0.56)" : "rgba(127,29,29,0.56)";
+                packagingStatusText.textContent = statusText;
+                packagingStatusText.style.color = ok ? "#4ade80" : "#fca5a5";
+                packagingStatusReason.textContent = reasonText || "";
+            }}
 
             packagingStats.innerHTML = `
                 <div class="pack_stat">
@@ -2869,6 +2907,9 @@ def viewer(
             if (spoolBlock) spoolBlock.style.display = packaging ? "none" : "block";
             if (checksBlock) checksBlock.style.display = packaging ? "none" : "grid";
             viewerHud.style.display = packaging ? "none" : "grid";
+            if (packagingStatusBadge) {{
+                packagingStatusBadge.style.display = packaging ? "block" : "none";
+            }}
             progressSlider.disabled = packaging;
             playPauseBtn.disabled = packaging;
             animationCheck.disabled = packaging;
