@@ -1642,26 +1642,26 @@ def viewer(
             gap:6px;
         }}
 
-        .btn_grid_2 {
+        .btn_grid_2 {{
             display:grid;
             grid-template-columns:repeat(2, minmax(0, 1fr));
             gap:6px;
-        }
+        }}
 
-        .btn_grid_3 {
+        .btn_grid_3 {{
             display:grid;
             grid-template-columns:repeat(3, minmax(0, 1fr));
             gap:6px;
-        }
+        }}
 
-        #viewer_sidepanel::-webkit-scrollbar {
+        #viewer_sidepanel::-webkit-scrollbar {{
             width:8px;
-        }
+        }}
 
-        #viewer_sidepanel::-webkit-scrollbar-thumb {
+        #viewer_sidepanel::-webkit-scrollbar-thumb {{
             background:rgba(255,255,255,0.18);
             border-radius:999px;
-        }
+        }}
 
 
         .panel_check {{
