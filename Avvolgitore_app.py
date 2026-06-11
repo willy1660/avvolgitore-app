@@ -42,6 +42,7 @@ TEXTS = {
         "metric4": "Diametro radiale max",
         "metric5": "Ingombro max XY",
         "metric6": "Lunghezza avvolta",
+        "results": "Risultati",
         "warning": "Ingombro max XY superiore a 750 mm.",
         "play": "Play",
         "pause": "Pause",
@@ -101,8 +102,13 @@ TEXTS = {
         "packaging_tab": "Packaging",
         "render_tab": "Render",
         "packaging_title": "Packaging",
+        "viewer_mode": "Visualizzazione",
+        "scene_winding": "Avvolgimento",
+        "scene_packaging": "Packaging",
+        "packaging_controls_title": "Configurazione packaging",
+        "packaging_results_title": "Risultati packaging",
         "packaging_mode": "Modalità packaging",
-        "packaging_box": "Caixa",
+        "packaging_box": "Scatola",
         "packaging_tower": "Torretta",
         "packaging_box_desc": "Scatola 750 × 750 × 1030 mm",
         "packaging_tower_desc": "Torre su pallet, con limite container",
@@ -145,6 +151,7 @@ TEXTS = {
         "metric4": "Max radial diameter",
         "metric5": "Max XY span",
         "metric6": "Wound length",
+        "results": "Results",
         "warning": "Max XY span exceeds 750 mm.",
         "play": "Play",
         "pause": "Pause",
@@ -204,6 +211,11 @@ TEXTS = {
         "packaging_tab": "Packaging",
         "render_tab": "Render",
         "packaging_title": "Packaging",
+        "viewer_mode": "View mode",
+        "scene_winding": "Winding",
+        "scene_packaging": "Packaging",
+        "packaging_controls_title": "Packaging configuration",
+        "packaging_results_title": "Packaging results",
         "packaging_mode": "Packaging mode",
         "packaging_box": "Box",
         "packaging_tower": "Tower",
@@ -370,6 +382,129 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
                 <div class="preset-param-card">
                     <div class="preset-param-label">{html.escape(str(label))}</div>
                     <div class="preset-param-value">{html.escape(str(value))}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+
+
+def evaluate_packaging(coil_footprint_mm, roll_height_mm, roll_count, packaging_mode, container_mode, language, pallet_size_mm=750.0, pallet_height_mm=130.0, box_height_mm=1030.0):
+    stack_height_mm = roll_count * roll_height_mm
+    total_height_mm = pallet_height_mm + stack_height_mm
+
+    if packaging_mode == "box":
+        height_limit_mm = box_height_mm
+        compared_height_mm = stack_height_mm
+    else:
+        height_limit_mm = 2580.0 if container_mode == "40hc" else 2280.0
+        compared_height_mm = total_height_mm
+
+    width_ok = coil_footprint_mm <= pallet_size_mm
+    height_ok = compared_height_mm <= height_limit_mm
+    ok = width_ok and height_ok
+
+    if language == "IT":
+        reasons = []
+        if not width_ok:
+            reasons.append(f"Il rotolo è troppo largo: ingombro {coil_footprint_mm:.1f} mm, limite {pallet_size_mm:.0f} mm.")
+        if not height_ok and packaging_mode == "box":
+            reasons.append(f"Il rotolo è troppo alto per la scatola: altezza rotoli {stack_height_mm:.1f} mm, limite utile {height_limit_mm:.0f} mm.")
+        if not height_ok and packaging_mode != "box":
+            label = "40 HC" if container_mode == "40hc" else "20 piedi"
+            reasons.append(f"La torre è troppo alta per il container {label}: altezza totale con pallet {total_height_mm:.1f} mm, limite {height_limit_mm:.0f} mm.")
+    else:
+        reasons = []
+        if not width_ok:
+            reasons.append(f"The coil is too wide: footprint {coil_footprint_mm:.1f} mm, limit {pallet_size_mm:.0f} mm.")
+        if not height_ok and packaging_mode == "box":
+            reasons.append(f"The coil stack is too tall for the box: stack height {stack_height_mm:.1f} mm, usable limit {height_limit_mm:.0f} mm.")
+        if not height_ok and packaging_mode != "box":
+            label = "40 HC" if container_mode == "40hc" else "20 ft"
+            reasons.append(f"The tower is too tall for container {label}: total height with pallet {total_height_mm:.1f} mm, limit {height_limit_mm:.0f} mm.")
+
+    return {
+        "ok": ok,
+        "width_ok": width_ok,
+        "height_ok": height_ok,
+        "reasons": reasons,
+        "stack_height_mm": stack_height_mm,
+        "total_height_mm": total_height_mm,
+        "height_limit_mm": height_limit_mm,
+        "height_margin_mm": max(0.0, height_limit_mm - compared_height_mm),
+        "height_over_mm": max(0.0, compared_height_mm - height_limit_mm),
+        "coil_footprint_mm": coil_footprint_mm,
+        "pallet_size_mm": pallet_size_mm,
+        "pallet_height_mm": pallet_height_mm,
+        "compared_height_mm": compared_height_mm,
+    }
+
+
+def render_summary_cards(title, items, cards_per_row=4):
+    st.markdown(
+        """
+        <style>
+        .summary-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 18px;
+            padding: 16px 18px;
+            min-height: 118px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+            margin-bottom: 10px;
+        }
+        .summary-card.status-ok {
+            border-color: rgba(74,222,128,0.28);
+            background: rgba(74,222,128,0.10);
+        }
+        .summary-card.status-bad {
+            border-color: rgba(248,113,113,0.28);
+            background: rgba(248,113,113,0.10);
+        }
+        .summary-card-label {
+            font-size: 14px;
+            line-height: 1.3;
+            font-weight: 600;
+            color: rgba(250,250,250,0.82);
+            margin-bottom: 12px;
+        }
+        .summary-card-value {
+            font-size: 30px;
+            line-height: 1.08;
+            font-weight: 800;
+            color: #ffffff;
+            word-break: break-word;
+        }
+        .summary-card-note {
+            font-size: 12px;
+            color: rgba(250,250,250,0.66);
+            margin-top: 8px;
+            line-height: 1.3;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(f"##### {title}")
+    for i in range(0, len(items), cards_per_row):
+        chunk = items[i:i+cards_per_row]
+        cols = st.columns(cards_per_row)
+        for col, item in zip(cols, chunk):
+            tone = item.get("tone", "")
+            extra_class = f" status-{tone}" if tone in {"ok", "bad"} else ""
+            note = item.get("note", "")
+            note_html = f'<div class="summary-card-note">{html.escape(str(note))}</div>' if note else ""
+            col.markdown(
+                f"""
+                <div class="summary-card{extra_class}">
+                    <div class="summary-card-label">{html.escape(str(item['label']))}</div>
+                    <div class="summary-card-value">{html.escape(str(item['value']))}</div>
+                    {note_html}
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1389,6 +1524,11 @@ def viewer(
     guide_offset_x,
     language,
     coil_footprint_mm=None,
+    initial_scene="winding",
+    packaging_mode="box",
+    container_mode="40hc",
+    pack_roll_count=5,
+    tube_mode_initial="gelwhite",
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -1465,7 +1605,7 @@ def viewer(
             display:flex;
             flex-direction:column;
             gap:10px;
-            width:252px;
+            width:232px;
             max-width:calc(100% - 28px);
             max-height:calc(100% - 28px);
             overflow-y:auto;
@@ -1510,7 +1650,7 @@ def viewer(
                 </div>
             </div>
 
-            <div>
+            <div id="scene_block" style="display:none;">
                 <div class="panel_label" id="scene_title"></div>
                 <div class="btn_group_vertical btn_grid_2">
                     <button class="scene_btn viewer_btn_small active_opt" data-scene="winding" id="scene_winding_btn">Avvolgimento</button>
@@ -1794,6 +1934,11 @@ def viewer(
         document.getElementById("container_40hc_btn").innerHTML = `<div>${{T.container_40hc || "40 HC"}}</div><div class="pack_mode_desc">${{T.container_40hc_desc || "2580 mm"}}</div>`;
         document.getElementById("container_20ft_btn").innerHTML = `<div>${{T.container_20ft || "20 ft"}}</div><div class="pack_mode_desc">${{T.container_20ft_desc || "2280 mm"}}</div>`;
         document.getElementById("pack_roll_title").textContent = T.roll_count || "Numero rotoli";
+        packRollCountInput.value = String(initialPackRollCount);
+        setActiveButton(sceneBtns, sceneMode, "data-scene");
+        setActiveButton(packModeBtns, packagingMode, "data-packmode");
+        setActiveButton(containerBtns, containerMode, "data-container");
+        setActiveButton(tubeBtns, tubeMode, "data-tube");
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
         document.getElementById("section_title").textContent = T.section;
@@ -1858,6 +2003,7 @@ def viewer(
         const palletSize = 750.0;
         const palletHeight = 130.0;
         const boxHeight = 1030.0;
+        const initialPackRollCount = {int(pack_roll_count)};
 
         controls.target.set(0, 0, Hs * 0.52);
         camera.lookAt(0, 0, Hs * 0.52);
@@ -1875,11 +2021,11 @@ def viewer(
         let animationEnabled = true;
         let speed = 1.0;
         let aspoMode = "visible";
-        let tubeMode = "gelwhite";
+        let tubeMode = "{tube_mode_initial}";
         let currentView = "3d";
-        let sceneMode = "winding";
-        let packagingMode = "box";
-        let containerMode = "40hc";
+        let sceneMode = "{initial_scene}";
+        let packagingMode = "{packaging_mode}";
+        let containerMode = "{container_mode}";
         let showStudio = false;
         let showGhost = true;
         let showGrid = false;
@@ -2639,7 +2785,7 @@ def viewer(
             geometry.center();
 
             const material = new THREE.MeshStandardMaterial({{
-                color: tubeMode === "gelblack" ? 0xcfd4d9 : 0xf2f4f7,
+                color: tubeMode === "gelblack" ? 0x3b3e43 : 0xf2f4f7,
                 roughness: 0.82,
                 metalness: 0.02
             }});
@@ -2649,7 +2795,7 @@ def viewer(
 
             const edgeGeo = new THREE.EdgesGeometry(geometry, 28);
             const edgeMat = new THREE.LineBasicMaterial({{
-                color: tubeMode === "gelblack" ? 0x7d8792 : 0xb8bec6,
+                color: tubeMode === "gelblack" ? 0x15181d : 0xb8bec6,
                 transparent: true,
                 opacity: 0.42
             }});
@@ -2722,7 +2868,7 @@ def viewer(
             guideGroup.visible = !packaging;
             overlayGroup.visible = !packaging;
             packagingGroup.visible = packaging;
-            packagingControls.style.display = packaging ? "block" : "none";
+            packagingControls.style.display = "none";
             if (animationBlock) animationBlock.style.display = packaging ? "none" : "block";
             if (speedBlock) speedBlock.style.display = packaging ? "none" : "block";
             if (spoolBlock) spoolBlock.style.display = packaging ? "none" : "block";
@@ -2875,6 +3021,9 @@ def viewer(
             rebuildDepositedMesh(Math.floor(drawPos), true);
             updateOverlayContinuous(true);
             updateGhostLine();
+            if (sceneMode === "packaging") {{
+                updatePackagingScene();
+            }}
         }}
 
         // ==========================================
@@ -3150,6 +3299,11 @@ def viewer(
         function updateOverlayContinuous(force=false) {{
             clearOverlay();
 
+            if (sceneMode === "packaging") {{
+                guideGroup.visible = false;
+                return;
+            }}
+
             if (localPts.length < 2) return;
 
             const maxPos = localPts.length - 1;
@@ -3222,13 +3376,14 @@ def viewer(
 
         applySectionState();
         applyVisualState(true);
+        applySceneMode();
         updateAnimationUI();
         updatePlayBtn();
 
         function animate() {{
             requestAnimationFrame(animate);
 
-            if (animationEnabled && isPlaying && drawPos < localPts.length - 1) {{
+            if (sceneMode !== "packaging" && animationEnabled && isPlaying && drawPos < localPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
 
                 const oldCompleted = Math.floor(drawPos);
@@ -3428,10 +3583,47 @@ with tab_calculator:
     visual_metrics = compute_metrics(local_points, d_tubo)
 
     # =========================
-    # VIEWER RENDER
+    # VIEW / PACKAGING CONTROLS
     # =========================
 
     st.divider()
+
+    view_mode = st.radio(
+        t["viewer_mode"],
+        [t["scene_winding"], t["scene_packaging"]],
+        horizontal=True,
+        key="viewer_mode_selector",
+    )
+
+    packaging_mode_selected = "box"
+    container_mode_selected = "40hc"
+    pack_roll_count = 1
+
+    if view_mode == t["scene_packaging"]:
+        st.markdown(f"#### {t['packaging_controls_title']}")
+        pc1, pc2, pc3 = st.columns(3)
+        with pc1:
+            packaging_mode_label = st.radio(
+                t["packaging_mode"],
+                [t["packaging_box"], t["packaging_tower"]],
+                horizontal=True,
+                key="packaging_mode_external",
+            )
+            packaging_mode_selected = "box" if packaging_mode_label == t["packaging_box"] else "tower"
+        with pc2:
+            if packaging_mode_selected == "tower":
+                container_label = st.radio(
+                    t["container_type"],
+                    [t["container_40hc"], t["container_20ft"]],
+                    horizontal=True,
+                    key="container_mode_external",
+                )
+                container_mode_selected = "40hc" if container_label == t["container_40hc"] else "20ft"
+            else:
+                st.markdown("&nbsp;", unsafe_allow_html=True)
+                st.caption(t["packaging_box_desc"])
+        with pc3:
+            pack_roll_count = int(st.number_input(t["roll_count"], min_value=1, max_value=50, value=5, step=1, key="pack_roll_count_external"))
 
     components.html(
         viewer(
@@ -3449,6 +3641,10 @@ with tab_calculator:
             guide_offset_x,
             lang,
             coil_footprint_mm=visual_metrics["max_xy_span"],
+            initial_scene="packaging" if view_mode == t["scene_packaging"] else "winding",
+            packaging_mode=packaging_mode_selected,
+            container_mode=container_mode_selected,
+            pack_roll_count=pack_roll_count,
         ),
         height=820,
     )
@@ -3459,17 +3655,50 @@ with tab_calculator:
 
     st.divider()
 
-    m1, m2, m3, m4, m5, m6 = st.columns(6)
-
-    m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
-    m2.metric(t["metric2"], f"{passo_visuale:.2f} mm")
-    m3.metric(t["metric3"], f"{incremento_visuale:.2f} mm")
-    m4.metric(t["metric4"], f"{visual_metrics['diam_radiale']:.1f} mm")
-    m5.metric(t["metric5"], f"{visual_metrics['max_xy_span']:.1f} mm")
-    m6.metric(t["metric6"], f"{visual_metrics['wound_length_m']:.3f} m")
+    render_summary_cards(
+        t["results"],
+        [
+            {"label": t["metric1"], "value": f"{d_tubo:.2f} mm"},
+            {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
+            {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
+            {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
+            {"label": t["metric5"], "value": f"{visual_metrics['max_xy_span']:.1f} mm"},
+            {"label": t["metric6"], "value": f"{visual_metrics['wound_length_m']:.3f} m"},
+        ],
+        cards_per_row=3,
+    )
 
     pallet_size_mm = 750.0
     coil_footprint_mm = float(visual_metrics["max_xy_span"])
 
     if coil_footprint_mm > pallet_size_mm:
         st.warning(t["warning"])
+
+    if view_mode == t["scene_packaging"]:
+        packaging_eval = evaluate_packaging(
+            coil_footprint_mm=coil_footprint_mm,
+            roll_height_mm=spalla,
+            roll_count=pack_roll_count,
+            packaging_mode=packaging_mode_selected,
+            container_mode=container_mode_selected,
+            language=lang,
+        )
+
+        mode_note = t["packaging_box_desc"] if packaging_mode_selected == "box" else (t["container_40hc_desc"] if container_mode_selected == "40hc" else t["container_20ft_desc"])
+        status_value = t["box_fit_ok"] if packaging_eval["ok"] else t["box_fit_over"]
+
+        render_summary_cards(
+            t["packaging_results_title"],
+            [
+                {"label": "Status", "value": status_value, "note": mode_note, "tone": "ok" if packaging_eval["ok"] else "bad"},
+                {"label": t["coil_footprint"], "value": f"{packaging_eval['coil_footprint_mm']:.1f} mm", "note": f"Limite {packaging_eval['pallet_size_mm']:.0f} mm"},
+                {"label": t["roll_stack_height"], "value": f"{packaging_eval['stack_height_mm']:.1f} mm"},
+                {"label": t["total_height"], "value": f"{packaging_eval['total_height_mm']:.1f} mm"},
+                {"label": t["height_limit"], "value": f"{packaging_eval['height_limit_mm']:.0f} mm"},
+                {"label": t["height_margin"], "value": f"{packaging_eval['height_margin_mm']:.1f} mm"},
+            ],
+            cards_per_row=3,
+        )
+
+        if packaging_eval["reasons"]:
+            st.warning("\n".join([f"- {reason}" for reason in packaging_eval["reasons"]]))
