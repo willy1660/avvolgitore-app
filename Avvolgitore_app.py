@@ -1370,6 +1370,7 @@ def viewer(
     final_lengths,
     guide_offset_x,
     language,
+    coil_footprint_mm=None,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -1379,6 +1380,11 @@ def viewer(
     final_layers_json = json.dumps(final_layers)
     final_lengths_json = json.dumps(final_lengths)
     labels_json = json.dumps(TEXTS[language])
+    if coil_footprint_mm is None:
+        try:
+            coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
+        except Exception:
+            coil_footprint_mm = d_aspo + 2.0 * d_tubo
 
     return f"""
     <div id="viewer_root" style="
@@ -1479,6 +1485,31 @@ def viewer(
                     <button class="view_btn viewer_btn_small" data-view="front" id="view_front_btn"></button>
                     <button class="view_btn viewer_btn_small" data-view="side" id="view_side_btn"></button>
                 </div>
+            </div>
+
+            <div>
+                <div class="panel_label" id="scene_title"></div>
+                <div class="btn_group_vertical">
+                    <button class="scene_btn viewer_btn_small active_opt" data-scene="winding" id="scene_winding_btn">Avvolgimento</button>
+                    <button class="scene_btn viewer_btn_small" data-scene="packaging" id="scene_packaging_btn">Packaging</button>
+                </div>
+            </div>
+
+            <div id="packaging_controls" style="display:none;">
+                <div class="panel_label" id="pack_roll_title"></div>
+                <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="5" style="
+                    width:100%;
+                    box-sizing:border-box;
+                    border:none;
+                    border-radius:9px;
+                    padding:8px 10px;
+                    font-weight:800;
+                    font-size:15px;
+                    background:rgba(255,255,255,0.92);
+                    color:#111;
+                    margin-bottom:10px;
+                " />
+                <div id="packaging_stats" class="packaging_stats"></div>
             </div>
 
             <div>
@@ -1587,6 +1618,33 @@ def viewer(
             cursor:not-allowed;
         }}
 
+        .packaging_stats {
+            display:grid;
+            gap:8px;
+            margin-top:8px;
+        }
+
+        .pack_stat {
+            padding:9px 10px;
+            border-radius:11px;
+            background:rgba(255,255,255,0.08);
+            border:1px solid rgba(255,255,255,0.10);
+        }
+
+        .pack_stat_label {
+            font-size:10px;
+            opacity:0.72;
+            text-transform:uppercase;
+            letter-spacing:0.05em;
+            margin-bottom:3px;
+        }
+
+        .pack_stat_value {
+            font-size:16px;
+            font-weight:800;
+            line-height:1.1;
+        }
+
         .hud_card {{
             min-width:86px;
             padding:10px 12px;
@@ -1630,6 +1688,11 @@ def viewer(
         const spoolBtns = [...document.querySelectorAll(".spool_btn")];
         const tubeBtns = [...document.querySelectorAll(".tube_btn")];
         const viewBtns = [...document.querySelectorAll(".view_btn")];
+        const sceneBtns = [...document.querySelectorAll(".scene_btn")];
+        const packagingControls = document.getElementById("packaging_controls");
+        const packRollCountInput = document.getElementById("pack_roll_count");
+        const packagingStats = document.getElementById("packaging_stats");
+        const viewerHud = document.getElementById("viewer_hud");
 
         const studioCheck = document.getElementById("studio_check");
         const ghostCheck = document.getElementById("ghost_check");
@@ -1642,6 +1705,10 @@ def viewer(
         document.getElementById("spool_title").textContent = T.spool;
         document.getElementById("tube_title").textContent = T.tube_color;
         document.getElementById("view_title").textContent = T.view;
+        document.getElementById("scene_title").textContent = T.packaging_title || "Packaging";
+        document.getElementById("scene_winding_btn").textContent = T.title || "Avvolgimento";
+        document.getElementById("scene_packaging_btn").textContent = T.packaging_title || "Packaging";
+        document.getElementById("pack_roll_title").textContent = T.roll_count || "Numero rotoli";
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
         document.getElementById("section_title").textContent = T.section;
@@ -1702,6 +1769,10 @@ def viewer(
         const Rt = {float(d_tubo)} / 2.0;
         const Hs = {float(spalla)};
         const guideOffsetX = {float(guide_offset_x)};
+        const coilFootprint = {float(coil_footprint_mm):.6f};
+        const palletSize = 750.0;
+        const palletHeight = 130.0;
+        const boxHeight = 1350.0;
 
         controls.target.set(0, 0, Hs * 0.52);
         camera.lookAt(0, 0, Hs * 0.52);
@@ -1721,6 +1792,7 @@ def viewer(
         let aspoMode = "visible";
         let tubeMode = "gelwhite";
         let currentView = "3d";
+        let sceneMode = "winding";
         let showStudio = false;
         let showGhost = true;
         let showGrid = false;
@@ -1867,6 +1939,7 @@ def viewer(
         ghostCheck.addEventListener("change", () => {{
             showGhost = ghostCheck.checked;
             updateGhostLine();
+            if (sceneMode === "packaging") updatePackagingScene();
         }});
 
         gridCheck.addEventListener("change", () => {{
@@ -2148,6 +2221,10 @@ def viewer(
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
+        const packagingGroup = new THREE.Group();
+        scene.add(packagingGroup);
+        packagingGroup.visible = false;
+
         const spoolParts = [];
 
         // ==========================================
@@ -2290,6 +2367,195 @@ def viewer(
         guideBackCap.castShadow = true;
         guideBackCap.receiveShadow = true;
         guideGroup.add(guideBackCap);
+
+
+        // ==========================================
+        // PACKAGING SCENE
+        // ==========================================
+
+        function clearGroup(group) {{
+            while (group.children.length) {{
+                const obj = group.children.pop();
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {{
+                    if (Array.isArray(obj.material)) {{
+                        obj.material.forEach(m => m.dispose && m.dispose());
+                    }} else {{
+                        obj.material.dispose && obj.material.dispose();
+                    }}
+                }}
+                if (obj.children && obj.children.length) {{
+                    obj.children.forEach(child => {{
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) child.material.dispose && child.material.dispose();
+                    }});
+                }}
+            }}
+        }}
+
+        function addBoxEdges(width, depth, height, zCenter, color=0xffffff, opacity=0.82) {{
+            const geo = new THREE.BoxGeometry(width, depth, height);
+            const edges = new THREE.EdgesGeometry(geo);
+            const mat = new THREE.LineBasicMaterial({{
+                color: color,
+                transparent: true,
+                opacity: opacity
+            }});
+            const line = new THREE.LineSegments(edges, mat);
+            line.position.set(0, 0, zCenter);
+            packagingGroup.add(line);
+            geo.dispose();
+            return line;
+        }}
+
+        function updatePackagingStats(rollCount) {{
+            const stackHeight = rollCount * Hs;
+            const totalHeight = palletHeight + stackHeight;
+            const heightMargin = Math.max(0, boxHeight - stackHeight);
+            const heightOver = Math.max(0, stackHeight - boxHeight);
+            const footprintOver = Math.max(0, coilFootprint - palletSize);
+            const ok = heightOver <= 0.001 && footprintOver <= 0.001;
+            const statusText = ok ? (T.box_fit_ok || "OK") : (T.box_fit_over || "Fuori limite");
+
+            packagingStats.innerHTML = `
+                <div class="pack_stat">
+                    <div class="pack_stat_label">Status</div>
+                    <div class="pack_stat_value" style="color:${{ok ? "#4ade80" : "#fca5a5"}}">${{statusText}}</div>
+                </div>
+                <div class="pack_stat">
+                    <div class="pack_stat_label">${{T.total_height || "Altezza totale"}}</div>
+                    <div class="pack_stat_value">${{totalHeight.toFixed(1)}} mm</div>
+                </div>
+                <div class="pack_stat">
+                    <div class="pack_stat_label">${{T.roll_stack_height || "Altezza rotoli"}}</div>
+                    <div class="pack_stat_value">${{stackHeight.toFixed(1)}} mm</div>
+                </div>
+                <div class="pack_stat">
+                    <div class="pack_stat_label">${{T.coil_footprint || "Ingombro"}}</div>
+                    <div class="pack_stat_value">${{coilFootprint.toFixed(1)}} mm</div>
+                </div>
+                <div class="pack_stat">
+                    <div class="pack_stat_label">${{T.height_margin || "Margine altezza"}}</div>
+                    <div class="pack_stat_value">${{heightMargin.toFixed(1)}} mm</div>
+                </div>
+            `;
+        }}
+
+        function updatePackagingScene() {{
+            if (!packagingGroup) return;
+
+            clearGroup(packagingGroup);
+
+            const rollCount = Math.max(1, Math.min(50, parseInt(packRollCountInput.value || "1", 10)));
+            packRollCountInput.value = rollCount;
+
+            const stackHeight = rollCount * Hs;
+            const totalHeight = palletHeight + stackHeight;
+            const footprintOk = coilFootprint <= palletSize + 0.001;
+            const heightOk = stackHeight <= boxHeight + 0.001;
+            const ok = footprintOk && heightOk;
+
+            const palletMat = new THREE.MeshStandardMaterial({{
+                color: 0xb9925a,
+                roughness: 0.72,
+                metalness: 0.02
+            }});
+
+            const pallet = new THREE.Mesh(
+                new THREE.BoxGeometry(palletSize, palletSize, palletHeight),
+                palletMat
+            );
+            pallet.position.set(0, 0, palletHeight / 2);
+            pallet.castShadow = true;
+            pallet.receiveShadow = true;
+            packagingGroup.add(pallet);
+
+            const boxMat = new THREE.MeshStandardMaterial({{
+                color: ok ? 0x4ade80 : 0xf87171,
+                transparent: true,
+                opacity: 0.055,
+                roughness: 0.70,
+                metalness: 0.0,
+                depthWrite: false
+            }});
+            const box = new THREE.Mesh(
+                new THREE.BoxGeometry(palletSize, palletSize, boxHeight),
+                boxMat
+            );
+            box.position.set(0, 0, palletHeight + boxHeight / 2);
+            packagingGroup.add(box);
+            addBoxEdges(palletSize, palletSize, boxHeight, palletHeight + boxHeight / 2, ok ? 0x4ade80 : 0xfca5a5, 0.95);
+
+            const coilRadius = coilFootprint / 2.0;
+            const rollMat = makeTubeMaterial(tubeMode, false, false);
+            rollMat.roughness = 0.86;
+
+            for (let i = 0; i < rollCount; i++) {{
+                const zc = palletHeight + i * Hs + Hs / 2.0;
+                const roll = new THREE.Mesh(
+                    new THREE.CylinderGeometry(coilRadius, coilRadius, Hs, 128),
+                    rollMat.clone()
+                );
+                roll.rotation.x = Math.PI / 2;
+                roll.position.set(0, 0, zc);
+                roll.castShadow = true;
+                roll.receiveShadow = true;
+                packagingGroup.add(roll);
+
+                const innerRadius = Math.max(8, coilRadius * 0.56);
+                const hole = new THREE.Mesh(
+                    new THREE.CylinderGeometry(innerRadius, innerRadius, Hs + 1.5, 96),
+                    new THREE.MeshStandardMaterial({{
+                        color: tubeMode === "gelblack" ? 0xffffff : 0x111419,
+                        roughness: 0.9,
+                        metalness: 0.0
+                    }})
+                );
+                hole.rotation.x = Math.PI / 2;
+                hole.position.set(0, 0, zc + 0.5);
+                // This is a visual inner disk, not boolean subtraction. It makes the roll readable.
+                packagingGroup.add(hole);
+            }}
+
+            const limitLineMat = new THREE.LineBasicMaterial({{
+                color: ok ? 0x4ade80 : 0xf87171,
+                transparent: true,
+                opacity: 0.95
+            }});
+            const heightPoints = [
+                new THREE.Vector3(palletSize * 0.62, -palletSize * 0.62, 0),
+                new THREE.Vector3(palletSize * 0.62, -palletSize * 0.62, totalHeight)
+            ];
+            const heightLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(heightPoints), limitLineMat);
+            packagingGroup.add(heightLine);
+
+            updatePackagingStats(rollCount);
+        }}
+
+        function applySceneMode() {{
+            const packaging = sceneMode === "packaging";
+
+            machine.visible = !packaging;
+            guideGroup.visible = !packaging;
+            overlayGroup.visible = !packaging;
+            packagingGroup.visible = packaging;
+
+            packagingControls.style.display = packaging ? "block" : "none";
+            viewerHud.style.display = packaging ? "none" : "grid";
+            progressSlider.disabled = packaging;
+            playPauseBtn.disabled = packaging;
+            animationCheck.disabled = packaging;
+
+            if (packaging) {{
+                updatePackagingScene();
+                camera.position.set(-950, -1150, 980);
+                controls.target.set(0, 0, 680);
+                camera.lookAt(0, 0, 680);
+                controls.update();
+            }} else {{
+                setCameraView(currentView);
+            }}
+        }}
 
         // ==========================================
         // VISUAL STATE
@@ -2996,6 +3262,7 @@ with tab_calculator:
             length_values.tolist(),
             guide_offset_x,
             lang,
+            coil_footprint_mm=visual_metrics["max_xy_span"],
         ),
         height=820,
     )
@@ -3016,121 +3283,7 @@ with tab_calculator:
     m6.metric(t["metric6"], f"{visual_metrics['wound_length_m']:.3f} m")
 
     pallet_size_mm = 750.0
-    pallet_height_mm = 130.0
-    box_height_mm = 1350.0
     coil_footprint_mm = float(visual_metrics["max_xy_span"])
-    overhang_mm = max(0.0, coil_footprint_mm - pallet_size_mm)
-    free_margin_mm = max(0.0, pallet_size_mm - coil_footprint_mm)
 
     if coil_footprint_mm > pallet_size_mm:
         st.warning(t["warning"])
-
-    st.divider()
-
-    render_subtab, packaging_subtab = st.tabs([
-        t["render_tab"],
-        t["packaging_tab"],
-    ])
-
-    with render_subtab:
-        st.markdown(f"#### {t['pallet_title']}")
-        st.caption(t["pallet_subtitle"])
-
-        p1, p2 = st.columns([1.25, 1.0])
-        with p1:
-            components.html(make_pallet_visual(coil_footprint_mm, pallet_size_mm, lang), height=430, scrolling=False)
-        with p2:
-            status_ok = coil_footprint_mm <= pallet_size_mm
-            status_label = t["pallet_status_ok"] if status_ok else t["pallet_status_over"]
-            status_bg = "rgba(34,197,94,0.14)" if status_ok else "rgba(248,113,113,0.14)"
-            status_border = "rgba(74,222,128,0.28)" if status_ok else "rgba(252,165,165,0.28)"
-            st.markdown(
-                f"""
-                <div style="background:{status_bg}; border:1px solid {status_border}; border-radius:18px; padding:18px 20px; margin-bottom:14px;">
-                    <div style="font-size:13px; color:rgba(255,255,255,0.70); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Status</div>
-                    <div style="font-size:28px; font-weight:800; color:#ffffff;">{status_label}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            q1, q2 = st.columns(2)
-            q1.metric(t["pallet_size"], f"{pallet_size_mm:.0f} mm")
-            q2.metric(t["coil_footprint"], f"{coil_footprint_mm:.1f} mm")
-            r1, r2 = st.columns(2)
-            r1.metric(t["pallet_overhang"], f"{overhang_mm:.1f} mm")
-            r2.metric(t["pallet_free_margin"], f"{free_margin_mm:.1f} mm")
-
-    with packaging_subtab:
-        st.markdown(f"#### {t['packaging_title']}")
-        st.caption(t["box_fit_note"])
-
-        c_pack1, c_pack2 = st.columns([1.0, 1.0])
-        with c_pack1:
-            packaging_choice = st.radio(
-                t["packaging_mode"],
-                [t["packaging_box"], t["packaging_tower"]],
-                horizontal=True,
-                key="packaging_mode_choice",
-            )
-        with c_pack2:
-            roll_count = st.number_input(
-                t["roll_count"],
-                min_value=1,
-                max_value=50,
-                value=5,
-                step=1,
-                key="packaging_roll_count",
-            )
-
-        packaging_mode = "box" if packaging_choice == t["packaging_box"] else "tower"
-        roll_stack_height_mm = roll_count * spalla
-        total_height_with_pallet_mm = pallet_height_mm + roll_stack_height_mm
-        height_limit_mm = box_height_mm if packaging_mode == "box" else box_height_mm
-        height_margin_mm = max(0.0, height_limit_mm - roll_stack_height_mm)
-        height_over_mm = max(0.0, roll_stack_height_mm - height_limit_mm)
-        footprint_ok = coil_footprint_mm <= pallet_size_mm
-        height_ok = roll_stack_height_mm <= height_limit_mm
-        packaging_ok = footprint_ok and height_ok
-
-        pk1, pk2 = st.columns([1.25, 1.0])
-        with pk1:
-            components.html(
-                make_packaging_visual(
-                    coil_footprint_mm,
-                    spalla,
-                    roll_count,
-                    pallet_size_mm,
-                    pallet_height_mm,
-                    box_height_mm,
-                    packaging_mode,
-                    lang,
-                ),
-                height=470,
-                scrolling=False,
-            )
-        with pk2:
-            status_label = t["box_fit_ok"] if packaging_ok else t["box_fit_over"]
-            status_bg = "rgba(34,197,94,0.14)" if packaging_ok else "rgba(248,113,113,0.14)"
-            status_border = "rgba(74,222,128,0.28)" if packaging_ok else "rgba(252,165,165,0.28)"
-            st.markdown(
-                f"""
-                <div style="background:{status_bg}; border:1px solid {status_border}; border-radius:18px; padding:18px 20px; margin-bottom:14px;">
-                    <div style="font-size:13px; color:rgba(255,255,255,0.70); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Status</div>
-                    <div style="font-size:28px; font-weight:800; color:#ffffff;">{status_label}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            a1, a2 = st.columns(2)
-            a1.metric(t["roll_count"], f"{roll_count}")
-            a2.metric(t["box_height"], f"{box_height_mm:.0f} mm")
-            b1, b2 = st.columns(2)
-            b1.metric(t["pallet_height"], f"{pallet_height_mm:.0f} mm")
-            b2.metric(t["roll_stack_height"], f"{roll_stack_height_mm:.1f} mm")
-            c1, c2 = st.columns(2)
-            c1.metric(t["total_height"], f"{total_height_with_pallet_mm:.1f} mm")
-            c2.metric(t["coil_footprint"], f"{coil_footprint_mm:.1f} mm")
-            d1, d2 = st.columns(2)
-            d1.metric(t["height_margin"], f"{height_margin_mm:.1f} mm")
-            d2.metric(t["height_over"], f"{height_over_mm:.1f} mm")
