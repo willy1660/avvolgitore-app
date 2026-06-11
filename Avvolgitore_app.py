@@ -356,6 +356,9 @@ def make_preset_visual(row, language):
             "layer": "Incremento strato",
             "rollers": "Rulli",
             "tail": "Paletta ferma coda",
+            "tube_note": "Sezione schematica del tubo isolato",
+            "coil_note": "Schema semplificato dell'avvolgimento",
+            "outer_dim": "Diametro esterno",
         },
         "EN": {
             "tube_section": "Technical preview · Tube section",
@@ -372,6 +375,9 @@ def make_preset_visual(row, language):
             "layer": "Layer increment",
             "rollers": "Rollers",
             "tail": "Tail stop paddle",
+            "tube_note": "Schematic section of the insulated tube",
+            "coil_note": "Simplified coiling layout",
+            "outer_dim": "Outer diameter",
         },
     }[language]
 
@@ -398,40 +404,34 @@ def make_preset_visual(row, language):
 <style>
     :root {{
         --bg: transparent;
-        --card-bg: rgba(255,255,255,0.70);
+        --card-bg: rgba(255,255,255,0.72);
         --card-border: rgba(15,23,42,0.10);
         --text: #0f172a;
-        --muted: rgba(15,23,42,0.66);
-        --line: rgba(15,23,42,0.10);
-        --shadow: 0 10px 26px rgba(15,23,42,0.10);
-        --accent: #1d4ed8;
-        --accent-soft: rgba(29,78,216,0.08);
-        --steel-1: #d8dce2;
-        --steel-2: #949da8;
-        --foam-fill: #ece8df;
-        --foam-stroke: #7b8087;
-        --copper-1: #ffc78e;
-        --copper-2: #9f5420;
-        --pallet: #c29a6a;
-        --pallet-dark: #a1774b;
+        --muted: rgba(15,23,42,0.64);
+        --line: rgba(15,23,42,0.14);
+        --shadow: 0 10px 24px rgba(15,23,42,0.08);
+        --accent: #2563eb;
+        --accent-soft: rgba(37,99,235,0.08);
+        --copper: #b8602b;
+        --copper-light: #dd955c;
+        --foam: #e8e4db;
+        --foam-stroke: #7e8691;
+        --steel: #6f7a86;
+        --steel-light: #aab4bf;
     }}
     html[data-theme="dark"] {{
-        --card-bg: rgba(17,24,39,0.78);
+        --card-bg: rgba(17,24,39,0.82);
         --card-border: rgba(255,255,255,0.10);
         --text: #f8fafc;
-        --muted: rgba(248,250,252,0.70);
-        --line: rgba(255,255,255,0.10);
+        --muted: rgba(248,250,252,0.68);
+        --line: rgba(255,255,255,0.14);
         --shadow: 0 16px 34px rgba(0,0,0,0.24);
         --accent: #60a5fa;
         --accent-soft: rgba(96,165,250,0.10);
-        --steel-1: #dbe1e6;
-        --steel-2: #7a848f;
-        --foam-fill: #dad5ca;
-        --foam-stroke: #8d949b;
-        --copper-1: #ffcf9c;
-        --copper-2: #a85a24;
-        --pallet: #c59b6a;
-        --pallet-dark: #9c744a;
+        --foam: #ddd7cc;
+        --foam-stroke: #8d96a0;
+        --steel: #9aa4af;
+        --steel-light: #d7dde3;
     }}
     html, body {{
         margin:0;
@@ -442,139 +442,131 @@ def make_preset_visual(row, language):
     }}
     .preset-preview {{
         display:grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns:1fr 1fr;
         gap:18px;
-        width:100%;
-        box-sizing:border-box;
         padding:2px;
     }}
-    .preview-card {{
-        border-radius:18px;
-        padding:18px 18px 16px;
-        box-sizing:border-box;
+    .card {{
         background:var(--card-bg);
         border:1px solid var(--card-border);
         box-shadow:var(--shadow);
         backdrop-filter: blur(8px);
-        min-height:320px;
+        border-radius:18px;
+        padding:18px;
+        min-height:328px;
+        box-sizing:border-box;
     }}
-    .card-title {{
+    .title {{
         font-size:13px;
         font-weight:800;
         letter-spacing:0.08em;
         text-transform:uppercase;
         color:var(--muted);
-        margin-bottom:12px;
+        margin-bottom:6px;
     }}
-    .card-grid {{
-        display:grid;
-        grid-template-columns: 1.05fr 0.95fr;
-        gap:18px;
-        align-items:center;
-    }}
-    .metrics {{
-        display:grid;
-        gap:8px;
-    }}
-    .metric {{
-        display:flex;
-        justify-content:space-between;
-        align-items:baseline;
-        gap:12px;
-        padding:10px 0;
-        border-bottom:1px solid var(--line);
-    }}
-    .metric:last-child {{ border-bottom:none; }}
-    .metric-label {{
+    .subtitle {{
         font-size:12px;
         color:var(--muted);
-        font-weight:700;
+        margin-bottom:14px;
     }}
-    .metric-value {{
-        font-size:18px;
-        color:var(--text);
-        font-weight:800;
-        white-space:nowrap;
-        text-align:right;
+    .layout {{
+        display:grid;
+        grid-template-columns: 1.08fr 0.92fr;
+        gap:18px;
+        align-items:start;
     }}
-    .svg-wrap {{
+    .drawing {{
         background:var(--accent-soft);
         border:1px solid var(--line);
         border-radius:16px;
         padding:12px;
     }}
-    svg {{ width:100%; height:auto; display:block; }}
-    .tag {{
-        display:inline-block;
-        margin-top:10px;
-        font-size:11px;
-        font-weight:700;
-        color:var(--accent);
-        background:var(--accent-soft);
-        border-radius:999px;
-        padding:6px 10px;
+    svg {{ display:block; width:100%; height:auto; }}
+    .metrics {{ display:grid; gap:8px; }}
+    .metric {{
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        align-items:baseline;
+        padding:10px 0;
+        border-bottom:1px solid var(--line);
     }}
+    .metric:last-child {{ border-bottom:none; }}
+    .label {{ font-size:12px; color:var(--muted); font-weight:700; }}
+    .value {{ font-size:18px; color:var(--text); font-weight:800; text-align:right; white-space:nowrap; }}
+    .callout {{ fill:var(--card-bg); stroke:var(--line); stroke-width:1.2; rx:8; }}
     @media (max-width: 920px) {{
         .preset-preview {{ grid-template-columns:1fr; }}
-        .card-grid {{ grid-template-columns:1fr; }}
+        .layout {{ grid-template-columns:1fr; }}
     }}
 </style>
 </head>
 <body>
 <div class="preset-preview">
-    <div class="preview-card">
-        <div class="card-title">{html.escape(labels['tube_section'])}</div>
-        <div class="card-grid">
-            <div class="svg-wrap">
-                <svg viewBox="0 0 270 220" role="img" aria-label="Tube section preview">
-                    <circle cx="95" cy="96" r="74" fill="var(--foam-fill)" stroke="var(--foam-stroke)" stroke-width="3"/>
-                    <circle cx="95" cy="96" r="34" fill="var(--copper-2)" stroke="#7a3911" stroke-width="3"/>
-                    <circle cx="95" cy="96" r="28" fill="var(--copper-1)" opacity="0.72"/>
-                    <line x1="22" y1="184" x2="168" y2="184" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="22" y1="170" x2="22" y2="198" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="168" y1="170" x2="168" y2="198" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-                    <text x="95" y="174" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="800">{html.escape(labels['outer'])}: {v(d_tubo)} mm</text>
+    <div class="card">
+        <div class="title">{html.escape(labels['tube_section'])}</div>
+        <div class="subtitle">{html.escape(labels['tube_note'])}</div>
+        <div class="layout">
+            <div class="drawing">
+                <svg viewBox="0 0 320 240" role="img" aria-label="Tube section preview">
+                    <circle cx="108" cy="102" r="74" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
+                    <circle cx="108" cy="102" r="31" fill="var(--copper)" stroke="var(--copper)" stroke-width="3"/>
+                    <circle cx="108" cy="102" r="24" fill="var(--copper-light)" opacity="0.80"/>
+                    <line x1="108" y1="28" x2="248" y2="28" stroke="var(--text)" stroke-width="2" stroke-dasharray="5 5"/>
+                    <line x1="108" y1="102" x2="248" y2="102" stroke="var(--text)" stroke-width="2" stroke-dasharray="5 5"/>
+                    <line x1="248" y1="28" x2="248" y2="102" stroke="var(--text)" stroke-width="2"/>
+                    <polygon points="244,34 248,28 252,34" fill="var(--text)"/>
+                    <polygon points="244,96 248,102 252,96" fill="var(--text)"/>
+                    <rect x="204" y="114" width="96" height="52" class="callout"/>
+                    <text x="252" y="134" text-anchor="middle" fill="var(--muted)" font-size="11" font-weight="700">{html.escape(labels['outer_dim'])}</text>
+                    <text x="252" y="154" text-anchor="middle" fill="var(--text)" font-size="16" font-weight="800">{v(d_tubo)} mm</text>
+                    <line x1="30" y1="202" x2="186" y2="202" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="30" y1="188" x2="30" y2="216" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="186" y1="188" x2="186" y2="216" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+                    <text x="108" y="194" text-anchor="middle" fill="var(--muted)" font-size="11" font-weight="700">{html.escape(labels['outer'])}</text>
                 </svg>
             </div>
             <div class="metrics">
-                <div class="metric"><span class="metric-label">{html.escape(labels['copper'])}</span><span class="metric-value">{copper_label}</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['foam'])}</span><span class="metric-value">{v(spessore)} mm</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['outer'])}</span><span class="metric-value">{v(d_tubo)} mm</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['length'])}</span><span class="metric-value">{v(lunghezza)} m</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['line_speed'])}</span><span class="metric-value">{line_speed_label}</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['air'])}</span><span class="metric-value">{soffiatori_label}</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['copper'])}</span><span class="value">{copper_label}</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['foam'])}</span><span class="value">{v(spessore)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['outer'])}</span><span class="value">{v(d_tubo)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['length'])}</span><span class="value">{v(lunghezza)} m</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['line_speed'])}</span><span class="value">{line_speed_label}</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['air'])}</span><span class="value">{soffiatori_label}</span></div>
             </div>
         </div>
-        <div class="tag">{html.escape(labels['tube_section'])}</div>
     </div>
 
-    <div class="preview-card">
-        <div class="card-title">{html.escape(labels['coil'])}</div>
-        <div class="card-grid">
-            <div class="svg-wrap">
-                <svg viewBox="0 0 290 220" role="img" aria-label="Coiling layout preview">
-                    <rect x="18" y="34" width="178" height="116" rx="18" fill="none" stroke="var(--line)" stroke-width="2"/>
-                    <ellipse cx="92" cy="92" rx="52" ry="58" fill="none" stroke="var(--steel-2)" stroke-width="12"/>
-                    <ellipse cx="92" cy="92" rx="30" ry="34" fill="none" stroke="var(--steel-1)" stroke-width="10"/>
-                    <ellipse cx="92" cy="92" rx="16" ry="20" fill="none" stroke="var(--steel-2)" stroke-width="8"/>
-                    <circle cx="190" cy="76" r="10" fill="var(--steel-2)"/>
-                    <circle cx="190" cy="108" r="10" fill="var(--steel-2)"/>
-                    <line x1="144" y1="92" x2="180" y2="92" stroke="var(--text)" stroke-width="5" stroke-linecap="round"/>
-                    <rect x="208" y="76" width="24" height="30" rx="4" fill="var(--pallet)" stroke="var(--pallet-dark)" stroke-width="2"/>
-                    <path d="M208 91 H232" stroke="var(--pallet-dark)" stroke-width="2"/>
-                    <text x="92" y="170" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="800">{v(aspo)} mm · {v(spalla)} mm</text>
+    <div class="card">
+        <div class="title">{html.escape(labels['coil'])}</div>
+        <div class="subtitle">{html.escape(labels['coil_note'])}</div>
+        <div class="layout">
+            <div class="drawing">
+                <svg viewBox="0 0 320 240" role="img" aria-label="Coiling layout preview">
+                    <rect x="24" y="36" width="196" height="124" rx="18" fill="none" stroke="var(--line)" stroke-width="2"/>
+                    <circle cx="102" cy="98" r="48" fill="none" stroke="var(--steel)" stroke-width="10"/>
+                    <circle cx="102" cy="98" r="28" fill="none" stroke="var(--steel-light)" stroke-width="8"/>
+                    <circle cx="102" cy="98" r="12" fill="none" stroke="var(--steel)" stroke-width="6"/>
+                    <line x1="150" y1="98" x2="188" y2="98" stroke="var(--text)" stroke-width="5" stroke-linecap="round"/>
+                    <circle cx="188" cy="78" r="10" fill="none" stroke="var(--steel)" stroke-width="4"/>
+                    <circle cx="188" cy="118" r="10" fill="none" stroke="var(--steel)" stroke-width="4"/>
+                    <rect x="204" y="82" width="22" height="32" rx="4" fill="none" stroke="var(--text)" stroke-width="3"/>
+                    <text x="102" y="186" text-anchor="middle" fill="var(--muted)" font-size="11" font-weight="700">{html.escape(labels['spool'])} · {html.escape(labels['width'])}</text>
+                    <line x1="34" y1="204" x2="170" y2="204" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="34" y1="192" x2="34" y2="216" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="170" y1="192" x2="170" y2="216" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+                    <text x="102" y="198" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="800">{v(aspo)} mm · {v(spalla)} mm</text>
                 </svg>
             </div>
             <div class="metrics">
-                <div class="metric"><span class="metric-label">{html.escape(labels['spool'])}</span><span class="metric-value">{v(aspo)} mm</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['width'])}</span><span class="metric-value">{v(spalla)} mm</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['pitch'])}</span><span class="metric-value">{v(passo)} mm</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['layer'])}</span><span class="metric-value">{v(incremento)} mm</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['rollers'])}</span><span class="metric-value">{rulli_label}</span></div>
-                <div class="metric"><span class="metric-label">{html.escape(labels['tail'])}</span><span class="metric-value">{paletta_label}</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['spool'])}</span><span class="value">{v(aspo)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['width'])}</span><span class="value">{v(spalla)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['pitch'])}</span><span class="value">{v(passo)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['layer'])}</span><span class="value">{v(incremento)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['rollers'])}</span><span class="value">{rulli_label}</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['tail'])}</span><span class="value">{paletta_label}</span></div>
             </div>
         </div>
-        <div class="tag">{html.escape(labels['coil'])}</div>
     </div>
 </div>
 <script>
@@ -604,6 +596,47 @@ def make_preset_visual(row, language):
 </html>
 '''
 
+def current_calculator_snapshot():
+    return {
+        "calc_rame": str(st.session_state.get("calc_rame", "1/4")).strip(),
+        "calc_spessore": float(st.session_state.get("calc_spessore", 7.0)),
+        "calc_lunghezza": float(st.session_state.get("calc_lunghezza", 50.0)),
+        "calc_diametro_aspo": float(st.session_state.get("calc_diametro_aspo", 450.0)),
+        "calc_spalla": float(st.session_state.get("calc_spalla", 95.0)),
+        "calc_passo_visuale": float(st.session_state.get("calc_passo_visuale", 20.0)),
+        "calc_incremento_visuale": float(st.session_state.get("calc_incremento_visuale", 20.0)),
+        "calc_rit_b": float(st.session_state.get("calc_rit_b", 360.0)),
+        "calc_rit_t": float(st.session_state.get("calc_rit_t", 360.0)),
+    }
+
+
+def clear_active_preset_state():
+    st.session_state.pop("loaded_preset_name", None)
+    st.session_state.pop("loaded_preset_values", None)
+    st.session_state["show_preset_loaded_success"] = False
+
+
+def sync_active_preset_state():
+    loaded_name = st.session_state.get("loaded_preset_name")
+    loaded_values = st.session_state.get("loaded_preset_values")
+
+    if not loaded_name or not loaded_values:
+        return
+
+    current = current_calculator_snapshot()
+
+    for key, loaded_value in loaded_values.items():
+        current_value = current.get(key)
+        if isinstance(loaded_value, str):
+            if str(current_value).strip() != str(loaded_value).strip():
+                clear_active_preset_state()
+                return
+        else:
+            if abs(float(current_value) - float(loaded_value)) > 1e-9:
+                clear_active_preset_state()
+                return
+
+
 def apply_preset_to_calculator(row):
     rame = str(row.get("Diametro Rame", "1/4")).strip()
     if rame not in COPPER_SIZES_MM:
@@ -621,6 +654,7 @@ def apply_preset_to_calculator(row):
     st.session_state["calc_rit_b"] = parse_float_value(row.get("Ritardo invers min (º)", 360.0), 360.0)
     st.session_state["calc_rit_t"] = parse_float_value(row.get("Ritardo invers max (º)", 360.0), 360.0)
     st.session_state["loaded_preset_name"] = safe_value(row, "Prodotto")
+    st.session_state["loaded_preset_values"] = current_calculator_snapshot()
     st.session_state["show_preset_loaded_success"] = True
 
 
@@ -2496,7 +2530,7 @@ with tab_presets:
         )
 
         st.markdown(f"#### {t['preset_visual_title']}")
-        components.html(make_preset_visual(selected_row, lang), height=380, scrolling=False)
+        components.html(make_preset_visual(selected_row, lang), height=400, scrolling=False)
 
         if st.button(t["load_to_calculator"], type="primary", use_container_width=True):
             apply_preset_to_calculator(selected_row)
@@ -2553,13 +2587,14 @@ with tab_presets:
 with tab_calculator:
     colA, colB, colC = st.columns(3)
 
+    sync_active_preset_state()
     loaded_preset_name = st.session_state.get("loaded_preset_name")
     show_loaded_success = st.session_state.get("show_preset_loaded_success", False)
     if loaded_preset_name:
         if show_loaded_success:
             st.success(t["preset_loaded_ok"].format(name=loaded_preset_name))
             st.session_state["show_preset_loaded_success"] = False
-        st.caption(f"{t['active_preset']}: {loaded_preset_name}. {t['preset_render_note']}")
+        st.caption(f"{t['active_preset']}: {loaded_preset_name}")
 
     with colA:
         st.markdown(f"#### {t['bobina']}")
