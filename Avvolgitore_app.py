@@ -2,6 +2,7 @@ import os
 import glob
 import json
 import numpy as np
+import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -137,6 +138,37 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 gradi_start = 0.0
 guide_offset_x = 555.0
+
+# =========================
+# PRESETS
+# =========================
+
+@st.cache_data
+def load_presets(path="Presets.csv"):
+    df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
+
+    # Remove empty rows exported by Excel
+    df = df.dropna(how="all")
+
+    # Remove rows without product name
+    df = df.dropna(subset=["Prodotto"])
+
+    # Clean product names
+    df["Prodotto"] = df["Prodotto"].astype(str).str.strip()
+
+    return df
+
+
+def safe_value(row, column, suffix=""):
+    if column not in row.index:
+        return "-"
+
+    value = row[column]
+
+    if pd.isna(value):
+        return "-"
+
+    return f"{value}{suffix}"
 
 # =========================
 # LOGO
@@ -1944,97 +1976,155 @@ def viewer(
 # UI
 # =========================
 
-colA, colB, colC = st.columns(3)
+tab_presets, tab_calculator = st.tabs([
+    "📦 Presets",
+    "🧮 Calcolatore / Render",
+])
 
-with colA:
-    st.markdown(f"#### {t['bobina']}")
-    diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=10.0)
-    spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
+with tab_presets:
+    st.markdown("### 📦 Presets prodotti")
 
-with colB:
-    st.markdown(f"#### {t['tubo']}")
-    rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-    spessore = st.number_input(t["isolamento"], value=7.0, step=1.0)
-    lunghezza = st.number_input(t["lunghezza"], value=50.0, step=5.0)
-    d_rame = COPPER_SIZES_MM[rame]
+    try:
+        presets_df = load_presets("Presets.csv")
 
-with colC:
-    st.markdown(f"#### {t['avvolg']}")
-    passo_visuale = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
-    incremento_visuale = st.number_input(t["incremento"], value=20.0, step=0.5)
-    rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
-    rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
+        st.success(f"{len(presets_df)} preset caricati correttamente.")
 
-d_tubo = d_rame + 2.0 * spessore
+        selected_product = st.selectbox(
+            "Seleziona prodotto",
+            presets_df["Prodotto"].tolist(),
+        )
 
-# =========================
-# BUILD
-# =========================
+        selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
-(
-    world_contacts,
-    local_points,
-    theta_values,
-    radius_values,
-    z_values,
-    mode_values,
-    layer_values,
-    length_values,
-    deposited_len_mm,
-) = simulate_winding_visual(
-    d_aspo=diametro_aspo,
-    spalla=spalla,
-    d_tubo=d_tubo,
-    passo=passo_visuale,
-    incremento=incremento_visuale,
-    rit_b=rit_b,
-    rit_t=rit_t,
-    lunghezza_m=lunghezza,
-    gradi_start=gradi_start,
-    deg_step=2.0,
-)
+        st.markdown("#### Scheda preset")
 
-visual_metrics = compute_metrics(local_points, d_tubo)
+        c1, c2, c3, c4 = st.columns(4)
 
-# =========================
-# VIEWER RENDER
-# =========================
+        c1.metric("Ø Rame", safe_value(selected_row, "Diametro Rame"))
+        c2.metric("Spessore guaina", safe_value(selected_row, "Spessore Guaina (mm)", " mm"))
+        c3.metric("Ø esterno guaina", safe_value(selected_row, "Diametro esterno Guaina (mm)", " mm"))
+        c4.metric("Lunghezza", safe_value(selected_row, "Lunghezza (m)", " m"))
 
-st.divider()
+        c5, c6, c7, c8 = st.columns(4)
 
-components.html(
-    viewer(
-        diametro_aspo,
-        spalla,
-        d_tubo,
-        820,
-        local_points.tolist(),
-        theta_values.tolist(),
-        radius_values.tolist(),
-        z_values.tolist(),
-        mode_values.tolist(),
-        layer_values.tolist(),
-        length_values.tolist(),
-        guide_offset_x,
-        lang,
-    ),
-    height=820,
-)
+        c5.metric("Guidatubo", safe_value(selected_row, "Guidatubo (mm)", " mm"))
+        c6.metric("Spalla", safe_value(selected_row, "Spalla (mm)", " mm"))
+        c7.metric("Ø Aspo", safe_value(selected_row, "Diametro aspo (mm)", " mm"))
+        c8.metric("Passo", safe_value(selected_row, "Passo (mm)", " mm"))
 
-# =========================
-# METRICS
-# =========================
+        c9, c10, c11, c12 = st.columns(4)
 
-st.divider()
+        c9.metric("Incremento strato", safe_value(selected_row, "Incremento strato (mm)", " mm"))
+        c10.metric("Ritardo invers max", safe_value(selected_row, "Ritardo invers max (º)", "º"))
+        c11.metric("Ritardo invers min", safe_value(selected_row, "Ritardo invers min (º)", "º"))
+        c12.metric("Coppia lavoro", safe_value(selected_row, "Coppia lavoro (%)", " %"))
 
-m1, m2, m3, m4, m5, m6 = st.columns(6)
+        st.markdown("#### Tabella completa")
+        st.dataframe(presets_df, use_container_width=True, hide_index=True)
 
-m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
-m2.metric(t["metric2"], f"{passo_visuale:.2f} mm")
-m3.metric(t["metric3"], f"{incremento_visuale:.2f} mm")
-m4.metric(t["metric4"], f"{visual_metrics['diam_radiale']:.1f} mm")
-m5.metric(t["metric5"], f"{visual_metrics['max_xy_span']:.1f} mm")
-m6.metric(t["metric6"], f"{visual_metrics['wound_length_m']:.3f} m")
+        st.info(
+            "In questo passaggio i presets sono solo consultabili. "
+            "Nel passaggio successivo aggiungeremo il pulsante per caricarli nel calcolatore."
+        )
 
-if visual_metrics["max_xy_span"] > 750:
-    st.warning(t["warning"])
+    except FileNotFoundError:
+        st.error("File Presets.csv non trovato. Mettilo nella stessa cartella dell'app.")
+    except Exception as e:
+        st.error(f"Errore nel caricamento dei presets: {e}")
+
+
+with tab_calculator:
+    colA, colB, colC = st.columns(3)
+
+    with colA:
+        st.markdown(f"#### {t['bobina']}")
+        diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=10.0)
+        spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
+
+    with colB:
+        st.markdown(f"#### {t['tubo']}")
+        rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
+        spessore = st.number_input(t["isolamento"], value=7.0, step=1.0)
+        lunghezza = st.number_input(t["lunghezza"], value=50.0, step=5.0)
+        d_rame = COPPER_SIZES_MM[rame]
+
+    with colC:
+        st.markdown(f"#### {t['avvolg']}")
+        passo_visuale = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
+        incremento_visuale = st.number_input(t["incremento"], value=20.0, step=0.5)
+        rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
+        rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
+
+    d_tubo = d_rame + 2.0 * spessore
+
+    # =========================
+    # BUILD
+    # =========================
+
+    (
+        world_contacts,
+        local_points,
+        theta_values,
+        radius_values,
+        z_values,
+        mode_values,
+        layer_values,
+        length_values,
+        deposited_len_mm,
+    ) = simulate_winding_visual(
+        d_aspo=diametro_aspo,
+        spalla=spalla,
+        d_tubo=d_tubo,
+        passo=passo_visuale,
+        incremento=incremento_visuale,
+        rit_b=rit_b,
+        rit_t=rit_t,
+        lunghezza_m=lunghezza,
+        gradi_start=gradi_start,
+        deg_step=2.0,
+    )
+
+    visual_metrics = compute_metrics(local_points, d_tubo)
+
+    # =========================
+    # VIEWER RENDER
+    # =========================
+
+    st.divider()
+
+    components.html(
+        viewer(
+            diametro_aspo,
+            spalla,
+            d_tubo,
+            820,
+            local_points.tolist(),
+            theta_values.tolist(),
+            radius_values.tolist(),
+            z_values.tolist(),
+            mode_values.tolist(),
+            layer_values.tolist(),
+            length_values.tolist(),
+            guide_offset_x,
+            lang,
+        ),
+        height=820,
+    )
+
+    # =========================
+    # METRICS
+    # =========================
+
+    st.divider()
+
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
+
+    m1.metric(t["metric1"], f"{d_tubo:.2f} mm")
+    m2.metric(t["metric2"], f"{passo_visuale:.2f} mm")
+    m3.metric(t["metric3"], f"{incremento_visuale:.2f} mm")
+    m4.metric(t["metric4"], f"{visual_metrics['diam_radiale']:.1f} mm")
+    m5.metric(t["metric5"], f"{visual_metrics['max_xy_span']:.1f} mm")
+    m6.metric(t["metric6"], f"{visual_metrics['wound_length_m']:.3f} m")
+
+    if visual_metrics["max_xy_span"] > 750:
+        st.warning(t["warning"])
