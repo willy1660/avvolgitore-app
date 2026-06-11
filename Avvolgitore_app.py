@@ -321,13 +321,25 @@ def param_label(column_name, language):
     return PARAM_LABELS.get(language, {}).get(column_name, column_name)
 
 
+
 def render_preset_param_cards(title, column_names, selected_row, language, cards_per_row=4):
+    if IS_LIGHT_THEME:
+        card_bg = "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,252,0.98))"
+        border = "rgba(15,23,42,0.10)"
+        label = "rgba(15,23,42,0.66)"
+        value = "#0f172a"
+    else:
+        card_bg = "rgba(255,255,255,0.04)"
+        border = "rgba(255,255,255,0.10)"
+        label = "rgba(250,250,250,0.88)"
+        value = "#ffffff"
+
     st.markdown(
-        """
+        f"""
         <style>
-        .preset-param-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.10);
+        .preset-param-card {{
+            background: {card_bg};
+            border: 1px solid {border};
             border-radius: 18px;
             padding: 16px 18px;
             min-height: 120px;
@@ -336,34 +348,34 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
             justify-content: space-between;
             box-shadow: 0 10px 24px rgba(0,0,0,0.10);
             margin-bottom: 10px;
-        }
-        .preset-param-label {
+        }}
+        .preset-param-label {{
             font-size: 15px;
             line-height: 1.35;
             font-weight: 600;
-            color: rgba(250,250,250,0.88);
+            color: {label};
             margin-bottom: 14px;
-        }
-        .preset-param-value {
+        }}
+        .preset-param-value {{
             font-size: 28px;
             line-height: 1.08;
             font-weight: 800;
-            color: #ffffff;
+            color: {value};
             word-break: break-word;
-        }
-        @media (max-width: 900px) {
-            .preset-param-card {
+        }}
+        @media (max-width: 900px) {{
+            .preset-param-card {{
                 min-height: 104px;
                 padding: 14px 16px;
-            }
-            .preset-param-label {
+            }}
+            .preset-param-label {{
                 font-size: 14px;
                 margin-bottom: 10px;
-            }
-            .preset-param-value {
+            }}
+            .preset-param-value {{
                 font-size: 24px;
-            }
-        }
+            }}
+        }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -375,18 +387,17 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
         ui_cols = st.columns(cards_per_row)
 
         for ui_col, column_name in zip(ui_cols, row_columns):
-            value = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
-            label = param_label(column_name, language)
+            value_txt = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
+            label_txt = param_label(column_name, language)
             ui_col.markdown(
                 f"""
                 <div class="preset-param-card">
-                    <div class="preset-param-label">{html.escape(str(label))}</div>
-                    <div class="preset-param-value">{html.escape(str(value))}</div>
+                    <div class="preset-param-label">{html.escape(str(label_txt))}</div>
+                    <div class="preset-param-value">{html.escape(str(value_txt))}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
-
 
 
 
@@ -441,13 +452,31 @@ def evaluate_packaging(coil_footprint_mm, roll_height_mm, roll_count, packaging_
     }
 
 
+
 def render_summary_cards(title, items, cards_per_row=4):
+    if IS_LIGHT_THEME:
+        card_bg = "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,252,0.98))"
+        border = "rgba(15,23,42,0.10)"
+        label = "rgba(15,23,42,0.68)"
+        value = "#0f172a"
+        note = "rgba(15,23,42,0.56)"
+        ok_bg = "rgba(74,222,128,0.12)"
+        bad_bg = "rgba(248,113,113,0.12)"
+    else:
+        card_bg = "rgba(255,255,255,0.04)"
+        border = "rgba(255,255,255,0.10)"
+        label = "rgba(250,250,250,0.82)"
+        value = "#ffffff"
+        note = "rgba(250,250,250,0.66)"
+        ok_bg = "rgba(74,222,128,0.10)"
+        bad_bg = "rgba(248,113,113,0.10)"
+
     st.markdown(
-        """
+        f"""
         <style>
-        .summary-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.10);
+        .summary-card {{
+            background: {card_bg};
+            border: 1px solid {border};
             border-radius: 18px;
             padding: 16px 18px;
             min-height: 118px;
@@ -456,35 +485,35 @@ def render_summary_cards(title, items, cards_per_row=4):
             justify-content: space-between;
             box-shadow: 0 10px 24px rgba(0,0,0,0.10);
             margin-bottom: 10px;
-        }
-        .summary-card.status-ok {
+        }}
+        .summary-card.status-ok {{
             border-color: rgba(74,222,128,0.28);
-            background: rgba(74,222,128,0.10);
-        }
-        .summary-card.status-bad {
+            background: {ok_bg};
+        }}
+        .summary-card.status-bad {{
             border-color: rgba(248,113,113,0.28);
-            background: rgba(248,113,113,0.10);
-        }
-        .summary-card-label {
+            background: {bad_bg};
+        }}
+        .summary-card-label {{
             font-size: 14px;
             line-height: 1.3;
             font-weight: 600;
-            color: rgba(250,250,250,0.82);
+            color: {label};
             margin-bottom: 12px;
-        }
-        .summary-card-value {
+        }}
+        .summary-card-value {{
             font-size: 30px;
             line-height: 1.08;
             font-weight: 800;
-            color: #ffffff;
+            color: {value};
             word-break: break-word;
-        }
-        .summary-card-note {
+        }}
+        .summary-card-note {{
             font-size: 12px;
-            color: rgba(250,250,250,0.66);
+            color: {note};
             margin-top: 8px;
             line-height: 1.3;
-        }
+        }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -497,8 +526,8 @@ def render_summary_cards(title, items, cards_per_row=4):
         for col, item in zip(cols, chunk):
             tone = item.get("tone", "")
             extra_class = f" status-{tone}" if tone in {"ok", "bad"} else ""
-            note = item.get("note", "")
-            note_html = f'<div class="summary-card-note">{html.escape(str(note))}</div>' if note else ""
+            note_txt = item.get("note", "")
+            note_html = f'<div class="summary-card-note">{html.escape(str(note_txt))}</div>' if note_txt else ""
             col.markdown(
                 f"""
                 <div class="summary-card{extra_class}">
@@ -509,7 +538,6 @@ def render_summary_cards(title, items, cards_per_row=4):
                 """,
                 unsafe_allow_html=True,
             )
-
 
 
 
@@ -1198,6 +1226,137 @@ def find_logo():
 
 logo_path = find_logo()
 
+
+def _theme_base_value():
+    try:
+        base = (st.get_option("theme.base") or "dark").lower().strip()
+    except Exception:
+        base = "dark"
+    return "light" if base == "light" else "dark"
+
+
+APP_THEME_BASE = _theme_base_value()
+IS_LIGHT_THEME = APP_THEME_BASE == "light"
+
+
+def inject_adaptive_ui_css():
+    if IS_LIGHT_THEME:
+        bg_main = "#f5f7fa"
+        bg_secondary = "#eef2f6"
+        border = "rgba(15,23,42,0.10)"
+        title = "#0f172a"
+        text = "#1f2937"
+        text_muted = "rgba(15,23,42,0.68)"
+        card_bg = "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,252,0.98))"
+        shadow = "0 10px 24px rgba(15,23,42,0.08)"
+        topbar_bg = "rgba(255,255,255,0.86)"
+        tab_bg = "rgba(255,255,255,0.92)"
+    else:
+        bg_main = "#0b1016"
+        bg_secondary = "#0e141b"
+        border = "rgba(255,255,255,0.10)"
+        title = "#ffffff"
+        text = "#f8fafc"
+        text_muted = "rgba(248,250,252,0.70)"
+        card_bg = "linear-gradient(180deg, rgba(22,28,35,0.96), rgba(14,19,25,0.98))"
+        shadow = "0 12px 28px rgba(0,0,0,0.14)"
+        topbar_bg = "rgba(18,22,27,0.74)"
+        tab_bg = "rgba(255,255,255,0.05)"
+
+    st.markdown(
+        f"""
+        <style>
+        [data-testid="stAppViewContainer"] {{
+            background:
+                radial-gradient(circle at top right, rgba(150, 168, 190, 0.08), transparent 26%),
+                linear-gradient(180deg, {bg_main} 0%, {bg_secondary} 100%);
+        }}
+        [data-testid="stHeader"] {{
+            background: transparent;
+        }}
+        .main .block-container {{
+            max-width: 1450px;
+            padding-top: 1.05rem;
+            padding-bottom: 2.10rem;
+        }}
+        [data-testid="stTabs"] button {{
+            background: {tab_bg};
+            border: 1px solid {border};
+            border-radius: 12px 12px 0 0;
+            height: 44px;
+            color: {text};
+            font-weight: 700;
+            padding-inline: 18px;
+        }}
+        [data-testid="stTabs"] button[aria-selected="true"] {{
+            background: {card_bg};
+            color: {title};
+        }}
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="base-input"] > div {{
+            border-radius: 12px !important;
+            border: 1px solid {border} !important;
+            box-shadow: none !important;
+        }}
+        .app-hero {{
+            padding: 16px 18px;
+            border-radius: 16px;
+            border: 1px solid {border};
+            background: {card_bg};
+            box-shadow: {shadow};
+        }}
+        .app-hero-kicker {{
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: {text_muted};
+            margin-bottom: 5px;
+        }}
+        .app-hero-title {{
+            margin: 0;
+            color: {title};
+            font-size: 30px;
+            line-height: 1.06;
+            font-weight: 900;
+        }}
+        .app-hero-subtitle {{
+            margin-top: 7px;
+            color: {text_muted};
+            font-size: 13px;
+        }}
+        .section-kicker {{
+            color: {text_muted};
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.10em;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }}
+        .section-head {{
+            margin: 0 0 10px 0;
+            color: {title};
+            font-size: 20px;
+            line-height: 1.10;
+            font-weight: 900;
+        }}
+        .section-note {{
+            color: {text_muted};
+            font-size: 13px;
+            margin-top: -2px;
+            margin-bottom: 8px;
+        }}
+        .section-divider {{
+            height: 1px;
+            background: linear-gradient(90deg, rgba(127,127,127,0.00), rgba(127,127,127,0.22), rgba(127,127,127,0.00));
+            margin: 10px 0 14px 0;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # =========================
 # HEADER
 # =========================
@@ -1221,7 +1380,17 @@ with top2:
 st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
-title_placeholder.markdown(f"## {t['title']}")
+inject_adaptive_ui_css()
+title_placeholder.markdown(
+    f"""
+    <div class="app-hero">
+        <div class="app-hero-kicker">Winding and packaging interface</div>
+        <div class="app-hero-title">{t['title']}</div>
+        <div class="app-hero-subtitle">Preset prodotto · simulazione avvolgimento · controllo packaging</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # =========================
 # GEOMETRY HELPERS
@@ -1529,6 +1698,7 @@ def viewer(
     container_mode="40hc",
     pack_roll_count=5,
     tube_mode_initial="gelwhite",
+    theme_base="dark",
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -1538,6 +1708,15 @@ def viewer(
     final_layers_json = json.dumps(final_layers)
     final_lengths_json = json.dumps(final_lengths)
     labels_json = json.dumps(TEXTS[language])
+    viewer_is_light = str(theme_base).lower() == "light"
+    viewer_root_bg = "#edf2f7" if viewer_is_light else "#101216"
+    viewer_border = "rgba(15,23,42,0.12)" if viewer_is_light else "rgba(255,255,255,0.08)"
+    viewer_panel_bg = "rgba(255,255,255,0.82)" if viewer_is_light else "rgba(18,22,27,0.74)"
+    viewer_panel_text = "#0f172a" if viewer_is_light else "#f0f0f0"
+    viewer_btn_bg = "rgba(255,255,255,0.96)" if viewer_is_light else "#f4f4f4"
+    viewer_btn_text = "#111827" if viewer_is_light else "#111"
+    viewer_active_outline = "#0f172a" if viewer_is_light else "#ffffff"
+
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -1548,10 +1727,10 @@ def viewer(
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:#101216;
+        background:{viewer_root_bg};
         border-radius:16px;
         overflow:hidden;
-        border:1px solid rgba(255,255,255,0.08);
+        border:1px solid {viewer_border};
         box-shadow:0 18px 42px rgba(0,0,0,0.28);
         position:relative;
     ">
@@ -1564,9 +1743,9 @@ def viewer(
             align-items:center;
             gap:8px;
             padding:10px 12px;
-            background:rgba(18,22,27,0.74);
-            color:#f0f0f0;
-            border:1px solid rgba(255,255,255,0.12);
+            background:{viewer_panel_bg};
+            color:{viewer_panel_text};
+            border:1px solid {viewer_border};
             border-radius:14px;
             backdrop-filter: blur(10px);
             font-family:Arial, sans-serif;
@@ -1605,8 +1784,8 @@ def viewer(
             display:none;
             min-width:220px;
             padding:14px 16px;
-            background:rgba(18,22,27,0.78);
-            color:#f8fafc;
+            background:{viewer_panel_bg};
+            color:{viewer_panel_text};
             border:1px solid rgba(255,255,255,0.12);
             border-radius:15px;
             backdrop-filter:blur(10px);
@@ -1633,9 +1812,9 @@ def viewer(
             overscroll-behavior:contain;
             box-sizing:border-box;
             padding:12px;
-            background:rgba(18,22,27,0.74);
-            color:#f0f0f0;
-            border:1px solid rgba(255,255,255,0.12);
+            background:{viewer_panel_bg};
+            color:{viewer_panel_text};
+            border:1px solid {viewer_border};
             border-radius:14px;
             backdrop-filter: blur(10px);
             font-family:Arial, sans-serif;
@@ -1689,8 +1868,8 @@ def viewer(
                     padding:9px 11px;
                     font-weight:800;
                     font-size:16px;
-                    background:rgba(255,255,255,0.96);
-                    color:#111;
+                    background:{viewer_btn_bg};
+                    color:{viewer_btn_text};
                     margin-bottom:10px;
                 " />
                 
@@ -1742,8 +1921,8 @@ def viewer(
             border:none;
             border-radius:9px;
             padding:7px 12px;
-            background:#f4f4f4;
-            color:#111;
+            background:{viewer_btn_bg};
+            color:{viewer_btn_text};
             font-weight:700;
             cursor:pointer;
         }}
@@ -1752,8 +1931,8 @@ def viewer(
             border:none;
             border-radius:10px;
             padding:8px 10px;
-            background:rgba(235,235,235,0.92);
-            color:#111;
+            background:{viewer_btn_bg};
+            color:{viewer_btn_text};
             font-weight:700;
             font-size:14px;
             cursor:pointer;
@@ -1766,13 +1945,13 @@ def viewer(
 
         .viewer_btn_small:hover,
         .viewer_btn:hover {{
-            background:#ffffff;
+            background:{viewer_btn_bg};
         }}
 
         .active_speed,
         .active_opt {{
-            outline:2px solid #ffffff;
-            background:#ffffff;
+            outline:2px solid {viewer_active_outline};
+            background:{viewer_btn_bg};
         }}
 
         .panel_label {{
@@ -3715,6 +3894,7 @@ with tab_calculator:
             packaging_mode=packaging_mode_selected,
             container_mode=container_mode_selected,
             pack_roll_count=pack_roll_count,
+            theme_base=APP_THEME_BASE,
         ),
         height=820,
     )
