@@ -1618,32 +1618,32 @@ def viewer(
             cursor:not-allowed;
         }}
 
-        .packaging_stats {
+        .packaging_stats {{
             display:grid;
             gap:8px;
             margin-top:8px;
-        }
+        }}
 
-        .pack_stat {
+        .pack_stat {{
             padding:9px 10px;
             border-radius:11px;
             background:rgba(255,255,255,0.08);
             border:1px solid rgba(255,255,255,0.10);
-        }
+        }}
 
-        .pack_stat_label {
+        .pack_stat_label {{
             font-size:10px;
             opacity:0.72;
             text-transform:uppercase;
             letter-spacing:0.05em;
             margin-bottom:3px;
-        }
+        }}
 
-        .pack_stat_value {
+        .pack_stat_value {{
             font-size:16px;
             font-weight:800;
             line-height:1.1;
-        }
+        }}
 
         .hud_card {{
             min-width:86px;
