@@ -1489,7 +1489,7 @@ def viewer(
                 </label>
             </div>
 
-            <div>
+            <div id="speed_block">
                 <div class="panel_label" id="speed_title"></div>
                 <div class="btn_group_vertical btn_grid_3" id="speed_group">
                     <button class="speed_btn viewer_btn_small" data-speed="0.1">x0.1</button>
@@ -1549,7 +1549,7 @@ def viewer(
                 <div id="packaging_stats" class="packaging_stats"></div>
             </div>
 
-            <div>
+            <div id="spool_block">
                 <div class="panel_label" id="spool_title"></div>
                 <div class="btn_group_vertical btn_grid_3">
                     <button class="spool_btn viewer_btn_small active_opt" data-spool="visible" id="spool_visible_btn"></button>
@@ -1566,7 +1566,7 @@ def viewer(
                 </div>
             </div>
 
-            <div class="panel_checks_block">
+            <div id="checks_block" class="panel_checks_block">
                 <label class="panel_check">
                     <input type="checkbox" id="ghost_check" checked />
                     <span id="ghost_title"></span>
@@ -1762,6 +1762,10 @@ def viewer(
         const viewBtns = [...document.querySelectorAll(".view_btn")];
         const sceneBtns = [...document.querySelectorAll(".scene_btn")];
         const packagingControls = document.getElementById("packaging_controls");
+        const animationBlock = document.getElementById("animation_block");
+        const speedBlock = document.getElementById("speed_block");
+        const spoolBlock = document.getElementById("spool_block");
+        const checksBlock = document.getElementById("checks_block");
         const packModeBtns = [...document.querySelectorAll(".pack_mode_btn")];
         const containerBtns = [...document.querySelectorAll(".container_btn")];
         const packContainerBlock = document.getElementById("pack_container_block");
@@ -2623,18 +2627,34 @@ def viewer(
             const hole = new THREE.Path();
             hole.absarc(0, 0, innerRadius, 0, Math.PI * 2, true);
             shape.holes.push(hole);
-            const geometry = new THREE.ExtrudeGeometry(shape, {{ depth: height, bevelEnabled: false, curveSegments: 96 }});
+
+            const geometry = new THREE.ExtrudeGeometry(shape, {{
+                depth: height,
+                bevelEnabled: true,
+                bevelThickness: Math.min(4, height * 0.08),
+                bevelSize: Math.min(4, height * 0.08),
+                bevelSegments: 2,
+                curveSegments: 128
+            }});
             geometry.center();
 
             const material = new THREE.MeshStandardMaterial({{
-                color: tubeMode === "gelblack" ? 0xc9cdd3 : 0xf0f2f5,
-                roughness: 0.80,
+                color: tubeMode === "gelblack" ? 0xcfd4d9 : 0xf2f4f7,
+                roughness: 0.82,
                 metalness: 0.02
             }});
             const mesh = new THREE.Mesh(geometry, material);
-            mesh.rotation.x = Math.PI / 2;
             mesh.castShadow = true;
             mesh.receiveShadow = true;
+
+            const edgeGeo = new THREE.EdgesGeometry(geometry, 28);
+            const edgeMat = new THREE.LineBasicMaterial({{
+                color: tubeMode === "gelblack" ? 0x7d8792 : 0xb8bec6,
+                transparent: true,
+                opacity: 0.42
+            }});
+            const edges = new THREE.LineSegments(edgeGeo, edgeMat);
+            mesh.add(edges);
             return mesh;
         }}
 
@@ -2661,7 +2681,7 @@ def viewer(
                 const boxMat = new THREE.MeshStandardMaterial({{
                     color: ok ? 0x4ade80 : 0xf87171,
                     transparent: true,
-                    opacity: 0.05,
+                    opacity: 0.04,
                     roughness: 0.70,
                     metalness: 0.0,
                     depthWrite: false
@@ -2671,11 +2691,11 @@ def viewer(
                 packagingGroup.add(box);
                 addBoxEdges(palletSize, palletSize, boxHeight, palletHeight + boxHeight / 2, ok ? 0x4ade80 : 0xfca5a5, 0.95);
             }} else {{
-                addBoxEdges(palletSize, palletSize, heightLimit, palletHeight + heightLimit / 2, ok ? 0x4ade80 : 0xfca5a5, 0.55);
+                addBoxEdges(palletSize, palletSize, heightLimit, palletHeight + heightLimit / 2, ok ? 0x4ade80 : 0xfca5a5, 0.45);
             }}
 
             const coilRadius = coilFootprint / 2.0;
-            const innerRadius = Math.max(16, coilRadius * 0.56);
+            const innerRadius = Math.max(18, coilRadius * 0.56);
             for (let i = 0; i < rollCount; i++) {{
                 const zc = palletHeight + i * Hs + Hs / 2.0;
                 const roll = createRollRealistic(coilRadius, innerRadius, Hs, tubeMode);
@@ -2685,15 +2705,14 @@ def viewer(
 
             const lineColor = ok ? 0x4ade80 : 0xf87171;
             const heightLineMat = new THREE.LineBasicMaterial({{ color: lineColor, transparent: true, opacity: 0.95 }});
-            const xDim = palletSize * 0.70;
+            const xDim = palletSize * 0.72;
             const yDim = -palletSize * 0.70;
             const heightPoints = [new THREE.Vector3(xDim, yDim, 0), new THREE.Vector3(xDim, yDim, totalHeight)];
-            const heightLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(heightPoints), heightLineMat);
-            packagingGroup.add(heightLine);
-            const tickGeo1 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, 0), new THREE.Vector3(xDim + 24, yDim, 0)]);
-            const tickGeo2 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, totalHeight), new THREE.Vector3(xDim + 24, yDim, totalHeight)]);
-            packagingGroup.add(new THREE.Line(tickGeo1, heightLineMat));
-            packagingGroup.add(new THREE.Line(tickGeo2, heightLineMat));
+            packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(heightPoints), heightLineMat));
+            packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, 0), new THREE.Vector3(xDim + 24, yDim, 0)]), heightLineMat));
+            packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, totalHeight), new THREE.Vector3(xDim + 24, yDim, totalHeight)]), heightLineMat));
+
+            packagingGroup.userData.totalHeight = totalHeight;
             updatePackagingStats(rollCount);
         }}
 
@@ -2704,15 +2723,20 @@ def viewer(
             overlayGroup.visible = !packaging;
             packagingGroup.visible = packaging;
             packagingControls.style.display = packaging ? "block" : "none";
+            if (animationBlock) animationBlock.style.display = packaging ? "none" : "block";
+            if (speedBlock) speedBlock.style.display = packaging ? "none" : "block";
+            if (spoolBlock) spoolBlock.style.display = packaging ? "none" : "block";
+            if (checksBlock) checksBlock.style.display = packaging ? "none" : "grid";
             viewerHud.style.display = packaging ? "none" : "grid";
             progressSlider.disabled = packaging;
             playPauseBtn.disabled = packaging;
             animationCheck.disabled = packaging;
             if (packaging) {{
                 updatePackagingScene();
-                camera.position.set(-980, -1180, 980);
-                controls.target.set(0, 0, 720);
-                camera.lookAt(0, 0, 720);
+                const totalHeight = packagingGroup.userData.totalHeight || 800;
+                camera.position.set(-980, -860, Math.max(720, totalHeight * 0.92));
+                controls.target.set(0, 0, palletHeight + totalHeight * 0.40);
+                camera.lookAt(0, 0, palletHeight + totalHeight * 0.40);
                 controls.update();
             }} else {{
                 setCameraView(currentView);
