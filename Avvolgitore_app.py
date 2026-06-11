@@ -242,6 +242,74 @@ PARAM_LABELS = {
 def param_label(column_name, language):
     return PARAM_LABELS.get(language, {}).get(column_name, column_name)
 
+
+def render_preset_param_cards(title, column_names, selected_row, language, cards_per_row=4):
+    st.markdown(
+        """
+        <style>
+        .preset-param-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 18px;
+            padding: 16px 18px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+            margin-bottom: 10px;
+        }
+        .preset-param-label {
+            font-size: 15px;
+            line-height: 1.35;
+            font-weight: 600;
+            color: rgba(250,250,250,0.88);
+            margin-bottom: 14px;
+        }
+        .preset-param-value {
+            font-size: 28px;
+            line-height: 1.08;
+            font-weight: 800;
+            color: #ffffff;
+            word-break: break-word;
+        }
+        @media (max-width: 900px) {
+            .preset-param-card {
+                min-height: 104px;
+                padding: 14px 16px;
+            }
+            .preset-param-label {
+                font-size: 14px;
+                margin-bottom: 10px;
+            }
+            .preset-param-value {
+                font-size: 24px;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(f"##### {title}")
+    for i in range(0, len(column_names), cards_per_row):
+        row_columns = column_names[i:i + cards_per_row]
+        ui_cols = st.columns(cards_per_row)
+
+        for ui_col, column_name in zip(ui_cols, row_columns):
+            value = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
+            label = param_label(column_name, language)
+            ui_col.markdown(
+                f"""
+                <div class="preset-param-card">
+                    <div class="preset-param-label">{html.escape(str(label))}</div>
+                    <div class="preset-param-value">{html.escape(str(value))}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
 # =========================
 # CONSTANTS
 # =========================
@@ -2572,27 +2640,13 @@ with tab_presets:
             "Incremento strato (mm)",
         }
 
-        st.markdown(f"##### {t['linked_params']}")
         linked_cols = [c for c in presets_df.columns if c in render_columns]
         cards_per_row = 4
-        for i in range(0, len(linked_cols), cards_per_row):
-            row_columns = linked_cols[i:i + cards_per_row]
-            metric_cols = st.columns(cards_per_row)
-
-            for card, column_name in zip(metric_cols, row_columns):
-                value = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
-                card.metric(param_label(column_name, lang), value)
+        render_preset_param_cards(t['linked_params'], linked_cols, selected_row, lang, cards_per_row=cards_per_row)
 
         consult_cols = [c for c in presets_df.columns if c not in render_columns]
         if consult_cols:
-            st.markdown(f"##### {t['non_render_params']}")
-            for i in range(0, len(consult_cols), cards_per_row):
-                row_columns = consult_cols[i:i + cards_per_row]
-                metric_cols = st.columns(cards_per_row)
-
-                for card, column_name in zip(metric_cols, row_columns):
-                    value = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
-                    card.metric(param_label(column_name, lang), value)
+            render_preset_param_cards(t['non_render_params'], consult_cols, selected_row, lang, cards_per_row=cards_per_row)
 
         note_value = safe_value(selected_row, "Note")
         if note_value != "-":
