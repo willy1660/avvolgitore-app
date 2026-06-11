@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import html
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -328,114 +329,205 @@ def make_preset_visual(row, language):
     spalla = parse_float_value(row.get("Spalla (mm)", 0.0), 0.0)
     passo = parse_float_value(row.get("Passo (mm)", 0.0), 0.0)
     incremento = parse_float_value(row.get("Incremento strato (mm)", 0.0), 0.0)
+    guidatubo = parse_float_value(row.get("Guidatubo (mm)", 0.0), 0.0)
 
     labels = {
         "IT": {
             "tube_section": "Sezione tubo",
-            "coil": "Bobina",
-            "outer": "Ø esterno",
+            "coil": "Schema avvolgimento",
             "copper": "Rame",
             "foam": "Guaina",
+            "outer": "Ø esterno",
             "length": "Lunghezza",
             "spool": "Ø aspo",
             "width": "Spalla",
             "pitch": "Passo",
-            "layer": "Incremento",
+            "layer": "Incremento strato",
+            "guide": "Guidatubo",
+            "note": "Anteprima indicativa dei parametri principali del preset",
         },
         "EN": {
             "tube_section": "Tube section",
-            "coil": "Coil",
-            "outer": "Outer Ø",
+            "coil": "Coiling layout",
             "copper": "Copper",
             "foam": "Foam",
+            "outer": "Outer Ø",
             "length": "Length",
             "spool": "Spool Ø",
             "width": "Width",
             "pitch": "Pitch",
             "layer": "Layer increment",
+            "guide": "Tube guide",
+            "note": "Indicative preview of the preset's main parameters",
         },
     }[language]
 
-    copper_r = 34
-    outer_r = 76
-    spool_r = 72
-    tube_r = 96
+    def v(value):
+        return html.escape(format_preset_value(value))
 
-    return f"""
-    <div style="
-        margin-top:10px;
-        margin-bottom:18px;
+    copper_label = html.escape(str(rame))
+
+    return f'''
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    html, body {{
+        margin:0;
+        padding:0;
+        background:transparent;
+        font-family: Arial, Helvetica, sans-serif;
+        color:#f7f8fa;
+    }}
+    .preset-preview {{
         display:grid;
-        grid-template-columns: minmax(260px, 0.85fr) minmax(320px, 1.15fr);
-        gap:16px;
-    ">
-        <div style="
-            padding:18px;
-            border-radius:18px;
-            background:linear-gradient(135deg, rgba(250,250,250,0.98), rgba(236,238,242,0.98));
-            border:1px solid rgba(0,0,0,0.08);
-            box-shadow:0 10px 26px rgba(0,0,0,0.08);
-        ">
-            <div style="font-size:12px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#646b75; margin-bottom:10px;">{labels['tube_section']}</div>
-            <svg width="100%" viewBox="0 0 260 185" role="img" aria-label="Tube section">
+        grid-template-columns: minmax(280px, 0.92fr) minmax(360px, 1.08fr);
+        gap:18px;
+        width:100%;
+        box-sizing:border-box;
+    }}
+    .preview-card {{
+        min-height:250px;
+        border-radius:18px;
+        padding:18px 20px;
+        box-sizing:border-box;
+        background:linear-gradient(135deg, #171b22, #101319);
+        border:1px solid rgba(255,255,255,0.10);
+        box-shadow:0 16px 34px rgba(0,0,0,0.24);
+        overflow:hidden;
+        position:relative;
+    }}
+    .preview-card.light {{
+        background:linear-gradient(135deg, #f7f7f5, #e8eaed);
+        color:#111827;
+        border:1px solid rgba(0,0,0,0.08);
+        box-shadow:0 12px 28px rgba(0,0,0,0.10);
+    }}
+    .eyebrow {{
+        font-size:11px;
+        font-weight:800;
+        letter-spacing:0.10em;
+        text-transform:uppercase;
+        opacity:0.70;
+        margin-bottom:10px;
+    }}
+    .tube-grid {{
+        display:grid;
+        grid-template-columns: 170px 1fr;
+        gap:20px;
+        align-items:center;
+    }}
+    .metric-list {{
+        display:grid;
+        gap:10px;
+    }}
+    .metric-row {{
+        display:flex;
+        justify-content:space-between;
+        gap:14px;
+        align-items:baseline;
+        border-bottom:1px solid rgba(17,24,39,0.10);
+        padding-bottom:8px;
+    }}
+    .preview-card:not(.light) .metric-row {{
+        border-bottom-color:rgba(255,255,255,0.10);
+    }}
+    .metric-label {{
+        font-size:12px;
+        opacity:0.68;
+        font-weight:700;
+    }}
+    .metric-value {{
+        font-size:19px;
+        font-weight:850;
+        white-space:nowrap;
+    }}
+    .coil-grid {{
+        display:grid;
+        grid-template-columns: 230px 1fr;
+        gap:18px;
+        align-items:center;
+    }}
+    .note {{
+        margin-top:14px;
+        font-size:12px;
+        line-height:1.35;
+        opacity:0.58;
+    }}
+    svg {{ display:block; width:100%; height:auto; }}
+    @media (max-width: 850px) {{
+        .preset-preview {{ grid-template-columns:1fr; }}
+        .tube-grid, .coil-grid {{ grid-template-columns:1fr; }}
+    }}
+</style>
+</head>
+<body>
+<div class="preset-preview">
+    <div class="preview-card light">
+        <div class="eyebrow">{html.escape(labels['tube_section'])}</div>
+        <div class="tube-grid">
+            <svg viewBox="0 0 180 180" role="img" aria-label="Tube section">
                 <defs>
-                    <radialGradient id="foamGrad" cx="35%" cy="28%" r="70%">
+                    <radialGradient id="foam" cx="35%" cy="30%" r="70%">
                         <stop offset="0%" stop-color="#ffffff"/>
-                        <stop offset="62%" stop-color="#dedbd2"/>
-                        <stop offset="100%" stop-color="#bdb8ad"/>
+                        <stop offset="100%" stop-color="#d6d2c8"/>
                     </radialGradient>
-                    <radialGradient id="copperGrad" cx="35%" cy="28%" r="70%">
-                        <stop offset="0%" stop-color="#ffd5a6"/>
-                        <stop offset="58%" stop-color="#c97936"/>
-                        <stop offset="100%" stop-color="#7d3b16"/>
+                    <radialGradient id="copper" cx="34%" cy="28%" r="70%">
+                        <stop offset="0%" stop-color="#ffd3a1"/>
+                        <stop offset="58%" stop-color="#c87532"/>
+                        <stop offset="100%" stop-color="#77350f"/>
                     </radialGradient>
                 </defs>
-                <circle cx="92" cy="88" r="{outer_r}" fill="url(#foamGrad)" stroke="#787b7e" stroke-width="2"/>
-                <circle cx="92" cy="88" r="{copper_r}" fill="url(#copperGrad)" stroke="#6e3515" stroke-width="2"/>
-                <line x1="16" y1="171" x2="168" y2="171" stroke="#1f2933" stroke-width="2"/>
-                <line x1="16" y1="163" x2="16" y2="179" stroke="#1f2933" stroke-width="2"/>
-                <line x1="168" y1="163" x2="168" y2="179" stroke="#1f2933" stroke-width="2"/>
-                <text x="92" y="162" text-anchor="middle" fill="#1f2933" font-size="13" font-weight="700">{labels['outer']}: {format_preset_value(d_tubo)} mm</text>
-                <text x="190" y="62" fill="#1f2933" font-size="13" font-weight="700">{labels['copper']}: {rame}</text>
-                <text x="190" y="86" fill="#1f2933" font-size="13" font-weight="700">{labels['foam']}: {format_preset_value(spessore)} mm</text>
-                <text x="190" y="110" fill="#1f2933" font-size="13" font-weight="700">{labels['length']}: {format_preset_value(lunghezza)} m</text>
+                <circle cx="90" cy="86" r="68" fill="url(#foam)" stroke="#72777d" stroke-width="3"/>
+                <circle cx="90" cy="86" r="29" fill="url(#copper)" stroke="#6c320e" stroke-width="3"/>
+                <path d="M22 162 H158 M22 154 V170 M158 154 V170" fill="none" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
+                <text x="90" y="148" text-anchor="middle" fill="#111827" font-size="13" font-weight="800">{html.escape(labels['outer'])} {v(d_tubo)} mm</text>
             </svg>
-        </div>
-
-        <div style="
-            padding:18px;
-            border-radius:18px;
-            background:linear-gradient(135deg, rgba(21,24,29,0.98), rgba(42,46,54,0.98));
-            border:1px solid rgba(255,255,255,0.10);
-            box-shadow:0 10px 26px rgba(0,0,0,0.20);
-            color:#fff;
-        ">
-            <div style="font-size:12px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:rgba(255,255,255,0.64); margin-bottom:10px;">{labels['coil']}</div>
-            <svg width="100%" viewBox="0 0 430 185" role="img" aria-label="Coil preview">
-                <defs>
-                    <linearGradient id="steelGrad" x1="0" x2="1">
-                        <stop offset="0%" stop-color="#737981"/>
-                        <stop offset="20%" stop-color="#dce1e5"/>
-                        <stop offset="45%" stop-color="#7b838d"/>
-                        <stop offset="70%" stop-color="#cbd1d6"/>
-                        <stop offset="100%" stop-color="#676e77"/>
-                    </linearGradient>
-                </defs>
-                <circle cx="100" cy="88" r="{tube_r}" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.10)" stroke-width="3"/>
-                <circle cx="100" cy="88" r="{spool_r}" fill="url(#steelGrad)" stroke="rgba(255,255,255,0.32)" stroke-width="2"/>
-                <circle cx="100" cy="88" r="38" fill="#1d2128" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>
-                <path d="M32 88 C48 18, 152 18, 168 88 C152 158, 48 158, 32 88" fill="none" stroke="#ebe7dd" stroke-width="13" stroke-linecap="round" opacity="0.94"/>
-                <path d="M47 88 C60 38, 140 38, 153 88 C140 138, 60 138, 47 88" fill="none" stroke="#ebe7dd" stroke-width="13" stroke-linecap="round" opacity="0.70"/>
-                <rect x="235" y="31" width="160" height="112" rx="16" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.12)"/>
-                <text x="255" y="62" fill="#ffffff" font-size="14" font-weight="800">{labels['spool']}: {format_preset_value(aspo)} mm</text>
-                <text x="255" y="88" fill="#ffffff" font-size="14" font-weight="800">{labels['width']}: {format_preset_value(spalla)} mm</text>
-                <text x="255" y="114" fill="#ffffff" font-size="14" font-weight="800">{labels['pitch']}: {format_preset_value(passo)} mm</text>
-                <text x="255" y="140" fill="#ffffff" font-size="14" font-weight="800">{labels['layer']}: {format_preset_value(incremento)} mm</text>
-            </svg>
+            <div class="metric-list">
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['copper'])}</span><span class="metric-value">{copper_label}</span></div>
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['foam'])}</span><span class="metric-value">{v(spessore)} mm</span></div>
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['outer'])}</span><span class="metric-value">{v(d_tubo)} mm</span></div>
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['length'])}</span><span class="metric-value">{v(lunghezza)} m</span></div>
+            </div>
         </div>
     </div>
-    """
 
+    <div class="preview-card">
+        <div class="eyebrow">{html.escape(labels['coil'])}</div>
+        <div class="coil-grid">
+            <svg viewBox="0 0 240 180" role="img" aria-label="Coiling layout">
+                <defs>
+                    <linearGradient id="steel" x1="0" x2="1">
+                        <stop offset="0%" stop-color="#666d76"/>
+                        <stop offset="35%" stop-color="#d7dce0"/>
+                        <stop offset="70%" stop-color="#818994"/>
+                        <stop offset="100%" stop-color="#e0e4e8"/>
+                    </linearGradient>
+                </defs>
+                <rect x="24" y="32" width="132" height="104" rx="18" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.18)"/>
+                <ellipse cx="90" cy="84" rx="56" ry="62" fill="url(#steel)" opacity="0.95"/>
+                <ellipse cx="90" cy="84" rx="25" ry="30" fill="#1e232b" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>
+                <path d="M42 84 C48 38, 132 38, 138 84 C132 130, 48 130, 42 84" fill="none" stroke="#f0eee6" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+                <path d="M55 84 C61 51, 119 51, 125 84 C119 117, 61 117, 55 84" fill="none" stroke="#f0eee6" stroke-width="10" stroke-linecap="round" opacity="0.60"/>
+                <path d="M158 84 H214" stroke="#f0eee6" stroke-width="8" stroke-linecap="round"/>
+                <rect x="194" y="69" width="28" height="30" rx="8" fill="#7f8792" stroke="rgba(255,255,255,0.28)"/>
+                <text x="90" y="163" text-anchor="middle" fill="rgba(255,255,255,0.72)" font-size="11" font-weight="700">{v(aspo)} mm · {v(spalla)} mm</text>
+            </svg>
+            <div class="metric-list">
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['spool'])}</span><span class="metric-value">{v(aspo)} mm</span></div>
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['width'])}</span><span class="metric-value">{v(spalla)} mm</span></div>
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['pitch'])}</span><span class="metric-value">{v(passo)} mm</span></div>
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['layer'])}</span><span class="metric-value">{v(incremento)} mm</span></div>
+                <div class="metric-row"><span class="metric-label">{html.escape(labels['guide'])}</span><span class="metric-value">{v(guidatubo)} mm</span></div>
+            </div>
+        </div>
+        <div class="note">{html.escape(labels['note'])}</div>
+    </div>
+</div>
+</body>
+</html>
+'''
 
 def apply_preset_to_calculator(row):
     rame = str(row.get("Diametro Rame", "1/4")).strip()
@@ -2330,7 +2422,7 @@ with tab_presets:
         )
 
         st.markdown(f"#### {t['preset_visual_title']}")
-        st.markdown(make_preset_visual(selected_row, lang), unsafe_allow_html=True)
+        components.html(make_preset_visual(selected_row, lang), height=300, scrolling=False)
 
         if st.button(t["load_to_calculator"], type="primary", use_container_width=True):
             apply_preset_to_calculator(selected_row)
