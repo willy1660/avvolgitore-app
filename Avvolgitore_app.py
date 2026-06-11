@@ -1680,20 +1680,6 @@ def viewer(
             </div>
 
             <div id="packaging_controls" style="display:none;">
-                <div class="panel_label" id="pack_mode_title"></div>
-                <div class="btn_group_vertical btn_grid_2" style="margin-bottom:10px;">
-                    <button class="pack_mode_btn viewer_btn_small active_opt" data-packmode="box" id="pack_mode_box_btn"></button>
-                    <button class="pack_mode_btn viewer_btn_small" data-packmode="tower" id="pack_mode_tower_btn"></button>
-                </div>
-
-                <div id="pack_container_block" style="display:none;">
-                    <div class="panel_label" id="container_title"></div>
-                    <div class="btn_group_vertical btn_grid_2" style="margin-bottom:10px;">
-                        <button class="container_btn viewer_btn_small active_opt" data-container="40hc" id="container_40hc_btn"></button>
-                        <button class="container_btn viewer_btn_small" data-container="20ft" id="container_20ft_btn"></button>
-                    </div>
-                </div>
-
                 <div class="panel_label" id="pack_roll_title"></div>
                 <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="{int(pack_roll_count)}" style="
                     width:100%;
@@ -1707,7 +1693,7 @@ def viewer(
                     color:#111;
                     margin-bottom:10px;
                 " />
-                <div id="packaging_stats" class="packaging_stats"></div>
+                
             </div>
 
             <div id="spool_block">
@@ -1951,12 +1937,7 @@ def viewer(
         document.getElementById("scene_title").textContent = T.packaging_title || "Packaging";
         document.getElementById("scene_winding_btn").textContent = T.title || "Avvolgimento";
         document.getElementById("scene_packaging_btn").textContent = T.packaging_title || "Packaging";
-        document.getElementById("pack_mode_title").textContent = T.packaging_mode || "Packaging mode";
         document.getElementById("pack_mode_box_btn").innerHTML = `<div>${{T.packaging_box || "Box"}}</div><div class="pack_mode_desc">${{T.packaging_box_desc || "750 × 750 × 1350 mm"}}</div>`;
-        document.getElementById("pack_mode_tower_btn").innerHTML = `<div>${{T.packaging_tower || "Tower"}}</div><div class="pack_mode_desc">${{T.packaging_tower_desc || "No height limit"}}</div>`;
-        document.getElementById("container_title").textContent = T.container_type || "Container";
-        document.getElementById("container_40hc_btn").innerHTML = `<div>${{T.container_40hc || "40 HC"}}</div><div class="pack_mode_desc">${{T.container_40hc_desc || "2580 mm"}}</div>`;
-        document.getElementById("container_20ft_btn").innerHTML = `<div>${{T.container_20ft || "20 ft"}}</div><div class="pack_mode_desc">${{T.container_20ft_desc || "2280 mm"}}</div>`;
         document.getElementById("pack_roll_title").textContent = T.roll_count || "Numero rotoli";
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
@@ -2180,23 +2161,6 @@ def viewer(
                 sceneMode = btn.dataset.scene;
                 setActiveButton(sceneBtns, sceneMode, "data-scene");
                 applySceneMode();
-            }});
-        }});
-
-        packModeBtns.forEach(btn => {{
-            btn.addEventListener("click", () => {{
-                packagingMode = btn.dataset.packmode;
-                setActiveButton(packModeBtns, packagingMode, "data-packmode");
-                packContainerBlock.style.display = packagingMode === "tower" ? "block" : "none";
-                updatePackagingScene();
-            }});
-        }});
-
-        containerBtns.forEach(btn => {{
-            btn.addEventListener("click", () => {{
-                containerMode = btn.dataset.container;
-                setActiveButton(containerBtns, containerMode, "data-container");
-                updatePackagingScene();
             }});
         }});
 
@@ -2716,7 +2680,7 @@ def viewer(
                 packagingStatusReason.textContent = reasonText || "";
             }}
 
-            packagingStats.innerHTML = `
+            if (packagingStats) packagingStats.innerHTML = `
                 <div class="pack_stat">
                     <div class="pack_stat_label">Status</div>
                     <div class="pack_stat_value" style="color:${{ok ? "#4ade80" : "#fca5a5"}}">${{statusText}}</div>
@@ -2751,90 +2715,121 @@ def viewer(
         function createPalletRealistic(width, depth, height) {{
             const group = new THREE.Group();
             const woodMat = new THREE.MeshStandardMaterial({{
-                color: 0xb78955,
-                roughness: 0.84,
-                metalness: 0.02
-            }});
-            const woodMatDark = new THREE.MeshStandardMaterial({{
-                color: 0x9c6d3e,
-                roughness: 0.90,
+                color: 0xc79a61,
+                roughness: 0.88,
                 metalness: 0.01
             }});
+            const woodMatDark = new THREE.MeshStandardMaterial({{
+                color: 0x916236,
+                roughness: 0.92,
+                metalness: 0.0
+            }});
 
-            const topSlatH = height * 0.11;
-            const blockH = height * 0.36;
-            const bottomSlatH = height * 0.08;
-            const topZ = height - topSlatH / 2.0;
-            const bottomZ = bottomSlatH / 2.0;
-            const blockZ = bottomSlatH + blockH / 2.0;
+            const topDeckH = height * 0.11;
+            const runnerH = height * 0.24;
+            const bottomDeckH = height * 0.08;
+            const totalGap = height - topDeckH - runnerH - bottomDeckH;
+            const midGap = Math.max(6, totalGap);
 
-            const topSlatW = width / 7.0;
+            const topZ = height - topDeckH / 2.0;
+            const runnerZ = bottomDeckH + midGap / 2.0 + runnerH / 2.0;
+            const bottomZ = bottomDeckH / 2.0;
+
+            const topBoardW = width / 7.2;
             for (let i = -3; i <= 3; i++) {{
-                const slat = new THREE.Mesh(new THREE.BoxGeometry(topSlatW * 0.86, depth, topSlatH), woodMat);
-                slat.position.set(i * topSlatW, 0, topZ);
-                slat.castShadow = true;
-                slat.receiveShadow = true;
-                group.add(slat);
-            }}
-
-            const bottomBoardD = depth / 5.0;
-            for (let i = -1; i <= 1; i++) {{
-                const board = new THREE.Mesh(new THREE.BoxGeometry(width, bottomBoardD * 0.62, bottomSlatH), woodMatDark);
-                board.position.set(0, i * bottomBoardD * 1.55, bottomZ);
+                const board = new THREE.Mesh(new THREE.BoxGeometry(topBoardW * 0.84, depth, topDeckH), woodMat);
+                board.position.set(i * topBoardW, 0, topZ);
                 board.castShadow = true;
                 board.receiveShadow = true;
                 group.add(board);
             }}
 
-            const blockX = [-width * 0.33, 0, width * 0.33];
-            const blockY = [-depth * 0.33, 0, depth * 0.33];
-            for (const x of blockX) {{
-                for (const y of blockY) {{
-                    const block = new THREE.Mesh(new THREE.BoxGeometry(width * 0.14, depth * 0.14, blockH), woodMatDark);
-                    block.position.set(x, y, blockZ);
-                    block.castShadow = true;
-                    block.receiveShadow = true;
-                    group.add(block);
-                }}
+            const runnerW = width * 0.18;
+            for (const x of [-width * 0.33, 0, width * 0.33]) {{
+                const runner = new THREE.Mesh(new THREE.BoxGeometry(runnerW, depth, runnerH), woodMatDark);
+                runner.position.set(x, 0, runnerZ);
+                runner.castShadow = true;
+                runner.receiveShadow = true;
+                group.add(runner);
+            }}
+
+            const bottomBoardD = depth / 4.8;
+            for (const y of [-depth * 0.34, 0, depth * 0.34]) {{
+                const board = new THREE.Mesh(new THREE.BoxGeometry(width * 0.92, bottomBoardD * 0.60, bottomDeckH), woodMatDark);
+                board.position.set(0, y, bottomZ);
+                board.castShadow = true;
+                board.receiveShadow = true;
+                group.add(board);
             }}
             return group;
         }}
 
         function createRollRealistic(outerRadius, innerRadius, height, tubeMode) {{
-            const shape = new THREE.Shape();
-            shape.absarc(0, 0, outerRadius, 0, Math.PI * 2, false);
-            const hole = new THREE.Path();
-            hole.absarc(0, 0, innerRadius, 0, Math.PI * 2, true);
-            shape.holes.push(hole);
+            const group = new THREE.Group();
 
-            const geometry = new THREE.ExtrudeGeometry(shape, {{
-                depth: height,
-                bevelEnabled: true,
-                bevelThickness: Math.min(4, height * 0.08),
-                bevelSize: Math.min(4, height * 0.08),
-                bevelSegments: 2,
-                curveSegments: 128
-            }});
-            geometry.center();
-
-            const material = new THREE.MeshStandardMaterial({{
-                color: tubeMode === "gelblack" ? 0x3b3e43 : 0xf2f4f7,
+            const bodyMat = new THREE.MeshStandardMaterial({{
+                color: tubeMode === "gelblack" ? 0x26292d : 0xf1f3f5,
                 roughness: 0.82,
                 metalness: 0.02
             }});
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-
-            const edgeGeo = new THREE.EdgesGeometry(geometry, 28);
-            const edgeMat = new THREE.LineBasicMaterial({{
-                color: tubeMode === "gelblack" ? 0x15181d : 0xb8bec6,
-                transparent: true,
-                opacity: 0.42
+            const coreMat = new THREE.MeshStandardMaterial({{
+                color: tubeMode === "gelblack" ? 0x0c0e11 : 0xc8cdd3,
+                roughness: 0.9,
+                metalness: 0.0
             }});
-            const edges = new THREE.LineSegments(edgeGeo, edgeMat);
-            mesh.add(edges);
-            return mesh;
+            const accentMat = new THREE.MeshStandardMaterial({{
+                color: tubeMode === "gelblack" ? 0x4a4f56 : 0xd9dde2,
+                roughness: 0.84,
+                metalness: 0.01
+            }});
+
+            const sideShell = new THREE.Mesh(
+                new THREE.CylinderGeometry(outerRadius, outerRadius, height, 160, 1, true),
+                bodyMat
+            );
+            sideShell.castShadow = true;
+            sideShell.receiveShadow = true;
+            group.add(sideShell);
+
+            const ringShape = new THREE.Shape();
+            ringShape.absarc(0, 0, outerRadius, 0, Math.PI * 2, false);
+            const ringHole = new THREE.Path();
+            ringHole.absarc(0, 0, innerRadius, 0, Math.PI * 2, true);
+            ringShape.holes.push(ringHole);
+            const capGeo = new THREE.ShapeGeometry(ringShape, 128);
+            const topCap = new THREE.Mesh(capGeo, accentMat);
+            topCap.position.z = height / 2;
+            const bottomCap = new THREE.Mesh(capGeo, accentMat);
+            bottomCap.position.z = -height / 2;
+            bottomCap.rotation.y = Math.PI;
+            group.add(topCap);
+            group.add(bottomCap);
+
+            const core = new THREE.Mesh(
+                new THREE.CylinderGeometry(innerRadius * 1.01, innerRadius * 1.01, height * 1.01, 120),
+                coreMat
+            );
+            core.castShadow = true;
+            core.receiveShadow = true;
+            group.add(core);
+
+            const grooveCount = Math.max(5, Math.round(height / 14));
+            const outerTube = new THREE.CatmullRomCurve3([]);
+            for (let i = 0; i < grooveCount; i++) {{
+                const z = -height / 2 + ((i + 1) / (grooveCount + 1)) * height;
+                const torus = new THREE.Mesh(
+                    new THREE.TorusGeometry(outerRadius * 0.985, Math.max(0.8, Math.min(1.6, outerRadius * 0.004)), 10, 120),
+                    new THREE.MeshStandardMaterial({{
+                        color: tubeMode === "gelblack" ? 0x60656d : 0xc2c8cf,
+                        roughness: 0.9,
+                        metalness: 0.0
+                    }})
+                );
+                torus.position.z = z;
+                group.add(torus);
+            }}
+
+            return group;
         }}
 
         function updatePackagingScene() {{
@@ -2843,7 +2838,6 @@ def viewer(
 
             const rollCount = Math.max(1, Math.min(50, parseInt(packRollCountInput.value || "1", 10)));
             packRollCountInput.value = rollCount;
-            packContainerBlock.style.display = packagingMode === "tower" ? "block" : "none";
 
             const stackHeight = rollCount * Hs;
             const totalHeight = palletHeight + stackHeight;
@@ -2852,6 +2846,15 @@ def viewer(
             const footprintOk = coilFootprint <= palletSize + 0.001;
             const heightOk = comparedHeight <= heightLimit + 0.001;
             const ok = footprintOk && heightOk;
+
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(palletSize * 2.3, palletSize * 2.3),
+                new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.18 })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.z = -0.5;
+            ground.receiveShadow = true;
+            packagingGroup.add(ground);
 
             const pallet = createPalletRealistic(palletSize, palletSize, palletHeight);
             packagingGroup.add(pallet);
@@ -2901,7 +2904,8 @@ def viewer(
             guideGroup.visible = !packaging;
             overlayGroup.visible = !packaging;
             packagingGroup.visible = packaging;
-            packagingControls.style.display = "none";
+            packagingControls.style.display = packaging ? "block" : "none";
+            if (packagingControls) packagingControls.style.marginTop = "2px";
             if (animationBlock) animationBlock.style.display = packaging ? "none" : "block";
             if (speedBlock) speedBlock.style.display = packaging ? "none" : "block";
             if (spoolBlock) spoolBlock.style.display = packaging ? "none" : "block";
@@ -2916,9 +2920,10 @@ def viewer(
             if (packaging) {{
                 updatePackagingScene();
                 const totalHeight = packagingGroup.userData.totalHeight || 800;
-                camera.position.set(-980, -860, Math.max(720, totalHeight * 0.92));
-                controls.target.set(0, 0, palletHeight + totalHeight * 0.40);
-                camera.lookAt(0, 0, palletHeight + totalHeight * 0.40);
+                const sceneSpan = Math.max(palletSize * 1.45, totalHeight * 1.10);
+                camera.position.set(-sceneSpan * 1.15, -sceneSpan * 1.25, Math.max(980, totalHeight * 1.15));
+                controls.target.set(0, 0, palletHeight + totalHeight * 0.42);
+                camera.lookAt(0, 0, palletHeight + totalHeight * 0.42);
                 controls.update();
             }} else {{
                 setCameraView(currentView);
