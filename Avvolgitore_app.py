@@ -101,9 +101,11 @@ TEXTS = {
         "packaging_tab": "📦 Packaging",
         "render_tab": "🎥 Render",
         "packaging_title": "Packaging",
-        "packaging_mode": "Tipo packaging",
-        "packaging_box": "Scatola 750 × 750 × 1350 mm",
-        "packaging_tower": "Torre su pallet",
+        "packaging_mode": "Modalità packaging",
+        "packaging_box": "Caixa",
+        "packaging_tower": "Torretta",
+        "packaging_box_desc": "Scatola 750 × 750 × 1350 mm",
+        "packaging_tower_desc": "Torre su pallet, senza limite altezza",
         "roll_count": "Numero rotoli",
         "box_height": "Altezza scatola",
         "pallet_height": "Altezza pallet",
@@ -111,6 +113,8 @@ TEXTS = {
         "roll_stack_height": "Altezza rotoli",
         "height_margin": "Margine altezza",
         "height_over": "Superamento altezza",
+        "height_limit": "Limite altezza",
+        "no_height_limit": "Nessun limite",
         "box_fit_ok": "Packaging OK",
         "box_fit_over": "Fuori limite",
         "box_fit_note": "Calcolo basato sui parametri attuali del render.",
@@ -195,9 +199,11 @@ TEXTS = {
         "packaging_tab": "📦 Packaging",
         "render_tab": "🎥 Render",
         "packaging_title": "Packaging",
-        "packaging_mode": "Packaging type",
-        "packaging_box": "Box 750 × 750 × 1350 mm",
-        "packaging_tower": "Tower on pallet",
+        "packaging_mode": "Packaging mode",
+        "packaging_box": "Box",
+        "packaging_tower": "Tower",
+        "packaging_box_desc": "Box 750 × 750 × 1350 mm",
+        "packaging_tower_desc": "Tower on pallet, no height limit",
         "roll_count": "Number of coils",
         "box_height": "Box height",
         "pallet_height": "Pallet height",
@@ -205,6 +211,8 @@ TEXTS = {
         "roll_stack_height": "Coil stack height",
         "height_margin": "Height margin",
         "height_over": "Height over limit",
+        "height_limit": "Height limit",
+        "no_height_limit": "No limit",
         "box_fit_ok": "Packaging OK",
         "box_fit_over": "Out of bounds",
         "box_fit_note": "Calculation based on the current render parameters.",
@@ -1447,7 +1455,7 @@ def viewer(
             display:flex;
             flex-direction:column;
             gap:12px;
-            width:238px;
+            width:300px;
             padding:14px;
             background:rgba(18,22,27,0.74);
             color:#f0f0f0;
@@ -1496,16 +1504,22 @@ def viewer(
             </div>
 
             <div id="packaging_controls" style="display:none;">
+                <div class="panel_label" id="pack_mode_title"></div>
+                <div class="btn_group_vertical" style="margin-bottom:10px;">
+                    <button class="pack_mode_btn viewer_btn_small active_opt" data-packmode="box" id="pack_mode_box_btn"></button>
+                    <button class="pack_mode_btn viewer_btn_small" data-packmode="tower" id="pack_mode_tower_btn"></button>
+                </div>
+
                 <div class="panel_label" id="pack_roll_title"></div>
                 <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="5" style="
                     width:100%;
                     box-sizing:border-box;
                     border:none;
                     border-radius:9px;
-                    padding:8px 10px;
+                    padding:9px 11px;
                     font-weight:800;
-                    font-size:15px;
-                    background:rgba(255,255,255,0.92);
+                    font-size:16px;
+                    background:rgba(255,255,255,0.96);
                     color:#111;
                     margin-bottom:10px;
                 " />
@@ -1566,13 +1580,18 @@ def viewer(
 
         .viewer_btn_small {{
             border:none;
-            border-radius:9px;
-            padding:7px 10px;
-            background:rgba(235,235,235,0.88);
+            border-radius:10px;
+            padding:9px 12px;
+            background:rgba(235,235,235,0.92);
             color:#111;
-            font-weight:600;
+            font-weight:700;
+            font-size:14px;
             cursor:pointer;
             text-align:left;
+            white-space:normal;
+            line-height:1.25;
+            min-height:42px;
+            width:100%;
         }}
 
         .viewer_btn_small:hover,
@@ -1645,6 +1664,14 @@ def viewer(
             line-height:1.1;
         }}
 
+        .pack_mode_desc {{
+            margin-top:2px;
+            font-size:11px;
+            line-height:1.25;
+            opacity:0.72;
+            font-weight:600;
+        }}
+
         .hud_card {{
             min-width:86px;
             padding:10px 12px;
@@ -1690,6 +1717,7 @@ def viewer(
         const viewBtns = [...document.querySelectorAll(".view_btn")];
         const sceneBtns = [...document.querySelectorAll(".scene_btn")];
         const packagingControls = document.getElementById("packaging_controls");
+        const packModeBtns = [...document.querySelectorAll(".pack_mode_btn")];
         const packRollCountInput = document.getElementById("pack_roll_count");
         const packagingStats = document.getElementById("packaging_stats");
         const viewerHud = document.getElementById("viewer_hud");
@@ -1708,6 +1736,9 @@ def viewer(
         document.getElementById("scene_title").textContent = T.packaging_title || "Packaging";
         document.getElementById("scene_winding_btn").textContent = T.title || "Avvolgimento";
         document.getElementById("scene_packaging_btn").textContent = T.packaging_title || "Packaging";
+        document.getElementById("pack_mode_title").textContent = T.packaging_mode || "Packaging mode";
+        document.getElementById("pack_mode_box_btn").innerHTML = `<div>${{T.packaging_box || "Box"}}</div><div class="pack_mode_desc">${{T.packaging_box_desc || "750 × 750 × 1350 mm"}}</div>`;
+        document.getElementById("pack_mode_tower_btn").innerHTML = `<div>${{T.packaging_tower || "Tower"}}</div><div class="pack_mode_desc">${{T.packaging_tower_desc || "No height limit"}}</div>`;
         document.getElementById("pack_roll_title").textContent = T.roll_count || "Numero rotoli";
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
@@ -1793,6 +1824,7 @@ def viewer(
         let tubeMode = "gelwhite";
         let currentView = "3d";
         let sceneMode = "winding";
+        let packagingMode = "box";
         let showStudio = false;
         let showGhost = true;
         let showGrid = false;
@@ -1928,6 +1960,14 @@ def viewer(
                 sceneMode = btn.dataset.scene;
                 setActiveButton(sceneBtns, sceneMode, "data-scene");
                 applySceneMode();
+            }});
+        }});
+
+        packModeBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                packagingMode = btn.dataset.packmode;
+                setActiveButton(packModeBtns, packagingMode, "data-packmode");
+                updatePackagingScene();
             }});
         }});
 
@@ -2423,11 +2463,15 @@ def viewer(
         function updatePackagingStats(rollCount) {{
             const stackHeight = rollCount * Hs;
             const totalHeight = palletHeight + stackHeight;
-            const heightMargin = Math.max(0, boxHeight - stackHeight);
-            const heightOver = Math.max(0, stackHeight - boxHeight);
             const footprintOver = Math.max(0, coilFootprint - palletSize);
-            const ok = heightOver <= 0.001 && footprintOver <= 0.001;
+            const heightLimited = packagingMode === "box";
+            const heightMargin = heightLimited ? Math.max(0, boxHeight - stackHeight) : null;
+            const heightOver = heightLimited ? Math.max(0, stackHeight - boxHeight) : 0.0;
+            const ok = footprintOver <= 0.001 && (!heightLimited || heightOver <= 0.001);
             const statusText = ok ? (T.box_fit_ok || "OK") : (T.box_fit_over || "Fuori limite");
+            const heightLimitText = heightLimited ? `${{boxHeight.toFixed(0)}} mm` : (T.no_height_limit || "Nessun limite");
+            const marginText = heightLimited ? `${{heightMargin.toFixed(1)}} mm` : "—";
+            const overText = heightLimited ? `${{heightOver.toFixed(1)}} mm` : "—";
 
             packagingStats.innerHTML = `
                 <div class="pack_stat">
@@ -2443,12 +2487,20 @@ def viewer(
                     <div class="pack_stat_value">${{stackHeight.toFixed(1)}} mm</div>
                 </div>
                 <div class="pack_stat">
-                    <div class="pack_stat_label">${{T.coil_footprint || "Ingombro"}}</div>
+                    <div class="pack_stat_label">${{T.coil_footprint || "Ingombro rotolo"}}</div>
                     <div class="pack_stat_value">${{coilFootprint.toFixed(1)}} mm</div>
                 </div>
                 <div class="pack_stat">
+                    <div class="pack_stat_label">${{T.height_limit || "Limite altezza"}}</div>
+                    <div class="pack_stat_value">${{heightLimitText}}</div>
+                </div>
+                <div class="pack_stat">
                     <div class="pack_stat_label">${{T.height_margin || "Margine altezza"}}</div>
-                    <div class="pack_stat_value">${{heightMargin.toFixed(1)}} mm</div>
+                    <div class="pack_stat_value">${{marginText}}</div>
+                </div>
+                <div class="pack_stat">
+                    <div class="pack_stat_label">${{T.height_over || "Superamento altezza"}}</div>
+                    <div class="pack_stat_value">${{overText}}</div>
                 </div>
             `;
         }}
@@ -2464,7 +2516,7 @@ def viewer(
             const stackHeight = rollCount * Hs;
             const totalHeight = palletHeight + stackHeight;
             const footprintOk = coilFootprint <= palletSize + 0.001;
-            const heightOk = stackHeight <= boxHeight + 0.001;
+            const heightOk = packagingMode === "box" ? (stackHeight <= boxHeight + 0.001) : true;
             const ok = footprintOk && heightOk;
 
             const palletMat = new THREE.MeshStandardMaterial({{
@@ -2482,31 +2534,35 @@ def viewer(
             pallet.receiveShadow = true;
             packagingGroup.add(pallet);
 
-            const boxMat = new THREE.MeshStandardMaterial({{
-                color: ok ? 0x4ade80 : 0xf87171,
-                transparent: true,
-                opacity: 0.055,
-                roughness: 0.70,
-                metalness: 0.0,
-                depthWrite: false
-            }});
-            const box = new THREE.Mesh(
-                new THREE.BoxGeometry(palletSize, palletSize, boxHeight),
-                boxMat
-            );
-            box.position.set(0, 0, palletHeight + boxHeight / 2);
-            packagingGroup.add(box);
-            addBoxEdges(palletSize, palletSize, boxHeight, palletHeight + boxHeight / 2, ok ? 0x4ade80 : 0xfca5a5, 0.95);
+            if (packagingMode === "box") {{
+                const boxMat = new THREE.MeshStandardMaterial({{
+                    color: ok ? 0x4ade80 : 0xf87171,
+                    transparent: true,
+                    opacity: 0.055,
+                    roughness: 0.70,
+                    metalness: 0.0,
+                    depthWrite: false
+                }});
+                const box = new THREE.Mesh(
+                    new THREE.BoxGeometry(palletSize, palletSize, boxHeight),
+                    boxMat
+                );
+                box.position.set(0, 0, palletHeight + boxHeight / 2);
+                packagingGroup.add(box);
+                addBoxEdges(palletSize, palletSize, boxHeight, palletHeight + boxHeight / 2, ok ? 0x4ade80 : 0xfca5a5, 0.95);
+            }}
 
             const coilRadius = coilFootprint / 2.0;
-            const rollMat = makeTubeMaterial(tubeMode, false, false);
-            rollMat.roughness = 0.86;
-
             for (let i = 0; i < rollCount; i++) {{
                 const zc = palletHeight + i * Hs + Hs / 2.0;
+                const ringMat = new THREE.MeshStandardMaterial({{
+                    color: tubeMode === "gelblack" ? 0xdddddd : 0xf5f7fa,
+                    roughness: 0.86,
+                    metalness: 0.02
+                }});
                 const roll = new THREE.Mesh(
                     new THREE.CylinderGeometry(coilRadius, coilRadius, Hs, 128),
-                    rollMat.clone()
+                    ringMat
                 );
                 roll.rotation.x = Math.PI / 2;
                 roll.position.set(0, 0, zc);
@@ -2514,32 +2570,46 @@ def viewer(
                 roll.receiveShadow = true;
                 packagingGroup.add(roll);
 
-                const innerRadius = Math.max(8, coilRadius * 0.56);
-                const hole = new THREE.Mesh(
-                    new THREE.CylinderGeometry(innerRadius, innerRadius, Hs + 1.5, 96),
-                    new THREE.MeshStandardMaterial({{
-                        color: tubeMode === "gelblack" ? 0xffffff : 0x111419,
-                        roughness: 0.9,
-                        metalness: 0.0
-                    }})
+                const innerRadius = Math.max(10, coilRadius * 0.56);
+                const innerMat = new THREE.MeshStandardMaterial({{
+                    color: tubeMode === "gelblack" ? 0x0f1216 : 0x2b323a,
+                    roughness: 0.92,
+                    metalness: 0.0
+                }});
+                const core = new THREE.Mesh(
+                    new THREE.CylinderGeometry(innerRadius, innerRadius, Hs + 2.0, 96),
+                    innerMat
                 );
-                hole.rotation.x = Math.PI / 2;
-                hole.position.set(0, 0, zc + 0.5);
-                // This is a visual inner disk, not boolean subtraction. It makes the roll readable.
-                packagingGroup.add(hole);
+                core.rotation.x = Math.PI / 2;
+                core.position.set(0, 0, zc);
+                packagingGroup.add(core);
             }}
 
-            const limitLineMat = new THREE.LineBasicMaterial({{
-                color: ok ? 0x4ade80 : 0xf87171,
+            const lineColor = ok ? 0x4ade80 : 0xf87171;
+            const heightLineMat = new THREE.LineBasicMaterial({{
+                color: lineColor,
                 transparent: true,
                 opacity: 0.95
             }});
+            const xDim = palletSize * 0.68;
+            const yDim = -palletSize * 0.68;
             const heightPoints = [
-                new THREE.Vector3(palletSize * 0.62, -palletSize * 0.62, 0),
-                new THREE.Vector3(palletSize * 0.62, -palletSize * 0.62, totalHeight)
+                new THREE.Vector3(xDim, yDim, 0),
+                new THREE.Vector3(xDim, yDim, totalHeight)
             ];
-            const heightLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(heightPoints), limitLineMat);
+            const heightLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(heightPoints), heightLineMat);
             packagingGroup.add(heightLine);
+
+            const tickGeo1 = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(xDim - 24, yDim, 0),
+                new THREE.Vector3(xDim + 24, yDim, 0)
+            ]);
+            const tickGeo2 = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(xDim - 24, yDim, totalHeight),
+                new THREE.Vector3(xDim + 24, yDim, totalHeight)
+            ]);
+            packagingGroup.add(new THREE.Line(tickGeo1, heightLineMat));
+            packagingGroup.add(new THREE.Line(tickGeo2, heightLineMat));
 
             updatePackagingStats(rollCount);
         }}
@@ -2560,16 +2630,17 @@ def viewer(
 
             if (packaging) {{
                 updatePackagingScene();
-                camera.position.set(-950, -1150, 980);
-                controls.target.set(0, 0, 680);
-                camera.lookAt(0, 0, 680);
+                camera.position.set(-980, -1120, 940);
+                controls.target.set(0, 0, 700);
+                camera.lookAt(0, 0, 700);
                 controls.update();
             }} else {{
                 setCameraView(currentView);
             }}
         }}
 
-        // ==========================================
+
+// ==========================================
         // VISUAL STATE
         // ==========================================
 
