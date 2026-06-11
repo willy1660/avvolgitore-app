@@ -2021,33 +2021,20 @@ with tab_presets:
             unsafe_allow_html=True,
         )
 
-        st.markdown("#### 🟩 Tubo")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Ø Rame", safe_value(selected_row, "Diametro Rame"))
-        c2.metric("Spessore guaina", safe_value(selected_row, "Spessore Guaina (mm)", " mm"))
-        c3.metric("Ø esterno guaina", safe_value(selected_row, "Diametro esterno Guaina (mm)", " mm"))
-        c4.metric("Lunghezza", safe_value(selected_row, "Lunghezza (m)", " m"))
+        st.markdown("#### Parametri CSV")
 
-        st.markdown("#### 🟦 Bobina / Aspo")
-        c5, c6, c7, c8 = st.columns(4)
-        c5.metric("Guidatubo", safe_value(selected_row, "Guidatubo (mm)", " mm"))
-        c6.metric("Spalla", safe_value(selected_row, "Spalla (mm)", " mm"))
-        c7.metric("Ø Aspo", safe_value(selected_row, "Diametro aspo (mm)", " mm"))
-        c8.metric("Quota max", safe_value(selected_row, "Quota massima (mm)", " mm"))
+        # Mostra tutte le colonne del CSV nello stesso ordine del file.
+        # Ogni campo viene mostrato come metrica/card, senza usare una tabella.
+        columns_in_order = list(presets_df.columns)
+        cards_per_row = 4
 
-        st.markdown("#### 🟧 Parametri avvolgimento")
-        c9, c10, c11, c12 = st.columns(4)
-        c9.metric("Passo", safe_value(selected_row, "Passo (mm)", " mm"))
-        c10.metric("Incremento strato", safe_value(selected_row, "Incremento strato (mm)", " mm"))
-        c11.metric("Ritardo invers max", safe_value(selected_row, "Ritardo invers max (º)", "º"))
-        c12.metric("Ritardo invers min", safe_value(selected_row, "Ritardo invers min (º)", "º"))
+        for i in range(0, len(columns_in_order), cards_per_row):
+            row_columns = columns_in_order[i:i + cards_per_row]
+            metric_cols = st.columns(cards_per_row)
 
-        st.markdown("#### ⚙️ Macchina")
-        c13, c14, c15, c16 = st.columns(4)
-        c13.metric("Quota min", safe_value(selected_row, "Quota minima (mm)", " mm"))
-        c14.metric("Coppia lavoro", safe_value(selected_row, "Coppia lavoro (%)", " %"))
-        c15.metric("Tempo salita", safe_value(selected_row, "Tempo salita (s)", " s"))
-        c16.metric("Tempo discesa", safe_value(selected_row, "Tempo discesa (s)", " s"))
+            for card, column_name in zip(metric_cols, row_columns):
+                value = safe_value(selected_row, column_name)
+                card.metric(column_name, value)
 
         note_value = safe_value(selected_row, "Note")
         if note_value != "-":
