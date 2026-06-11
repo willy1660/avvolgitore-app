@@ -2849,7 +2849,7 @@ def viewer(
 
             const ground = new THREE.Mesh(
                 new THREE.PlaneGeometry(palletSize * 2.3, palletSize * 2.3),
-                new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.18 })
+                new THREE.ShadowMaterial({{ color: 0x000000, opacity: 0.18 }})
             );
             ground.rotation.x = -Math.PI / 2;
             ground.position.z = -0.5;
