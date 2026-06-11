@@ -80,6 +80,13 @@ TEXTS = {
         "presets_readonly": "In questo passaggio i preset sono solo consultabili. Nel passaggio successivo aggiungeremo il pulsante per caricarli nel calcolatore.",
         "presets_file_missing": "File Presets.csv non trovato. Mettilo nella stessa cartella dell'app.",
         "presets_load_error": "Errore nel caricamento dei preset",
+        "preset_visual_title": "Anteprima tecnica",
+        "load_to_calculator": "Carica nel calcolatore",
+        "loaded_to_calculator": "Preset caricato nel calcolatore",
+        "linked_params": "Parametri collegati al render",
+        "non_render_params": "Parametri macchina consultivi",
+        "calculator_loaded_from": "Valori caricati dal preset",
+        "preset_render_note": "I parametri del preset sono stati caricati nel calcolatore. Puoi modificarli liberamente senza cambiare il CSV.",
     },
     "EN": {
         "title": "Coiling",
@@ -141,6 +148,13 @@ TEXTS = {
         "presets_readonly": "At this stage, presets are read-only. In the next step, we will add the button to load them into the calculator.",
         "presets_file_missing": "Presets.csv file not found. Put it in the same folder as the app.",
         "presets_load_error": "Error loading presets",
+        "preset_visual_title": "Technical preview",
+        "load_to_calculator": "Load into calculator",
+        "loaded_to_calculator": "Preset loaded into calculator",
+        "linked_params": "Parameters linked to the render",
+        "non_render_params": "Consultative machine parameters",
+        "calculator_loaded_from": "Values loaded from preset",
+        "preset_render_note": "The preset parameters have been loaded into the calculator. You can edit them freely without changing the CSV.",
     },
 }
 
@@ -270,6 +284,194 @@ def safe_value(row, column, suffix=""):
         return "-"
 
     return f"{value}{suffix}"
+
+
+def parse_float_value(value, default=0.0):
+    if pd.isna(value):
+        return float(default)
+
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return float(value)
+
+    text = str(value).strip().replace(",", ".")
+
+    # Keep the first number if a machine field contains a range like "75-80".
+    if "-" in text and not text.startswith("-"):
+        text = text.split("-")[0].strip()
+
+    try:
+        return float(text)
+    except ValueError:
+        return float(default)
+
+
+def format_preset_value(value):
+    if pd.isna(value):
+        return "-"
+
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        value = float(value)
+        if abs(value - round(value)) < 1e-9:
+            return str(int(round(value)))
+        return f"{value:.2f}".rstrip("0").rstrip(".")
+
+    return str(value)
+
+
+def make_preset_visual(row, language):
+    rame = safe_value(row, "Diametro Rame")
+    d_rame = COPPER_SIZES_MM.get(str(rame), parse_float_value(row.get("Diametro Rame", 0.0), 0.0))
+    spessore = parse_float_value(row.get("Spessore Guaina (mm)", 0.0), 0.0)
+    d_tubo = parse_float_value(row.get("Diametro esterno Guaina (mm)", d_rame + 2.0 * spessore), d_rame + 2.0 * spessore)
+    lunghezza = parse_float_value(row.get("Lunghezza (m)", 0.0), 0.0)
+    aspo = parse_float_value(row.get("Diametro aspo (mm)", 0.0), 0.0)
+    spalla = parse_float_value(row.get("Spalla (mm)", 0.0), 0.0)
+    passo = parse_float_value(row.get("Passo (mm)", 0.0), 0.0)
+    incremento = parse_float_value(row.get("Incremento strato (mm)", 0.0), 0.0)
+
+    labels = {
+        "IT": {
+            "tube_section": "Sezione tubo",
+            "coil": "Bobina",
+            "outer": "Ø esterno",
+            "copper": "Rame",
+            "foam": "Guaina",
+            "length": "Lunghezza",
+            "spool": "Ø aspo",
+            "width": "Spalla",
+            "pitch": "Passo",
+            "layer": "Incremento",
+        },
+        "EN": {
+            "tube_section": "Tube section",
+            "coil": "Coil",
+            "outer": "Outer Ø",
+            "copper": "Copper",
+            "foam": "Foam",
+            "length": "Length",
+            "spool": "Spool Ø",
+            "width": "Width",
+            "pitch": "Pitch",
+            "layer": "Layer increment",
+        },
+    }[language]
+
+    copper_r = 34
+    outer_r = 76
+    spool_r = 72
+    tube_r = 96
+
+    return f"""
+    <div style="
+        margin-top:10px;
+        margin-bottom:18px;
+        display:grid;
+        grid-template-columns: minmax(260px, 0.85fr) minmax(320px, 1.15fr);
+        gap:16px;
+    ">
+        <div style="
+            padding:18px;
+            border-radius:18px;
+            background:linear-gradient(135deg, rgba(250,250,250,0.98), rgba(236,238,242,0.98));
+            border:1px solid rgba(0,0,0,0.08);
+            box-shadow:0 10px 26px rgba(0,0,0,0.08);
+        ">
+            <div style="font-size:12px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#646b75; margin-bottom:10px;">{labels['tube_section']}</div>
+            <svg width="100%" viewBox="0 0 260 185" role="img" aria-label="Tube section">
+                <defs>
+                    <radialGradient id="foamGrad" cx="35%" cy="28%" r="70%">
+                        <stop offset="0%" stop-color="#ffffff"/>
+                        <stop offset="62%" stop-color="#dedbd2"/>
+                        <stop offset="100%" stop-color="#bdb8ad"/>
+                    </radialGradient>
+                    <radialGradient id="copperGrad" cx="35%" cy="28%" r="70%">
+                        <stop offset="0%" stop-color="#ffd5a6"/>
+                        <stop offset="58%" stop-color="#c97936"/>
+                        <stop offset="100%" stop-color="#7d3b16"/>
+                    </radialGradient>
+                </defs>
+                <circle cx="92" cy="88" r="{outer_r}" fill="url(#foamGrad)" stroke="#787b7e" stroke-width="2"/>
+                <circle cx="92" cy="88" r="{copper_r}" fill="url(#copperGrad)" stroke="#6e3515" stroke-width="2"/>
+                <line x1="16" y1="171" x2="168" y2="171" stroke="#1f2933" stroke-width="2"/>
+                <line x1="16" y1="163" x2="16" y2="179" stroke="#1f2933" stroke-width="2"/>
+                <line x1="168" y1="163" x2="168" y2="179" stroke="#1f2933" stroke-width="2"/>
+                <text x="92" y="162" text-anchor="middle" fill="#1f2933" font-size="13" font-weight="700">{labels['outer']}: {format_preset_value(d_tubo)} mm</text>
+                <text x="190" y="62" fill="#1f2933" font-size="13" font-weight="700">{labels['copper']}: {rame}</text>
+                <text x="190" y="86" fill="#1f2933" font-size="13" font-weight="700">{labels['foam']}: {format_preset_value(spessore)} mm</text>
+                <text x="190" y="110" fill="#1f2933" font-size="13" font-weight="700">{labels['length']}: {format_preset_value(lunghezza)} m</text>
+            </svg>
+        </div>
+
+        <div style="
+            padding:18px;
+            border-radius:18px;
+            background:linear-gradient(135deg, rgba(21,24,29,0.98), rgba(42,46,54,0.98));
+            border:1px solid rgba(255,255,255,0.10);
+            box-shadow:0 10px 26px rgba(0,0,0,0.20);
+            color:#fff;
+        ">
+            <div style="font-size:12px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:rgba(255,255,255,0.64); margin-bottom:10px;">{labels['coil']}</div>
+            <svg width="100%" viewBox="0 0 430 185" role="img" aria-label="Coil preview">
+                <defs>
+                    <linearGradient id="steelGrad" x1="0" x2="1">
+                        <stop offset="0%" stop-color="#737981"/>
+                        <stop offset="20%" stop-color="#dce1e5"/>
+                        <stop offset="45%" stop-color="#7b838d"/>
+                        <stop offset="70%" stop-color="#cbd1d6"/>
+                        <stop offset="100%" stop-color="#676e77"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="100" cy="88" r="{tube_r}" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.10)" stroke-width="3"/>
+                <circle cx="100" cy="88" r="{spool_r}" fill="url(#steelGrad)" stroke="rgba(255,255,255,0.32)" stroke-width="2"/>
+                <circle cx="100" cy="88" r="38" fill="#1d2128" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>
+                <path d="M32 88 C48 18, 152 18, 168 88 C152 158, 48 158, 32 88" fill="none" stroke="#ebe7dd" stroke-width="13" stroke-linecap="round" opacity="0.94"/>
+                <path d="M47 88 C60 38, 140 38, 153 88 C140 138, 60 138, 47 88" fill="none" stroke="#ebe7dd" stroke-width="13" stroke-linecap="round" opacity="0.70"/>
+                <rect x="235" y="31" width="160" height="112" rx="16" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.12)"/>
+                <text x="255" y="62" fill="#ffffff" font-size="14" font-weight="800">{labels['spool']}: {format_preset_value(aspo)} mm</text>
+                <text x="255" y="88" fill="#ffffff" font-size="14" font-weight="800">{labels['width']}: {format_preset_value(spalla)} mm</text>
+                <text x="255" y="114" fill="#ffffff" font-size="14" font-weight="800">{labels['pitch']}: {format_preset_value(passo)} mm</text>
+                <text x="255" y="140" fill="#ffffff" font-size="14" font-weight="800">{labels['layer']}: {format_preset_value(incremento)} mm</text>
+            </svg>
+        </div>
+    </div>
+    """
+
+
+def apply_preset_to_calculator(row):
+    rame = str(row.get("Diametro Rame", "1/4")).strip()
+    if rame not in COPPER_SIZES_MM:
+        rame = "1/4"
+
+    st.session_state["calc_rame"] = rame
+    st.session_state["calc_spessore"] = parse_float_value(row.get("Spessore Guaina (mm)", 7.0), 7.0)
+    st.session_state["calc_lunghezza"] = parse_float_value(row.get("Lunghezza (m)", 50.0), 50.0)
+    st.session_state["calc_diametro_aspo"] = parse_float_value(row.get("Diametro aspo (mm)", 450.0), 450.0)
+    st.session_state["calc_spalla"] = parse_float_value(row.get("Spalla (mm)", 95.0), 95.0)
+    st.session_state["calc_passo_visuale"] = parse_float_value(row.get("Passo (mm)", 20.0), 20.0)
+    st.session_state["calc_incremento_visuale"] = parse_float_value(row.get("Incremento strato (mm)", 20.0), 20.0)
+
+    # Mapping used by the current render: min delay -> base, max delay -> shoulder/top.
+    st.session_state["calc_rit_b"] = parse_float_value(row.get("Ritardo invers min (º)", 360.0), 360.0)
+    st.session_state["calc_rit_t"] = parse_float_value(row.get("Ritardo invers max (º)", 360.0), 360.0)
+    st.session_state["loaded_preset_name"] = safe_value(row, "Prodotto")
+
+
+def init_calculator_state():
+    defaults = {
+        "calc_diametro_aspo": 450.0,
+        "calc_spalla": 95.0,
+        "calc_rame": "1/4",
+        "calc_spessore": 7.0,
+        "calc_lunghezza": 50.0,
+        "calc_passo_visuale": 20.0,
+        "calc_incremento_visuale": 20.0,
+        "calc_rit_b": 360.0,
+        "calc_rit_t": 360.0,
+    }
+
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 # =========================
 # LOGO
@@ -2079,6 +2281,8 @@ def viewer(
 # UI
 # =========================
 
+init_calculator_state()
+
 tab_presets, tab_calculator = st.tabs([
     t["tab_presets"],
     t["tab_calculator"],
@@ -2095,6 +2299,7 @@ with tab_presets:
         selected_product = st.selectbox(
             t["select_product"],
             presets_df["Prodotto"].tolist(),
+            key="selected_preset_product",
         )
 
         selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
@@ -2124,26 +2329,55 @@ with tab_presets:
             unsafe_allow_html=True,
         )
 
+        st.markdown(f"#### {t['preset_visual_title']}")
+        st.markdown(make_preset_visual(selected_row, lang), unsafe_allow_html=True)
+
+        if st.button(t["load_to_calculator"], type="primary", use_container_width=True):
+            apply_preset_to_calculator(selected_row)
+            st.success(f"{t['loaded_to_calculator']}: {selected_product}")
+            st.rerun()
+
         st.markdown(t["csv_params"])
 
-        # Mostra tutte le colonne del CSV nello stesso ordine del file.
-        # Ogni campo viene mostrato come metrica/card, senza usare una tabella.
-        columns_in_order = list(presets_df.columns)
-        cards_per_row = 4
+        render_columns = {
+            "Diametro Rame",
+            "Spessore Guaina (mm)",
+            "Diametro esterno Guaina (mm)",
+            "Lunghezza (m)",
+            "Guidatubo (mm)",
+            "Spalla (mm)",
+            "Diametro aspo (mm)",
+            "Ritardo invers max (º)",
+            "Ritardo invers min (º)",
+            "Passo (mm)",
+            "Incremento strato (mm)",
+        }
 
-        for i in range(0, len(columns_in_order), cards_per_row):
-            row_columns = columns_in_order[i:i + cards_per_row]
+        st.markdown(f"##### {t['linked_params']}")
+        linked_cols = [c for c in presets_df.columns if c in render_columns]
+        cards_per_row = 4
+        for i in range(0, len(linked_cols), cards_per_row):
+            row_columns = linked_cols[i:i + cards_per_row]
             metric_cols = st.columns(cards_per_row)
 
             for card, column_name in zip(metric_cols, row_columns):
-                value = safe_value(selected_row, column_name)
+                value = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
                 card.metric(param_label(column_name, lang), value)
+
+        consult_cols = [c for c in presets_df.columns if c not in render_columns]
+        if consult_cols:
+            st.markdown(f"##### {t['non_render_params']}")
+            for i in range(0, len(consult_cols), cards_per_row):
+                row_columns = consult_cols[i:i + cards_per_row]
+                metric_cols = st.columns(cards_per_row)
+
+                for card, column_name in zip(metric_cols, row_columns):
+                    value = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
+                    card.metric(param_label(column_name, lang), value)
 
         note_value = safe_value(selected_row, "Note")
         if note_value != "-":
             st.info(note_value)
-
-        st.info(t["presets_readonly"])
 
     except FileNotFoundError:
         st.error(t["presets_file_missing"])
@@ -2154,24 +2388,31 @@ with tab_presets:
 with tab_calculator:
     colA, colB, colC = st.columns(3)
 
+    loaded_preset_name = st.session_state.get("loaded_preset_name")
+    if loaded_preset_name:
+        st.info(f"{t['calculator_loaded_from']}: {loaded_preset_name}. {t['preset_render_note']}")
+
     with colA:
         st.markdown(f"#### {t['bobina']}")
-        diametro_aspo = st.number_input(t["diam_aspo"], value=450.0, step=10.0)
-        spalla = st.number_input(t["spalla"], value=95.0, step=1.0)
+        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo")
+        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla")
 
     with colB:
         st.markdown(f"#### {t['tubo']}")
-        rame = st.selectbox(t["rame"], list(COPPER_SIZES_MM.keys()))
-        spessore = st.number_input(t["isolamento"], value=7.0, step=1.0)
-        lunghezza = st.number_input(t["lunghezza"], value=50.0, step=5.0)
+        rame_options = list(COPPER_SIZES_MM.keys())
+        if st.session_state.get("calc_rame") not in rame_options:
+            st.session_state["calc_rame"] = "1/4"
+        rame = st.selectbox(t["rame"], rame_options, key="calc_rame")
+        spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore")
+        lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza")
         d_rame = COPPER_SIZES_MM[rame]
 
     with colC:
         st.markdown(f"#### {t['avvolg']}")
-        passo_visuale = st.number_input(t["passo_assiale"], value=20.0, step=0.5)
-        incremento_visuale = st.number_input(t["incremento"], value=20.0, step=0.5)
-        rit_b = st.number_input(t["rit_min"], value=360.0, step=1.0)
-        rit_t = st.number_input(t["rit_max"], value=360.0, step=1.0)
+        passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale")
+        incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale")
+        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b")
+        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t")
 
     d_tubo = d_rame + 2.0 * spessore
 
