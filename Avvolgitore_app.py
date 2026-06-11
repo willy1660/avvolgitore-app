@@ -321,160 +321,33 @@ def param_label(column_name, language):
     return PARAM_LABELS.get(language, {}).get(column_name, column_name)
 
 
-
-def inject_operator_ui_css():
-    st.markdown(
-        """
-        <style>
-        [data-testid="stAppViewContainer"] {
-            background:
-                radial-gradient(circle at top right, rgba(150, 168, 190, 0.08), transparent 26%),
-                linear-gradient(180deg, #0b1016 0%, #0e141b 55%, #0a0f15 100%);
-        }
-        .main .block-container {
-            max-width: 1450px;
-            padding-top: 1.05rem;
-            padding-bottom: 2.10rem;
-        }
-        [data-testid="stHeader"] {
-            background: transparent;
-        }
-        [data-testid="stTabs"] button {
-            height: 46px;
-            border-radius: 12px 12px 0 0;
-            background: rgba(255,255,255,0.035);
-            border: 1px solid rgba(255,255,255,0.08);
-            color: rgba(245,247,250,0.82);
-            font-weight: 700;
-            padding-inline: 18px;
-        }
-        [data-testid="stTabs"] button[aria-selected="true"] {
-            background: linear-gradient(180deg, rgba(46,55,66,0.90), rgba(28,35,43,0.94));
-            border-color: rgba(255,255,255,0.14);
-            color: #ffffff;
-        }
-        div[data-baseweb="select"] > div,
-        div[data-baseweb="input"] > div {
-            border-radius: 12px !important;
-            border: 1px solid rgba(255,255,255,0.10) !important;
-            background: linear-gradient(180deg, rgba(24,30,38,0.95), rgba(16,21,28,0.96)) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-        }
-        div[data-baseweb="select"] input,
-        div[data-baseweb="input"] input {
-            color: #f8fafc !important;
-            font-weight: 600 !important;
-        }
-        [data-testid="stRadio"] div[role="radiogroup"] {
-            gap: 10px;
-        }
-        [data-testid="stRadio"] div[role="radiogroup"] > label {
-            padding: 8px 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: linear-gradient(180deg, rgba(24,30,38,0.95), rgba(16,21,28,0.96));
-        }
-        [data-testid="stButton"] button {
-            min-height: 42px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: linear-gradient(180deg, rgba(38,46,56,0.96), rgba(18,24,31,0.96));
-            color: #f8fafc;
-            font-weight: 700;
-            box-shadow: 0 10px 22px rgba(0,0,0,0.14);
-        }
-        [data-testid="stButton"] button:hover {
-            border-color: rgba(255,255,255,0.18);
-        }
-        .premium-hero {
-            padding: 16px 18px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: linear-gradient(135deg, rgba(28,34,42,0.96), rgba(14,19,25,0.98));
-            box-shadow: 0 14px 30px rgba(0,0,0,0.18);
-        }
-        .premium-kicker {
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: rgba(244,246,248,0.62);
-            margin-bottom: 5px;
-        }
-        .premium-title {
-            margin: 0;
-            color: #ffffff;
-            font-size: 30px;
-            line-height: 1.06;
-            font-weight: 900;
-        }
-        .premium-subtitle {
-            margin-top: 7px;
-            color: rgba(244,246,248,0.72);
-            font-size: 13px;
-        }
-        .section-head {
-            margin: 0 0 10px 0;
-            color: #ffffff;
-            font-size: 20px;
-            line-height: 1.10;
-            font-weight: 900;
-        }
-        .section-kicker {
-            color: rgba(244,246,248,0.60);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.10em;
-            font-weight: 800;
-            margin-bottom: 6px;
-        }
-        .section-note {
-            color: rgba(244,246,248,0.66);
-            font-size: 13px;
-            margin-top: -2px;
-            margin-bottom: 8px;
-        }
-        .section-divider {
-            height: 1px;
-            background: linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.12), rgba(255,255,255,0.00));
-            margin: 10px 0 14px 0;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def render_preset_param_cards(title, column_names, selected_row, language, cards_per_row=4):
     st.markdown(
         """
         <style>
         .preset-param-card {
-            background: linear-gradient(180deg, rgba(22,28,35,0.96), rgba(14,19,25,0.98));
+            background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.10);
-            border-left: 4px solid rgba(182, 151, 92, 0.92);
-            border-radius: 16px;
+            border-radius: 18px;
             padding: 16px 18px;
             min-height: 120px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
             margin-bottom: 10px;
         }
         .preset-param-label {
-            font-size: 12px;
+            font-size: 15px;
             line-height: 1.35;
-            font-weight: 800;
-            color: rgba(248,250,252,0.70);
+            font-weight: 600;
+            color: rgba(250,250,250,0.88);
             margin-bottom: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
         }
         .preset-param-value {
-            font-size: 30px;
+            font-size: 28px;
             line-height: 1.08;
-            font-weight: 900;
+            font-weight: 800;
             color: #ffffff;
             word-break: break-word;
         }
@@ -573,16 +446,15 @@ def render_summary_cards(title, items, cards_per_row=4):
         """
         <style>
         .summary-card {
-            background: linear-gradient(180deg, rgba(22,28,35,0.96), rgba(14,19,25,0.98));
+            background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.10);
-            border-left: 4px solid rgba(116, 132, 152, 0.92);
-            border-radius: 16px;
+            border-radius: 18px;
             padding: 16px 18px;
             min-height: 118px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
             margin-bottom: 10px;
         }
         .summary-card.status-ok {
@@ -594,24 +466,22 @@ def render_summary_cards(title, items, cards_per_row=4):
             background: rgba(248,113,113,0.10);
         }
         .summary-card-label {
-            font-size: 12px;
+            font-size: 14px;
             line-height: 1.3;
-            font-weight: 800;
-            color: rgba(248,250,252,0.70);
+            font-weight: 600;
+            color: rgba(250,250,250,0.82);
             margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
         }
         .summary-card-value {
             font-size: 30px;
             line-height: 1.08;
-            font-weight: 900;
+            font-weight: 800;
             color: #ffffff;
             word-break: break-word;
         }
         .summary-card-note {
             font-size: 12px;
-            color: rgba(248,250,252,0.64);
+            color: rgba(250,250,250,0.66);
             margin-top: 8px;
             line-height: 1.3;
         }
@@ -1332,8 +1202,6 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-inject_operator_ui_css()
-
 top1, top2 = st.columns([1.0, 5.0])
 
 with top1:
@@ -1353,16 +1221,7 @@ with top2:
 st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
-title_placeholder.markdown(
-    f"""
-    <div class="premium-hero">
-        <div class="premium-kicker">Winding and packaging interface</div>
-        <div class="premium-title">{t['title']}</div>
-        <div class="premium-subtitle">Preset prodotto · simulazione avvolgimento · controllo packaging</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+title_placeholder.markdown(f"## {t['title']}")
 
 # =========================
 # GEOMETRY HELPERS
@@ -1880,45 +1739,40 @@ def viewer(
 
     <style>
         .viewer_btn {{
-            border:1px solid rgba(255,255,255,0.10);
-            border-radius:10px;
-            padding:8px 12px;
-            background:linear-gradient(180deg, rgba(39,46,56,0.96), rgba(21,26,33,0.96));
-            color:#f8fafc;
-            font-weight:800;
+            border:none;
+            border-radius:9px;
+            padding:7px 12px;
+            background:#f4f4f4;
+            color:#111;
+            font-weight:700;
             cursor:pointer;
-            box-shadow:0 8px 18px rgba(0,0,0,0.16);
         }}
 
         .viewer_btn_small {{
-            border:1px solid rgba(255,255,255,0.10);
+            border:none;
             border-radius:10px;
             padding:8px 10px;
-            background:linear-gradient(180deg, rgba(39,46,56,0.96), rgba(21,26,33,0.96));
-            color:#f8fafc;
-            font-weight:800;
-            font-size:13px;
+            background:rgba(235,235,235,0.92);
+            color:#111;
+            font-weight:700;
+            font-size:14px;
             cursor:pointer;
             text-align:left;
             white-space:normal;
             line-height:1.25;
             min-height:40px;
             width:100%;
-            box-shadow:0 8px 18px rgba(0,0,0,0.16);
         }}
 
         .viewer_btn_small:hover,
         .viewer_btn:hover {{
-            border-color: rgba(182,151,92,0.48);
-            background:linear-gradient(180deg, rgba(49,58,69,0.98), rgba(27,33,41,0.98));
+            background:#ffffff;
         }}
 
         .active_speed,
         .active_opt {{
-            outline:1px solid rgba(182,151,92,0.72);
-            border-color: rgba(182,151,92,0.62);
-            background:linear-gradient(180deg, rgba(68,59,41,0.98), rgba(45,38,25,0.98));
-            color:#fff3dd;
+            outline:2px solid #ffffff;
+            background:#ffffff;
         }}
 
         .panel_label {{
@@ -2453,6 +2307,54 @@ def viewer(
             return tex;
         }}
 
+        function makeDimensionLabelSprite(text, colorHex="#ffffff") {{
+            const canvas = document.createElement("canvas");
+            canvas.width = 320;
+            canvas.height = 100;
+            const ctx = canvas.getContext("2d");
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // background
+            ctx.fillStyle = "rgba(12, 17, 24, 0.88)";
+            ctx.strokeStyle = "rgba(255,255,255,0.16)";
+            ctx.lineWidth = 2;
+            const x = 10, y = 10, w = 300, h = 80, r = 18;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = colorHex;
+            ctx.font = "700 34px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+
+            const material = new THREE.SpriteMaterial({{
+                map: texture,
+                transparent: true,
+                depthTest: false,
+                depthWrite: false
+            }});
+
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(180, 56, 1);
+            return sprite;
+        }}
+
         function makeTubeTexture(size = 256, dark=false) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
@@ -2930,7 +2832,6 @@ def viewer(
                 group.scale.z = height / size.z;
             }}
 
-            // Light separator caps help to visually distinguish each coil.
             return group;
         }}
 
@@ -2997,12 +2898,10 @@ def viewer(
                     const separator = new THREE.Mesh(
                         new THREE.RingGeometry(innerRadius * 1.02, coilRadius * 0.992, 140),
                         new THREE.MeshStandardMaterial({{
-                            color: tubeMode === "gelblack" ? 0x70767e : 0xebeff3,
+                            color: tubeMode === "gelblack" ? 0x5f666f : 0xe7ecf1,
                             roughness: 0.96,
                             metalness: 0.0,
-                            side: THREE.DoubleSide,
-                            transparent: true,
-                            opacity: 0.92
+                            side: THREE.DoubleSide
                         }})
                     );
                     separator.position.set(0, 0, palletHeight + (i + 1) * Hs);
@@ -3019,6 +2918,10 @@ def viewer(
             packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(heightPoints), heightLineMat));
             packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, 0), new THREE.Vector3(xDim + 24, yDim, 0)]), heightLineMat));
             packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, totalHeight), new THREE.Vector3(xDim + 24, yDim, totalHeight)]), heightLineMat));
+
+            const heightLabel = makeDimensionLabelSprite(`${{totalHeight.toFixed(0)}} mm`, ok ? "#4ade80" : "#fca5a5");
+            heightLabel.position.set(xDim + 95, yDim, totalHeight * 0.5);
+            packagingGroup.add(heightLabel);
 
             packagingGroup.userData.totalHeight = totalHeight;
             updatePackagingStats(rollCount);
@@ -3603,15 +3506,7 @@ tab_presets, tab_calculator = st.tabs([
 ])
 
 with tab_presets:
-    st.markdown(
-        """
-        <div class="section-kicker">Preset library</div>
-        <div class="section-head">Preset prodotto</div>
-        <div class="section-note">Carica rapidamente una configurazione di riferimento e confronta i parametri.</div>
-        <div class="section-divider"></div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown(t["presets_title"])
 
     try:
         presets_df = load_presets("Presets.csv")
@@ -3762,14 +3657,6 @@ with tab_calculator:
     # =========================
 
     st.divider()
-    st.markdown(
-        """
-        <div class="section-kicker">Viewer</div>
-        <div class="section-head">Render e packaging</div>
-        <div class="section-note">Controllo visivo dell’avvolgimento e verifica dimensionale del packaging.</div>
-        """,
-        unsafe_allow_html=True,
-    )
 
     view_mode = st.radio(
         t["viewer_mode"],
