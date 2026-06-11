@@ -1937,7 +1937,6 @@ def viewer(
         document.getElementById("scene_title").textContent = T.packaging_title || "Packaging";
         document.getElementById("scene_winding_btn").textContent = T.title || "Avvolgimento";
         document.getElementById("scene_packaging_btn").textContent = T.packaging_title || "Packaging";
-        document.getElementById("pack_mode_box_btn").innerHTML = `<div>${{T.packaging_box || "Box"}}</div><div class="pack_mode_desc">${{T.packaging_box_desc || "750 × 750 × 1350 mm"}}</div>`;
         document.getElementById("pack_roll_title").textContent = T.roll_count || "Numero rotoli";
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
