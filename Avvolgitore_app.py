@@ -2766,113 +2766,50 @@ def viewer(
         function createRollRealistic(outerRadius, innerRadius, height, tubeMode) {{
             const group = new THREE.Group();
 
-            const bodyColor = tubeMode === "gelblack" ? 0x2a2d31 : 0xf2f4f6;
-            const faceColor = tubeMode === "gelblack" ? 0x363a40 : 0xe6eaee;
-            const coreColor = tubeMode === "gelblack" ? 0x121417 : 0xc1c7cf;
-            const grooveColor = tubeMode === "gelblack" ? 0x555b63 : 0xc8ced5;
+            const packTubeMat = makeTubeMaterial(tubeMode, false, false);
+            const pts = localPts.map(p => p.clone());
+            const rollMesh = makeTubeMeshFromPoints(pts, Rt, packTubeMat);
 
-            const bodyMat = new THREE.MeshStandardMaterial({{
-                color: bodyColor,
-                roughness: 0.84,
-                metalness: 0.02
-            }});
-            const faceMat = new THREE.MeshStandardMaterial({{
-                color: faceColor,
-                roughness: 0.88,
-                metalness: 0.01
-            }});
-            const coreMat = new THREE.MeshStandardMaterial({{
-                color: coreColor,
-                roughness: 0.94,
-                metalness: 0.0
-            }});
+            if (!rollMesh) return group;
 
-            const shell = new THREE.Mesh(
-                new THREE.CylinderGeometry(outerRadius, outerRadius, height, 180, 1, true),
-                bodyMat
-            );
-            shell.rotation.x = Math.PI / 2;
-            shell.castShadow = true;
-            shell.receiveShadow = true;
-            group.add(shell);
+            const bbox = new THREE.Box3().setFromObject(rollMesh);
+            const center = bbox.getCenter(new THREE.Vector3());
+            const size = bbox.getSize(new THREE.Vector3());
 
-            const ringShape = new THREE.Shape();
-            ringShape.absarc(0, 0, outerRadius, 0, Math.PI * 2, false);
-            const ringHole = new THREE.Path();
-            ringHole.absarc(0, 0, innerRadius, 0, Math.PI * 2, true);
-            ringShape.holes.push(ringHole);
+            rollMesh.position.sub(center);
+            group.add(rollMesh);
 
-            const frontCap = new THREE.Mesh(new THREE.ShapeGeometry(ringShape, 160), faceMat);
-            frontCap.position.z = height / 2;
-            frontCap.castShadow = true;
-            frontCap.receiveShadow = true;
-            group.add(frontCap);
-
-            const backCap = new THREE.Mesh(new THREE.ShapeGeometry(ringShape, 160), faceMat);
-            backCap.position.z = -height / 2;
-            backCap.rotation.y = Math.PI;
-            backCap.castShadow = true;
-            backCap.receiveShadow = true;
-            group.add(backCap);
-
-            const core = new THREE.Mesh(
-                new THREE.CylinderGeometry(innerRadius, innerRadius, height * 1.02, 120),
-                coreMat
-            );
-            core.rotation.x = Math.PI / 2;
-            core.castShadow = true;
-            core.receiveShadow = true;
-            group.add(core);
-
-            const edgeTubeR = Math.max(1.2, Math.min(3.2, outerRadius * 0.0065));
-            const outerEdgeMat = new THREE.MeshStandardMaterial({{
-                color: tubeMode === "gelblack" ? 0x4d535b : 0xd3d9e0,
-                roughness: 0.82,
-                metalness: 0.02
-            }});
-
-            const frontOuterEdge = new THREE.Mesh(
-                new THREE.TorusGeometry(outerRadius - edgeTubeR * 0.35, edgeTubeR, 12, 120),
-                outerEdgeMat
-            );
-            frontOuterEdge.position.z = height / 2 - edgeTubeR * 0.4;
-            group.add(frontOuterEdge);
-
-            const backOuterEdge = new THREE.Mesh(
-                new THREE.TorusGeometry(outerRadius - edgeTubeR * 0.35, edgeTubeR, 12, 120),
-                outerEdgeMat
-            );
-            backOuterEdge.position.z = -height / 2 + edgeTubeR * 0.4;
-            group.add(backOuterEdge);
-
-            const frontInnerEdge = new THREE.Mesh(
-                new THREE.TorusGeometry(innerRadius + edgeTubeR * 0.5, Math.max(0.8, edgeTubeR * 0.55), 10, 100),
-                outerEdgeMat
-            );
-            frontInnerEdge.position.z = height / 2 - edgeTubeR * 0.3;
-            group.add(frontInnerEdge);
-
-            const backInnerEdge = new THREE.Mesh(
-                new THREE.TorusGeometry(innerRadius + edgeTubeR * 0.5, Math.max(0.8, edgeTubeR * 0.55), 10, 100),
-                outerEdgeMat
-            );
-            backInnerEdge.position.z = -height / 2 + edgeTubeR * 0.3;
-            group.add(backInnerEdge);
-
-            const grooveCount = Math.max(4, Math.round(height / 16));
-            for (let i = 0; i < grooveCount; i++) {{
-                const z = -height / 2 + ((i + 1) / (grooveCount + 1)) * height;
-                const groove = new THREE.Mesh(
-                    new THREE.TorusGeometry(outerRadius * 0.988, Math.max(0.7, Math.min(1.4, outerRadius * 0.0035)), 8, 120),
-                    new THREE.MeshStandardMaterial({{
-                        color: grooveColor,
-                        roughness: 0.92,
-                        metalness: 0.0
-                    }})
-                );
-                groove.position.z = z;
-                group.add(groove);
+            // Scale only in Z so the packaging height follows the actual spalla.
+            if (size.z > 1e-6) {{
+                group.scale.z = height / size.z;
             }}
+
+            // Light separator caps help to visually distinguish each coil.
+            const faceMat = new THREE.MeshStandardMaterial({{
+                color: tubeMode === "gelblack" ? 0x4b5158 : 0xe4e8ec,
+                roughness: 0.92,
+                metalness: 0.0,
+                transparent: true,
+                opacity: 0.82,
+                side: THREE.DoubleSide
+            }});
+
+            const frontFace = new THREE.Mesh(
+                new THREE.RingGeometry(innerRadius * 1.02, outerRadius * 0.985, 140),
+                faceMat
+            );
+            frontFace.position.z = height / 2.0;
+            frontFace.receiveShadow = true;
+            group.add(frontFace);
+
+            const backFace = new THREE.Mesh(
+                new THREE.RingGeometry(innerRadius * 1.02, outerRadius * 0.985, 140),
+                faceMat
+            );
+            backFace.position.z = -height / 2.0;
+            backFace.rotation.y = Math.PI;
+            backFace.receiveShadow = true;
+            group.add(backFace);
 
             return group;
         }}
@@ -2914,32 +2851,38 @@ def viewer(
                     depthWrite: false
                 }});
                 const box = new THREE.Mesh(new THREE.BoxGeometry(palletSize, palletSize, boxHeight), boxMat);
+                // Scatola appoggiata sul pallet: altezza utile sopra il pallet.
                 box.position.set(0, 0, palletHeight + boxHeight / 2);
                 packagingGroup.add(box);
                 addBoxEdges(palletSize, palletSize, boxHeight, palletHeight + boxHeight / 2, ok ? 0x4ade80 : 0xfca5a5, 0.95);
             }} else {{
-                addBoxEdges(palletSize, palletSize, heightLimit, palletHeight + heightLimit / 2, ok ? 0x4ade80 : 0xfca5a5, 0.45);
+                // Container height is total allowed height including pallet, so wireframe starts from ground.
+                addBoxEdges(palletSize, palletSize, heightLimit, heightLimit / 2, ok ? 0x4ade80 : 0xfca5a5, 0.45);
             }}
 
             const coilRadius = coilFootprint / 2.0;
             const innerRadius = Math.max(18, coilRadius * 0.56);
-            const visualGap = Math.min(8, Math.max(3, Hs * 0.08));
+            const visualGap = Math.min(10, Math.max(4, Hs * 0.07));
             const rollVisualHeight = Math.max(Hs - visualGap, Hs * 0.90);
+
+            const baseRoll = createRollRealistic(coilRadius, innerRadius, rollVisualHeight, tubeMode);
 
             for (let i = 0; i < rollCount; i++) {{
                 const zc = palletHeight + i * Hs + Hs / 2.0;
-                const roll = createRollRealistic(coilRadius, innerRadius, rollVisualHeight, tubeMode);
+                const roll = i === 0 ? baseRoll : baseRoll.clone(true);
                 roll.position.set(0, 0, zc);
                 packagingGroup.add(roll);
 
                 if (i < rollCount - 1) {{
                     const separator = new THREE.Mesh(
-                        new THREE.RingGeometry(innerRadius * 1.02, coilRadius * 0.985, 120),
+                        new THREE.RingGeometry(innerRadius * 1.02, coilRadius * 0.992, 140),
                         new THREE.MeshStandardMaterial({{
-                            color: tubeMode === "gelblack" ? 0x777d86 : 0xe8edf2,
-                            roughness: 0.95,
+                            color: tubeMode === "gelblack" ? 0x70767e : 0xebeff3,
+                            roughness: 0.96,
                             metalness: 0.0,
-                            side: THREE.DoubleSide
+                            side: THREE.DoubleSide,
+                            transparent: true,
+                            opacity: 0.92
                         }})
                     );
                     separator.position.set(0, 0, palletHeight + (i + 1) * Hs);
@@ -2967,7 +2910,7 @@ def viewer(
             guideGroup.visible = !packaging;
             overlayGroup.visible = !packaging;
             packagingGroup.visible = packaging;
-            packagingControls.style.display = packaging ? "block" : "none";
+            packagingControls.style.display = "none";
             if (packagingControls) packagingControls.style.marginTop = "2px";
             if (animationBlock) animationBlock.style.display = packaging ? "none" : "block";
             if (speedBlock) speedBlock.style.display = packaging ? "none" : "block";
