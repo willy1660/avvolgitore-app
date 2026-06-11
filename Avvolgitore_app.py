@@ -2786,6 +2786,7 @@ def viewer(
                 new THREE.CylinderGeometry(outerRadius, outerRadius, height, 160, 1, true),
                 bodyMat
             );
+            sideShell.rotation.x = Math.PI / 2;
             sideShell.castShadow = true;
             sideShell.receiveShadow = true;
             group.add(sideShell);
@@ -2798,9 +2799,15 @@ def viewer(
             const capGeo = new THREE.ShapeGeometry(ringShape, 128);
             const topCap = new THREE.Mesh(capGeo, accentMat);
             topCap.position.z = height / 2;
-            const bottomCap = new THREE.Mesh(capGeo, accentMat);
+            topCap.castShadow = true;
+            topCap.receiveShadow = true;
+
+            const bottomCap = new THREE.Mesh(capGeo.clone(), accentMat);
             bottomCap.position.z = -height / 2;
             bottomCap.rotation.y = Math.PI;
+            bottomCap.castShadow = true;
+            bottomCap.receiveShadow = true;
+
             group.add(topCap);
             group.add(bottomCap);
 
@@ -2808,6 +2815,7 @@ def viewer(
                 new THREE.CylinderGeometry(innerRadius * 1.01, innerRadius * 1.01, height * 1.01, 120),
                 coreMat
             );
+            core.rotation.x = Math.PI / 2;
             core.castShadow = true;
             core.receiveShadow = true;
             group.add(core);
