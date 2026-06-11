@@ -357,12 +357,11 @@ def make_preset_visual(row, language):
             "rollers": "Rulli",
             "tail": "Paletta ferma coda",
             "tube_note": "Sezione 2D semplificata del tubo isolato",
-            "coil_note": "Vista 2D tecnica del rotolo avvolto",
+            "coil_note": "Vista laterale 2D del rotolo avvolto, ispirata al render",
             "outer_dim": "Diametro esterno",
             "insulation": "Spessore guaina",
-            "front_view": "Vista frontale",
-            "side_view": "Vista laterale",
             "coil_body": "Rotolo avvolto",
+            "shaft": "Albero / mandrino",
         },
         "EN": {
             "tube_section": "Technical preview · Tube section",
@@ -380,12 +379,11 @@ def make_preset_visual(row, language):
             "rollers": "Rollers",
             "tail": "Tail stop paddle",
             "tube_note": "Simplified 2D section of the insulated tube",
-            "coil_note": "Technical 2D view of the wound coil",
+            "coil_note": "2D side view of the wound coil inspired by the render",
             "outer_dim": "Outer diameter",
             "insulation": "Foam thickness",
-            "front_view": "Front view",
-            "side_view": "Side view",
             "coil_body": "Wound coil",
+            "shaft": "Shaft / mandrel",
         },
     }[language]
 
@@ -423,9 +421,13 @@ def make_preset_visual(row, language):
         --copper-light: #e4a56f;
         --foam: #e7e2d8;
         --foam-stroke: #7e8691;
-        --coil: #d9e1ea;
-        --coil-dark: #bfc9d5;
-        --coil-inner: #eef3f8;
+        --coil-top: #f3f5f7;
+        --coil-mid: #d7dbe0;
+        --coil-dark: #b9c0c8;
+        --mandrel-1: #050709;
+        --mandrel-2: #1b2026;
+        --mandrel-3: #343c46;
+        --steel: #bfc5cc;
         --white-line: #f8fafc;
     }}
     html[data-theme="dark"] {{
@@ -438,9 +440,13 @@ def make_preset_visual(row, language):
         --accent-soft: rgba(96,165,250,0.10);
         --foam: #d9d3c7;
         --foam-stroke: #8d96a0;
-        --coil: #cfd7e2;
-        --coil-dark: #aeb8c5;
-        --coil-inner: #f1f5f9;
+        --coil-top: #f1f3f5;
+        --coil-mid: #cfd5dc;
+        --coil-dark: #aeb6bf;
+        --mandrel-1: #060708;
+        --mandrel-2: #1d2329;
+        --mandrel-3: #3a434d;
+        --steel: #bfc5cc;
         --white-line: #f8fafc;
     }}
     html, body {{
@@ -526,7 +532,6 @@ def make_preset_visual(row, language):
                     <circle cx="112" cy="100" r="74" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
                     <circle cx="112" cy="100" r="30" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
                     <circle cx="112" cy="100" r="22" fill="var(--copper-light)" opacity="0.9"/>
-
                     <line x1="188" y1="26" x2="188" y2="174" class="d-line"/>
                     <line x1="112" y1="26" x2="188" y2="26" class="d-guide"/>
                     <line x1="112" y1="174" x2="188" y2="174" class="d-guide"/>
@@ -535,7 +540,6 @@ def make_preset_visual(row, language):
                     <rect x="208" y="54" width="106" height="48" class="callout-box"/>
                     <text x="261" y="73" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
                     <text x="261" y="92" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
-
                     <line x1="138" y1="74" x2="218" y2="130" class="d-guide"/>
                     <rect x="214" y="120" width="100" height="44" class="callout-box"/>
                     <text x="264" y="139" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
@@ -558,25 +562,40 @@ def make_preset_visual(row, language):
         <div class="subtitle">{html.escape(labels['coil_note'])}</div>
         <div class="layout">
             <div class="drawing">
-                <svg viewBox="0 0 340 240" role="img" aria-label="Coiling layout preview">
-                    <text x="112" y="18" text-anchor="middle" class="d-label">{html.escape(labels['front_view'])}</text>
-                    <circle cx="112" cy="118" r="64" fill="none" stroke="var(--coil)" stroke-width="14"/>
-                    <circle cx="112" cy="118" r="64" fill="none" stroke="var(--coil-inner)" stroke-width="4" opacity="0.7"/>
-                    <circle cx="112" cy="118" r="38" fill="none" stroke="var(--coil-dark)" stroke-width="10"/>
-                    <circle cx="112" cy="118" r="38" fill="none" stroke="var(--coil-inner)" stroke-width="3" opacity="0.55"/>
+                <svg viewBox="0 0 420 220" role="img" aria-label="Coiling layout preview">
+                    <text x="44" y="18" class="d-label">{html.escape(labels['shaft'])}</text>
+                    <ellipse cx="34" cy="112" rx="10" ry="24" fill="var(--mandrel-1)"/>
+                    <ellipse cx="54" cy="112" rx="13" ry="28" fill="var(--mandrel-2)"/>
+                    <path d="M65 84 L86 74 L108 82 L92 94 L108 130 L86 138 L65 128 Z" fill="var(--mandrel-3)"/>
+                    <path d="M102 86 L124 78 L144 86 L130 96 L144 128 L124 136 L102 128 Z" fill="var(--mandrel-2)"/>
+                    <path d="M138 94 L154 88 L168 94 L159 100 L168 120 L154 126 L138 120 Z" fill="var(--mandrel-1)"/>
+                    <rect x="168" y="108" width="86" height="8" rx="4" fill="var(--steel)"/>
 
-                    <line x1="48" y1="34" x2="176" y2="34" class="d-line"/>
-                    <line x1="48" y1="22" x2="48" y2="46" class="d-line"/>
-                    <line x1="176" y1="22" x2="176" y2="46" class="d-line"/>
-                    <text x="112" y="28" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
+                    <g>
+                        <ellipse cx="336" cy="86" rx="118" ry="10" fill="var(--coil-dark)" opacity="0.35"/>
+                        <ellipse cx="336" cy="96" rx="114" ry="9" fill="var(--coil-top)"/>
+                        <ellipse cx="336" cy="105" rx="112" ry="9" fill="var(--coil-mid)"/>
+                        <ellipse cx="336" cy="114" rx="110" ry="9" fill="var(--coil-top)"/>
+                        <ellipse cx="336" cy="123" rx="108" ry="9" fill="var(--coil-mid)"/>
+                        <ellipse cx="336" cy="132" rx="106" ry="9" fill="var(--coil-top)"/>
+                        <ellipse cx="336" cy="141" rx="104" ry="9" fill="var(--coil-mid)"/>
+                        <ellipse cx="336" cy="150" rx="102" ry="9" fill="var(--coil-top)"/>
+                        <ellipse cx="336" cy="159" rx="100" ry="9" fill="var(--coil-mid)"/>
+                        <ellipse cx="336" cy="168" rx="98" ry="8" fill="var(--coil-top)"/>
+                        <ellipse cx="336" cy="174" rx="120" ry="8" fill="var(--coil-dark)" opacity="0.25"/>
+                    </g>
 
-                    <text x="254" y="18" text-anchor="middle" class="d-label">{html.escape(labels['side_view'])}</text>
-                    <rect x="220" y="72" width="68" height="92" rx="14" fill="none" stroke="var(--coil)" stroke-width="12"/>
-                    <rect x="232" y="84" width="44" height="68" rx="10" fill="none" stroke="var(--coil-dark)" stroke-width="6"/>
-                    <line x1="308" y1="72" x2="308" y2="164" class="d-line"/>
-                    <line x1="296" y1="72" x2="320" y2="72" class="d-line"/>
-                    <line x1="296" y1="164" x2="320" y2="164" class="d-line"/>
-                    <text x="324" y="118" transform="rotate(90 324 118)" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
+                    <line x1="228" y1="64" x2="444" y2="64" class="d-line"/>
+                    <line x1="228" y1="52" x2="228" y2="76" class="d-line"/>
+                    <line x1="444" y1="52" x2="444" y2="76" class="d-line"/>
+                    <text x="336" y="56" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
+                    <text x="336" y="76" text-anchor="middle" class="d-label">{html.escape(labels['spool'])}</text>
+
+                    <line x1="392" y1="92" x2="392" y2="168" class="d-line"/>
+                    <line x1="380" y1="92" x2="404" y2="92" class="d-line"/>
+                    <line x1="380" y1="168" x2="404" y2="168" class="d-line"/>
+                    <text x="408" y="130" transform="rotate(90 408 130)" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
+                    <text x="392" y="130" transform="rotate(90 392 130)" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
                 </svg>
             </div>
             <div class="metrics">
