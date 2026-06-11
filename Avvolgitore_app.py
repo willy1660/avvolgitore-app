@@ -90,6 +90,14 @@ TEXTS = {
         "preset_render_note": "I parametri del preset sono stati caricati nel calcolatore. Puoi modificarli liberamente senza cambiare il CSV.",
         "preset_loaded_ok": "Preset {name} caricato correttamente.",
         "active_preset": "Preset attivo",
+        "pallet_title": "Verifica pallet 750 × 750 mm",
+        "pallet_subtitle": "Controllo visivo dell'ingombro del rotolo appoggiato in piano sul pallet.",
+        "pallet_size": "Pallet",
+        "coil_footprint": "Ingombro rotolo",
+        "pallet_status_ok": "OK su pallet",
+        "pallet_status_over": "Fuori sagoma",
+        "pallet_overhang": "Sbalzo totale",
+        "pallet_free_margin": "Margine residuo",
     },
     "EN": {
         "title": "Coiling",
@@ -160,6 +168,14 @@ TEXTS = {
         "preset_render_note": "The preset parameters have been loaded into the calculator. You can edit them freely without changing the CSV.",
         "preset_loaded_ok": "Preset {name} loaded correctly.",
         "active_preset": "Active preset",
+        "pallet_title": "750 × 750 mm pallet check",
+        "pallet_subtitle": "Visual check of the coil footprint when laid flat on the pallet.",
+        "pallet_size": "Pallet",
+        "coil_footprint": "Coil footprint",
+        "pallet_status_ok": "Fits on pallet",
+        "pallet_status_over": "Out of bounds",
+        "pallet_overhang": "Total overhang",
+        "pallet_free_margin": "Remaining margin",
     },
 }
 
@@ -309,6 +325,74 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
                 unsafe_allow_html=True,
             )
 
+
+
+
+def make_pallet_visual(coil_diameter_mm, pallet_size_mm, language):
+    labels = {
+        "IT": {"title": "Vista dall'alto", "pallet": "Pallet", "coil": "Rotolo"},
+        "EN": {"title": "Top view", "pallet": "Pallet", "coil": "Coil"},
+    }[language]
+
+    ratio = coil_diameter_mm / pallet_size_mm if pallet_size_mm > 0 else 1.0
+    circle_r = max(12.0, 90.0 * ratio)
+    coil_fill = "var(--warn-fill)" if ratio > 1.0 else "var(--coil-fill)"
+    coil_stroke = "var(--warn-stroke)" if ratio > 1.0 else "var(--coil-stroke)"
+
+    return f"""
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    :root {{
+        --bg: transparent;
+        --card-bg: rgba(255,255,255,0.04);
+        --card-border: rgba(255,255,255,0.10);
+        --text: #f8fafc;
+        --muted: rgba(248,250,252,0.70);
+        --pallet: rgba(194,154,106,0.38);
+        --pallet-stroke: rgba(223,190,145,0.85);
+        --coil-fill: rgba(96,165,250,0.18);
+        --coil-stroke: rgba(191,219,254,0.96);
+        --warn-fill: rgba(248,113,113,0.18);
+        --warn-stroke: rgba(252,165,165,0.98);
+    }}
+    body {{ margin:0; font-family: Arial, Helvetica, sans-serif; color:var(--text); background:var(--bg); }}
+    .wrap {{ border:1px solid var(--card-border); border-radius:18px; padding:18px; background:var(--card-bg); }}
+    .title {{ font-size:13px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; }}
+    .legend {{ display:flex; gap:16px; margin-top:10px; flex-wrap:wrap; font-size:12px; color:var(--muted); }}
+    .legend-item {{ display:flex; align-items:center; gap:8px; }}
+    .swatch {{ width:14px; height:14px; border-radius:4px; display:inline-block; }}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="title">{labels['title']}</div>
+    <svg viewBox="0 0 320 250" width="100%" height="auto" role="img" aria-label="Pallet preview">
+        <rect x="70" y="35" width="180" height="180" rx="8" fill="var(--pallet)" stroke="var(--pallet-stroke)" stroke-width="2"/>
+        <line x1="70" y1="95" x2="250" y2="95" stroke="var(--pallet-stroke)" opacity="0.35"/>
+        <line x1="70" y1="155" x2="250" y2="155" stroke="var(--pallet-stroke)" opacity="0.35"/>
+        <line x1="130" y1="35" x2="130" y2="215" stroke="var(--pallet-stroke)" opacity="0.35"/>
+        <line x1="190" y1="35" x2="190" y2="215" stroke="var(--pallet-stroke)" opacity="0.35"/>
+        <circle cx="160" cy="125" r="{circle_r:.2f}" fill="{coil_fill}" stroke="{coil_stroke}" stroke-width="3"/>
+        <line x1="70" y1="230" x2="250" y2="230" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+        <line x1="70" y1="220" x2="70" y2="240" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+        <line x1="250" y1="220" x2="250" y2="240" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+        <text x="160" y="225" text-anchor="middle" fill="#f8fafc" font-size="14" font-weight="800">{pallet_size_mm:.0f} mm</text>
+        <line x1="{160-circle_r:.2f}" y1="22" x2="{160+circle_r:.2f}" y2="22" stroke="#bfdbfe" stroke-width="3" stroke-linecap="round"/>
+        <line x1="{160-circle_r:.2f}" y1="14" x2="{160-circle_r:.2f}" y2="30" stroke="#bfdbfe" stroke-width="3" stroke-linecap="round"/>
+        <line x1="{160+circle_r:.2f}" y1="14" x2="{160+circle_r:.2f}" y2="30" stroke="#bfdbfe" stroke-width="3" stroke-linecap="round"/>
+        <text x="160" y="16" text-anchor="middle" fill="#bfdbfe" font-size="14" font-weight="800">{coil_diameter_mm:.1f} mm</text>
+    </svg>
+    <div class="legend">
+        <div class="legend-item"><span class="swatch" style="background:var(--pallet);"></span>{labels['pallet']}</div>
+        <div class="legend-item"><span class="swatch" style="background:{coil_fill}; border:1px solid {coil_stroke};"></span>{labels['coil']}</div>
+    </div>
+</div>
+</body>
+</html>
+"""
 
 # =========================
 # CONSTANTS
@@ -2763,5 +2847,37 @@ with tab_calculator:
     m5.metric(t["metric5"], f"{visual_metrics['max_xy_span']:.1f} mm")
     m6.metric(t["metric6"], f"{visual_metrics['wound_length_m']:.3f} m")
 
-    if visual_metrics["max_xy_span"] > 750:
+    pallet_size_mm = 750.0
+    coil_footprint_mm = float(visual_metrics["max_xy_span"])
+    overhang_mm = max(0.0, coil_footprint_mm - pallet_size_mm)
+    free_margin_mm = max(0.0, pallet_size_mm - coil_footprint_mm)
+
+    if coil_footprint_mm > pallet_size_mm:
         st.warning(t["warning"])
+
+    st.markdown(f"#### {t['pallet_title']}")
+    st.caption(t["pallet_subtitle"])
+
+    p1, p2 = st.columns([1.25, 1.0])
+    with p1:
+        components.html(make_pallet_visual(coil_footprint_mm, pallet_size_mm, lang), height=360, scrolling=False)
+    with p2:
+        status_ok = coil_footprint_mm <= pallet_size_mm
+        status_label = t["pallet_status_ok"] if status_ok else t["pallet_status_over"]
+        status_bg = "rgba(34,197,94,0.14)" if status_ok else "rgba(248,113,113,0.14)"
+        status_border = "rgba(74,222,128,0.28)" if status_ok else "rgba(252,165,165,0.28)"
+        st.markdown(
+            f"""
+            <div style="background:{status_bg}; border:1px solid {status_border}; border-radius:18px; padding:18px 20px; margin-bottom:14px;">
+                <div style="font-size:13px; color:rgba(255,255,255,0.70); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Status</div>
+                <div style="font-size:28px; font-weight:800; color:#ffffff;">{status_label}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        q1, q2 = st.columns(2)
+        q1.metric(t["pallet_size"], f"{pallet_size_mm:.0f} mm")
+        q2.metric(t["coil_footprint"], f"{coil_footprint_mm:.1f} mm")
+        r1, r2 = st.columns(2)
+        r1.metric(t["pallet_overhang"], f"{overhang_mm:.1f} mm")
+        r2.metric(t["pallet_free_margin"], f"{free_margin_mm:.1f} mm")
