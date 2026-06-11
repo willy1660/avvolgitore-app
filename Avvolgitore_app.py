@@ -321,202 +321,33 @@ def param_label(column_name, language):
     return PARAM_LABELS.get(language, {}).get(column_name, column_name)
 
 
-
-def inject_industrial_ui_css():
-    st.markdown(
-        """
-        <style>
-        [data-testid="stAppViewContainer"] {
-            background:
-                radial-gradient(circle at top left, rgba(120, 138, 160, 0.10), transparent 28%),
-                linear-gradient(180deg, #0b1118 0%, #0f1720 52%, #0a1016 100%);
-        }
-        .main .block-container {
-            max-width: 1480px;
-            padding-top: 1.15rem;
-            padding-bottom: 2.25rem;
-        }
-        [data-testid="stHeader"] {
-            background: rgba(0,0,0,0);
-        }
-        [data-testid="stTabs"] {
-            margin-top: 0.35rem;
-        }
-        [data-testid="stTabs"] button {
-            height: 48px;
-            border-radius: 12px 12px 0 0;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
-            color: rgba(248,250,252,0.84);
-            font-weight: 700;
-            letter-spacing: 0.01em;
-            padding-inline: 20px;
-        }
-        [data-testid="stTabs"] button[aria-selected="true"] {
-            background: linear-gradient(180deg, rgba(78, 88, 101, 0.92), rgba(34, 41, 49, 0.94));
-            border-color: rgba(232, 180, 89, 0.36);
-            color: #ffffff;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-        }
-        div[data-baseweb="select"] > div,
-        div[data-baseweb="input"] > div,
-        div[data-baseweb="textarea"] > div {
-            border-radius: 12px !important;
-            border: 1px solid rgba(255,255,255,0.10) !important;
-            background: linear-gradient(180deg, rgba(25, 31, 39, 0.96), rgba(16, 21, 28, 0.96)) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-        }
-        div[data-baseweb="select"] input,
-        div[data-baseweb="input"] input,
-        div[data-baseweb="textarea"] textarea {
-            color: #f8fafc !important;
-            font-weight: 600 !important;
-        }
-        div[data-baseweb="select"] svg {
-            color: rgba(248,250,252,0.78);
-        }
-        label[data-baseweb="radio"] > div:first-child,
-        [data-testid="stRadio"] div[role="radiogroup"] > label {
-            background: linear-gradient(180deg, rgba(28, 34, 42, 0.94), rgba(16, 21, 28, 0.94));
-            border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 12px;
-            padding: 10px 14px;
-        }
-        [data-testid="stRadio"] div[role="radiogroup"] {
-            gap: 10px;
-        }
-        [data-testid="stButton"] button,
-        [data-testid="baseButton-secondary"] {
-            min-height: 44px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: linear-gradient(180deg, rgba(36, 44, 54, 0.96), rgba(18, 24, 31, 0.96));
-            color: #f8fafc;
-            font-weight: 700;
-            letter-spacing: 0.01em;
-            box-shadow: 0 10px 22px rgba(0,0,0,0.16);
-        }
-        [data-testid="stButton"] button[kind="primary"] {
-            background: linear-gradient(180deg, #d7a85d 0%, #b7863b 100%);
-            color: #0f172a;
-            border-color: rgba(245, 198, 109, 0.65);
-        }
-        [data-testid="stButton"] button:hover {
-            border-color: rgba(255,255,255,0.18);
-            transform: translateY(-1px);
-        }
-        [data-testid="stMetric"] {
-            background: linear-gradient(180deg, rgba(22, 28, 35, 0.96), rgba(15, 20, 27, 0.96));
-            border: 1px solid rgba(255,255,255,0.09);
-            border-radius: 16px;
-            padding: 12px 14px;
-            box-shadow: 0 14px 28px rgba(0,0,0,0.18);
-        }
-        [data-testid="stMetricLabel"] p {
-            color: rgba(248,250,252,0.70);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            font-size: 11px;
-            font-weight: 700;
-        }
-        [data-testid="stMetricValue"] {
-            color: #ffffff;
-            font-weight: 800;
-        }
-        .industrial-hero {
-            padding: 18px 22px;
-            border-radius: 18px;
-            background: linear-gradient(135deg, rgba(33, 39, 47, 0.96), rgba(15, 20, 27, 0.98));
-            border: 1px solid rgba(255,255,255,0.10);
-            box-shadow: 0 16px 36px rgba(0,0,0,0.20);
-        }
-        .industrial-eyebrow {
-            color: rgba(233, 237, 242, 0.62);
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            font-size: 12px;
-            font-weight: 800;
-            margin-bottom: 6px;
-        }
-        .industrial-title {
-            color: #ffffff;
-            font-size: 34px;
-            line-height: 1.04;
-            font-weight: 900;
-            margin: 0;
-        }
-        .industrial-subtitle {
-            color: rgba(233, 237, 242, 0.72);
-            font-size: 14px;
-            margin-top: 8px;
-        }
-        .industrial-section-heading {
-            margin: 0 0 10px 0;
-            color: #ffffff;
-            font-size: 21px;
-            line-height: 1.1;
-            font-weight: 900;
-            letter-spacing: 0.01em;
-        }
-        .industrial-section-kicker {
-            color: rgba(233,237,242,0.62);
-            font-size: 11px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.10em;
-            margin-bottom: 6px;
-        }
-        .industrial-note {
-            color: rgba(233,237,242,0.66);
-            font-size: 13px;
-            margin-top: -2px;
-            margin-bottom: 8px;
-        }
-        .industrial-divider {
-            height: 1px;
-            background: linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.14), rgba(255,255,255,0.00));
-            margin: 8px 0 14px 0;
-        }
-        div[data-testid="stCaptionContainer"] p,
-        .stAlert p {
-            font-size: 13px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def render_preset_param_cards(title, column_names, selected_row, language, cards_per_row=4):
     st.markdown(
         """
         <style>
         .preset-param-card {
-            background: linear-gradient(180deg, rgba(24,30,38,0.96), rgba(16,21,28,0.96));
+            background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.10);
-            border-left: 4px solid rgba(214,168,93,0.92);
-            border-radius: 14px;
+            border-radius: 18px;
             padding: 16px 18px;
-            min-height: 122px;
+            min-height: 120px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 12px 26px rgba(0,0,0,0.14);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
             margin-bottom: 10px;
         }
         .preset-param-label {
-            font-size: 12px;
+            font-size: 15px;
             line-height: 1.35;
-            font-weight: 800;
-            color: rgba(248,250,252,0.70);
+            font-weight: 600;
+            color: rgba(250,250,250,0.88);
             margin-bottom: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
         }
         .preset-param-value {
-            font-size: 30px;
-            line-height: 1.06;
-            font-weight: 900;
+            font-size: 28px;
+            line-height: 1.08;
+            font-weight: 800;
             color: #ffffff;
             word-break: break-word;
         }
@@ -615,16 +446,15 @@ def render_summary_cards(title, items, cards_per_row=4):
         """
         <style>
         .summary-card {
-            background: linear-gradient(180deg, rgba(24,30,38,0.96), rgba(16,21,28,0.96));
+            background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.10);
-            border-left: 4px solid rgba(137, 153, 173, 0.92);
-            border-radius: 14px;
+            border-radius: 18px;
             padding: 16px 18px;
             min-height: 118px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 12px 26px rgba(0,0,0,0.14);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
             margin-bottom: 10px;
         }
         .summary-card.status-ok {
@@ -636,24 +466,22 @@ def render_summary_cards(title, items, cards_per_row=4):
             background: rgba(248,113,113,0.10);
         }
         .summary-card-label {
-            font-size: 12px;
+            font-size: 14px;
             line-height: 1.3;
-            font-weight: 800;
-            color: rgba(248,250,252,0.70);
+            font-weight: 600;
+            color: rgba(250,250,250,0.82);
             margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
         }
         .summary-card-value {
             font-size: 30px;
             line-height: 1.08;
-            font-weight: 900;
+            font-weight: 800;
             color: #ffffff;
             word-break: break-word;
         }
         .summary-card-note {
             font-size: 12px;
-            color: rgba(248,250,252,0.64);
+            color: rgba(250,250,250,0.66);
             margin-top: 8px;
             line-height: 1.3;
         }
@@ -1374,8 +1202,6 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-inject_industrial_ui_css()
-
 top1, top2 = st.columns([1.0, 5.0])
 
 with top1:
@@ -1395,16 +1221,7 @@ with top2:
 st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
-title_placeholder.markdown(
-    f"""
-    <div class="industrial-hero">
-        <div class="industrial-eyebrow">Technical interface</div>
-        <div class="industrial-title">{t['title']}</div>
-        <div class="industrial-subtitle">Preset prodotto · simulazione avvolgimento · controllo packaging</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+title_placeholder.markdown(f"## {t['title']}")
 
 # =========================
 # GEOMETRY HELPERS
@@ -1747,10 +1564,10 @@ def viewer(
             align-items:center;
             gap:8px;
             padding:10px 12px;
-            background:linear-gradient(180deg, rgba(23,28,35,0.90), rgba(14,18,24,0.92));
+            background:rgba(18,22,27,0.74);
             color:#f0f0f0;
             border:1px solid rgba(255,255,255,0.12);
-            border-radius:16px;
+            border-radius:14px;
             backdrop-filter: blur(10px);
             font-family:Arial, sans-serif;
             font-size:13px;
@@ -3666,15 +3483,7 @@ tab_presets, tab_calculator = st.tabs([
 ])
 
 with tab_presets:
-    st.markdown(
-        f"""
-        <div class="industrial-section-kicker">Preset library</div>
-        <div class="industrial-section-heading">Preset prodotto</div>
-        <div class="industrial-note">Seleziona una configurazione esistente e carica i parametri nel calcolatore.</div>
-        <div class="industrial-divider"></div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown(t["presets_title"])
 
     try:
         presets_df = load_presets("Presets.csv")
@@ -3768,24 +3577,12 @@ with tab_calculator:
         st.caption(f"{t['active_preset']}: {loaded_preset_name}")
 
     with colA:
-        st.markdown(
-            f"""
-            <div class="industrial-section-kicker">Modulo 01</div>
-            <div class="industrial-section-heading">{t['bobina']}</div>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown(f"#### {t['bobina']}")
         diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo")
         spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla")
 
     with colB:
-        st.markdown(
-            f"""
-            <div class="industrial-section-kicker">Modulo 02</div>
-            <div class="industrial-section-heading">{t['tubo']}</div>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown(f"#### {t['tubo']}")
         rame_options = list(COPPER_SIZES_MM.keys())
         if st.session_state.get("calc_rame") not in rame_options:
             st.session_state["calc_rame"] = "1/4"
@@ -3795,13 +3592,7 @@ with tab_calculator:
         d_rame = COPPER_SIZES_MM[rame]
 
     with colC:
-        st.markdown(
-            f"""
-            <div class="industrial-section-kicker">Modulo 03</div>
-            <div class="industrial-section-heading">{t['avvolg']}</div>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown(f"#### {t['avvolg']}")
         passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale")
         incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale")
         rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b")
@@ -3843,14 +3634,6 @@ with tab_calculator:
     # =========================
 
     st.divider()
-    st.markdown(
-        """
-        <div class="industrial-section-kicker">Viewer</div>
-        <div class="industrial-section-heading">Render e packaging</div>
-        <div class="industrial-note">Passa dalla vista avvolgimento alla verifica packaging con un’interfaccia più tecnica e leggibile.</div>
-        """,
-        unsafe_allow_html=True,
-    )
 
     view_mode = st.radio(
         t["viewer_mode"],
