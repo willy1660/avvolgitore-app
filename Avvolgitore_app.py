@@ -22,7 +22,7 @@ if "lang" not in st.session_state:
 TEXTS = {
     "IT": {
         "title": "Avvolgimento",
-        "language": "🌍 Language",
+        "language": "🌍 Lingua",
         "bobina": "🟦 Bobina",
         "tubo": "🟩 Tubo",
         "avvolg": "🟧 Simulazione",
@@ -44,8 +44,8 @@ TEXTS = {
         "warning": "⚠️ Ingombro max XY superiore a 750 mm.",
         "play": "Play",
         "pause": "Pause",
-        "fullscreen": "Fullscreen",
-        "exit": "Exit",
+        "fullscreen": "Schermo intero",
+        "exit": "Esci",
         "progress": "Progresso",
         "speed": "Velocità",
         "spool": "Aspo",
@@ -55,7 +55,7 @@ TEXTS = {
         "tube_color": "Tubo",
         "gelwhite": "Gelwhite",
         "gelblack": "Gelblack",
-        "grid": "Grid",
+        "grid": "Griglia",
         "axes": "Assi",
         "section": "Sezione",
         "animation": "Animazione",
@@ -69,10 +69,21 @@ TEXTS = {
         "hud_length": "Lunghezza",
         "hud_layer": "Strato",
         "hud_diameter": "Ø tubo",
+        "tab_presets": "📦 Preset",
+        "tab_calculator": "🧮 Calcolatore / Render",
+        "presets_title": "### 📦 Preset prodotto",
+        "presets_loaded": "preset caricati correttamente da Presets.csv",
+        "select_product": "Seleziona prodotto",
+        "preset_sheet": "Scheda preset",
+        "preset_subtitle": "Configurazione tecnica prodotto · valori caricati da CSV",
+        "csv_params": "#### Parametri del preset",
+        "presets_readonly": "In questo passaggio i preset sono solo consultabili. Nel passaggio successivo aggiungeremo il pulsante per caricarli nel calcolatore.",
+        "presets_file_missing": "File Presets.csv non trovato. Mettilo nella stessa cartella dell'app.",
+        "presets_load_error": "Errore nel caricamento dei preset",
     },
     "EN": {
         "title": "Coiling",
-        "language": "🌍 Language",
+        "language": "🌍 Lingua",
         "bobina": "🟦 Coil",
         "tubo": "🟩 Tube",
         "avvolg": "🟧 Simulation",
@@ -94,8 +105,8 @@ TEXTS = {
         "warning": "⚠️ Max XY span exceeds 750 mm.",
         "play": "Play",
         "pause": "Pause",
-        "fullscreen": "Fullscreen",
-        "exit": "Exit",
+        "fullscreen": "Schermo intero",
+        "exit": "Esci",
         "progress": "Progress",
         "speed": "Speed",
         "spool": "Spool",
@@ -105,7 +116,7 @@ TEXTS = {
         "tube_color": "Tube",
         "gelwhite": "Gelwhite",
         "gelblack": "Gelblack",
-        "grid": "Grid",
+        "grid": "Griglia",
         "axes": "Axes",
         "section": "Section",
         "animation": "Animation",
@@ -119,6 +130,17 @@ TEXTS = {
         "hud_length": "Length",
         "hud_layer": "Layer",
         "hud_diameter": "Tube Ø",
+        "tab_presets": "📦 Presets",
+        "tab_calculator": "🧮 Calculator / Render",
+        "presets_title": "### 📦 Product presets",
+        "presets_loaded": "presets loaded correctly from Presets.csv",
+        "select_product": "Select product",
+        "preset_sheet": "Preset sheet",
+        "preset_subtitle": "Product technical configuration · values loaded from CSV",
+        "csv_params": "#### Preset parameters",
+        "presets_readonly": "At this stage, presets are read-only. In the next step, we will add the button to load them into the calculator.",
+        "presets_file_missing": "Presets.csv file not found. Put it in the same folder as the app.",
+        "presets_load_error": "Error loading presets",
     },
 }
 
@@ -159,8 +181,7 @@ def load_presets(path="Presets.csv"):
     return df
 
 
-def format_preset_value(row, column):
-    """Format CSV values for the preset cards."""
+def safe_value(row, column, suffix=""):
     if column not in row.index:
         return "-"
 
@@ -169,48 +190,7 @@ def format_preset_value(row, column):
     if pd.isna(value):
         return "-"
 
-    if isinstance(value, str):
-        cleaned = value.strip()
-        return cleaned if cleaned else "-"
-
-    if isinstance(value, (int, float, np.integer, np.floating)):
-        number = float(value)
-
-        if abs(number - round(number)) < 1e-9:
-            return f"{int(round(number))}"
-
-        formatted = f"{number:.2f}".rstrip("0").rstrip(".")
-        return formatted.replace(".", ",")
-
-    return str(value).strip()
-
-
-def split_label_and_unit(column_name):
-    """Separate a CSV column label from the unit in parentheses, preserving CSV order."""
-    label = str(column_name).strip()
-
-    if "(" in label and ")" in label and label.rfind("(") < label.rfind(")"):
-        start = label.rfind("(")
-        end = label.rfind(")")
-        unit = label[start + 1:end].strip()
-        clean_label = (label[:start] + label[end + 1:]).strip()
-        return clean_label, unit
-
-    return label, ""
-
-
-def preset_card_html(label, value, unit=""):
-    unit_html = f'<span class="preset-unit">{unit}</span>' if unit else ""
-
-    return f'''
-    <div class="preset-card">
-        <div class="preset-label">{label}</div>
-        <div class="preset-value-row">
-            <span class="preset-value">{value}</span>
-            {unit_html}
-        </div>
-    </div>
-    '''
+    return f"{value}{suffix}"
 
 # =========================
 # LOGO
@@ -2019,20 +1999,20 @@ def viewer(
 # =========================
 
 tab_presets, tab_calculator = st.tabs([
-    "📦 Presets",
-    "🧮 Calcolatore / Render",
+    t["tab_presets"],
+    t["tab_calculator"],
 ])
 
 with tab_presets:
-    st.markdown("### 📦 Presets prodotti")
+    st.markdown(t["presets_title"])
 
     try:
         presets_df = load_presets("Presets.csv")
 
-        st.caption(f"{len(presets_df)} preset caricati correttamente da Presets.csv")
+        st.caption(f"{len(presets_df)} {t['presets_loaded']}")
 
         selected_product = st.selectbox(
-            "Seleziona prodotto",
+            t["select_product"],
             presets_df["Prodotto"].tolist(),
         )
 
@@ -2050,79 +2030,23 @@ with tab_presets:
                 box-shadow:0 14px 34px rgba(0,0,0,0.22);
             ">
                 <div style="font-size:13px; color:rgba(255,255,255,0.62); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">
-                    Scheda preset
+                    {t["preset_sheet"]}
                 </div>
                 <div style="font-size:30px; font-weight:800; color:#ffffff; line-height:1.15;">
                     {selected_product}
                 </div>
                 <div style="font-size:14px; color:rgba(255,255,255,0.68); margin-top:8px;">
-                    Configurazione tecnica prodotto · valori caricati da CSV
+                    {t["preset_subtitle"]}
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        st.markdown("#### Parametri CSV")
-
-        st.markdown(
-            """
-            <style>
-                .preset-card {
-                    min-height: 112px;
-                    padding: 16px 16px 14px 16px;
-                    margin-bottom: 14px;
-                    border-radius: 16px;
-                    background: linear-gradient(180deg, rgba(255,255,255,0.070), rgba(255,255,255,0.035));
-                    border: 1px solid rgba(255,255,255,0.105);
-                    box-shadow: 0 8px 22px rgba(0,0,0,0.12);
-                }
-
-                .preset-label {
-                    min-height: 34px;
-                    color: rgba(255,255,255,0.66);
-                    font-size: 12px;
-                    font-weight: 700;
-                    line-height: 1.18;
-                    text-transform: uppercase;
-                    letter-spacing: 0.055em;
-                    margin-bottom: 11px;
-                }
-
-                .preset-value-row {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 8px;
-                    flex-wrap: wrap;
-                }
-
-                .preset-value {
-                    color: #ffffff;
-                    font-size: 25px;
-                    font-weight: 800;
-                    letter-spacing: -0.025em;
-                    line-height: 1.05;
-                }
-
-                .preset-unit {
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 3px 7px;
-                    border-radius: 999px;
-                    background: rgba(255,255,255,0.10);
-                    border: 1px solid rgba(255,255,255,0.12);
-                    color: rgba(255,255,255,0.68);
-                    font-size: 11px;
-                    font-weight: 700;
-                    line-height: 1;
-                }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown(t["csv_params"])
 
         # Mostra tutte le colonne del CSV nello stesso ordine del file.
-        # Ogni campo viene mostrato come card visuale, senza usare una tabella.
+        # Ogni campo viene mostrato come metrica/card, senza usare una tabella.
         columns_in_order = list(presets_df.columns)
         cards_per_row = 4
 
@@ -2131,23 +2055,19 @@ with tab_presets:
             metric_cols = st.columns(cards_per_row)
 
             for card, column_name in zip(metric_cols, row_columns):
-                label, unit = split_label_and_unit(column_name)
-                value = format_preset_value(selected_row, column_name)
+                value = safe_value(selected_row, column_name)
+                card.metric(column_name, value)
 
-                card.markdown(
-                    preset_card_html(label, value, unit),
-                    unsafe_allow_html=True,
-                )
+        note_value = safe_value(selected_row, "Note")
+        if note_value != "-":
+            st.info(note_value)
 
-        st.info(
-            "In questo passaggio i presets sono solo consultabili. "
-            "Nel passaggio successivo aggiungeremo il pulsante per caricarli nel calcolatore."
-        )
+        st.info(t["presets_readonly"])
 
     except FileNotFoundError:
-        st.error("File Presets.csv non trovato. Mettilo nella stessa cartella dell'app.")
+        st.error(t["presets_file_missing"])
     except Exception as e:
-        st.error(f"Errore nel caricamento dei presets: {e}")
+        st.error(f"{t['presets_load_error']}: {e}")
 
 
 with tab_calculator:
