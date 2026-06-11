@@ -1923,6 +1923,18 @@ def viewer(
             }});
         }});
 
+        sceneBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                sceneMode = btn.dataset.scene;
+                setActiveButton(sceneBtns, sceneMode, "data-scene");
+                applySceneMode();
+            }});
+        }});
+
+        packRollCountInput.addEventListener("input", () => {{
+            updatePackagingScene();
+        }});
+
         resetViewBtn.addEventListener("click", () => {{
             currentView = "3d";
             setActiveButton(viewBtns, currentView, "data-view");
