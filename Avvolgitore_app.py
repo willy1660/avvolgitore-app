@@ -98,6 +98,22 @@ TEXTS = {
         "pallet_status_over": "Fuori sagoma",
         "pallet_overhang": "Sbalzo totale",
         "pallet_free_margin": "Margine residuo",
+        "packaging_tab": "📦 Packaging",
+        "render_tab": "🎥 Render",
+        "packaging_title": "Packaging",
+        "packaging_mode": "Tipo packaging",
+        "packaging_box": "Scatola 750 × 750 × 1350 mm",
+        "packaging_tower": "Torre su pallet",
+        "roll_count": "Numero rotoli",
+        "box_height": "Altezza scatola",
+        "pallet_height": "Altezza pallet",
+        "total_height": "Altezza totale con pallet",
+        "roll_stack_height": "Altezza rotoli",
+        "height_margin": "Margine altezza",
+        "height_over": "Superamento altezza",
+        "box_fit_ok": "Packaging OK",
+        "box_fit_over": "Fuori limite",
+        "box_fit_note": "Calcolo basato sui parametri attuali del render.",
     },
     "EN": {
         "title": "Coiling",
@@ -176,6 +192,22 @@ TEXTS = {
         "pallet_status_over": "Out of bounds",
         "pallet_overhang": "Total overhang",
         "pallet_free_margin": "Remaining margin",
+        "packaging_tab": "📦 Packaging",
+        "render_tab": "🎥 Render",
+        "packaging_title": "Packaging",
+        "packaging_mode": "Packaging type",
+        "packaging_box": "Box 750 × 750 × 1350 mm",
+        "packaging_tower": "Tower on pallet",
+        "roll_count": "Number of coils",
+        "box_height": "Box height",
+        "pallet_height": "Pallet height",
+        "total_height": "Total height with pallet",
+        "roll_stack_height": "Coil stack height",
+        "height_margin": "Height margin",
+        "height_over": "Height over limit",
+        "box_fit_ok": "Packaging OK",
+        "box_fit_over": "Out of bounds",
+        "box_fit_note": "Calculation based on the current render parameters.",
     },
 }
 
@@ -388,6 +420,142 @@ def make_pallet_visual(coil_diameter_mm, pallet_size_mm, language):
     <div class="legend">
         <div class="legend-item"><span class="swatch" style="background:var(--pallet);"></span>{labels['pallet']}</div>
         <div class="legend-item"><span class="swatch" style="background:{coil_fill}; border:1px solid {coil_stroke};"></span>{labels['coil']}</div>
+    </div>
+</div>
+</body>
+</html>
+"""
+
+
+
+def make_packaging_visual(
+    coil_diameter_mm,
+    roll_height_mm,
+    roll_count,
+    pallet_size_mm,
+    pallet_height_mm,
+    box_height_mm,
+    mode,
+    language,
+):
+    labels = {
+        "IT": {
+            "side": "Vista laterale",
+            "top": "Vista dall'alto",
+            "box": "Scatola",
+            "tower": "Torre",
+            "pallet": "Pallet",
+            "coil": "Rotolo",
+            "total": "Totale",
+            "height": "Altezza",
+        },
+        "EN": {
+            "side": "Side view",
+            "top": "Top view",
+            "box": "Box",
+            "tower": "Tower",
+            "pallet": "Pallet",
+            "coil": "Coil",
+            "total": "Total",
+            "height": "Height",
+        },
+    }[language]
+
+    is_box = mode == "box"
+    package_height_mm = box_height_mm if is_box else max(box_height_mm, roll_count * roll_height_mm)
+    stack_height_mm = roll_count * roll_height_mm
+    total_height_mm = pallet_height_mm + stack_height_mm
+
+    # Scale dimensions to a stable schematic drawing.
+    max_visual_height_mm = max(box_height_mm, stack_height_mm, 1)
+    box_h_px = 150
+    pallet_h_px = max(16, min(32, pallet_height_mm / max_visual_height_mm * box_h_px))
+    roll_h_px = max(6, roll_height_mm / max_visual_height_mm * box_h_px)
+    stack_h_px = roll_h_px * roll_count
+    stack_h_px = min(stack_h_px, 188)
+
+    box_top_y = 24
+    box_bottom_y = box_top_y + box_h_px
+    pallet_y = box_bottom_y + 10
+
+    top_ratio = coil_diameter_mm / pallet_size_mm if pallet_size_mm > 0 else 1.0
+    top_r = max(8.0, 58.0 * top_ratio)
+    coil_fill = "var(--warn-fill)" if top_ratio > 1.0 else "var(--coil-fill)"
+    coil_stroke = "var(--warn-stroke)" if top_ratio > 1.0 else "var(--coil-stroke)"
+
+    roll_svgs = []
+    base_y = box_bottom_y
+    for i in range(int(roll_count)):
+        cy = base_y - (i + 0.5) * roll_h_px
+        if cy < 8:
+            continue
+        roll_svgs.append(
+            f'<ellipse cx="118" cy="{cy:.2f}" rx="82" ry="{max(4, roll_h_px * 0.42):.2f}" fill="var(--coil-fill-2)" stroke="var(--coil-stroke)" stroke-width="2"/>'
+        )
+        roll_svgs.append(
+            f'<ellipse cx="118" cy="{cy - max(1, roll_h_px * 0.12):.2f}" rx="78" ry="{max(3, roll_h_px * 0.30):.2f}" fill="var(--coil-highlight)" opacity="0.88"/>'
+        )
+
+    box_stroke = "var(--ok)" if stack_height_mm <= box_height_mm else "var(--warn-stroke)"
+    title = labels["box"] if is_box else labels["tower"]
+
+    return f"""
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    :root {{
+        --bg: transparent;
+        --card-bg: rgba(255,255,255,0.04);
+        --card-border: rgba(255,255,255,0.10);
+        --text: #f8fafc;
+        --muted: rgba(248,250,252,0.70);
+        --pallet: rgba(194,154,106,0.50);
+        --pallet-stroke: rgba(223,190,145,0.92);
+        --box-fill: rgba(148,163,184,0.08);
+        --box-stroke: rgba(203,213,225,0.78);
+        --coil-fill: rgba(96,165,250,0.18);
+        --coil-fill-2: rgba(226,232,240,0.84);
+        --coil-highlight: rgba(248,250,252,0.96);
+        --coil-stroke: rgba(191,219,254,0.96);
+        --warn-fill: rgba(248,113,113,0.18);
+        --warn-stroke: rgba(252,165,165,0.98);
+        --ok: rgba(74,222,128,0.98);
+    }}
+    body {{ margin:0; font-family: Arial, Helvetica, sans-serif; color:var(--text); background:var(--bg); }}
+    .wrap {{ border:1px solid var(--card-border); border-radius:18px; padding:18px; background:var(--card-bg); }}
+    .grid {{ display:grid; grid-template-columns: 1.25fr 0.75fr; gap:18px; align-items:center; }}
+    .title {{ font-size:13px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px; }}
+    .caption {{ font-size:12px; fill:var(--muted); font-weight:700; }}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="title">{title}</div>
+    <div class="grid">
+        <svg viewBox="0 0 260 245" width="100%" height="auto" role="img" aria-label="Packaging side view">
+            <text x="20" y="14" class="caption">{labels['side']}</text>
+            <rect x="34" y="{box_top_y}" width="168" height="{box_h_px}" rx="8" fill="{'var(--box-fill)' if is_box else 'none'}" stroke="{box_stroke}" stroke-width="3" stroke-dasharray="{'0' if is_box else '8 7'}"/>
+            {''.join(roll_svgs)}
+            <rect x="18" y="{pallet_y}" width="200" height="{pallet_h_px}" rx="5" fill="var(--pallet)" stroke="var(--pallet-stroke)" stroke-width="2"/>
+            <line x1="228" y1="{box_top_y}" x2="228" y2="{pallet_y + pallet_h_px}" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+            <line x1="218" y1="{box_top_y}" x2="238" y2="{box_top_y}" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+            <line x1="218" y1="{pallet_y + pallet_h_px}" x2="238" y2="{pallet_y + pallet_h_px}" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+            <text x="242" y="{(box_top_y + pallet_y + pallet_h_px)/2:.1f}" transform="rotate(90 242 {(box_top_y + pallet_y + pallet_h_px)/2:.1f})" fill="#f8fafc" font-size="13" font-weight="800" text-anchor="middle">{total_height_mm:.0f} mm</text>
+            <text x="118" y="{pallet_y + pallet_h_px + 18}" fill="var(--muted)" font-size="12" font-weight="700" text-anchor="middle">{labels['pallet']} {pallet_height_mm:.0f} mm</text>
+        </svg>
+
+        <svg viewBox="0 0 220 220" width="100%" height="auto" role="img" aria-label="Packaging top view">
+            <text x="22" y="18" class="caption">{labels['top']}</text>
+            <rect x="40" y="38" width="140" height="140" rx="8" fill="var(--pallet)" stroke="var(--pallet-stroke)" stroke-width="2"/>
+            <circle cx="110" cy="108" r="{top_r:.2f}" fill="{coil_fill}" stroke="{coil_stroke}" stroke-width="3"/>
+            <line x1="40" y1="194" x2="180" y2="194" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+            <line x1="40" y1="184" x2="40" y2="204" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+            <line x1="180" y1="184" x2="180" y2="204" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+            <text x="110" y="190" fill="#f8fafc" font-size="13" font-weight="800" text-anchor="middle">{pallet_size_mm:.0f} mm</text>
+            <text x="110" y="211" fill="var(--muted)" font-size="12" font-weight="700" text-anchor="middle">{labels['coil']} Ø {coil_diameter_mm:.0f} mm</text>
+        </svg>
     </div>
 </div>
 </body>
@@ -2848,6 +3016,8 @@ with tab_calculator:
     m6.metric(t["metric6"], f"{visual_metrics['wound_length_m']:.3f} m")
 
     pallet_size_mm = 750.0
+    pallet_height_mm = 130.0
+    box_height_mm = 1350.0
     coil_footprint_mm = float(visual_metrics["max_xy_span"])
     overhang_mm = max(0.0, coil_footprint_mm - pallet_size_mm)
     free_margin_mm = max(0.0, pallet_size_mm - coil_footprint_mm)
@@ -2855,29 +3025,112 @@ with tab_calculator:
     if coil_footprint_mm > pallet_size_mm:
         st.warning(t["warning"])
 
-    st.markdown(f"#### {t['pallet_title']}")
-    st.caption(t["pallet_subtitle"])
+    st.divider()
 
-    p1, p2 = st.columns([1.25, 1.0])
-    with p1:
-        components.html(make_pallet_visual(coil_footprint_mm, pallet_size_mm, lang), height=360, scrolling=False)
-    with p2:
-        status_ok = coil_footprint_mm <= pallet_size_mm
-        status_label = t["pallet_status_ok"] if status_ok else t["pallet_status_over"]
-        status_bg = "rgba(34,197,94,0.14)" if status_ok else "rgba(248,113,113,0.14)"
-        status_border = "rgba(74,222,128,0.28)" if status_ok else "rgba(252,165,165,0.28)"
-        st.markdown(
-            f"""
-            <div style="background:{status_bg}; border:1px solid {status_border}; border-radius:18px; padding:18px 20px; margin-bottom:14px;">
-                <div style="font-size:13px; color:rgba(255,255,255,0.70); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Status</div>
-                <div style="font-size:28px; font-weight:800; color:#ffffff;">{status_label}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        q1, q2 = st.columns(2)
-        q1.metric(t["pallet_size"], f"{pallet_size_mm:.0f} mm")
-        q2.metric(t["coil_footprint"], f"{coil_footprint_mm:.1f} mm")
-        r1, r2 = st.columns(2)
-        r1.metric(t["pallet_overhang"], f"{overhang_mm:.1f} mm")
-        r2.metric(t["pallet_free_margin"], f"{free_margin_mm:.1f} mm")
+    render_subtab, packaging_subtab = st.tabs([
+        t["render_tab"],
+        t["packaging_tab"],
+    ])
+
+    with render_subtab:
+        st.markdown(f"#### {t['pallet_title']}")
+        st.caption(t["pallet_subtitle"])
+
+        p1, p2 = st.columns([1.25, 1.0])
+        with p1:
+            components.html(make_pallet_visual(coil_footprint_mm, pallet_size_mm, lang), height=430, scrolling=False)
+        with p2:
+            status_ok = coil_footprint_mm <= pallet_size_mm
+            status_label = t["pallet_status_ok"] if status_ok else t["pallet_status_over"]
+            status_bg = "rgba(34,197,94,0.14)" if status_ok else "rgba(248,113,113,0.14)"
+            status_border = "rgba(74,222,128,0.28)" if status_ok else "rgba(252,165,165,0.28)"
+            st.markdown(
+                f"""
+                <div style="background:{status_bg}; border:1px solid {status_border}; border-radius:18px; padding:18px 20px; margin-bottom:14px;">
+                    <div style="font-size:13px; color:rgba(255,255,255,0.70); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Status</div>
+                    <div style="font-size:28px; font-weight:800; color:#ffffff;">{status_label}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            q1, q2 = st.columns(2)
+            q1.metric(t["pallet_size"], f"{pallet_size_mm:.0f} mm")
+            q2.metric(t["coil_footprint"], f"{coil_footprint_mm:.1f} mm")
+            r1, r2 = st.columns(2)
+            r1.metric(t["pallet_overhang"], f"{overhang_mm:.1f} mm")
+            r2.metric(t["pallet_free_margin"], f"{free_margin_mm:.1f} mm")
+
+    with packaging_subtab:
+        st.markdown(f"#### {t['packaging_title']}")
+        st.caption(t["box_fit_note"])
+
+        c_pack1, c_pack2 = st.columns([1.0, 1.0])
+        with c_pack1:
+            packaging_choice = st.radio(
+                t["packaging_mode"],
+                [t["packaging_box"], t["packaging_tower"]],
+                horizontal=True,
+                key="packaging_mode_choice",
+            )
+        with c_pack2:
+            roll_count = st.number_input(
+                t["roll_count"],
+                min_value=1,
+                max_value=50,
+                value=5,
+                step=1,
+                key="packaging_roll_count",
+            )
+
+        packaging_mode = "box" if packaging_choice == t["packaging_box"] else "tower"
+        roll_stack_height_mm = roll_count * spalla
+        total_height_with_pallet_mm = pallet_height_mm + roll_stack_height_mm
+        height_limit_mm = box_height_mm if packaging_mode == "box" else box_height_mm
+        height_margin_mm = max(0.0, height_limit_mm - roll_stack_height_mm)
+        height_over_mm = max(0.0, roll_stack_height_mm - height_limit_mm)
+        footprint_ok = coil_footprint_mm <= pallet_size_mm
+        height_ok = roll_stack_height_mm <= height_limit_mm
+        packaging_ok = footprint_ok and height_ok
+
+        pk1, pk2 = st.columns([1.25, 1.0])
+        with pk1:
+            components.html(
+                make_packaging_visual(
+                    coil_footprint_mm,
+                    spalla,
+                    roll_count,
+                    pallet_size_mm,
+                    pallet_height_mm,
+                    box_height_mm,
+                    packaging_mode,
+                    lang,
+                ),
+                height=470,
+                scrolling=False,
+            )
+        with pk2:
+            status_label = t["box_fit_ok"] if packaging_ok else t["box_fit_over"]
+            status_bg = "rgba(34,197,94,0.14)" if packaging_ok else "rgba(248,113,113,0.14)"
+            status_border = "rgba(74,222,128,0.28)" if packaging_ok else "rgba(252,165,165,0.28)"
+            st.markdown(
+                f"""
+                <div style="background:{status_bg}; border:1px solid {status_border}; border-radius:18px; padding:18px 20px; margin-bottom:14px;">
+                    <div style="font-size:13px; color:rgba(255,255,255,0.70); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Status</div>
+                    <div style="font-size:28px; font-weight:800; color:#ffffff;">{status_label}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            a1, a2 = st.columns(2)
+            a1.metric(t["roll_count"], f"{roll_count}")
+            a2.metric(t["box_height"], f"{box_height_mm:.0f} mm")
+            b1, b2 = st.columns(2)
+            b1.metric(t["pallet_height"], f"{pallet_height_mm:.0f} mm")
+            b2.metric(t["roll_stack_height"], f"{roll_stack_height_mm:.1f} mm")
+            c1, c2 = st.columns(2)
+            c1.metric(t["total_height"], f"{total_height_with_pallet_mm:.1f} mm")
+            c2.metric(t["coil_footprint"], f"{coil_footprint_mm:.1f} mm")
+            d1, d2 = st.columns(2)
+            d1.metric(t["height_margin"], f"{height_margin_mm:.1f} mm")
+            d2.metric(t["height_over"], f"{height_over_mm:.1f} mm")
