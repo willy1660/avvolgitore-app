@@ -323,59 +323,48 @@ def param_label(column_name, language):
 
 
 def render_preset_param_cards(title, column_names, selected_row, language, cards_per_row=4):
-    if IS_LIGHT_THEME:
-        card_bg = "linear-gradient(180deg, rgba(255,255,255,1.0), rgba(244,248,252,1.0))"
-        border = "rgba(15,23,42,0.10)"
-        label = "rgba(15,23,42,0.66)"
-        value = "#0f172a"
-    else:
-        card_bg = "rgba(255,255,255,0.04)"
-        border = "rgba(255,255,255,0.10)"
-        label = "rgba(250,250,250,0.88)"
-        value = "#ffffff"
-
     st.markdown(
-        f"""
+        """
         <style>
-        .preset-param-card {{
-            background: {card_bg};
-            border: 1px solid {border};
-            border-radius: 18px;
+        .preset-param-card {
+            background: var(--secondary-background-color);
+            border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            border-radius: 16px;
             padding: 16px 18px;
             min-height: 120px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+            box-shadow: 0 8px 22px rgba(0,0,0,0.08);
             margin-bottom: 10px;
-        }}
-        .preset-param-label {{
-            font-size: 15px;
+        }
+        .preset-param-label {
+            font-size: 13px;
             line-height: 1.35;
-            font-weight: 600;
-            color: {label};
+            font-weight: 650;
+            color: color-mix(in srgb, var(--text-color) 68%, transparent);
             margin-bottom: 14px;
-        }}
-        .preset-param-value {{
+        }
+        .preset-param-value {
             font-size: 28px;
             line-height: 1.08;
             font-weight: 800;
-            color: {value};
+            color: var(--text-color);
             word-break: break-word;
-        }}
-        @media (max-width: 900px) {{
-            .preset-param-card {{
+        }
+        @media (max-width: 900px) {
+            .preset-param-card {
                 min-height: 104px;
                 padding: 14px 16px;
-            }}
-            .preset-param-label {{
-                font-size: 14px;
+            }
+            .preset-param-label {
+                font-size: 13px;
                 margin-bottom: 10px;
-            }}
-            .preset-param-value {{
+            }
+            .preset-param-value {
                 font-size: 24px;
-            }}
-        }}
+            }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -387,13 +376,13 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
         ui_cols = st.columns(cards_per_row)
 
         for ui_col, column_name in zip(ui_cols, row_columns):
-            value_txt = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
-            label_txt = param_label(column_name, language)
+            value = format_preset_value(selected_row[column_name]) if column_name in selected_row.index else "-"
+            label = param_label(column_name, language)
             ui_col.markdown(
                 f"""
                 <div class="preset-param-card">
-                    <div class="preset-param-label">{html.escape(str(label_txt))}</div>
-                    <div class="preset-param-value">{html.escape(str(value_txt))}</div>
+                    <div class="preset-param-label">{html.escape(str(label))}</div>
+                    <div class="preset-param-value">{html.escape(str(value))}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -454,66 +443,49 @@ def evaluate_packaging(coil_footprint_mm, roll_height_mm, roll_count, packaging_
 
 
 def render_summary_cards(title, items, cards_per_row=4):
-    if IS_LIGHT_THEME:
-        card_bg = "linear-gradient(180deg, rgba(255,255,255,1.0), rgba(244,248,252,1.0))"
-        border = "rgba(15,23,42,0.10)"
-        label = "rgba(15,23,42,0.68)"
-        value = "#0f172a"
-        note = "rgba(15,23,42,0.56)"
-        ok_bg = "rgba(74,222,128,0.12)"
-        bad_bg = "rgba(248,113,113,0.12)"
-    else:
-        card_bg = "rgba(255,255,255,0.04)"
-        border = "rgba(255,255,255,0.10)"
-        label = "rgba(250,250,250,0.82)"
-        value = "#ffffff"
-        note = "rgba(250,250,250,0.66)"
-        ok_bg = "rgba(74,222,128,0.10)"
-        bad_bg = "rgba(248,113,113,0.10)"
-
     st.markdown(
-        f"""
+        """
         <style>
-        .summary-card {{
-            background: {card_bg};
-            border: 1px solid {border};
-            border-radius: 18px;
+        .summary-card {
+            background: var(--secondary-background-color);
+            border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            border-radius: 16px;
             padding: 16px 18px;
             min-height: 118px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+            box-shadow: 0 8px 22px rgba(0,0,0,0.08);
             margin-bottom: 10px;
-        }}
-        .summary-card.status-ok {{
-            border-color: rgba(74,222,128,0.28);
-            background: {ok_bg};
-        }}
-        .summary-card.status-bad {{
-            border-color: rgba(248,113,113,0.28);
-            background: {bad_bg};
-        }}
-        .summary-card-label {{
-            font-size: 14px;
+        }
+        .summary-card.status-ok {
+            border-color: rgba(34,197,94,0.36);
+            background: color-mix(in srgb, #22c55e 11%, var(--secondary-background-color));
+        }
+        .summary-card.status-bad {
+            border-color: rgba(239,68,68,0.36);
+            background: color-mix(in srgb, #ef4444 11%, var(--secondary-background-color));
+        }
+        .summary-card-label {
+            font-size: 13px;
             line-height: 1.3;
-            font-weight: 600;
-            color: {label};
+            font-weight: 650;
+            color: color-mix(in srgb, var(--text-color) 68%, transparent);
             margin-bottom: 12px;
-        }}
-        .summary-card-value {{
+        }
+        .summary-card-value {
             font-size: 30px;
             line-height: 1.08;
             font-weight: 800;
-            color: {value};
+            color: var(--text-color);
             word-break: break-word;
-        }}
-        .summary-card-note {{
+        }
+        .summary-card-note {
             font-size: 12px;
-            color: {note};
+            color: color-mix(in srgb, var(--text-color) 62%, transparent);
             margin-top: 8px;
             line-height: 1.3;
-        }}
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -526,8 +498,8 @@ def render_summary_cards(title, items, cards_per_row=4):
         for col, item in zip(cols, chunk):
             tone = item.get("tone", "")
             extra_class = f" status-{tone}" if tone in {"ok", "bad"} else ""
-            note_txt = item.get("note", "")
-            note_html = f'<div class="summary-card-note">{html.escape(str(note_txt))}</div>' if note_txt else ""
+            note = item.get("note", "")
+            note_html = f'<div class="summary-card-note">{html.escape(str(note))}</div>' if note else ""
             col.markdown(
                 f"""
                 <div class="summary-card{extra_class}">
@@ -1226,192 +1198,6 @@ def find_logo():
 
 logo_path = find_logo()
 
-
-def _theme_base_value():
-    try:
-        base = (st.get_option("theme.base") or "dark").lower().strip()
-    except Exception:
-        base = "dark"
-    return "light" if base == "light" else "dark"
-
-
-APP_THEME_BASE = _theme_base_value()
-IS_LIGHT_THEME = APP_THEME_BASE == "light"
-
-
-
-def inject_adaptive_ui_css():
-    if IS_LIGHT_THEME:
-        bg_main = "#f4f7fb"
-        bg_secondary = "#e9eef5"
-        border = "rgba(15,23,42,0.14)"
-        border_soft = "rgba(15,23,42,0.10)"
-        title = "#0f172a"
-        text = "#1f2937"
-        text_muted = "rgba(15,23,42,0.66)"
-        card_bg = "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,253,0.98))"
-        input_bg = "linear-gradient(180deg, rgba(255,255,255,1.0), rgba(245,248,252,1.0))"
-        shadow = "0 10px 24px rgba(15,23,42,0.08)"
-        tab_bg = "rgba(255,255,255,0.88)"
-        tab_active = "linear-gradient(180deg, rgba(255,255,255,1.0), rgba(243,247,251,1.0))"
-        accent = "#475569"
-    else:
-        bg_main = "#0b1016"
-        bg_secondary = "#0e141b"
-        border = "rgba(255,255,255,0.10)"
-        border_soft = "rgba(255,255,255,0.08)"
-        title = "#ffffff"
-        text = "#f8fafc"
-        text_muted = "rgba(248,250,252,0.70)"
-        card_bg = "linear-gradient(180deg, rgba(22,28,35,0.96), rgba(14,19,25,0.98))"
-        input_bg = "linear-gradient(180deg, rgba(24,30,38,0.98), rgba(16,21,28,0.98))"
-        shadow = "0 12px 28px rgba(0,0,0,0.14)"
-        tab_bg = "rgba(255,255,255,0.05)"
-        tab_active = card_bg
-        accent = "#cbd5e1"
-
-    st.markdown(
-        f"""
-        <style>
-        [data-testid="stAppViewContainer"] {{
-            background:
-                radial-gradient(circle at top right, rgba(150, 168, 190, 0.08), transparent 26%),
-                linear-gradient(180deg, {bg_main} 0%, {bg_secondary} 100%);
-        }}
-        [data-testid="stHeader"] {{
-            background: transparent;
-        }}
-        .main .block-container {{
-            max-width: 1450px;
-            padding-top: 1.05rem;
-            padding-bottom: 2.10rem;
-        }}
-
-        html, body, [data-testid="stAppViewContainer"], [data-testid="stMarkdownContainer"], p, li, label, span {{
-            color: {text};
-        }}
-
-        [data-testid="stTabs"] button {{
-            background: {tab_bg};
-            border: 1px solid {border_soft};
-            border-radius: 12px 12px 0 0;
-            height: 44px;
-            color: {text};
-            font-weight: 700;
-            padding-inline: 18px;
-        }}
-        [data-testid="stTabs"] button[aria-selected="true"] {{
-            background: {tab_active};
-            border-color: {border};
-            color: {title};
-        }}
-
-        .stSelectbox label, .stNumberInput label, .stRadio label, .stCheckbox label,
-        [data-testid="stWidgetLabel"] {{
-            color: {text} !important;
-            font-weight: 600 !important;
-        }}
-
-        div[data-baseweb="select"] > div,
-        div[data-baseweb="input"] > div,
-        div[data-baseweb="base-input"] > div {{
-            border-radius: 12px !important;
-            border: 1px solid {border} !important;
-            box-shadow: none !important;
-            background: {input_bg} !important;
-        }}
-
-        div[data-baseweb="select"] input,
-        div[data-baseweb="input"] input,
-        div[data-baseweb="base-input"] input {{
-            color: {title} !important;
-            -webkit-text-fill-color: {title} !important;
-            font-weight: 600 !important;
-        }}
-
-        [data-baseweb="select"] svg, [data-baseweb="input"] svg {{
-            color: {text_muted} !important;
-            fill: {text_muted} !important;
-        }}
-
-        [data-testid="stRadio"] div[role="radiogroup"] {{
-            gap: 10px;
-        }}
-        [data-testid="stRadio"] div[role="radiogroup"] > label {{
-            padding: 8px 12px;
-            border-radius: 12px;
-            border: 1px solid {border_soft};
-            background: {input_bg};
-        }}
-
-        [data-testid="stButton"] button {{
-            min-height: 42px;
-            border-radius: 12px;
-            border: 1px solid {border};
-            background: {input_bg};
-            color: {title};
-            font-weight: 700;
-            box-shadow: {shadow};
-        }}
-
-        .app-hero {{
-            padding: 16px 18px;
-            border-radius: 16px;
-            border: 1px solid {border};
-            background: {card_bg};
-            box-shadow: {shadow};
-        }}
-        .app-hero-kicker {{
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: {text_muted};
-            margin-bottom: 5px;
-        }}
-        .app-hero-title {{
-            margin: 0;
-            color: {title};
-            font-size: 30px;
-            line-height: 1.06;
-            font-weight: 900;
-        }}
-        .app-hero-subtitle {{
-            margin-top: 7px;
-            color: {text_muted};
-            font-size: 13px;
-        }}
-        .section-kicker {{
-            color: {text_muted};
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.10em;
-            font-weight: 800;
-            margin-bottom: 6px;
-        }}
-        .section-head {{
-            margin: 0 0 10px 0;
-            color: {title};
-            font-size: 20px;
-            line-height: 1.10;
-            font-weight: 900;
-        }}
-        .section-note {{
-            color: {text_muted};
-            font-size: 13px;
-            margin-top: -2px;
-            margin-bottom: 8px;
-        }}
-        .section-divider {{
-            height: 1px;
-            background: linear-gradient(90deg, rgba(127,127,127,0.00), rgba(127,127,127,0.22), rgba(127,127,127,0.00));
-            margin: 10px 0 14px 0;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
 # =========================
 # HEADER
 # =========================
@@ -1435,17 +1221,28 @@ with top2:
 st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
-inject_adaptive_ui_css()
-title_placeholder.markdown(
-    f"""
-    <div class="app-hero">
-        <div class="app-hero-kicker">Winding and packaging interface</div>
-        <div class="app-hero-title">{t['title']}</div>
-        <div class="app-hero-subtitle">Preset prodotto · simulazione avvolgimento · controllo packaging</div>
-    </div>
+
+st.markdown(
+    """
+    <style>
+    .main .block-container {
+        max-width: 1450px;
+        padding-top: 1.0rem;
+        padding-bottom: 2.0rem;
+    }
+    [data-testid="stTabs"] button {
+        font-weight: 650;
+    }
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="select"] > div {
+        border-radius: 10px;
+    }
+    </style>
     """,
     unsafe_allow_html=True,
 )
+
+title_placeholder.markdown(f"## {t['title']}")
 
 # =========================
 # GEOMETRY HELPERS
@@ -1753,7 +1550,6 @@ def viewer(
     container_mode="40hc",
     pack_roll_count=5,
     tube_mode_initial="gelwhite",
-    theme_base="dark",
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -1763,21 +1559,6 @@ def viewer(
     final_layers_json = json.dumps(final_layers)
     final_lengths_json = json.dumps(final_lengths)
     labels_json = json.dumps(TEXTS[language])
-    viewer_is_light = str(theme_base).lower() == "light"
-    viewer_root_bg = "#e8eef5" if viewer_is_light else "#101216"
-    viewer_border = "rgba(15,23,42,0.14)" if viewer_is_light else "rgba(255,255,255,0.08)"
-    viewer_panel_bg = "rgba(255,255,255,0.92)" if viewer_is_light else "rgba(18,22,27,0.74)"
-    viewer_panel_text = "#0f172a" if viewer_is_light else "#f0f0f0"
-    viewer_btn_bg = "#edf2f7" if viewer_is_light else "#f4f4f4"
-    viewer_btn_text = "#111827" if viewer_is_light else "#111"
-    viewer_btn_hover = "#e2e8f0" if viewer_is_light else "#ffffff"
-    viewer_active_outline = "#334155" if viewer_is_light else "#ffffff"
-    viewer_active_bg = "#dbe4ee" if viewer_is_light else "#ffffff"
-    viewer_scroll = "rgba(15,23,42,0.20)" if viewer_is_light else "rgba(255,255,255,0.18)"
-    viewer_hud_bg = "rgba(255,255,255,0.88)" if viewer_is_light else "rgba(18,22,27,0.56)"
-    viewer_hud_text = "#0f172a" if viewer_is_light else "#f2f2f2"
-    viewer_hud_border = "rgba(15,23,42,0.12)" if viewer_is_light else "rgba(255,255,255,0.12)"
-
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -1788,10 +1569,10 @@ def viewer(
     <div id="viewer_root" style="
         width:100%;
         height:{altezza}px;
-        background:{viewer_root_bg};
+        background:#101216;
         border-radius:16px;
         overflow:hidden;
-        border:1px solid {viewer_border};
+        border:1px solid rgba(255,255,255,0.08);
         box-shadow:0 18px 42px rgba(0,0,0,0.28);
         position:relative;
     ">
@@ -1804,9 +1585,9 @@ def viewer(
             align-items:center;
             gap:8px;
             padding:10px 12px;
-            background:{viewer_panel_bg};
-            color:{viewer_panel_text};
-            border:1px solid {viewer_border};
+            background:rgba(18,22,27,0.74);
+            color:#f0f0f0;
+            border:1px solid rgba(255,255,255,0.12);
             border-radius:14px;
             backdrop-filter: blur(10px);
             font-family:Arial, sans-serif;
@@ -1829,7 +1610,7 @@ def viewer(
             grid-template-columns:repeat(3, auto);
             gap:8px;
             font-family:Arial, sans-serif;
-            color:{viewer_hud_text};
+            color:#f2f2f2;
             user-select:none;
         ">
             <div class="hud_card"><div class="hud_label" id="hud_length_label"></div><div class="hud_value" id="hud_length_value">0.0 m</div></div>
@@ -1845,8 +1626,8 @@ def viewer(
             display:none;
             min-width:220px;
             padding:14px 16px;
-            background:{viewer_panel_bg};
-            color:{viewer_panel_text};
+            background:rgba(18,22,27,0.78);
+            color:#f8fafc;
             border:1px solid rgba(255,255,255,0.12);
             border-radius:15px;
             backdrop-filter:blur(10px);
@@ -1873,9 +1654,9 @@ def viewer(
             overscroll-behavior:contain;
             box-sizing:border-box;
             padding:12px;
-            background:{viewer_panel_bg};
-            color:{viewer_panel_text};
-            border:1px solid {viewer_border};
+            background:rgba(18,22,27,0.74);
+            color:#f0f0f0;
+            border:1px solid rgba(255,255,255,0.12);
             border-radius:14px;
             backdrop-filter: blur(10px);
             font-family:Arial, sans-serif;
@@ -1924,13 +1705,13 @@ def viewer(
                 <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="{int(pack_roll_count)}" style="
                     width:100%;
                     box-sizing:border-box;
-                    border:1px solid {viewer_border};
+                    border:none;
                     border-radius:9px;
                     padding:9px 11px;
                     font-weight:800;
                     font-size:16px;
-                    background:{viewer_btn_bg};
-                    color:{viewer_btn_text};
+                    background:rgba(255,255,255,0.96);
+                    color:#111;
                     margin-bottom:10px;
                 " />
                 
@@ -1979,21 +1760,21 @@ def viewer(
 
     <style>
         .viewer_btn {{
-            border:1px solid {viewer_border};
+            border:none;
             border-radius:9px;
             padding:7px 12px;
-            background:{viewer_btn_bg};
-            color:{viewer_btn_text};
+            background:#f4f4f4;
+            color:#111;
             font-weight:700;
             cursor:pointer;
         }}
 
         .viewer_btn_small {{
-            border:1px solid {viewer_border};
+            border:none;
             border-radius:10px;
             padding:8px 10px;
-            background:{viewer_btn_bg};
-            color:{viewer_btn_text};
+            background:rgba(235,235,235,0.92);
+            color:#111;
             font-weight:700;
             font-size:14px;
             cursor:pointer;
@@ -2006,13 +1787,13 @@ def viewer(
 
         .viewer_btn_small:hover,
         .viewer_btn:hover {{
-            background:{viewer_btn_hover};
+            background:#ffffff;
         }}
 
         .active_speed,
         .active_opt {{
-            outline:2px solid {viewer_active_outline};
-            background:{viewer_active_bg};
+            outline:2px solid #ffffff;
+            background:#ffffff;
         }}
 
         .panel_label {{
@@ -2046,7 +1827,7 @@ def viewer(
         }}
 
         #viewer_sidepanel::-webkit-scrollbar-thumb {{
-            background:{viewer_scroll};
+            background:rgba(255,255,255,0.18);
             border-radius:999px;
         }}
 
@@ -2078,8 +1859,8 @@ def viewer(
         .pack_stat {{
             padding:9px 10px;
             border-radius:11px;
-            background:{viewer_hud_bg};
-            border:1px solid {viewer_hud_border};
+            background:rgba(255,255,255,0.08);
+            border:1px solid rgba(255,255,255,0.10);
         }}
 
         .pack_stat_label {{
@@ -2107,8 +1888,8 @@ def viewer(
         .hud_card {{
             min-width:86px;
             padding:10px 12px;
-            background:{viewer_hud_bg};
-            border:1px solid {viewer_hud_border};
+            background:rgba(18,22,27,0.56);
+            border:1px solid rgba(255,255,255,0.12);
             border-radius:13px;
             backdrop-filter: blur(10px);
             box-shadow:0 10px 24px rgba(0,0,0,0.18);
@@ -3768,17 +3549,17 @@ with tab_presets:
                 margin-bottom:18px;
                 padding:22px 24px;
                 border-radius:18px;
-                background:linear-gradient(135deg, rgba(30,34,40,0.96), rgba(18,21,26,0.96));
-                border:1px solid rgba(255,255,255,0.10);
-                box-shadow:0 14px 34px rgba(0,0,0,0.22);
+                background:var(--secondary-background-color);
+                border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+                box-shadow:0 8px 22px rgba(0,0,0,0.08);
             ">
-                <div style="font-size:13px; color:rgba(255,255,255,0.62); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">
+                <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
                     {t["preset_sheet"]}
                 </div>
-                <div style="font-size:30px; font-weight:800; color:#ffffff; line-height:1.15;">
+                <div style="font-size:30px; font-weight:800; color:var(--text-color); line-height:1.15;">
                     {selected_product}
                 </div>
-                <div style="font-size:14px; color:rgba(255,255,255,0.68); margin-top:8px;">
+                <div style="font-size:14px; color:color-mix(in srgb, var(--text-color) 68%, transparent); margin-top:8px;">
                     {t["preset_subtitle"]}
                 </div>
             </div>
@@ -3955,7 +3736,6 @@ with tab_calculator:
             packaging_mode=packaging_mode_selected,
             container_mode=container_mode_selected,
             pack_roll_count=pack_roll_count,
-            theme_base=APP_THEME_BASE,
         ),
         height=820,
     )
