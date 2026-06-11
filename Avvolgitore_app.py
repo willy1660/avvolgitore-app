@@ -324,7 +324,7 @@ def param_label(column_name, language):
 
 def render_preset_param_cards(title, column_names, selected_row, language, cards_per_row=4):
     if IS_LIGHT_THEME:
-        card_bg = "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,252,0.98))"
+        card_bg = "linear-gradient(180deg, rgba(255,255,255,1.0), rgba(244,248,252,1.0))"
         border = "rgba(15,23,42,0.10)"
         label = "rgba(15,23,42,0.66)"
         value = "#0f172a"
@@ -455,7 +455,7 @@ def evaluate_packaging(coil_footprint_mm, roll_height_mm, roll_count, packaging_
 
 def render_summary_cards(title, items, cards_per_row=4):
     if IS_LIGHT_THEME:
-        card_bg = "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,252,0.98))"
+        card_bg = "linear-gradient(180deg, rgba(255,255,255,1.0), rgba(244,248,252,1.0))"
         border = "rgba(15,23,42,0.10)"
         label = "rgba(15,23,42,0.68)"
         value = "#0f172a"
@@ -1239,29 +1239,36 @@ APP_THEME_BASE = _theme_base_value()
 IS_LIGHT_THEME = APP_THEME_BASE == "light"
 
 
+
 def inject_adaptive_ui_css():
     if IS_LIGHT_THEME:
-        bg_main = "#f5f7fa"
-        bg_secondary = "#eef2f6"
-        border = "rgba(15,23,42,0.10)"
+        bg_main = "#f4f7fb"
+        bg_secondary = "#e9eef5"
+        border = "rgba(15,23,42,0.14)"
+        border_soft = "rgba(15,23,42,0.10)"
         title = "#0f172a"
         text = "#1f2937"
-        text_muted = "rgba(15,23,42,0.68)"
-        card_bg = "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,252,0.98))"
+        text_muted = "rgba(15,23,42,0.66)"
+        card_bg = "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,253,0.98))"
+        input_bg = "linear-gradient(180deg, rgba(255,255,255,1.0), rgba(245,248,252,1.0))"
         shadow = "0 10px 24px rgba(15,23,42,0.08)"
-        topbar_bg = "rgba(255,255,255,0.86)"
-        tab_bg = "rgba(255,255,255,0.92)"
+        tab_bg = "rgba(255,255,255,0.88)"
+        tab_active = "linear-gradient(180deg, rgba(255,255,255,1.0), rgba(243,247,251,1.0))"
+        accent = "#475569"
     else:
         bg_main = "#0b1016"
         bg_secondary = "#0e141b"
         border = "rgba(255,255,255,0.10)"
+        border_soft = "rgba(255,255,255,0.08)"
         title = "#ffffff"
         text = "#f8fafc"
         text_muted = "rgba(248,250,252,0.70)"
         card_bg = "linear-gradient(180deg, rgba(22,28,35,0.96), rgba(14,19,25,0.98))"
+        input_bg = "linear-gradient(180deg, rgba(24,30,38,0.98), rgba(16,21,28,0.98))"
         shadow = "0 12px 28px rgba(0,0,0,0.14)"
-        topbar_bg = "rgba(18,22,27,0.74)"
         tab_bg = "rgba(255,255,255,0.05)"
+        tab_active = card_bg
+        accent = "#cbd5e1"
 
     st.markdown(
         f"""
@@ -1279,9 +1286,14 @@ def inject_adaptive_ui_css():
             padding-top: 1.05rem;
             padding-bottom: 2.10rem;
         }}
+
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stMarkdownContainer"], p, li, label, span {{
+            color: {text};
+        }}
+
         [data-testid="stTabs"] button {{
             background: {tab_bg};
-            border: 1px solid {border};
+            border: 1px solid {border_soft};
             border-radius: 12px 12px 0 0;
             height: 44px;
             color: {text};
@@ -1289,16 +1301,59 @@ def inject_adaptive_ui_css():
             padding-inline: 18px;
         }}
         [data-testid="stTabs"] button[aria-selected="true"] {{
-            background: {card_bg};
+            background: {tab_active};
+            border-color: {border};
             color: {title};
         }}
+
+        .stSelectbox label, .stNumberInput label, .stRadio label, .stCheckbox label,
+        [data-testid="stWidgetLabel"] {{
+            color: {text} !important;
+            font-weight: 600 !important;
+        }}
+
         div[data-baseweb="select"] > div,
         div[data-baseweb="input"] > div,
         div[data-baseweb="base-input"] > div {{
             border-radius: 12px !important;
             border: 1px solid {border} !important;
             box-shadow: none !important;
+            background: {input_bg} !important;
         }}
+
+        div[data-baseweb="select"] input,
+        div[data-baseweb="input"] input,
+        div[data-baseweb="base-input"] input {{
+            color: {title} !important;
+            -webkit-text-fill-color: {title} !important;
+            font-weight: 600 !important;
+        }}
+
+        [data-baseweb="select"] svg, [data-baseweb="input"] svg {{
+            color: {text_muted} !important;
+            fill: {text_muted} !important;
+        }}
+
+        [data-testid="stRadio"] div[role="radiogroup"] {{
+            gap: 10px;
+        }}
+        [data-testid="stRadio"] div[role="radiogroup"] > label {{
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid {border_soft};
+            background: {input_bg};
+        }}
+
+        [data-testid="stButton"] button {{
+            min-height: 42px;
+            border-radius: 12px;
+            border: 1px solid {border};
+            background: {input_bg};
+            color: {title};
+            font-weight: 700;
+            box-shadow: {shadow};
+        }}
+
         .app-hero {{
             padding: 16px 18px;
             border-radius: 16px;
@@ -1709,13 +1764,19 @@ def viewer(
     final_lengths_json = json.dumps(final_lengths)
     labels_json = json.dumps(TEXTS[language])
     viewer_is_light = str(theme_base).lower() == "light"
-    viewer_root_bg = "#edf2f7" if viewer_is_light else "#101216"
-    viewer_border = "rgba(15,23,42,0.12)" if viewer_is_light else "rgba(255,255,255,0.08)"
-    viewer_panel_bg = "rgba(255,255,255,0.82)" if viewer_is_light else "rgba(18,22,27,0.74)"
+    viewer_root_bg = "#e8eef5" if viewer_is_light else "#101216"
+    viewer_border = "rgba(15,23,42,0.14)" if viewer_is_light else "rgba(255,255,255,0.08)"
+    viewer_panel_bg = "rgba(255,255,255,0.92)" if viewer_is_light else "rgba(18,22,27,0.74)"
     viewer_panel_text = "#0f172a" if viewer_is_light else "#f0f0f0"
-    viewer_btn_bg = "rgba(255,255,255,0.96)" if viewer_is_light else "#f4f4f4"
+    viewer_btn_bg = "#edf2f7" if viewer_is_light else "#f4f4f4"
     viewer_btn_text = "#111827" if viewer_is_light else "#111"
-    viewer_active_outline = "#0f172a" if viewer_is_light else "#ffffff"
+    viewer_btn_hover = "#e2e8f0" if viewer_is_light else "#ffffff"
+    viewer_active_outline = "#334155" if viewer_is_light else "#ffffff"
+    viewer_active_bg = "#dbe4ee" if viewer_is_light else "#ffffff"
+    viewer_scroll = "rgba(15,23,42,0.20)" if viewer_is_light else "rgba(255,255,255,0.18)"
+    viewer_hud_bg = "rgba(255,255,255,0.88)" if viewer_is_light else "rgba(18,22,27,0.56)"
+    viewer_hud_text = "#0f172a" if viewer_is_light else "#f2f2f2"
+    viewer_hud_border = "rgba(15,23,42,0.12)" if viewer_is_light else "rgba(255,255,255,0.12)"
 
     if coil_footprint_mm is None:
         try:
@@ -1768,7 +1829,7 @@ def viewer(
             grid-template-columns:repeat(3, auto);
             gap:8px;
             font-family:Arial, sans-serif;
-            color:#f2f2f2;
+            color:{viewer_hud_text};
             user-select:none;
         ">
             <div class="hud_card"><div class="hud_label" id="hud_length_label"></div><div class="hud_value" id="hud_length_value">0.0 m</div></div>
@@ -1863,7 +1924,7 @@ def viewer(
                 <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="{int(pack_roll_count)}" style="
                     width:100%;
                     box-sizing:border-box;
-                    border:none;
+                    border:1px solid {viewer_border};
                     border-radius:9px;
                     padding:9px 11px;
                     font-weight:800;
@@ -1918,7 +1979,7 @@ def viewer(
 
     <style>
         .viewer_btn {{
-            border:none;
+            border:1px solid {viewer_border};
             border-radius:9px;
             padding:7px 12px;
             background:{viewer_btn_bg};
@@ -1928,7 +1989,7 @@ def viewer(
         }}
 
         .viewer_btn_small {{
-            border:none;
+            border:1px solid {viewer_border};
             border-radius:10px;
             padding:8px 10px;
             background:{viewer_btn_bg};
@@ -1945,13 +2006,13 @@ def viewer(
 
         .viewer_btn_small:hover,
         .viewer_btn:hover {{
-            background:{viewer_btn_bg};
+            background:{viewer_btn_hover};
         }}
 
         .active_speed,
         .active_opt {{
             outline:2px solid {viewer_active_outline};
-            background:{viewer_btn_bg};
+            background:{viewer_active_bg};
         }}
 
         .panel_label {{
@@ -1985,7 +2046,7 @@ def viewer(
         }}
 
         #viewer_sidepanel::-webkit-scrollbar-thumb {{
-            background:rgba(255,255,255,0.18);
+            background:{viewer_scroll};
             border-radius:999px;
         }}
 
@@ -2017,8 +2078,8 @@ def viewer(
         .pack_stat {{
             padding:9px 10px;
             border-radius:11px;
-            background:rgba(255,255,255,0.08);
-            border:1px solid rgba(255,255,255,0.10);
+            background:{viewer_hud_bg};
+            border:1px solid {viewer_hud_border};
         }}
 
         .pack_stat_label {{
@@ -2046,8 +2107,8 @@ def viewer(
         .hud_card {{
             min-width:86px;
             padding:10px 12px;
-            background:rgba(18,22,27,0.56);
-            border:1px solid rgba(255,255,255,0.12);
+            background:{viewer_hud_bg};
+            border:1px solid {viewer_hud_border};
             border-radius:13px;
             backdrop-filter: blur(10px);
             box-shadow:0 10px 24px rgba(0,0,0,0.18);
