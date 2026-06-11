@@ -356,10 +356,11 @@ def make_preset_visual(row, language):
             "layer": "Incremento strato",
             "rollers": "Rulli",
             "tail": "Paletta ferma coda",
-            "tube_note": "Sezione schematica del tubo isolato",
-            "coil_note": "Rappresentazione schematica del tubo avvolto",
+            "tube_note": "Sezione 2D semplificata del tubo isolato",
+            "coil_note": "Vista 2D schematica del tubo avvolto",
             "outer_dim": "Diametro esterno",
             "insulation": "Spessore guaina",
+            "coil_body": "Tubo avvolto",
         },
         "EN": {
             "tube_section": "Technical preview · Tube section",
@@ -376,10 +377,11 @@ def make_preset_visual(row, language):
             "layer": "Layer increment",
             "rollers": "Rollers",
             "tail": "Tail stop paddle",
-            "tube_note": "Schematic section of the insulated tube",
-            "coil_note": "Schematic representation of the coiled tube",
+            "tube_note": "Simplified 2D section of the insulated tube",
+            "coil_note": "Simplified 2D view of the wound tube",
             "outer_dim": "Outer diameter",
             "insulation": "Foam thickness",
+            "coil_body": "Wound tube",
         },
     }[language]
 
@@ -412,14 +414,13 @@ def make_preset_visual(row, language):
         --muted: rgba(15,23,42,0.64);
         --line: rgba(15,23,42,0.18);
         --shadow: 0 10px 24px rgba(15,23,42,0.08);
-        --accent: #2563eb;
         --accent-soft: rgba(37,99,235,0.08);
         --copper: #b8602b;
         --copper-light: #e4a56f;
         --foam: #e7e2d8;
         --foam-stroke: #7e8691;
-        --coil: #cfd6de;
-        --coil-dark: #98a4b1;
+        --coil: #d9e1ea;
+        --coil-line: #f4f7fb;
         --white-line: #f8fafc;
     }}
     html[data-theme="dark"] {{
@@ -429,12 +430,11 @@ def make_preset_visual(row, language):
         --muted: rgba(248,250,252,0.70);
         --line: rgba(255,255,255,0.16);
         --shadow: 0 16px 34px rgba(0,0,0,0.24);
-        --accent: #60a5fa;
         --accent-soft: rgba(96,165,250,0.10);
         --foam: #d9d3c7;
         --foam-stroke: #8d96a0;
-        --coil: #d8dee5;
-        --coil-dark: #aab3bf;
+        --coil: #cfd7e2;
+        --coil-line: #eef2f7;
         --white-line: #f8fafc;
     }}
     html, body {{
@@ -503,8 +503,8 @@ def make_preset_visual(row, language):
     .d-value {{ fill:var(--text); font-size:15px; font-weight:800; }}
     .d-line {{ stroke:var(--white-line); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }}
     .d-guide {{ stroke:var(--white-line); stroke-width:2; stroke-linecap:round; stroke-dasharray:6 6; }}
-    .coil-line {{ fill:none; stroke:var(--coil); stroke-width:12; stroke-linecap:round; stroke-linejoin:round; }}
-    .coil-line-inner {{ fill:none; stroke:var(--coil-dark); stroke-width:4; stroke-linecap:round; stroke-linejoin:round; opacity:0.6; }}
+    .coil-shape {{ fill:none; stroke:var(--coil); stroke-width:14; stroke-linejoin:round; }}
+    .coil-shape-inner {{ fill:none; stroke:var(--coil-line); stroke-width:4; stroke-linejoin:round; opacity:0.7; }}
     @media (max-width: 920px) {{
         .preset-preview {{ grid-template-columns:1fr; }}
         .layout {{ grid-template-columns:1fr; }}
@@ -532,7 +532,7 @@ def make_preset_visual(row, language):
                     <text x="261" y="73" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
                     <text x="261" y="92" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
 
-                    <line x1="142" y1="70" x2="220" y2="130" class="d-guide"/>
+                    <line x1="138" y1="74" x2="218" y2="130" class="d-guide"/>
                     <rect x="214" y="120" width="100" height="44" class="callout-box"/>
                     <text x="264" y="139" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
                     <text x="264" y="157" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
@@ -555,34 +555,38 @@ def make_preset_visual(row, language):
         <div class="layout">
             <div class="drawing">
                 <svg viewBox="0 0 340 240" role="img" aria-label="Coiling layout preview">
-                    <path class="coil-line" d="M70 170
-                        C 40 170, 40 118, 76 118
-                        C 124 118, 124 188, 56 188
-                        C 20 188, 20 88, 98 88
-                        C 160 88, 160 212, 42 212
-                        C 12 212, 12 58, 126 58
-                        C 214 58, 214 230, 34 230"/>
-                    <path class="coil-line-inner" d="M70 170
-                        C 40 170, 40 118, 76 118
-                        C 124 118, 124 188, 56 188
-                        C 20 188, 20 88, 98 88
-                        C 160 88, 160 212, 42 212
-                        C 12 212, 12 58, 126 58
-                        C 214 58, 214 230, 34 230"/>
-                    <line x1="214" y1="230" x2="290" y2="230" class="d-line"/>
-                    <text x="252" y="218" text-anchor="middle" class="d-label">tubo avvolto</text>
+                    <path class="coil-shape" d="M88 176
+                        C 64 176, 52 164, 52 142
+                        C 52 112, 76 94, 106 94
+                        C 140 94, 158 114, 158 142
+                        C 158 178, 130 202, 92 202
+                        C 54 202, 28 176, 28 136
+                        C 28 84, 66 52, 120 52
+                        C 180 52, 216 92, 216 146
+                        C 216 202, 174 236, 108 236
+                        C 84 236, 66 232, 46 224"/>
+                    <path class="coil-shape-inner" d="M88 176
+                        C 64 176, 52 164, 52 142
+                        C 52 112, 76 94, 106 94
+                        C 140 94, 158 114, 158 142
+                        C 158 178, 130 202, 92 202
+                        C 54 202, 28 176, 28 136
+                        C 28 84, 66 52, 120 52
+                        C 180 52, 216 92, 216 146
+                        C 216 202, 174 236, 108 236
+                        C 84 236, 66 232, 46 224"/>
 
-                    <line x1="48" y1="32" x2="200" y2="32" class="d-line"/>
-                    <line x1="48" y1="18" x2="48" y2="46" class="d-line"/>
-                    <line x1="200" y1="18" x2="200" y2="46" class="d-line"/>
+                    <line x1="48" y1="26" x2="200" y2="26" class="d-line"/>
+                    <line x1="48" y1="14" x2="48" y2="38" class="d-line"/>
+                    <line x1="200" y1="14" x2="200" y2="38" class="d-line"/>
+                    <text x="124" y="10" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
                     <text x="124" y="24" text-anchor="middle" class="d-label">{html.escape(labels['spool'])}</text>
-                    <text x="124" y="14" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
 
-                    <line x1="230" y1="58" x2="230" y2="202" class="d-line"/>
-                    <line x1="216" y1="58" x2="244" y2="58" class="d-line"/>
-                    <line x1="216" y1="202" x2="244" y2="202" class="d-line"/>
-                    <text x="242" y="124" transform="rotate(90 242 124)" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
-                    <text x="256" y="124" transform="rotate(90 256 124)" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
+                    <line x1="250" y1="54" x2="250" y2="206" class="d-line"/>
+                    <line x1="238" y1="54" x2="262" y2="54" class="d-line"/>
+                    <line x1="238" y1="206" x2="262" y2="206" class="d-line"/>
+                    <text x="268" y="122" transform="rotate(90 268 122)" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
+                    <text x="254" y="122" transform="rotate(90 254 122)" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
                 </svg>
             </div>
             <div class="metrics">
