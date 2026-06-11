@@ -1934,11 +1934,6 @@ def viewer(
         document.getElementById("container_40hc_btn").innerHTML = `<div>${{T.container_40hc || "40 HC"}}</div><div class="pack_mode_desc">${{T.container_40hc_desc || "2580 mm"}}</div>`;
         document.getElementById("container_20ft_btn").innerHTML = `<div>${{T.container_20ft || "20 ft"}}</div><div class="pack_mode_desc">${{T.container_20ft_desc || "2280 mm"}}</div>`;
         document.getElementById("pack_roll_title").textContent = T.roll_count || "Numero rotoli";
-        packRollCountInput.value = String(initialPackRollCount);
-        setActiveButton(sceneBtns, sceneMode, "data-scene");
-        setActiveButton(packModeBtns, packagingMode, "data-packmode");
-        setActiveButton(containerBtns, containerMode, "data-container");
-        setActiveButton(tubeBtns, tubeMode, "data-tube");
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
         document.getElementById("section_title").textContent = T.section;
