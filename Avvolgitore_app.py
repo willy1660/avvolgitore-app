@@ -740,6 +740,9 @@ guide_offset_x = 555.0
 def load_presets(path="Presets.csv"):
     df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
 
+    # Remove empty columns exported by Excel
+    df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
+
     # Remove empty rows exported by Excel
     df = df.dropna(how="all")
 
