@@ -3639,20 +3639,8 @@ def viewer(
                 roll.position.set(0, 0, zc);
                 packagingGroup.add(roll);
 
-                if (i < rollCount - 1) {{
-                    const separator = new THREE.Mesh(
-                        new THREE.RingGeometry(innerRadius * 1.02, coilRadius * 0.992, 140),
-                        new THREE.MeshStandardMaterial({{
-                            color: tubeMode === "gelblack" ? 0x5f666f : 0xe7ecf1,
-                            roughness: 0.96,
-                            metalness: 0.0,
-                            side: THREE.DoubleSide
-                        }})
-                    );
-                    separator.position.set(0, 0, palletHeight + (i + 1) * Hs);
-                    separator.receiveShadow = true;
-                    packagingGroup.add(separator);
-                }}
+                // Separatore visuale rimosso: i rotoli restano impilati senza disco bianco intermedio.
+                // Il piccolo gap è solo grafico e non entra nel calcolo dell'altezza.
             }}
 
             const lineColor = ok ? 0x4ade80 : 0xf87171;
