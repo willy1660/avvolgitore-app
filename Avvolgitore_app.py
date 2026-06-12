@@ -1428,41 +1428,99 @@ st.markdown(
     """
     <style>
     .main .block-container {
-        max-width: 1450px;
-        padding-top: 1.0rem;
-        padding-bottom: 2.0rem;
+        max-width: 1600px;
+        padding-top: 0.8rem;
+        padding-bottom: 1.6rem;
+        padding-left: 1.05rem;
+        padding-right: 1.05rem;
     }
+
     [data-testid="stTabs"] button {
-        font-weight: 650;
+        font-weight: 750;
+        min-height: 46px;
+        padding-top: 0.45rem;
+        padding-bottom: 0.45rem;
     }
+
     div[data-baseweb="input"] > div,
     div[data-baseweb="select"] > div {
-        border-radius: 10px;
+        border-radius: 12px;
+        min-height: 44px;
+    }
+
+    div[data-baseweb="select"] * {
+        font-size: 0.98rem;
     }
 
     div[role="radiogroup"] {
-        gap: 0.65rem;
+        gap: 0.7rem;
         flex-wrap: wrap;
+        align-items: stretch;
     }
 
     div[role="radiogroup"] label {
         background: var(--secondary-background-color);
         border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
         border-radius: 999px;
-        padding: 0.52rem 0.82rem;
-        min-height: 42px;
-        display: flex;
+        padding: 0.58rem 0.95rem;
+        min-height: 46px;
+        display: inline-flex;
         align-items: center;
+        justify-content: center;
         box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    }
+
+    /* Hide the default radio dot so the options look like real buttons */
+    div[role="radiogroup"] label > div:first-child {
+        display: none !important;
     }
 
     div[role="radiogroup"] label:hover {
+        transform: translateY(-1px);
         border-color: color-mix(in srgb, var(--text-color) 34%, transparent);
+        box-shadow: 0 10px 18px rgba(0,0,0,0.10);
+    }
+
+    div[role="radiogroup"] label:has(input:checked) {
+        background: color-mix(in srgb, var(--primary-color) 12%, var(--secondary-background-color));
+        border-color: color-mix(in srgb, var(--primary-color) 55%, transparent);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-color) 35%, transparent), 0 10px 18px rgba(0,0,0,0.10);
     }
 
     div[role="radiogroup"] label p {
         font-weight: 800;
-        font-size: 0.98rem;
+        font-size: 0.99rem;
+        line-height: 1.15;
+        text-align: center;
+    }
+
+    /* Better tablet spacing and readability */
+    @media (max-width: 1280px) {
+        .main .block-container {
+            max-width: 100%;
+            padding-left: 0.8rem;
+            padding-right: 0.8rem;
+        }
+
+        [data-testid="stTabs"] button {
+            min-height: 48px;
+            font-size: 1rem;
+        }
+
+        div[role="radiogroup"] label {
+            min-height: 48px;
+            padding: 0.62rem 1rem;
+        }
+
+        div[role="radiogroup"] label p {
+            font-size: 1.00rem;
+        }
+
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="select"] > div {
+            min-height: 46px;
+        }
     }
     </style>
     """,
@@ -1839,6 +1897,7 @@ def viewer(
             font-family:Arial, sans-serif;
             font-size:13px;
             user-select:none;
+            line-height:1.25;
         ">
             <button id="play_pause_btn" class="viewer_btn">Pause</button>
             <button id="reset_view_btn" class="viewer_btn">Reset</button>
@@ -1893,7 +1952,7 @@ def viewer(
             display:flex;
             flex-direction:column;
             gap:10px;
-            width:270px;
+            width:300px;
             max-width:calc(100% - 28px);
             max-height:calc(100% - 28px);
             overflow-y:auto;
@@ -2017,19 +2076,20 @@ def viewer(
 
         .viewer_btn_small {{
             border:none;
-            border-radius:10px;
-            padding:8px 9px;
-            background:rgba(235,235,235,0.92);
+            border-radius:12px;
+            padding:9px 10px;
+            background:rgba(235,235,235,0.95);
             color:#111;
             font-weight:800;
-            font-size:13px;
+            font-size:14px;
             cursor:pointer;
             text-align:center;
             white-space:normal;
             overflow-wrap:anywhere;
             line-height:1.18;
-            min-height:42px;
+            min-height:46px;
             width:100%;
+            box-sizing:border-box;
         }}
 
         .viewer_btn_small:hover,
@@ -2045,10 +2105,11 @@ def viewer(
 
         .panel_label {{
             font-size:11px;
-            opacity:0.82;
-            margin-bottom:6px;
+            opacity:0.86;
+            margin-bottom:7px;
             text-transform:uppercase;
             letter-spacing:0.06em;
+            font-weight:800;
         }}
 
         .btn_group_vertical {{
@@ -3916,7 +3977,7 @@ with tab_presets:
 
 
 with tab_calculator:
-    colA, colB, colC = st.columns(3)
+    colA, colB, colC = st.columns([0.95, 1.25, 1.0], gap="large")
 
     sync_active_preset_state()
     loaded_preset_name = st.session_state.get("loaded_preset_name")
@@ -4106,7 +4167,7 @@ with tab_calculator:
             diametro_aspo,
             spalla,
             d_tubo,
-            820,
+            860,
             local_points.tolist(),
             theta_values.tolist(),
             radius_values.tolist(),
