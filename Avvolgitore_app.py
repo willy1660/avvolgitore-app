@@ -1711,52 +1711,6 @@ st.markdown(
             min-height: 46px;
         }
     }
-
-    /* Visual polish: more app-like, cleaner tablet interface */
-    [data-testid="stAppViewContainer"] {
-        background:
-            radial-gradient(circle at top left, rgba(255,75,75,0.055), transparent 34%),
-            radial-gradient(circle at top right, rgba(148,163,184,0.075), transparent 32%),
-            var(--background-color);
-    }
-
-    [data-testid="stTabs"] [role="tablist"] {
-        gap: 8px;
-        padding: 8px;
-        border-radius: 22px;
-        background: color-mix(in srgb, var(--secondary-background-color) 78%, transparent);
-        border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-        margin-bottom: 18px;
-    }
-
-    [data-testid="stTabs"] button {
-        border-radius: 16px !important;
-        transition: background .12s ease, transform .12s ease, box-shadow .12s ease;
-    }
-
-    [data-testid="stTabs"] button[aria-selected="true"] {
-        background: #ff4b4b !important;
-        color: #ffffff !important;
-        box-shadow: 0 10px 22px rgba(255,75,75,0.22);
-    }
-
-    [data-testid="stTabs"] button[aria-selected="true"] p {
-        color: #ffffff !important;
-        font-weight: 900 !important;
-    }
-
-    .stButton > button {
-        border-radius: 16px;
-        min-height: 48px;
-        font-weight: 850;
-    }
-
-    div[data-testid="stMetric"] {
-        border-radius: 18px;
-        padding: 12px 14px;
-        background: color-mix(in srgb, var(--secondary-background-color) 72%, transparent);
-        border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -3820,7 +3774,7 @@ def viewer(
             packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, 0), new THREE.Vector3(xDim + 24, yDim, 0)]), heightLineMat));
             packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, totalHeight), new THREE.Vector3(xDim + 24, yDim, totalHeight)]), heightLineMat));
 
-            const heightLabel = makeDimensionLabelSprite(`${{totalHeight.toFixed(0)}} mm`, ok ? "#4ade80" : "#fca5a5");
+            const heightLabel = makeDimensionLabelSprite(`${{totalHeight.toFixed(0)}} mm`, ok ? "#4ade80" : (warn ? "#fbbf24" : "#fca5a5"));
             heightLabel.position.set(xDim + 95, yDim, totalHeight * 0.5);
             packagingGroup.add(heightLabel);
 
@@ -5606,91 +5560,6 @@ def render_startup_checklist(language):
 
 
 
-
-
-def render_page_hero(title, subtitle, tag=None):
-    tag_html = ""
-    if tag:
-        tag_html = f'<div class="page-hero-tag">{html.escape(str(tag))}</div>'
-
-    st.markdown(
-        f"""
-        <style>
-        .page-hero {{
-            position:relative;
-            overflow:hidden;
-            margin:2px 0 18px 0;
-            padding:24px 26px;
-            border-radius:28px;
-            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
-            background:
-                radial-gradient(circle at 92% 18%, rgba(255,75,75,0.18), transparent 26%),
-                linear-gradient(180deg,
-                    color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
-                    color-mix(in srgb, var(--secondary-background-color) 99%, var(--background-color))
-                );
-            box-shadow:0 16px 38px rgba(0,0,0,0.10);
-        }}
-        .page-hero-kicker {{
-            display:flex;
-            align-items:center;
-            gap:10px;
-            margin-bottom:9px;
-        }}
-        .page-hero-dot {{
-            width:12px;
-            height:12px;
-            border-radius:999px;
-            background:#ff4b4b;
-            box-shadow:0 0 0 5px rgba(255,75,75,0.16);
-        }}
-        .page-hero-tag {{
-            display:inline-flex;
-            align-items:center;
-            border-radius:999px;
-            padding:6px 10px;
-            font-size:11px;
-            line-height:1;
-            font-weight:950;
-            letter-spacing:0.08em;
-            text-transform:uppercase;
-            background:rgba(255,75,75,0.12);
-            border:1px solid rgba(255,75,75,0.22);
-            color:color-mix(in srgb, var(--text-color) 78%, transparent);
-        }}
-        .page-hero-title {{
-            font-size:34px;
-            line-height:1.02;
-            font-weight:950;
-            letter-spacing:-0.045em;
-            color:var(--text-color);
-            margin:0;
-        }}
-        .page-hero-subtitle {{
-            max-width:980px;
-            margin-top:9px;
-            font-size:15px;
-            line-height:1.38;
-            font-weight:650;
-            color:color-mix(in srgb, var(--text-color) 64%, transparent);
-        }}
-        @media (max-width: 900px) {{
-            .page-hero {{ padding:20px; border-radius:24px; }}
-            .page-hero-title {{ font-size:29px; }}
-        }}
-        </style>
-        <div class="page-hero">
-            <div class="page-hero-kicker">
-                <div class="page-hero-dot"></div>
-                {tag_html}
-            </div>
-            <div class="page-hero-title">{html.escape(str(title))}</div>
-            <div class="page-hero-subtitle">{html.escape(str(subtitle))}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 # =========================
 # UI
 # =========================
@@ -5729,11 +5598,7 @@ if "selected_preset_product" not in st.session_state or st.session_state["select
     st.session_state["selected_preset_product"] = preset_names[0]
 
 with tab_production:
-    render_page_hero(
-        production_label,
-        "Controllo rapido di avvolgimento e packaging con parametri modificabili." if lang == "IT" else "Fast winding and packaging check with editable parameters.",
-        "Linea PDM",
-    )
+    st.markdown(f"### {production_label}")
     render_workflow_bar(lang)
 
     render_section_header(
@@ -6078,11 +5943,7 @@ with tab_production:
         st.warning(t["warning"])
 
 with tab_tech_sheet:
-    render_page_hero(
-        tech_sheet_label,
-        "Anteprima tecnica, lettura rapida e parametri macchina in un'unica scheda ordinata." if lang == "IT" else "Technical preview, quick reading and machine parameters in a single ordered sheet.",
-        "Scheda",
-    )
+    st.markdown(f"### {tech_sheet_label}")
 
     render_section_header(
         "Consultazione preset" if lang == "IT" else "Preset reference",
@@ -6168,10 +6029,5 @@ with tab_tech_sheet:
         render_machine_parameter_groups(selected_row, lang)
 
 with tab_checklist:
-    render_page_hero(
-        "Cambio misura" if lang == "IT" else "Size change",
-        "Checklist operativa ordinata per linea e avvolgitore." if lang == "IT" else "Operating checklist grouped by line and coiler.",
-        "Procedura",
-    )
     render_startup_checklist(lang)
 
