@@ -1621,12 +1621,11 @@ st.markdown(
     }
 
     [data-testid="stTabs"] [role="tablist"] {
-        gap: 6px;
-        padding: 6px;
-        border-radius: 18px;
-        background: color-mix(in srgb, var(--secondary-background-color) 72%, transparent);
-        border: 1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
-        margin-bottom: 12px;
+        gap: 10px;
+        padding: 0 2px;
+        background: transparent;
+        border-bottom: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+        margin-bottom: 14px;
     }
 
     [data-testid="stTabs"] button {
@@ -1634,16 +1633,20 @@ st.markdown(
         min-height: 46px;
         padding-top: 0.45rem;
         padding-bottom: 0.45rem;
-        border-radius: 13px !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        border-bottom: 3px solid transparent !important;
     }
 
     [data-testid="stTabs"] button[aria-selected="true"] {
-        background: color-mix(in srgb, var(--pdm-accent) 92%, #ffffff 8%) !important;
-        box-shadow: 0 7px 16px rgba(255,75,75,0.18);
+        background: transparent !important;
+        box-shadow: none !important;
+        border-bottom: 3px solid var(--pdm-accent) !important;
     }
 
     [data-testid="stTabs"] button[aria-selected="true"] p {
-        color: #ffffff !important;
+        color: var(--text-color) !important;
         font-weight: 900 !important;
     }
 
@@ -5575,22 +5578,22 @@ def render_startup_checklist(language):
             border-radius:999px;
             transition:width .2s ease;
         }}
-        .checklist-area-title {
+        .checklist-area-title {{
             margin:20px 0 10px 0;
             font-size:18px;
             font-weight:950;
             letter-spacing:0.035em;
             text-transform:uppercase;
             color:var(--text-color);
-        }
-        .checklist-section-title {
+        }}
+        .checklist-section-title {{
             margin:2px 0 8px 0;
             font-size:13px;
             font-weight:950;
             letter-spacing:0.06em;
             text-transform:uppercase;
             color:color-mix(in srgb, var(--text-color) 72%, transparent);
-        }
+        }}
         </style>
         <div class="checklist-hero">
             <div class="checklist-hero-head">
