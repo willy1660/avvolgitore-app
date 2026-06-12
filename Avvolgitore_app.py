@@ -1126,7 +1126,7 @@ def make_preset_visual(row, language):
         background:var(--accent-soft);
         border:1px solid var(--line);
         border-radius:16px;
-        padding:10px;
+        padding:9px;
     }}
     svg {{ display:block; width:100%; height:auto; }}
     .metrics {{ display:grid; gap:8px; }}
@@ -1483,9 +1483,9 @@ st.markdown(
     }
 
     div[role="radiogroup"] label:has(input:checked) {
-        background: var(--primary-color);
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 30%, transparent), 0 10px 20px rgba(0,0,0,0.18);
+        background: #ff4b4b;
+        border-color: #ff4b4b;
+        box-shadow: 0 0 0 2px rgba(255,75,75,0.32), 0 10px 20px rgba(0,0,0,0.18);
     }
 
     div[role="radiogroup"] label p {
@@ -1956,7 +1956,7 @@ def viewer(
             display:flex;
             flex-direction:column;
             gap:10px;
-            width:278px;
+            width:248px;
             max-width:calc(100% - 28px);
             max-height:calc(100% - 28px);
             overflow-y:auto;
@@ -1983,12 +1983,9 @@ def viewer(
             <div id="speed_block">
                 <div class="panel_label" id="speed_title"></div>
                 <div class="btn_group_vertical btn_grid_3" id="speed_group">
-                    <button class="speed_btn viewer_btn_small" data-speed="0.1">x0.1</button>
                     <button class="speed_btn viewer_btn_small" data-speed="0.5">x0.5</button>
                     <button class="speed_btn viewer_btn_small active_speed" data-speed="1.0">x1</button>
-                    <button class="speed_btn viewer_btn_small" data-speed="1.5">x1.5</button>
                     <button class="speed_btn viewer_btn_small" data-speed="2.0">x2</button>
-                    <button class="speed_btn viewer_btn_small" data-speed="5.0">x5</button>
                 </div>
             </div>
 
@@ -2054,12 +2051,12 @@ def viewer(
                     <span id="grid_title"></span>
                 </label>
 
-                <label class="panel_check">
+                <label class="panel_check" style="display:none;">
                     <input type="checkbox" id="axes_check" />
                     <span id="axes_title"></span>
                 </label>
 
-                <label class="panel_check">
+                <label class="panel_check" style="display:none;">
                     <input type="checkbox" id="section_check" />
                     <span id="section_title"></span>
                 </label>
@@ -2078,20 +2075,34 @@ def viewer(
             cursor:pointer;
         }}
 
+        #viewer_root:fullscreen {{
+            width:100vw !important;
+            height:100vh !important;
+            border-radius:0 !important;
+            border:none !important;
+        }}
+
+        #viewer_root:-webkit-full-screen {{
+            width:100vw !important;
+            height:100vh !important;
+            border-radius:0 !important;
+            border:none !important;
+        }}
+
         .viewer_btn_small {{
             border:none;
-            border-radius:11px;
-            padding:8px 8px;
+            border-radius:10px;
+            padding:7px 7px;
             background:rgba(235,235,235,0.95);
             color:#111;
             font-weight:800;
-            font-size:13px;
+            font-size:12px;
             cursor:pointer;
             text-align:center;
             white-space:normal;
             overflow-wrap:anywhere;
-            line-height:1.15;
-            min-height:42px;
+            line-height:1.12;
+            min-height:38px;
             width:100%;
             box-sizing:border-box;
         }}
@@ -2104,9 +2115,9 @@ def viewer(
         .active_speed,
         .active_opt {{
             outline:2px solid #ffffff;
-            background:#2563eb !important;
+            background:#ff4b4b !important;
             color:#ffffff !important;
-            box-shadow:0 0 0 2px rgba(37,99,235,0.35), 0 8px 18px rgba(0,0,0,0.18);
+            box-shadow:0 0 0 2px rgba(255,75,75,0.35), 0 8px 18px rgba(0,0,0,0.18);
         }}
 
         .panel_label {{
@@ -2227,7 +2238,7 @@ def viewer(
 
         @media (max-width: 1180px) {{
             #viewer_sidepanel {{
-                width:238px !important;
+                width:218px !important;
                 top:10px !important;
                 right:10px !important;
                 padding:9px !important;
@@ -4216,7 +4227,7 @@ with tab_calculator:
             diametro_aspo,
             spalla,
             d_tubo,
-            760,
+            680,
             local_points.tolist(),
             theta_values.tolist(),
             radius_values.tolist(),
@@ -4236,7 +4247,7 @@ with tab_calculator:
             d_tubo_upper=d_tubo_upper,
             tube_diameter_label=tube_diameter_label,
         ),
-        height=760,
+        height=680,
     )
 
     # =========================
