@@ -5522,71 +5522,67 @@ def render_startup_checklist(language):
 
 
 
+
 def render_roll_counter_dashboard(language):
     if language == "IT":
         title = "Contatore rotoli turno"
-        subtitle = "Conta i rotoli totali del turno. In caso di cambio misura, il lotto attuale viene chiuso e salvato nello storico."
-        active_container_label = "Contenitore attivo"
-        active_target_label = "Rotoli per contenitore attivi"
-        next_container_label = "Nuovo contenitore"
-        next_target_label = "Nuovi rotoli per contenitore"
+        subtitle = "Contatore semplice per tablet: conta i rotoli del turno, chiudi il turno e salva lo storico."
+        active_format = "Formato attuale"
+        target_label = "Rotoli per contenitore"
+        new_target_label = "Nuovi rotoli per contenitore"
+        container_label = "Contenitore"
         shift_total_label = "Rotoli totali turno"
-        current_label = "Rotoli nel contenitore attuale"
-        remaining_label = "Mancano per chiudere"
+        current_label = "Contenitore attuale"
         completed_label = "Contenitori completati"
-        lot_total_label = "Rotoli lotto attuale"
-        status_label = "Stato contenitore"
+        remaining_label = "Mancano"
         add_label = "Aggiungi rotolo"
-        remove_label = "Correggi: togli 1"
-        reset_shift_label = "Azzera turno"
-        change_size_label = "Cambio misura / nuovo formato"
+        undo_label = "Togli 1"
+        change_size_label = "Cambio misura"
+        finish_shift_label = "Fine turno · salva e azzera"
+        reset_without_save_label = "Azzera senza salvare"
         box_label = "Scatola"
         pallet_label = "Pedana"
-        container_complete = "CONTENITORE COMPLETO"
-        in_progress = "IN CORSO"
-        help_text = "Ogni click aggiunge 1 rotolo al totale del turno."
-        current_lot_title = "Lotto attuale"
-        next_setup_title = "Prossimo formato"
-        history_title = "Storico cambio misura"
-        no_history = "Nessun cambio misura registrato in questo turno."
-        measure_col = "Formato"
+        history_title = "Storico registrato"
+        no_history = "Nessun lotto salvato."
+        instruction = "Per cambiare misura: prima modifica i rotoli per contenitore, poi clicca Cambio misura."
+        finish_instruction = "Quando il turno è finito, clicca Fine turno: il lotto viene salvato nello storico e il contatore torna a 0."
+        change_event = "Cambio misura"
+        finish_event = "Fine turno"
+        event_col = "Evento"
+        format_col = "Formato"
         target_col = "Rotoli/contenitore"
-        lot_total_col = "Rotoli lotto"
-        completed_col = "Contenitori"
-        close_note = "Prima cambia il numero di rotoli/contenitore e poi clicca Cambio misura / nuovo formato."
+        rolls_col = "Rotoli"
+        containers_col = "Contenitori"
     else:
         title = "Shift roll counter"
-        subtitle = "Counts total shift rolls. When size changes, the current lot is closed and saved in history."
-        active_container_label = "Active container"
-        active_target_label = "Active rolls per container"
-        next_container_label = "New container"
-        next_target_label = "New rolls per container"
+        subtitle = "Simple tablet counter: count shift rolls, finish the shift and save history."
+        active_format = "Current format"
+        target_label = "Rolls per container"
+        new_target_label = "New rolls per container"
+        container_label = "Container"
         shift_total_label = "Total shift rolls"
-        current_label = "Rolls in current container"
-        remaining_label = "Remaining to close"
+        current_label = "Current container"
         completed_label = "Completed containers"
-        lot_total_label = "Current lot rolls"
-        status_label = "Container status"
+        remaining_label = "Remaining"
         add_label = "Add roll"
-        remove_label = "Correction: remove 1"
-        reset_shift_label = "Reset shift"
-        change_size_label = "Change size / new format"
+        undo_label = "Remove 1"
+        change_size_label = "Change size"
+        finish_shift_label = "End shift · save and reset"
+        reset_without_save_label = "Reset without saving"
         box_label = "Box"
         pallet_label = "Pallet"
-        container_complete = "CONTAINER COMPLETE"
-        in_progress = "IN PROGRESS"
-        help_text = "Each click adds 1 roll to the shift total."
-        current_lot_title = "Current lot"
-        next_setup_title = "Next format"
-        history_title = "Size-change history"
-        no_history = "No size changes recorded in this shift."
-        measure_col = "Format"
+        history_title = "Saved history"
+        no_history = "No saved lot yet."
+        instruction = "To change size: first update rolls per container, then click Change size."
+        finish_instruction = "When the shift is finished, click End shift: the lot is saved to history and the counter returns to 0."
+        change_event = "Size change"
+        finish_event = "End shift"
+        event_col = "Event"
+        format_col = "Format"
         target_col = "Rolls/container"
-        lot_total_col = "Lot rolls"
-        completed_col = "Containers"
-        close_note = "First change the rolls/container number, then click Change size / new format."
+        rolls_col = "Rolls"
+        containers_col = "Containers"
 
-    # Persistent state
     defaults = {
         "roll_counter_total": 0,
         "roll_counter_lot_total": 0,
@@ -5601,28 +5597,36 @@ def render_roll_counter_dashboard(language):
             st.session_state[key] = value
 
     total_shift = int(st.session_state.get("roll_counter_total", 0))
-    active_target = max(1, int(st.session_state.get("roll_counter_active_target", 6)))
     lot_total = int(st.session_state.get("roll_counter_lot_total", 0))
+    active_target = max(1, int(st.session_state.get("roll_counter_active_target", 6)))
     active_container = st.session_state.get("roll_counter_active_container", box_label)
-    history = list(st.session_state.get("roll_counter_history", []))
 
     current = lot_total % active_target
     completed = lot_total // active_target
     remaining = active_target - current if current > 0 else active_target
+    progress = (current / active_target) * 100.0 if active_target else 0.0
 
-    if lot_total > 0 and current == 0:
-        status = container_complete
-        status_color = "#22c55e"
-        pct = 100.0
-    else:
-        status = in_progress
-        status_color = "#f59e0b"
-        pct = (current / active_target) * 100.0
+    def save_current_lot(event_name):
+        lot_total_now = int(st.session_state.get("roll_counter_lot_total", 0))
+        target_now = max(1, int(st.session_state.get("roll_counter_active_target", 6)))
+        container_now = st.session_state.get("roll_counter_active_container", box_label)
+        if lot_total_now <= 0:
+            return False
+        history = list(st.session_state.get("roll_counter_history", []))
+        history.append({
+            "event": event_name,
+            "format": container_now,
+            "target": target_now,
+            "lot_total": lot_total_now,
+            "completed": lot_total_now // target_now,
+        })
+        st.session_state["roll_counter_history"] = history
+        return True
 
     st.markdown(
         f"""
         <style>
-        .roll-counter-hero {{
+        .roll-hero {{
             margin:8px 0 16px 0;
             border-radius:26px;
             overflow:hidden;
@@ -5633,48 +5637,25 @@ def render_roll_counter_dashboard(language):
             );
             box-shadow:0 14px 32px rgba(0,0,0,0.11);
         }}
-        .roll-counter-head {{
+        .roll-hero-head {{
             padding:18px 22px;
             background:linear-gradient(90deg, rgba(255,75,75,0.22), transparent);
             border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
         }}
-        .roll-counter-title {{
+        .roll-title {{
             font-size:30px;
             line-height:1.05;
             font-weight:950;
             letter-spacing:-0.035em;
         }}
-        .roll-counter-subtitle {{
+        .roll-subtitle {{
             margin-top:7px;
             font-size:15px;
             line-height:1.3;
             font-weight:650;
             color:color-mix(in srgb, var(--text-color) 64%, transparent);
         }}
-        .roll-status-banner {{
-            margin:14px 0 16px 0;
-            padding:18px 22px;
-            border-radius:22px;
-            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-            background:color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color));
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:16px;
-        }}
-        .roll-status-label {{
-            font-size:13px;
-            text-transform:uppercase;
-            letter-spacing:0.08em;
-            font-weight:900;
-            color:color-mix(in srgb, var(--text-color) 62%, transparent);
-        }}
-        .roll-status-value {{
-            font-size:34px;
-            line-height:1;
-            font-weight:950;
-        }}
-        .roll-main-card, .roll-side-card, .roll-config-card, .roll-history-card {{
+        .roll-card {{
             border-radius:28px;
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
             background:linear-gradient(180deg,
@@ -5682,51 +5663,52 @@ def render_roll_counter_dashboard(language):
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
             box-shadow:0 14px 30px rgba(0,0,0,0.10);
+            padding:24px;
         }}
-        .roll-main-card {{
-            padding:30px;
+        .roll-main {{
             text-align:center;
+            padding:30px 24px;
         }}
-        .roll-side-card, .roll-config-card, .roll-history-card {{
-            padding:22px;
-        }}
-        .roll-card-title {{
+        .roll-label {{
             font-size:14px;
             line-height:1.1;
             font-weight:950;
             letter-spacing:0.08em;
             text-transform:uppercase;
             color:color-mix(in srgb, var(--text-color) 60%, transparent);
-            margin-bottom:12px;
+            margin-bottom:10px;
         }}
-        .roll-big-label {{
-            font-size:16px;
-            line-height:1.1;
-            font-weight:950;
-            letter-spacing:0.08em;
-            text-transform:uppercase;
-            color:color-mix(in srgb, var(--text-color) 60%, transparent);
-            margin-bottom:8px;
-        }}
-        .roll-big-number {{
-            font-size:170px;
+        .roll-number {{
+            font-size:174px;
             line-height:0.9;
             font-weight:950;
             letter-spacing:-0.08em;
             color:var(--text-color);
             margin:10px 0 18px 0;
         }}
-        .roll-progress-text {{
-            font-size:28px;
+        .roll-current {{
+            font-size:31px;
             line-height:1.05;
             font-weight:950;
-            color:color-mix(in srgb, var(--text-color) 72%, transparent);
+            color:color-mix(in srgb, var(--text-color) 75%, transparent);
+        }}
+        .roll-bar {{
+            margin-top:18px;
+            height:18px;
+            border-radius:999px;
+            background:color-mix(in srgb, var(--text-color) 10%, transparent);
+            overflow:hidden;
+        }}
+        .roll-bar-fill {{
+            height:100%;
+            width:{progress:.1f}%;
+            background:#ff4b4b;
+            border-radius:999px;
         }}
         .roll-stat-grid {{
             display:grid;
             grid-template-columns:1fr 1fr;
             gap:12px;
-            margin-top:14px;
         }}
         .roll-stat {{
             border-radius:20px;
@@ -5743,63 +5725,75 @@ def render_roll_counter_dashboard(language):
             margin-bottom:8px;
         }}
         .roll-stat-value {{
-            font-size:46px;
+            font-size:42px;
             line-height:1;
             font-weight:950;
             letter-spacing:-0.04em;
         }}
-        .roll-counter-add-hint, .roll-note {{
-            margin-top:12px;
-            font-size:13px;
-            font-weight:650;
-            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+        .roll-instruction {{
+            margin:12px 0 14px 0;
+            padding:13px 16px;
+            border-radius:18px;
+            background:rgba(245,158,11,0.12);
+            border:1px solid rgba(245,158,11,0.32);
+            font-size:14px;
+            font-weight:750;
+            color:color-mix(in srgb, var(--text-color) 78%, transparent);
+        }}
+        .roll-finish-note {{
+            margin:12px 0 0 0;
+            padding:13px 16px;
+            border-radius:18px;
+            background:rgba(34,197,94,0.12);
+            border:1px solid rgba(34,197,94,0.32);
+            font-size:14px;
+            font-weight:750;
+            color:color-mix(in srgb, var(--text-color) 78%, transparent);
         }}
         div[data-testid="stButton"] button[kind="primary"] {{
-            min-height:96px;
-            border-radius:26px;
+            min-height:104px;
+            border-radius:28px;
             background:#ff4b4b;
             border:1px solid #ff4b4b;
-            box-shadow:0 16px 34px rgba(255,75,75,0.24);
-            font-size:30px;
+            box-shadow:0 16px 34px rgba(255,75,75,0.25);
+            font-size:32px;
             font-weight:950;
             letter-spacing:0.01em;
         }}
         div[data-testid="stButton"] button[kind="primary"] p {{
-            font-size:30px;
+            font-size:32px;
             font-weight:950;
         }}
         @media (max-width:900px) {{
-            .roll-big-number {{
-                font-size:130px;
-            }}
-            .roll-status-value {{
-                font-size:28px;
-            }}
+            .roll-number {{ font-size:132px; }}
+            .roll-current {{ font-size:25px; }}
         }}
         </style>
-        <div class="roll-counter-hero">
-            <div class="roll-counter-head">
-                <div class="roll-counter-title">{html.escape(title)}</div>
-                <div class="roll-counter-subtitle">{html.escape(subtitle)}</div>
+        <div class="roll-hero">
+            <div class="roll-hero-head">
+                <div class="roll-title">{html.escape(title)}</div>
+                <div class="roll-subtitle">{html.escape(subtitle)}</div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    top_left, top_right = st.columns([1.2, 0.8], gap="large")
-    with top_left:
+    # Active format and simple change-size controls
+    c1, c2 = st.columns([1.05, 0.95], gap="large")
+
+    with c1:
         st.markdown(
             f"""
-            <div class="roll-config-card">
-                <div class="roll-card-title">{html.escape(current_lot_title)}</div>
+            <div class="roll-card">
+                <div class="roll-label">{html.escape(active_format)}</div>
                 <div class="roll-stat-grid">
                     <div class="roll-stat">
-                        <div class="roll-stat-label">{html.escape(active_container_label)}</div>
+                        <div class="roll-stat-label">{html.escape(container_label)}</div>
                         <div class="roll-stat-value" style="font-size:32px;">{html.escape(str(active_container))}</div>
                     </div>
                     <div class="roll-stat">
-                        <div class="roll-stat-label">{html.escape(active_target_label)}</div>
+                        <div class="roll-stat-label">{html.escape(target_label)}</div>
                         <div class="roll-stat-value">{active_target}</div>
                     </div>
                 </div>
@@ -5807,84 +5801,46 @@ def render_roll_counter_dashboard(language):
             """,
             unsafe_allow_html=True,
         )
-    with top_right:
-        st.markdown("&nbsp;", unsafe_allow_html=True)
-        if st.button(reset_shift_label, use_container_width=True):
-            st.session_state["roll_counter_total"] = 0
-            st.session_state["roll_counter_lot_total"] = 0
-            st.session_state["roll_counter_history"] = []
-            st.rerun()
 
-    next_cols = st.columns([1.0, 1.0, 1.2], gap="large")
-    with next_cols[0]:
+    with c2:
         container_options = [box_label, pallet_label]
         next_container = st.session_state.get("roll_counter_next_container", active_container)
         if next_container not in container_options:
             next_container = active_container
-        st.session_state["roll_counter_next_container"] = st.selectbox(
-            next_container_label,
+        st.selectbox(
+            container_label,
             container_options,
             index=container_options.index(next_container),
-            key="roll_counter_next_container_select",
+            key="roll_counter_next_container",
         )
-    with next_cols[1]:
-        next_target = st.number_input(
-            next_target_label,
+        st.number_input(
+            new_target_label,
             min_value=1,
             max_value=999,
             value=int(st.session_state.get("roll_counter_next_target", active_target)),
             step=1,
-            key="roll_counter_next_target_input",
+            key="roll_counter_next_target",
         )
-        st.session_state["roll_counter_next_target"] = int(next_target)
-    with next_cols[2]:
-        st.markdown("&nbsp;", unsafe_allow_html=True)
+        st.markdown(f'<div class="roll-instruction">⚠️ {html.escape(instruction)}</div>', unsafe_allow_html=True)
         if st.button(change_size_label, use_container_width=True):
-            history = list(st.session_state.get("roll_counter_history", []))
-            lot_total_now = int(st.session_state.get("roll_counter_lot_total", 0))
-            active_target_now = max(1, int(st.session_state.get("roll_counter_active_target", 6)))
-            active_container_now = st.session_state.get("roll_counter_active_container", box_label)
-            if lot_total_now > 0:
-                history.append({
-                    "format": active_container_now,
-                    "target": active_target_now,
-                    "lot_total": lot_total_now,
-                    "completed": lot_total_now // active_target_now,
-                })
-            st.session_state["roll_counter_history"] = history
+            save_current_lot(change_event)
             st.session_state["roll_counter_lot_total"] = 0
-            st.session_state["roll_counter_active_target"] = int(st.session_state.get("roll_counter_next_target", active_target_now))
-            st.session_state["roll_counter_active_container"] = st.session_state.get("roll_counter_next_container", active_container_now)
+            st.session_state["roll_counter_active_target"] = int(st.session_state.get("roll_counter_next_target", active_target))
+            st.session_state["roll_counter_active_container"] = st.session_state.get("roll_counter_next_container", active_container)
             st.rerun()
-        st.warning(close_note, icon="⚠️")
 
-    st.markdown(
-        f"""
-        <div class="roll-status-banner" style="border-left:8px solid {status_color};">
-            <div>
-                <div class="roll-status-label">{html.escape(status_label)}</div>
-                <div class="roll-status-value" style="color:{status_color};">{html.escape(status)}</div>
-            </div>
-            <div style="min-width:260px;">
-                <div style="height:18px; border-radius:999px; overflow:hidden; background:color-mix(in srgb, var(--text-color) 10%, transparent);">
-                    <div style="height:100%; width:{pct:.1f}%; background:{status_color}; border-radius:999px;"></div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.divider()
 
-    dash_left, dash_right = st.columns([1.25, 0.75], gap="large")
+    main_col, side_col = st.columns([1.25, 0.75], gap="large")
 
-    with dash_left:
+    with main_col:
         st.markdown(
             f"""
-            <div class="roll-main-card">
-                <div class="roll-big-label">{html.escape(shift_total_label)}</div>
-                <div class="roll-big-number">{total_shift}</div>
-                <div class="roll-progress-text">{html.escape(current_label)}: {current} / {active_target}</div>
-                <div class="roll-counter-add-hint">{html.escape(help_text)}</div>
+            <div class="roll-card roll-main">
+                <div class="roll-label">{html.escape(shift_total_label)}</div>
+                <div class="roll-number">{total_shift}</div>
+                <div class="roll-current">{html.escape(current_label)}: {current} / {active_target}</div>
+                <div class="roll-bar"><div class="roll-bar-fill"></div></div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -5895,25 +5851,25 @@ def render_roll_counter_dashboard(language):
             st.session_state["roll_counter_lot_total"] = lot_total + 1
             st.rerun()
 
-    with dash_right:
+    with side_col:
         st.markdown(
             f"""
-            <div class="roll-side-card">
+            <div class="roll-card">
                 <div class="roll-stat-grid">
                     <div class="roll-stat">
                         <div class="roll-stat-label">{html.escape(completed_label)}</div>
                         <div class="roll-stat-value">{completed}</div>
                     </div>
                     <div class="roll-stat">
-                        <div class="roll-stat-label">{html.escape(current_label)}</div>
-                        <div class="roll-stat-value">{current}</div>
-                    </div>
-                    <div class="roll-stat">
                         <div class="roll-stat-label">{html.escape(remaining_label)}</div>
                         <div class="roll-stat-value">{remaining}</div>
                     </div>
                     <div class="roll-stat">
-                        <div class="roll-stat-label">{html.escape(lot_total_label)}</div>
+                        <div class="roll-stat-label">{html.escape(target_label)}</div>
+                        <div class="roll-stat-value">{active_target}</div>
+                    </div>
+                    <div class="roll-stat">
+                        <div class="roll-stat-label">Lot</div>
                         <div class="roll-stat-value">{lot_total}</div>
                     </div>
                 </div>
@@ -5922,26 +5878,42 @@ def render_roll_counter_dashboard(language):
             unsafe_allow_html=True,
         )
 
-        if st.button(f"− {remove_label}", use_container_width=True):
+        if st.button(f"− {undo_label}", use_container_width=True):
             st.session_state["roll_counter_total"] = max(0, total_shift - 1)
             st.session_state["roll_counter_lot_total"] = max(0, lot_total - 1)
             st.rerun()
 
+        st.markdown(f'<div class="roll-finish-note">✅ {html.escape(finish_instruction)}</div>', unsafe_allow_html=True)
+        if st.button(finish_shift_label, use_container_width=True):
+            save_current_lot(finish_event)
+            st.session_state["roll_counter_total"] = 0
+            st.session_state["roll_counter_lot_total"] = 0
+            st.rerun()
+
+        if st.button(reset_without_save_label, use_container_width=True):
+            st.session_state["roll_counter_total"] = 0
+            st.session_state["roll_counter_lot_total"] = 0
+            st.rerun()
+
+    st.divider()
     st.markdown(f"### {history_title}")
+
     history = list(st.session_state.get("roll_counter_history", []))
     if not history:
         st.info(no_history)
     else:
         for idx, item in enumerate(reversed(history), start=1):
-            c1, c2, c3, c4 = st.columns([1.1, 0.9, 0.9, 0.9], gap="small")
+            c1, c2, c3, c4, c5 = st.columns([1.0, 1.0, 0.8, 0.8, 0.8], gap="small")
             with c1:
-                st.metric(f"{measure_col} #{len(history)-idx+1}", item.get("format", "-"))
+                st.metric(event_col, item.get("event", "-"))
             with c2:
-                st.metric(target_col, item.get("target", "-"))
+                st.metric(format_col, item.get("format", "-"))
             with c3:
-                st.metric(lot_total_col, item.get("lot_total", "-"))
+                st.metric(target_col, item.get("target", "-"))
             with c4:
-                st.metric(completed_col, item.get("completed", "-"))
+                st.metric(rolls_col, item.get("lot_total", "-"))
+            with c5:
+                st.metric(containers_col, item.get("completed", "-"))
 
 
 # =========================
