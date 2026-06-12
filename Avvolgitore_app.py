@@ -2053,19 +2053,12 @@ def viewer(
 
             <div id="packaging_controls" style="display:none;">
                 <div class="panel_label" id="pack_roll_title"></div>
-                <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="{int(pack_roll_count)}" style="
-                    width:100%;
-                    box-sizing:border-box;
-                    border:none;
-                    border-radius:9px;
-                    padding:9px 11px;
-                    font-weight:800;
-                    font-size:16px;
-                    background:rgba(255,255,255,0.96);
-                    color:#111;
-                    margin-bottom:10px;
-                " />
-                
+                <div class="pack_roll_inline">
+                    <button id="pack_roll_minus" class="viewer_btn_small pack_roll_btn" type="button">−</button>
+                    <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="{int(pack_roll_count)}" />
+                    <button id="pack_roll_plus" class="viewer_btn_small pack_roll_btn" type="button">+</button>
+                </div>
+                <div id="pack_roll_hint" class="pack_roll_hint">Modifica diretta nel render</div>
             </div>
 
             <div id="spool_block">
@@ -2770,6 +2763,7 @@ def viewer(
         }});
 
         function setPackRollCount(value) {{
+            if (!packRollCountInput) return;
             const clamped = Math.max(1, Math.min(50, parseInt(value || "1", 10)));
             packRollCountInput.value = clamped;
             updatePackagingScene();
@@ -2784,17 +2778,23 @@ def viewer(
             }}
         }}
 
-        packRollCountInput.addEventListener("input", () => {{
-            setPackRollCount(packRollCountInput.value);
-        }});
+        if (packRollCountInput) {{
+            packRollCountInput.addEventListener("input", () => {{
+                setPackRollCount(packRollCountInput.value);
+            }});
+        }}
 
-        packRollMinusBtn.addEventListener("click", () => {{
-            setPackRollCount(parseInt(packRollCountInput.value || "1", 10) - 1);
-        }});
+        if (packRollMinusBtn) {{
+            packRollMinusBtn.addEventListener("click", () => {{
+                setPackRollCount(parseInt(packRollCountInput.value || "1", 10) - 1);
+            }});
+        }}
 
-        packRollPlusBtn.addEventListener("click", () => {{
-            setPackRollCount(parseInt(packRollCountInput.value || "1", 10) + 1);
-        }});
+        if (packRollPlusBtn) {{
+            packRollPlusBtn.addEventListener("click", () => {{
+                setPackRollCount(parseInt(packRollCountInput.value || "1", 10) + 1);
+            }});
+        }}
 
         resetViewBtn.addEventListener("click", () => {{
             currentView = "3d";
