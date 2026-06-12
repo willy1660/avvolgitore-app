@@ -1098,13 +1098,15 @@ def make_preset_visual(row, language):
 <style>
     :root {{
         --bg: transparent;
-        --card-bg: rgba(255,255,255,0.72);
-        --card-border: rgba(15,23,42,0.10);
+        --card-bg: rgba(255,255,255,0.78);
+        --card-border: rgba(15,23,42,0.12);
         --text: #0f172a;
         --muted: rgba(15,23,42,0.64);
         --line: rgba(15,23,42,0.18);
-        --shadow: 0 10px 24px rgba(15,23,42,0.08);
-        --accent-soft: rgba(37,99,235,0.08);
+        --shadow: 0 16px 38px rgba(15,23,42,0.12);
+        --accent: #ff4b4b;
+        --accent-soft: rgba(255,75,75,0.075);
+        --drawing-bg: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(241,245,249,0.76));
         --copper: #b8602b;
         --copper-light: #e4a56f;
         --foam: #e7e2d8;
@@ -1120,8 +1122,9 @@ def make_preset_visual(row, language):
         --text: #f8fafc;
         --muted: rgba(248,250,252,0.70);
         --line: rgba(255,255,255,0.16);
-        --shadow: 0 16px 34px rgba(0,0,0,0.24);
-        --accent-soft: rgba(96,165,250,0.10);
+        --shadow: 0 20px 42px rgba(0,0,0,0.32);
+        --accent-soft: rgba(255,75,75,0.10);
+        --drawing-bg: linear-gradient(180deg, rgba(30,41,59,0.72), rgba(15,23,42,0.58));
         --foam: #d9d3c7;
         --foam-stroke: #8d96a0;
         --coil-top: #f1f3f5;
@@ -1140,30 +1143,48 @@ def make_preset_visual(row, language):
         display:grid;
         grid-template-columns:1fr 1fr;
         gap:18px;
-        padding:2px;
+        padding:4px;
     }}
     .card {{
-        background:var(--card-bg);
+        position:relative;
+        overflow:hidden;
+        background:linear-gradient(180deg, var(--card-bg), rgba(255,255,255,0.58));
         border:1px solid var(--card-border);
+        border-left:6px solid var(--accent);
         box-shadow:var(--shadow);
-        backdrop-filter: blur(8px);
-        border-radius:18px;
-        padding:18px;
-        min-height:330px;
+        backdrop-filter: blur(10px);
+        border-radius:20px;
+        padding:20px;
+        min-height:365px;
         box-sizing:border-box;
     }}
+    html[data-theme="dark"] .card {{
+        background:linear-gradient(180deg, rgba(17,24,39,0.88), rgba(15,23,42,0.74));
+    }}
+    .card::before {{
+        content:"";
+        position:absolute;
+        right:-90px;
+        top:-90px;
+        width:190px;
+        height:190px;
+        border-radius:999px;
+        background:var(--accent-soft);
+        pointer-events:none;
+    }}
     .title {{
-        font-size:13px;
-        font-weight:800;
-        letter-spacing:0.08em;
+        font-size:14px;
+        font-weight:900;
+        letter-spacing:0.075em;
         text-transform:uppercase;
-        color:var(--muted);
+        color:var(--text);
         margin-bottom:6px;
     }}
     .subtitle {{
         font-size:12px;
         color:var(--muted);
-        margin-bottom:14px;
+        margin-bottom:16px;
+        font-weight:650;
     }}
     .layout {{
         display:grid;
@@ -1172,10 +1193,11 @@ def make_preset_visual(row, language):
         align-items:start;
     }}
     .drawing {{
-        background:var(--accent-soft);
+        background:var(--drawing-bg);
         border:1px solid var(--line);
-        border-radius:16px;
-        padding:9px;
+        border-radius:18px;
+        padding:12px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
     }}
     svg {{ display:block; width:100%; height:auto; }}
     .metrics {{ display:grid; gap:8px; }}
@@ -1186,10 +1208,11 @@ def make_preset_visual(row, language):
         align-items:baseline;
         padding:10px 0;
         border-bottom:1px solid var(--line);
+        position:relative;
     }}
     .metric:last-child {{ border-bottom:none; }}
     .label {{ font-size:12px; color:var(--muted); font-weight:700; }}
-    .value {{ font-size:18px; color:var(--text); font-weight:800; text-align:right; white-space:nowrap; }}
+    .value {{ font-size:18px; color:var(--text); font-weight:900; text-align:right; white-space:nowrap; }}
     .callout-box {{ fill:var(--card-bg); stroke:var(--line); stroke-width:1.2; rx:10; }}
     .d-label {{ fill:var(--muted); font-size:11px; font-weight:700; }}
     .d-value {{ fill:var(--text); font-size:15px; font-weight:800; }}
@@ -4703,6 +4726,210 @@ def render_tech_snapshot_cards(selected_row, language):
     )
 
 
+
+
+def render_machine_parameter_groups(selected_row, language):
+    group_defs = [
+        (
+            "Tubo e prodotto" if language == "IT" else "Tube and product",
+            ["Tipo tubo", "Diametro Rame", "Spessore Guaina (mm)", "Diametro esterno Guaina (mm)",
+             "Diametro rame inferiore", "Spessore guaina inferiore", "Diametro rame superiore", "Spessore guaina superiore",
+             "Lunghezza (m)"],
+        ),
+        (
+            "Avvolgimento" if language == "IT" else "Winding",
+            ["Diametro aspo (mm)", "Spalla (mm)", "Nº Spire", "Passo (mm)", "Incremento strato (mm)",
+             "Ritardo invers min (º)", "Ritardo invers max (º)", "Quota massima (mm)", "Quota minima (mm)",
+             "Quota start pinza (mm)", "Quota coda tubo (mm)", "Quota chiusura morsa coda (mm)",
+             "Interasse regetta (mm)"],
+        ),
+        (
+            "Attrezzaggio linea" if language == "IT" else "Line setup",
+            ["Boccole rulliera adrizzatubo", "Boccola uscita rulliera", "Rulliera adrizzatubo",
+             "Boccola uscita traino", "Rulli convogliatore (mm)", "Rulli estrusore(mm)",
+             "Ruote godronatore", "Soffiatori aria (mm)", "Rulli avvolgitore (mm)",
+             "Paleta ferma coda (mm)", "Guidatubo (mm)"],
+        ),
+        (
+            "Velocità e coppie" if language == "IT" else "Speed and torque",
+            ["Velocita linea (m/min)", "Velocita recupero (m/min)", "Coppia lavoro (%)",
+             "Riduzione coppia (%)", "Coppia recupero (%)"],
+        ),
+    ]
+
+    used = set()
+    groups_html = ""
+
+    def visible_value(col):
+        if col not in selected_row.index:
+            return None
+        raw = selected_row[col]
+        if pd.isna(raw):
+            return None
+        formatted = str(format_preset_value(raw)).strip()
+        if formatted in {"", "-"}:
+            return None
+        return formatted
+
+    for group_title, cols in group_defs:
+        rows_html = ""
+        count = 0
+        for col in cols:
+            value = visible_value(col)
+            if value is None:
+                continue
+            used.add(col)
+            count += 1
+            rows_html += f"""
+            <div class="machine-row">
+                <div class="machine-label">{html.escape(str(param_label(col, language)))}</div>
+                <div class="machine-value">{html.escape(str(value))}</div>
+            </div>
+            """
+        if count == 0:
+            continue
+
+        groups_html += f"""
+        <div class="machine-group">
+            <div class="machine-group-head">
+                <div class="machine-group-title">{html.escape(group_title)}</div>
+                <div class="machine-count">{count}</div>
+            </div>
+            <div class="machine-rows">{rows_html}</div>
+        </div>
+        """
+
+    extra_rows = ""
+    extra_count = 0
+    for col in selected_row.index:
+        if col in used or str(col).startswith("Unnamed") or col == "Note" or col == "Prodotto":
+            continue
+        value = visible_value(col)
+        if value is None:
+            continue
+        extra_count += 1
+        extra_rows += f"""
+        <div class="machine-row">
+            <div class="machine-label">{html.escape(str(param_label(col, language)))}</div>
+            <div class="machine-value">{html.escape(str(value))}</div>
+        </div>
+        """
+
+    if extra_count:
+        groups_html += f"""
+        <div class="machine-group">
+            <div class="machine-group-head">
+                <div class="machine-group-title">{html.escape("Altri parametri" if language == "IT" else "Other parameters")}</div>
+                <div class="machine-count">{extra_count}</div>
+            </div>
+            <div class="machine-rows">{extra_rows}</div>
+        </div>
+        """
+
+    if not groups_html:
+        st.caption("Nessun parametro disponibile." if language == "IT" else "No parameters available.")
+        return
+
+    st.markdown(
+        f"""
+        <style>
+        .machine-sheet {{
+            display:grid;
+            grid-template-columns:repeat(2, minmax(0, 1fr));
+            gap:16px;
+            margin-top:8px;
+        }}
+        .machine-group {{
+            overflow:hidden;
+            border-radius:20px;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 10px 24px rgba(0,0,0,0.09);
+        }}
+        .machine-group-head {{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            padding:15px 18px;
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 13%, transparent);
+            background:linear-gradient(90deg, rgba(255,75,75,0.14), transparent);
+        }}
+        .machine-group-title {{
+            font-size:15px;
+            text-transform:uppercase;
+            letter-spacing:0.065em;
+            font-weight:950;
+            color:var(--text-color);
+        }}
+        .machine-count {{
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            min-width:30px;
+            height:30px;
+            padding:0 8px;
+            border-radius:999px;
+            background:#ff4b4b;
+            color:white;
+            font-weight:950;
+            font-size:13px;
+        }}
+        .machine-rows {{
+            padding:6px 14px 12px 14px;
+        }}
+        .machine-row {{
+            display:grid;
+            grid-template-columns:minmax(0, 1.35fr) minmax(88px, 0.65fr);
+            gap:14px;
+            align-items:center;
+            padding:11px 4px;
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+        }}
+        .machine-row:last-child {{
+            border-bottom:none;
+        }}
+        .machine-label {{
+            font-size:13px;
+            line-height:1.25;
+            font-weight:720;
+            color:color-mix(in srgb, var(--text-color) 68%, transparent);
+        }}
+        .machine-value {{
+            justify-self:end;
+            max-width:100%;
+            padding:6px 10px;
+            border-radius:999px;
+            background:color-mix(in srgb, var(--text-color) 7%, transparent);
+            color:var(--text-color);
+            font-size:14px;
+            line-height:1.15;
+            font-weight:900;
+            text-align:right;
+            word-break:break-word;
+        }}
+        @media (max-width: 900px) {{
+            .machine-sheet {{
+                grid-template-columns:1fr;
+            }}
+            .machine-row {{
+                grid-template-columns:1fr;
+                gap:6px;
+            }}
+            .machine-value {{
+                justify-self:start;
+                text-align:left;
+            }}
+        }}
+        </style>
+        <div class="machine-sheet">{groups_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # =========================
 # UI
 # =========================
@@ -5083,37 +5310,13 @@ with tab_tech_sheet:
             "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
             "A",
         )
-        components.html(make_preset_visual(selected_row, lang), height=410, scrolling=False)
-
-        with st.expander("Note preset" if lang == "IT" else "Preset notes", expanded=False):
-            note_value = safe_value(selected_row, "Note")
-            if note_value != "-":
-                st.info(note_value)
-            else:
-                st.caption("Nessuna nota disponibile." if lang == "IT" else "No note available.")
+        components.html(make_preset_visual(selected_row, lang), height=450, scrolling=False)
 
     with machine_sheet_tab:
         render_section_header(
             "Scheda parametri macchina" if lang == "IT" else "Machine parameter sheet",
-            "Tutti i valori da consultare e introdurre in macchina, raggruppati in una sola vista." if lang == "IT" else "All values to check and enter into the machine, grouped in one view.",
+            "Vista unica ordinata per introdurre tutti i valori in macchina senza separarli tra render e consultivi." if lang == "IT" else "A single grouped view for entering all values into the machine.",
             "B",
         )
 
-        render_preset_param_cards(
-            "Parametri principali / render" if lang == "IT" else "Main / render parameters",
-            linked_cols,
-            selected_row,
-            lang,
-            cards_per_row=4,
-        )
-
-        if consult_cols:
-            render_preset_param_cards(
-                "Altri parametri macchina" if lang == "IT" else "Other machine parameters",
-                consult_cols,
-                selected_row,
-                lang,
-                cards_per_row=4,
-            )
-        else:
-            st.caption("Nessun parametro aggiuntivo." if lang == "IT" else "No additional parameters.")
+        render_machine_parameter_groups(selected_row, lang)
