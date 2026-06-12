@@ -117,6 +117,8 @@ TEXTS = {
         "pallet_height": "Altezza pallet",
         "total_height": "Altezza totale con pallet",
         "roll_stack_height": "Altezza rotoli",
+        "width_margin": "Margine larghezza",
+        "width_over": "Superamento larghezza",
         "height_margin": "Margine altezza",
         "height_over": "Superamento altezza",
         "height_limit": "Limite altezza",
@@ -226,6 +228,8 @@ TEXTS = {
         "pallet_height": "Pallet height",
         "total_height": "Total height with pallet",
         "roll_stack_height": "Coil stack height",
+        "width_margin": "Width margin",
+        "width_over": "Width over limit",
         "height_margin": "Height margin",
         "height_over": "Height over limit",
         "height_limit": "Height limit",
@@ -487,6 +491,8 @@ def evaluate_packaging(coil_footprint_mm, roll_height_mm, roll_count, packaging_
         "height_limit_mm": height_limit_mm,
         "height_margin_mm": max(0.0, height_limit_mm - compared_height_mm),
         "height_over_mm": max(0.0, compared_height_mm - height_limit_mm),
+        "width_margin_mm": max(0.0, pallet_size_mm - coil_footprint_mm),
+        "width_over_mm": max(0.0, coil_footprint_mm - pallet_size_mm),
         "coil_footprint_mm": coil_footprint_mm,
         "pallet_size_mm": pallet_size_mm,
         "pallet_height_mm": pallet_height_mm,
@@ -3429,6 +3435,9 @@ def viewer(
                 packagingStatusReason.textContent = reasonText || "";
             }}
 
+            const widthMargin = Math.max(0, palletSize - coilFootprint);
+            const widthOver = Math.max(0, coilFootprint - palletSize);
+
             if (packagingStats) packagingStats.innerHTML = `
                 <div class="pack_stat">
                     <div class="pack_stat_label">Status</div>
@@ -3445,6 +3454,14 @@ def viewer(
                 <div class="pack_stat">
                     <div class="pack_stat_label">${{T.coil_footprint || "Ingombro rotolo"}}</div>
                     <div class="pack_stat_value">${{coilFootprint.toFixed(1)}} mm</div>
+                </div>
+                <div class="pack_stat">
+                    <div class="pack_stat_label">${{T.width_margin || "Margine larghezza"}}</div>
+                    <div class="pack_stat_value">${{widthMargin.toFixed(1)}} mm</div>
+                </div>
+                <div class="pack_stat">
+                    <div class="pack_stat_label">${{T.width_over || "Superamento larghezza"}}</div>
+                    <div class="pack_stat_value">${{widthOver.toFixed(1)}} mm</div>
                 </div>
                 <div class="pack_stat">
                     <div class="pack_stat_label">${{T.height_limit || "Limite altezza"}}</div>
@@ -4557,13 +4574,92 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
     )
 
 
+def render_tech_snapshot_cards(selected_row, language):
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return value
+        return default
+
+    if language == "IT":
+        items = [
+            ("Tipo tubo", gv("Tipo tubo")),
+            ("Lunghezza", f"{gv('Lunghezza (m)')} m" if gv("Lunghezza (m)") != "-" else "-"),
+            ("Aspo", f"{gv('Diametro aspo (mm)')} mm" if gv("Diametro aspo (mm)") != "-" else "-"),
+            ("Spalla", f"{gv('Spalla (mm)')} mm" if gv("Spalla (mm)") != "-" else "-"),
+        ]
+    else:
+        items = [
+            ("Tube type", gv("Tipo tubo")),
+            ("Length", f"{gv('Lunghezza (m)')} m" if gv("Lunghezza (m)") != "-" else "-"),
+            ("Spool", f"{gv('Diametro aspo (mm)')} mm" if gv("Diametro aspo (mm)") != "-" else "-"),
+            ("Width", f"{gv('Spalla (mm)')} mm" if gv("Spalla (mm)") != "-" else "-"),
+        ]
+
+    cards_html = ""
+    for label, value in items:
+        cards_html += f"""
+        <div class="tech-mini-card">
+            <div class="tech-mini-label">{html.escape(str(label))}</div>
+            <div class="tech-mini-value">{html.escape(str(value))}</div>
+        </div>
+        """
+
+    st.markdown(
+        f"""
+        <style>
+        .tech-mini-grid {{
+            display:grid;
+            grid-template-columns:repeat(4, minmax(0, 1fr));
+            gap:12px;
+            margin:0 0 16px 0;
+        }}
+        .tech-mini-card {{
+            border-radius:16px;
+            padding:16px 18px;
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            box-shadow:0 8px 18px rgba(0,0,0,0.08);
+            border-left:5px solid #ff4b4b;
+        }}
+        .tech-mini-label {{
+            font-size:12px;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            margin-bottom:9px;
+        }}
+        .tech-mini-value {{
+            font-size:22px;
+            line-height:1.08;
+            font-weight:900;
+            word-break:break-word;
+        }}
+        @media (max-width:900px) {{
+            .tech-mini-grid {{
+                grid-template-columns:repeat(2, minmax(0, 1fr));
+            }}
+        }}
+        </style>
+        <div class="tech-mini-grid">{cards_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # =========================
 # UI
 # =========================
 
 init_calculator_state()
 
-production_label = "Produzione" if lang == "IT" else "Production"
+production_label = "Simulazione" if lang == "IT" else "Simulation"
 tech_sheet_label = "Scheda tecnica" if lang == "IT" else "Technical sheet"
 
 try:
@@ -4867,7 +4963,7 @@ with tab_tech_sheet:
 
     render_section_header(
         "Consultazione preset" if lang == "IT" else "Preset reference",
-        "Qui trovi anteprima e parametri completi del CSV, separati dalla schermata operativa." if lang == "IT" else "Here you find preview and full CSV parameters, separated from the operating screen.",
+        "Qui trovi anteprima, lettura rapida e parametri completi del CSV in una vista più ordinata." if lang == "IT" else "Here you find preview, quick reading and full CSV parameters in a cleaner layout.",
         "ⓘ",
     )
 
@@ -4881,9 +4977,13 @@ with tab_tech_sheet:
             margin-bottom:18px;
             padding:22px 24px;
             border-radius:18px;
-            background:var(--secondary-background-color);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
             box-shadow:0 8px 22px rgba(0,0,0,0.08);
+            border-left:6px solid #ff4b4b;
         ">
             <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
                 {t["preset_sheet"]}
@@ -4899,10 +4999,13 @@ with tab_tech_sheet:
         unsafe_allow_html=True,
     )
 
-    st.markdown(f"#### {t['preset_visual_title']}")
-    components.html(make_preset_visual(selected_row, lang), height=400, scrolling=False)
+    render_tech_snapshot_cards(selected_row, lang)
 
-    st.markdown(t["csv_params"])
+    overview_tab, render_params_tab, machine_params_tab = st.tabs([
+        "Anteprima" if lang == "IT" else "Overview",
+        "Parametri render" if lang == "IT" else "Render parameters",
+        "Parametri macchina" if lang == "IT" else "Machine parameters",
+    ])
 
     render_columns = {
         "Tipo tubo",
@@ -4922,15 +5025,39 @@ with tab_tech_sheet:
         "Passo (mm)",
         "Incremento strato (mm)",
     }
-
     linked_cols = [c for c in presets_df.columns if c in render_columns]
-    cards_per_row = 4
-    render_preset_param_cards(t['linked_params'], linked_cols, selected_row, lang, cards_per_row=cards_per_row)
-
     consult_cols = [c for c in presets_df.columns if c not in render_columns]
-    if consult_cols:
-        render_preset_param_cards(t['non_render_params'], consult_cols, selected_row, lang, cards_per_row=cards_per_row)
 
-    note_value = safe_value(selected_row, "Note")
-    if note_value != "-":
-        st.info(note_value)
+    with overview_tab:
+        render_section_header(
+            "Anteprima tecnica" if lang == "IT" else "Technical preview",
+            "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
+            "A",
+        )
+        components.html(make_preset_visual(selected_row, lang), height=410, scrolling=False)
+
+        with st.expander("Note preset" if lang == "IT" else "Preset notes", expanded=False):
+            note_value = safe_value(selected_row, "Note")
+            if note_value != "-":
+                st.info(note_value)
+            else:
+                st.caption("Nessuna nota disponibile." if lang == "IT" else "No note available.")
+
+    with render_params_tab:
+        render_section_header(
+            t['linked_params'],
+            "Questi valori alimentano direttamente simulazione e render." if lang == "IT" else "These values directly feed the simulation and the render.",
+            "B",
+        )
+        render_preset_param_cards(t['linked_params'], linked_cols, selected_row, lang, cards_per_row=4)
+
+    with machine_params_tab:
+        render_section_header(
+            t['non_render_params'],
+            "Dati consultivi e parametri macchina aggiuntivi del preset." if lang == "IT" else "Reference data and additional machine parameters from the preset.",
+            "C",
+        )
+        if consult_cols:
+            render_preset_param_cards(t['non_render_params'], consult_cols, selected_row, lang, cards_per_row=4)
+        else:
+            st.caption("Nessun parametro aggiuntivo." if lang == "IT" else "No additional parameters.")
