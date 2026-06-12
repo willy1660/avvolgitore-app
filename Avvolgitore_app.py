@@ -4733,6 +4733,124 @@ def render_active_preset_card(product_name, language, modified=False):
     )
 
 
+def render_preset_summary_strip(product_name, selected_row, language, modified=False):
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return value
+        return default
+
+    tipo = gv("Tipo tubo")
+    lunghezza = gv("Lunghezza (m)")
+    aspo = gv("Diametro aspo (mm)")
+    spalla = gv("Spalla (mm)")
+
+    if str(tipo).strip().lower() == "doppio":
+        rame_inf = gv("Diametro rame inferiore", "Diametro Rame inferiore")
+        rame_sup = gv("Diametro rame superiore", "Diametro Rame superiore")
+        sp_inf = parse_float_value(gv("Spessore guaina inferiore", "Spessore Guaina inferiore (mm)", default=0), 0)
+        sp_sup = parse_float_value(gv("Spessore guaina superiore", "Spessore Guaina superiore (mm)", default=0), 0)
+        d_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0)) + 2.0 * sp_inf
+        d_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0)) + 2.0 * sp_sup
+        tubo_txt = f"{rame_sup}/{rame_inf} · {d_sup:.1f}/{d_inf:.1f} mm"
+    else:
+        rame = gv("Diametro Rame")
+        esterno = gv("Diametro esterno Guaina (mm)")
+        tubo_txt = f"{rame} · Ø {esterno} mm" if esterno != "-" else str(rame)
+
+    if language == "IT":
+        title = "Parametri attuali" if modified else "Preset attivo"
+        fields = [
+            ("Prodotto", product_name),
+            ("Tubo", f"{tipo} · {tubo_txt}"),
+            ("Lunghezza", f"{lunghezza} m" if lunghezza != "-" else "-"),
+            ("Aspo", f"Ø {aspo} mm" if aspo != "-" else "-"),
+            ("Spalla", f"{spalla} mm" if spalla != "-" else "-"),
+        ]
+    else:
+        title = "Current parameters" if modified else "Active preset"
+        fields = [
+            ("Product", product_name),
+            ("Tube", f"{tipo} · {tubo_txt}"),
+            ("Length", f"{lunghezza} m" if lunghezza != "-" else "-"),
+            ("Spool", f"Ø {aspo} mm" if aspo != "-" else "-"),
+            ("Width", f"{spalla} mm" if spalla != "-" else "-"),
+        ]
+
+    items_html = "".join(
+        f"""
+        <div class="summary-strip-item">
+            <div class="summary-strip-label">{html.escape(str(label))}</div>
+            <div class="summary-strip-value">{html.escape(str(value))}</div>
+        </div>
+        """
+        for label, value in fields
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .summary-strip {{
+            margin:8px 0 16px 0;
+            border-radius:20px;
+            overflow:hidden;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 8px 20px rgba(0,0,0,0.065);
+        }}
+        .summary-strip-head {{
+            padding:12px 16px;
+            background:linear-gradient(90deg, rgba(255,75,75,0.20), transparent);
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            font-size:13px;
+            font-weight:950;
+            letter-spacing:0.07em;
+            text-transform:uppercase;
+        }}
+        .summary-strip-grid {{
+            display:grid;
+            grid-template-columns:1.3fr 1.4fr 0.8fr 0.8fr 0.8fr;
+            gap:10px;
+            padding:14px 16px;
+        }}
+        .summary-strip-item {{
+            min-width:0;
+        }}
+        .summary-strip-label {{
+            font-size:11px;
+            line-height:1.1;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            margin-bottom:6px;
+        }}
+        .summary-strip-value {{
+            font-size:17px;
+            line-height:1.14;
+            font-weight:950;
+            color:var(--text-color);
+            word-break:break-word;
+        }}
+        @media (max-width:950px) {{
+            .summary-strip-grid {{
+                grid-template-columns:1fr 1fr;
+            }}
+        }}
+        </style>
+        <div class="summary-strip">
+            <div class="summary-strip-head">{html.escape(title)}</div>
+            <div class="summary-strip-grid">{items_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_visuale, incremento_visuale, visual_metrics, coil_footprint_mm, pallet_size_mm=750.0):
     if language == "IT":
         title = "Lettura rapida"
