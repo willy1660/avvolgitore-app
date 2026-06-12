@@ -1174,13 +1174,6 @@ def make_preset_visual(row, language):
                     <text x="364" y="90" class="d-label">{html.escape(labels['pitch'])}</text>
                     <text x="364" y="104" class="d-value">{v(passo)} mm</text>
 
-                    <line x1="324" y1="106" x2="354" y2="106" class="d-guide"/>
-                    <line x1="324" y1="118" x2="354" y2="118" class="d-guide"/>
-                    <line x1="354" y1="106" x2="354" y2="118" class="d-line"/>
-                    <polygon points="350,106 354,102 358,106" fill="var(--white-line)"/>
-                    <polygon points="350,118 354,122 358,118" fill="var(--white-line)"/>
-                    <text x="364" y="114" class="d-label">{html.escape(labels['layer'])}</text>
-                    <text x="364" y="128" class="d-value">{v(incremento)} mm</text>
                 </svg>
             </div>
     """
