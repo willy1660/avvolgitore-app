@@ -908,6 +908,102 @@ def make_preset_visual(row, language):
     if paletta_label != "-" and "mm" not in paletta_label.lower():
         paletta_label += " mm"
 
+
+    tipo_tubo = str(row.get("Tipo tubo", "Singolo")).strip().lower()
+    is_doppio_preview = tipo_tubo == "doppio"
+
+    if is_doppio_preview:
+        rame_inf = str(first_existing_value(row, ["Diametro rame inferiore", "Diametro Rame inferiore"], "3/8")).strip()
+        rame_sup = str(first_existing_value(row, ["Diametro rame superiore", "Diametro Rame superiore"], "1/4")).strip()
+
+        spessore_inf = parse_float_value(first_existing_value(row, ["Spessore guaina inferiore", "Spessore Guaina inferiore (mm)"], 0.0), 0.0)
+        spessore_sup = parse_float_value(first_existing_value(row, ["Spessore guaina superiore", "Spessore Guaina superiore (mm)"], 0.0), 0.0)
+
+        d_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0)) + 2.0 * spessore_inf
+        d_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0)) + 2.0 * spessore_sup
+        d_coppia = d_inf + d_sup
+
+        # SVG scale: keep the preview readable independently from real dimensions.
+        r_inf_svg = 50.0
+        r_sup_svg = max(22.0, min(46.0, r_inf_svg * (d_sup / max(d_inf, 1e-9))))
+        cy_inf = 135.0
+        cy_sup = cy_inf - r_inf_svg - r_sup_svg
+        cx_pair = 122.0
+
+        tube_section_html = f"""
+            <div class="drawing">
+                <svg viewBox="0 0 340 260" role="img" aria-label="Doppio tube section preview">
+                    <circle cx="{cx_pair}" cy="{cy_inf}" r="{r_inf_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
+                    <circle cx="{cx_pair}" cy="{cy_inf}" r="19" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
+                    <circle cx="{cx_pair}" cy="{cy_inf}" r="13" fill="var(--copper-light)" opacity="0.9"/>
+
+                    <circle cx="{cx_pair}" cy="{cy_sup}" r="{r_sup_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
+                    <circle cx="{cx_pair}" cy="{cy_sup}" r="14" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
+                    <circle cx="{cx_pair}" cy="{cy_sup}" r="9" fill="var(--copper-light)" opacity="0.9"/>
+
+                    <line x1="205" y1="{cy_sup-r_sup_svg}" x2="205" y2="{cy_inf+r_inf_svg}" class="d-line"/>
+                    <line x1="{cx_pair}" y1="{cy_sup-r_sup_svg}" x2="205" y2="{cy_sup-r_sup_svg}" class="d-guide"/>
+                    <line x1="{cx_pair}" y1="{cy_inf+r_inf_svg}" x2="205" y2="{cy_inf+r_inf_svg}" class="d-guide"/>
+                    <polygon points="201,{cy_sup-r_sup_svg+8:.1f} 205,{cy_sup-r_sup_svg:.1f} 209,{cy_sup-r_sup_svg+8:.1f}" fill="var(--white-line)"/>
+                    <polygon points="201,{cy_inf+r_inf_svg-8:.1f} 205,{cy_inf+r_inf_svg:.1f} 209,{cy_inf+r_inf_svg-8:.1f}" fill="var(--white-line)"/>
+
+                    <rect x="222" y="49" width="98" height="48" class="callout-box"/>
+                    <text x="271" y="68" text-anchor="middle" class="d-label">Superiore</text>
+                    <text x="271" y="87" text-anchor="middle" class="d-value">{html.escape(str(rame_sup))} · {format_preset_value(d_sup)} mm</text>
+
+                    <rect x="222" y="147" width="98" height="48" class="callout-box"/>
+                    <text x="271" y="166" text-anchor="middle" class="d-label">Inferiore</text>
+                    <text x="271" y="185" text-anchor="middle" class="d-value">{html.escape(str(rame_inf))} · {format_preset_value(d_inf)} mm</text>
+
+                    <text x="122" y="238" text-anchor="middle" class="d-label">Doppio verticale · grande sotto, piccolo sopra</text>
+                </svg>
+            </div>
+        """
+
+        tube_metrics_html = f"""
+            <div class="metrics">
+                <div class="metric"><span class="label">Tipo tubo</span><span class="value">Doppio</span></div>
+                <div class="metric"><span class="label">Inferiore</span><span class="value">{html.escape(str(rame_inf))} · {format_preset_value(d_inf)} mm</span></div>
+                <div class="metric"><span class="label">Superiore</span><span class="value">{html.escape(str(rame_sup))} · {format_preset_value(d_sup)} mm</span></div>
+                <div class="metric"><span class="label">Altezza coppia</span><span class="value">{format_preset_value(d_coppia)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['length'])}</span><span class="value">{v(lunghezza)} m</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['line_speed'])}</span><span class="value">{line_speed_label}</span></div>
+            </div>
+        """
+    else:
+        tube_section_html = f"""
+            <div class="drawing">
+                <svg viewBox="0 0 340 240" role="img" aria-label="Tube section preview">
+                    <circle cx="112" cy="100" r="74" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
+                    <circle cx="112" cy="100" r="30" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
+                    <circle cx="112" cy="100" r="22" fill="var(--copper-light)" opacity="0.9"/>
+                    <line x1="188" y1="26" x2="188" y2="174" class="d-line"/>
+                    <line x1="112" y1="26" x2="188" y2="26" class="d-guide"/>
+                    <line x1="112" y1="174" x2="188" y2="174" class="d-guide"/>
+                    <polygon points="184,34 188,26 192,34" fill="var(--white-line)"/>
+                    <polygon points="184,166 188,174 192,166" fill="var(--white-line)"/>
+                    <rect x="208" y="54" width="106" height="48" class="callout-box"/>
+                    <text x="261" y="73" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
+                    <text x="261" y="92" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
+                    <line x1="138" y1="74" x2="218" y2="130" class="d-guide"/>
+                    <rect x="214" y="120" width="100" height="44" class="callout-box"/>
+                    <text x="264" y="139" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
+                    <text x="264" y="157" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
+                </svg>
+            </div>
+        """
+
+        tube_metrics_html = f"""
+            <div class="metrics">
+                <div class="metric"><span class="label">{html.escape(labels['copper'])}</span><span class="value">{copper_label}</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['foam'])}</span><span class="value">{v(spessore)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['outer'])}</span><span class="value">{v(d_tubo)} mm</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['length'])}</span><span class="value">{v(lunghezza)} m</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['line_speed'])}</span><span class="value">{line_speed_label}</span></div>
+                <div class="metric"><span class="label">{html.escape(labels['air'])}</span><span class="value">{soffiatori_label}</span></div>
+            </div>
+        """
+
     return f'''
 <!doctype html>
 <html>
@@ -1025,33 +1121,9 @@ def make_preset_visual(row, language):
         <div class="title">{html.escape(labels['tube_section'])}</div>
         <div class="subtitle">{html.escape(labels['tube_note'])}</div>
         <div class="layout">
-            <div class="drawing">
-                <svg viewBox="0 0 340 240" role="img" aria-label="Tube section preview">
-                    <circle cx="112" cy="100" r="74" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
-                    <circle cx="112" cy="100" r="30" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
-                    <circle cx="112" cy="100" r="22" fill="var(--copper-light)" opacity="0.9"/>
-                    <line x1="188" y1="26" x2="188" y2="174" class="d-line"/>
-                    <line x1="112" y1="26" x2="188" y2="26" class="d-guide"/>
-                    <line x1="112" y1="174" x2="188" y2="174" class="d-guide"/>
-                    <polygon points="184,34 188,26 192,34" fill="var(--white-line)"/>
-                    <polygon points="184,166 188,174 192,166" fill="var(--white-line)"/>
-                    <rect x="208" y="54" width="106" height="48" class="callout-box"/>
-                    <text x="261" y="73" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
-                    <text x="261" y="92" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
-                    <line x1="138" y1="74" x2="218" y2="130" class="d-guide"/>
-                    <rect x="214" y="120" width="100" height="44" class="callout-box"/>
-                    <text x="264" y="139" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
-                    <text x="264" y="157" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
-                </svg>
-            </div>
-            <div class="metrics">
-                <div class="metric"><span class="label">{html.escape(labels['copper'])}</span><span class="value">{copper_label}</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['foam'])}</span><span class="value">{v(spessore)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['outer'])}</span><span class="value">{v(d_tubo)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['length'])}</span><span class="value">{v(lunghezza)} m</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['line_speed'])}</span><span class="value">{line_speed_label}</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['air'])}</span><span class="value">{soffiatori_label}</span></div>
-            </div>
+            {tube_section_html}
+            {tube_metrics_html}
+        </div>
         </div>
     </div>
 
@@ -1328,6 +1400,31 @@ st.markdown(
     div[data-baseweb="input"] > div,
     div[data-baseweb="select"] > div {
         border-radius: 10px;
+    }
+
+    div[role="radiogroup"] {
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    div[role="radiogroup"] label {
+        background: var(--secondary-background-color);
+        border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+        border-radius: 999px;
+        padding: 0.52rem 0.82rem;
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    }
+
+    div[role="radiogroup"] label:hover {
+        border-color: color-mix(in srgb, var(--text-color) 34%, transparent);
+    }
+
+    div[role="radiogroup"] label p {
+        font-weight: 800;
+        font-size: 0.98rem;
     }
     </style>
     """,
@@ -1758,7 +1855,7 @@ def viewer(
             display:flex;
             flex-direction:column;
             gap:10px;
-            width:232px;
+            width:270px;
             max-width:calc(100% - 28px);
             max-height:calc(100% - 28px);
             overflow-y:auto;
@@ -1883,16 +1980,17 @@ def viewer(
         .viewer_btn_small {{
             border:none;
             border-radius:10px;
-            padding:8px 10px;
+            padding:8px 9px;
             background:rgba(235,235,235,0.92);
             color:#111;
-            font-weight:700;
-            font-size:14px;
+            font-weight:800;
+            font-size:13px;
             cursor:pointer;
-            text-align:left;
+            text-align:center;
             white-space:normal;
-            line-height:1.25;
-            min-height:40px;
+            overflow-wrap:anywhere;
+            line-height:1.18;
+            min-height:42px;
             width:100%;
         }}
 
@@ -1930,7 +2028,7 @@ def viewer(
         .btn_grid_3 {{
             display:grid;
             grid-template-columns:repeat(3, minmax(0, 1fr));
-            gap:6px;
+            gap:7px;
         }}
 
         #viewer_sidepanel::-webkit-scrollbar {{
@@ -1947,6 +2045,8 @@ def viewer(
             display:flex;
             align-items:center;
             gap:8px;
+            line-height:1.25;
+            font-weight:650;
         }}
 
         .panel_checks_block {{
@@ -3866,12 +3966,6 @@ with tab_calculator:
         incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale")
         rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b")
         rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t")
-
-    if tube_layout_code == "double":
-        st.info(
-            f"Doppio: passo consigliato ≈ {passo_consigliato:.2f} mm · "
-            f"incremento strato consigliato ≈ {incremento_consigliato:.2f} mm"
-        )
 
     z_min_center = None
     z_max_center = None
