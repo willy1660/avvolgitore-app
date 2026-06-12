@@ -965,6 +965,23 @@ def make_preset_visual(row, language):
         },
     }[language]
 
+    extra_labels = {
+        "IT": {
+            "upper": "Superiore",
+            "lower": "Inferiore",
+            "double_note": "Doppio verticale · grande sotto, piccolo sopra",
+            "type": "Tipo tubo",
+            "double": "Doppio",
+        },
+        "EN": {
+            "upper": "Upper",
+            "lower": "Lower",
+            "double_note": "Vertical double · large below, small above",
+            "type": "Tube type",
+            "double": "Double",
+        },
+    }[language]
+
     def v(value):
         return html.escape(format_preset_value(value))
 
@@ -1010,30 +1027,40 @@ def make_preset_visual(row, language):
 
         tube_section_html = f"""
             <div class="drawing">
-                <svg viewBox="0 0 340 260" role="img" aria-label="Doppio tube section preview">
-                    <circle cx="{cx_pair}" cy="{cy_inf}" r="{r_inf_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
-                    <circle cx="{cx_pair}" cy="{cy_inf}" r="19" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
-                    <circle cx="{cx_pair}" cy="{cy_inf}" r="13" fill="var(--copper-light)" opacity="0.9"/>
+                <svg viewBox="0 0 340 260" role="img" aria-label="Double tube section preview">
+                    <line x1="36" y1="70" x2="188" y2="70" class="d-center"/>
+                    <line x1="36" y1="{cy_inf:.1f}" x2="188" y2="{cy_inf:.1f}" class="d-center"/>
+                    <line x1="{cx_pair:.1f}" y1="18" x2="{cx_pair:.1f}" y2="205" class="d-center"/>
 
-                    <circle cx="{cx_pair}" cy="{cy_sup}" r="{r_sup_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
-                    <circle cx="{cx_pair}" cy="{cy_sup}" r="14" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
-                    <circle cx="{cx_pair}" cy="{cy_sup}" r="9" fill="var(--copper-light)" opacity="0.9"/>
+                    <circle cx="{cx_pair}" cy="{cy_inf}" r="{r_inf_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
+                    <circle cx="{cx_pair}" cy="{cy_inf}" r="{max(16, r_inf_svg * 0.36):.1f}" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.4"/>
+                    <circle cx="{cx_pair}" cy="{cy_inf}" r="{max(10, r_inf_svg * 0.24):.1f}" fill="var(--copper-light)" opacity="0.95"/>
 
-                    <line x1="205" y1="{cy_sup-r_sup_svg}" x2="205" y2="{cy_inf+r_inf_svg}" class="d-line"/>
-                    <line x1="{cx_pair}" y1="{cy_sup-r_sup_svg}" x2="205" y2="{cy_sup-r_sup_svg}" class="d-guide"/>
-                    <line x1="{cx_pair}" y1="{cy_inf+r_inf_svg}" x2="205" y2="{cy_inf+r_inf_svg}" class="d-guide"/>
-                    <polygon points="201,{cy_sup-r_sup_svg+8:.1f} 205,{cy_sup-r_sup_svg:.1f} 209,{cy_sup-r_sup_svg+8:.1f}" fill="var(--white-line)"/>
-                    <polygon points="201,{cy_inf+r_inf_svg-8:.1f} 205,{cy_inf+r_inf_svg:.1f} 209,{cy_inf+r_inf_svg-8:.1f}" fill="var(--white-line)"/>
+                    <circle cx="{cx_pair}" cy="{cy_sup}" r="{r_sup_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
+                    <circle cx="{cx_pair}" cy="{cy_sup}" r="{max(13, r_sup_svg * 0.36):.1f}" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.4"/>
+                    <circle cx="{cx_pair}" cy="{cy_sup}" r="{max(8, r_sup_svg * 0.24):.1f}" fill="var(--copper-light)" opacity="0.95"/>
 
-                    <rect x="222" y="49" width="98" height="48" class="callout-box"/>
-                    <text x="271" y="68" text-anchor="middle" class="d-label">Superiore</text>
-                    <text x="271" y="87" text-anchor="middle" class="d-value">{html.escape(str(rame_sup))} · {format_preset_value(d_sup)} mm</text>
+                    <line x1="196" y1="{cy_sup-r_sup_svg:.1f}" x2="196" y2="{cy_inf+r_inf_svg:.1f}" class="d-line"/>
+                    <line x1="{cx_pair+r_sup_svg:.1f}" y1="{cy_sup-r_sup_svg:.1f}" x2="196" y2="{cy_sup-r_sup_svg:.1f}" class="d-guide"/>
+                    <line x1="{cx_pair+r_inf_svg:.1f}" y1="{cy_inf+r_inf_svg:.1f}" x2="196" y2="{cy_inf+r_inf_svg:.1f}" class="d-guide"/>
+                    <polygon points="192,{cy_sup-r_sup_svg+7:.1f} 196,{cy_sup-r_sup_svg:.1f} 200,{cy_sup-r_sup_svg+7:.1f}" fill="var(--white-line)"/>
+                    <polygon points="192,{cy_inf+r_inf_svg-7:.1f} 196,{cy_inf+r_inf_svg:.1f} 200,{cy_inf+r_inf_svg-7:.1f}" fill="var(--white-line)"/>
 
-                    <rect x="222" y="147" width="98" height="48" class="callout-box"/>
-                    <text x="271" y="166" text-anchor="middle" class="d-label">Inferiore</text>
-                    <text x="271" y="185" text-anchor="middle" class="d-value">{html.escape(str(rame_inf))} · {format_preset_value(d_inf)} mm</text>
+                    <line x1="56" y1="220" x2="184" y2="220" class="d-line"/>
+                    <line x1="56" y1="208" x2="56" y2="232" class="d-line"/>
+                    <line x1="184" y1="208" x2="184" y2="232" class="d-line"/>
+                    <text x="120" y="214" text-anchor="middle" class="d-value">{format_preset_value(d_coppia)} mm</text>
+                    <text x="120" y="236" text-anchor="middle" class="d-label">H coppia</text>
 
-                    <text x="122" y="238" text-anchor="middle" class="d-label">Doppio verticale · grande sotto, piccolo sopra</text>
+                    <rect x="218" y="34" width="104" height="50" class="callout-box"/>
+                    <text x="270" y="54" text-anchor="middle" class="d-label">{html.escape(extra_labels['upper'])}</text>
+                    <text x="270" y="75" text-anchor="middle" class="d-value">{html.escape(str(rame_sup))} · {format_preset_value(d_sup)} mm</text>
+
+                    <rect x="218" y="140" width="104" height="50" class="callout-box"/>
+                    <text x="270" y="160" text-anchor="middle" class="d-label">{html.escape(extra_labels['lower'])}</text>
+                    <text x="270" y="181" text-anchor="middle" class="d-value">{html.escape(str(rame_inf))} · {format_preset_value(d_inf)} mm</text>
+
+                    <text x="122" y="252" text-anchor="middle" class="d-caption">{html.escape(extra_labels['double_note'])}</text>
                 </svg>
             </div>
         """
@@ -1055,22 +1082,38 @@ def make_preset_visual(row, language):
     else:
         tube_section_html = f"""
             <div class="drawing">
-                <svg viewBox="0 0 340 240" role="img" aria-label="Tube section preview">
-                    <circle cx="112" cy="100" r="74" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="3"/>
-                    <circle cx="112" cy="100" r="30" fill="var(--copper)" stroke="#9a4d1d" stroke-width="3"/>
-                    <circle cx="112" cy="100" r="22" fill="var(--copper-light)" opacity="0.9"/>
-                    <line x1="188" y1="26" x2="188" y2="174" class="d-line"/>
-                    <line x1="112" y1="26" x2="188" y2="26" class="d-guide"/>
-                    <line x1="112" y1="174" x2="188" y2="174" class="d-guide"/>
-                    <polygon points="184,34 188,26 192,34" fill="var(--white-line)"/>
-                    <polygon points="184,166 188,174 192,166" fill="var(--white-line)"/>
-                    <rect x="208" y="54" width="106" height="48" class="callout-box"/>
-                    <text x="261" y="73" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
-                    <text x="261" y="92" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
-                    <line x1="138" y1="74" x2="218" y2="130" class="d-guide"/>
-                    <rect x="214" y="120" width="100" height="44" class="callout-box"/>
-                    <text x="264" y="139" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
-                    <text x="264" y="157" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
+                <svg viewBox="0 0 340 248" role="img" aria-label="Tube section preview">
+                    <line x1="30" y1="106" x2="200" y2="106" class="d-center"/>
+                    <line x1="115" y1="20" x2="115" y2="192" class="d-center"/>
+
+                    <circle cx="115" cy="106" r="80" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
+                    <circle cx="115" cy="106" r="34" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.6"/>
+                    <circle cx="115" cy="106" r="25" fill="var(--copper-light)" opacity="0.95"/>
+
+                    <line x1="35" y1="212" x2="195" y2="212" class="d-line"/>
+                    <line x1="35" y1="198" x2="35" y2="226" class="d-line"/>
+                    <line x1="195" y1="198" x2="195" y2="226" class="d-line"/>
+                    <text x="115" y="206" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
+                    <text x="115" y="230" text-anchor="middle" class="d-label">{html.escape(labels['outer'])}</text>
+
+                    <line x1="144" y1="64" x2="218" y2="48" class="d-guide"/>
+                    <line x1="115" y1="106" x2="145" y2="106" class="d-guide"/>
+                    <line x1="145" y1="106" x2="145" y2="64" class="d-guide"/>
+                    <line x1="149" y1="106" x2="191" y2="106" class="d-line"/>
+                    <polygon points="149,106 157,102 157,110" fill="var(--white-line)"/>
+                    <polygon points="191,106 183,102 183,110" fill="var(--white-line)"/>
+
+                    <rect x="208" y="34" width="108" height="48" class="callout-box"/>
+                    <text x="262" y="54" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
+                    <text x="262" y="74" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
+
+                    <rect x="208" y="96" width="108" height="48" class="callout-box"/>
+                    <text x="262" y="116" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
+                    <text x="262" y="136" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
+
+                    <rect x="208" y="158" width="108" height="40" class="callout-box"/>
+                    <text x="262" y="176" text-anchor="middle" class="d-label">{html.escape(labels['copper'])}</text>
+                    <text x="262" y="193" text-anchor="middle" class="d-value">{copper_label}</text>
                 </svg>
             </div>
         """
@@ -1089,6 +1132,67 @@ def make_preset_visual(row, language):
                 {tube_metrics_rows}
             </div>
         """
+
+    coil_preview_html = f"""
+            <div class="drawing">
+                <svg viewBox="0 0 420 230" role="img" aria-label="Coiling layout preview">
+                    <defs>
+                        <linearGradient id="coilBand" x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stop-color="var(--coil-top)"/>
+                            <stop offset="55%" stop-color="var(--coil-mid)"/>
+                            <stop offset="100%" stop-color="var(--coil-dark)"/>
+                        </linearGradient>
+                        <linearGradient id="coreBody" x1="0" x2="1" y1="0" y2="0">
+                            <stop offset="0%" stop-color="#4b5563"/>
+                            <stop offset="50%" stop-color="#1f2937"/>
+                            <stop offset="100%" stop-color="#111827"/>
+                        </linearGradient>
+                    </defs>
+
+                    <line x1="38" y1="114" x2="382" y2="114" class="d-center"/>
+
+                    <rect x="118" y="82" width="164" height="64" rx="18" fill="url(#coreBody)" stroke="rgba(255,255,255,0.12)" stroke-width="1.2"/>
+                    <rect x="106" y="72" width="12" height="84" rx="4" fill="#2f3743" stroke="rgba(255,255,255,0.18)" stroke-width="1.1"/>
+                    <rect x="282" y="72" width="12" height="84" rx="4" fill="#2f3743" stroke="rgba(255,255,255,0.18)" stroke-width="1.1"/>
+
+                    <rect x="98" y="70" width="204" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.20)" stroke-width="1"/>
+                    <rect x="96" y="82" width="208" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+                    <rect x="94" y="94" width="212" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+                    <rect x="92" y="106" width="216" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+                    <rect x="94" y="118" width="212" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+                    <rect x="96" y="130" width="208" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+                    <rect x="98" y="142" width="204" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.20)" stroke-width="1"/>
+
+                    <line x1="106" y1="44" x2="294" y2="44" class="d-line"/>
+                    <line x1="106" y1="32" x2="106" y2="56" class="d-line"/>
+                    <line x1="294" y1="32" x2="294" y2="56" class="d-line"/>
+                    <text x="200" y="38" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
+                    <text x="200" y="58" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
+
+                    <line x1="52" y1="82" x2="52" y2="146" class="d-line"/>
+                    <line x1="40" y1="82" x2="64" y2="82" class="d-line"/>
+                    <line x1="40" y1="146" x2="64" y2="146" class="d-line"/>
+                    <text x="69" y="116" transform="rotate(90 69 116)" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
+                    <text x="52" y="116" transform="rotate(90 52 116)" text-anchor="middle" class="d-label">{html.escape(labels['spool'])}</text>
+
+                    <line x1="324" y1="82" x2="354" y2="82" class="d-guide"/>
+                    <line x1="324" y1="94" x2="354" y2="94" class="d-guide"/>
+                    <line x1="354" y1="82" x2="354" y2="94" class="d-line"/>
+                    <polygon points="350,82 354,78 358,82" fill="var(--white-line)"/>
+                    <polygon points="350,94 354,98 358,94" fill="var(--white-line)"/>
+                    <text x="364" y="90" class="d-label">{html.escape(labels['pitch'])}</text>
+                    <text x="364" y="104" class="d-value">{v(passo)} mm</text>
+
+                    <line x1="324" y1="106" x2="354" y2="106" class="d-guide"/>
+                    <line x1="324" y1="118" x2="354" y2="118" class="d-guide"/>
+                    <line x1="354" y1="106" x2="354" y2="118" class="d-line"/>
+                    <polygon points="350,106 354,102 358,106" fill="var(--white-line)"/>
+                    <polygon points="350,118 354,122 358,118" fill="var(--white-line)"/>
+                    <text x="364" y="114" class="d-label">{html.escape(labels['layer'])}</text>
+                    <text x="364" y="128" class="d-value">{v(incremento)} mm</text>
+                </svg>
+            </div>
+    """
 
     return f'''
 <!doctype html>
@@ -1242,35 +1346,7 @@ def make_preset_visual(row, language):
         <div class="title">{html.escape(labels['coil'])}</div>
         <div class="subtitle">{html.escape(labels['coil_note'])}</div>
         <div class="layout">
-            <div class="drawing">
-                <svg viewBox="0 0 420 220" role="img" aria-label="Coiling layout preview">
-                    <g>
-                        <ellipse cx="210" cy="70" rx="116" ry="9" fill="var(--coil-dark)" opacity="0.24"/>
-                        <ellipse cx="210" cy="82" rx="108" ry="8.5" fill="var(--coil-top)"/>
-                        <ellipse cx="210" cy="91" rx="110" ry="8.5" fill="var(--coil-mid)"/>
-                        <ellipse cx="210" cy="100" rx="112" ry="8.5" fill="var(--coil-top)"/>
-                        <ellipse cx="210" cy="109" rx="114" ry="8.5" fill="var(--coil-mid)"/>
-                        <ellipse cx="210" cy="118" rx="116" ry="8.5" fill="var(--coil-top)"/>
-                        <ellipse cx="210" cy="127" rx="114" ry="8.5" fill="var(--coil-mid)"/>
-                        <ellipse cx="210" cy="136" rx="112" ry="8.5" fill="var(--coil-top)"/>
-                        <ellipse cx="210" cy="145" rx="110" ry="8.5" fill="var(--coil-mid)"/>
-                        <ellipse cx="210" cy="154" rx="108" ry="8.5" fill="var(--coil-top)"/>
-                        <ellipse cx="210" cy="166" rx="118" ry="8" fill="var(--coil-dark)" opacity="0.18"/>
-                    </g>
-
-                    <line x1="102" y1="52" x2="318" y2="52" class="d-line"/>
-                    <line x1="102" y1="40" x2="102" y2="64" class="d-line"/>
-                    <line x1="318" y1="40" x2="318" y2="64" class="d-line"/>
-                    <text x="210" y="46" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
-                    <text x="210" y="66" text-anchor="middle" class="d-label">{html.escape(labels['spool'])}</text>
-
-                    <line x1="344" y1="82" x2="344" y2="154" class="d-line"/>
-                    <line x1="332" y1="82" x2="356" y2="82" class="d-line"/>
-                    <line x1="332" y1="154" x2="356" y2="154" class="d-line"/>
-                    <text x="360" y="118" transform="rotate(90 360 118)" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
-                    <text x="344" y="118" transform="rotate(90 344 118)" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
-                </svg>
-            </div>
+{coil_preview_html}
             <div class="metrics">
                 {''.join([
                     metric_html(labels['spool'], aspo, " mm"),
@@ -4725,6 +4801,7 @@ def render_tech_snapshot_cards(selected_row, language):
 
 
 
+
 def render_machine_parameter_groups(selected_row, language):
     group_defs = [
         (
@@ -4814,45 +4891,115 @@ def render_machine_parameter_groups(selected_row, language):
         st.info("Nessun parametro trovato." if language == "IT" else "No parameter found.")
         return
 
-    def group_html(title, pairs):
-        items = []
-        for label, value in pairs:
-            items.append(
-                '<div class="machine-card-item">'
-                f'<div class="machine-card-label">{html.escape(str(label))}</div>'
-                f'<div class="machine-card-value">{html.escape(str(value))}</div>'
-                '</div>'
-            )
-        return (
-            '<section class="machine-block">'
-            '<div class="machine-block-head">'
-            f'<div class="machine-block-title">{html.escape(str(title))}</div>'
-            f'<div class="machine-block-count">{len(pairs)}</div>'
-            '</div>'
-            f'<div class="machine-card-grid">{"".join(items)}</div>'
-            '</section>'
+    st.markdown(
+        """
+        <style>
+        .machine-group-head-native{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            margin:12px 0 10px 0;
+            padding:12px 14px;
+            border-radius:18px 18px 0 0;
+            background:linear-gradient(90deg, rgba(255,75,75,0.18), transparent);
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            border-bottom:none;
+        }
+        .machine-group-title-native{
+            font-size:15px;
+            font-weight:950;
+            letter-spacing:0.065em;
+            text-transform:uppercase;
+            color:var(--text-color);
+        }
+        .machine-group-count-native{
+            min-width:30px;
+            height:30px;
+            padding:0 10px;
+            border-radius:999px;
+            background:#ff4b4b;
+            color:#fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:13px;
+            font-weight:950;
+        }
+        .machine-card-native{
+            min-height:88px;
+            padding:12px 13px;
+            border-radius:16px;
+            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--text-color) 4%, transparent),
+                color-mix(in srgb, var(--text-color) 7%, transparent)
+            );
+            display:flex;
+            flex-direction:column;
+            justify-content:space-between;
+            gap:12px;
+            box-sizing:border-box;
+        }
+        .machine-card-label-native{
+            font-size:12px;
+            line-height:1.18;
+            font-weight:760;
+            color:color-mix(in srgb, var(--text-color) 72%, transparent);
+            word-break:break-word;
+        }
+        .machine-card-value-native{
+            font-size:24px;
+            line-height:1.02;
+            font-weight:950;
+            color:var(--text-color);
+            letter-spacing:-0.01em;
+            word-break:break-word;
+        }
+        @media (max-width: 900px){
+            .machine-card-native{
+                min-height:80px;
+            }
+            .machine-card-value-native{
+                font-size:22px;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    for group_title, pairs in groups:
+        st.markdown(
+            f"""
+            <div class="machine-group-head-native">
+                <div class="machine-group-title-native">{html.escape(str(group_title))}</div>
+                <div class="machine-group-count-native">{len(pairs)}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    groups_html = "".join(group_html(title, pairs) for title, pairs in groups)
+        with st.container(border=True):
+            cols_per_row = 4 if len(pairs) >= 8 else (3 if len(pairs) >= 4 else 2)
+            cols_per_row = max(1, cols_per_row)
 
-    css = """
-<style>
-.machine-sheet-blocks{display:grid;grid-template-columns:1fr;gap:14px;margin-top:12px}
-.machine-block{overflow:hidden;border-radius:20px;border:1px solid color-mix(in srgb,var(--text-color) 16%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--secondary-background-color) 90%,var(--background-color)),color-mix(in srgb,var(--secondary-background-color) 98%,var(--background-color)));box-shadow:0 10px 24px rgba(0,0,0,.08)}
-.machine-block-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:linear-gradient(90deg,rgba(255,75,75,.18),transparent);border-bottom:1px solid color-mix(in srgb,var(--text-color) 12%,transparent)}
-.machine-block-title{font-size:14px;line-height:1.05;font-weight:950;letter-spacing:.07em;text-transform:uppercase;color:var(--text-color)}
-.machine-block-count{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 9px;border-radius:999px;background:#ff4b4b;color:#fff;font-size:12px;font-weight:950}
-.machine-card-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px}
-.machine-card-item{min-height:88px;display:flex;flex-direction:column;justify-content:space-between;gap:10px;padding:13px 14px;border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb,var(--text-color) 4%,transparent),color-mix(in srgb,var(--text-color) 7%,transparent));border:1px solid color-mix(in srgb,var(--text-color) 10%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-.machine-card-label{font-size:12px;line-height:1.18;font-weight:760;color:color-mix(in srgb,var(--text-color) 72%,transparent);word-break:break-word}
-.machine-card-value{font-size:26px;line-height:1.02;font-weight:950;color:var(--text-color);letter-spacing:-.01em;word-break:break-word}
-@media(max-width:1400px){.machine-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:1000px){.machine-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.machine-card-item{min-height:82px}.machine-card-value{font-size:24px}}
-@media(max-width:640px){.machine-card-grid{grid-template-columns:1fr}.machine-card-value{font-size:22px}}
-</style>
-"""
-    st.markdown(css + '<div class="machine-sheet-blocks">' + groups_html + '</div>', unsafe_allow_html=True)
-
+            for i in range(0, len(pairs), cols_per_row):
+                row_pairs = pairs[i:i + cols_per_row]
+                cols = st.columns(cols_per_row, gap="small")
+                for col_ui, pair in zip(cols, row_pairs):
+                    label, value = pair
+                    with col_ui:
+                        st.markdown(
+                            f"""
+                            <div class="machine-card-native">
+                                <div class="machine-card-label-native">{html.escape(str(label))}</div>
+                                <div class="machine-card-value-native">{html.escape(str(value))}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                # leave remaining columns empty if row_pairs shorter
 # =========================
 # UI
 # =========================
