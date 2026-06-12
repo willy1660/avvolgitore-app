@@ -5215,70 +5215,268 @@ def render_status_semaphore(items, language):
     )
 
 
+
 def render_startup_checklist(language):
+    # Checklist cambio misura ordinata per area e tipo di intervento.
+    # Stato salvato in session_state: resta spuntato durante la sessione.
     if language == "IT":
-        title = "Checklist di avviamento"
-        subtitle = "Controlli rapidi prima di impostare o avviare la macchina."
-        items = [
-            "Preset prodotto verificato",
-            "Tubo e guaina corretti",
-            "Guidatubo montato",
-            "Rulli / boccole impostati",
-            "Quote macchina verificate",
-            "Velocità e coppie impostate",
+        title = "Checklist cambio misura"
+        subtitle = "Sequenza operativa per cambio formato: linea + avvolgitore."
+        reset_label = "Azzera checklist"
+        progress_label = "Avanzamento"
+        groups = [
+            (
+                "Linea",
+                [
+                    (
+                        "Comprovazioni",
+                        [
+                            "Comprovare rame corretto",
+                            "Comprovare isolamento corretto",
+                            "Comprovare materiale corretto di estrussore",
+                            "Comprovare stampante e marcatura",
+                        ],
+                    ),
+                    (
+                        "Cambio attrezzatura",
+                        [
+                            "Cambiare boccole di entrate e uscite del rame",
+                            "Cambiare adrizzatubi rame",
+                            "Cambiare rulli convogliatore ed estrussore",
+                            "Cambiare soffiatori",
+                        ],
+                    ),
+                    (
+                        "Regolazioni",
+                        [
+                            "Regolare rulli di guida di tutta la maquina",
+                            "Regolare traino",
+                            "Impostare lunghezza taglio e velocita",
+                            "Regolare godronatore",
+                        ],
+                    ),
+                ],
+            ),
+            (
+                "Avvolgitore",
+                [
+                    (
+                        "Cambio attrezzatura",
+                        [
+                            "Cambiare rulli avvolgitore",
+                            "Cambiare paletta ferma coda avvolgitore",
+                            "Cambiare guidatubo avvolgitore",
+                        ],
+                    ),
+                    (
+                        "Regolazioni",
+                        [
+                            "Regolare spalla avvolgitore",
+                            "Regolare interasse regetta avvolgitore",
+                            "Regolare diametro aspo avvolgitore",
+                            "Impostare/caricare parametri avvolgitore",
+                        ],
+                    ),
+                    (
+                        "Comprovazioni",
+                        [
+                            "Simulare parametri di avvolgimento",
+                        ],
+                    ),
+                ],
+            ),
         ]
     else:
-        title = "Startup checklist"
-        subtitle = "Quick checks before setting or starting the machine."
-        items = [
-            "Product preset checked",
-            "Tube and foam checked",
-            "Tube guide mounted",
-            "Rollers / bushings set",
-            "Machine quotas checked",
-            "Speed and torque set",
+        title = "Size change checklist"
+        subtitle = "Operating sequence for format change: line + coiler."
+        reset_label = "Reset checklist"
+        progress_label = "Progress"
+        groups = [
+            (
+                "Line",
+                [
+                    (
+                        "Checks",
+                        [
+                            "Check correct copper",
+                            "Check correct insulation",
+                            "Check correct extruder material",
+                            "Check printer and marking",
+                        ],
+                    ),
+                    (
+                        "Tooling change",
+                        [
+                            "Change copper inlet and outlet bushings",
+                            "Change copper straightener",
+                            "Change conveyor and extruder rollers",
+                            "Change air blowers",
+                        ],
+                    ),
+                    (
+                        "Adjustments",
+                        [
+                            "Adjust all machine guide rollers",
+                            "Adjust puller",
+                            "Set cutting length and speed",
+                            "Adjust knurling unit",
+                        ],
+                    ),
+                ],
+            ),
+            (
+                "Coiler",
+                [
+                    (
+                        "Tooling change",
+                        [
+                            "Change coiler rollers",
+                            "Change coiler tail stop paddle",
+                            "Change coiler tube guide",
+                        ],
+                    ),
+                    (
+                        "Adjustments",
+                        [
+                            "Adjust coiler width",
+                            "Adjust coiler strap distance",
+                            "Adjust coiler spool diameter",
+                            "Set/load coiler parameters",
+                        ],
+                    ),
+                    (
+                        "Checks",
+                        [
+                            "Simulate winding parameters",
+                        ],
+                    ),
+                ],
+            ),
         ]
+
+    # Flatten checklist for progress and reset.
+    flat_items = []
+    for area_name, sections in groups:
+        for section_name, items in sections:
+            for item in items:
+                key_base = f"{area_name}_{section_name}_{item}".lower()
+                key = "check_cambio_" + "".join(ch if ch.isalnum() else "_" for ch in key_base)
+                flat_items.append((key, item))
+
+    if st.button(reset_label, use_container_width=False):
+        for key, _ in flat_items:
+            st.session_state[key] = False
+        st.rerun()
+
+    completed = sum(1 for key, _ in flat_items if st.session_state.get(key, False))
+    total = len(flat_items)
+    progress = completed / total if total else 0.0
 
     st.markdown(
         f"""
         <style>
-        .startup-box {{
-            margin:8px 0 16px 0;
-            border-radius:20px;
-            padding:16px 18px;
+        .checklist-hero {{
+            margin:8px 0 14px 0;
+            border-radius:22px;
+            overflow:hidden;
             border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
             background:linear-gradient(180deg,
                 color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
-            box-shadow:0 8px 20px rgba(0,0,0,0.08);
+            box-shadow:0 10px 24px rgba(0,0,0,0.09);
         }}
-        .startup-title {{
-            font-size:15px;
+        .checklist-hero-head {{
+            padding:15px 18px;
+            background:linear-gradient(90deg, rgba(255,75,75,0.22), transparent);
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+        }}
+        .checklist-title {{
+            font-size:22px;
             font-weight:950;
-            letter-spacing:0.06em;
-            text-transform:uppercase;
-            margin-bottom:4px;
+            line-height:1.1;
+            letter-spacing:-0.02em;
         }}
-        .startup-subtitle {{
-            font-size:12px;
+        .checklist-subtitle {{
+            margin-top:5px;
+            font-size:13px;
             font-weight:650;
-            color:color-mix(in srgb, var(--text-color) 62%, transparent);
-            margin-bottom:12px;
+            color:color-mix(in srgb, var(--text-color) 64%, transparent);
+        }}
+        .checklist-progress {{
+            padding:14px 18px 16px 18px;
+        }}
+        .checklist-progress-row {{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            margin-bottom:8px;
+            font-size:13px;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 68%, transparent);
+        }}
+        .checklist-bar {{
+            width:100%;
+            height:13px;
+            border-radius:999px;
+            background:color-mix(in srgb, var(--text-color) 9%, transparent);
+            overflow:hidden;
+        }}
+        .checklist-bar-fill {{
+            height:100%;
+            width:{progress * 100:.1f}%;
+            background:#22c55e;
+            border-radius:999px;
+            transition:width .2s ease;
+        }}
+        .checklist-area-title {{
+            margin:18px 0 10px 0;
+            font-size:19px;
+            font-weight:950;
+            letter-spacing:0.04em;
+            text-transform:uppercase;
+        }}
+        .checklist-section-title {{
+            margin:2px 0 8px 0;
+            font-size:14px;
+            font-weight:950;
+            letter-spacing:0.055em;
+            text-transform:uppercase;
+            color:var(--text-color);
         }}
         </style>
-        <div class="startup-box">
-            <div class="startup-title">{html.escape(title)}</div>
-            <div class="startup-subtitle">{html.escape(subtitle)}</div>
+        <div class="checklist-hero">
+            <div class="checklist-hero-head">
+                <div class="checklist-title">{html.escape(title)}</div>
+                <div class="checklist-subtitle">{html.escape(subtitle)}</div>
+            </div>
+            <div class="checklist-progress">
+                <div class="checklist-progress-row">
+                    <span>{html.escape(progress_label)}</span>
+                    <span>{completed}/{total}</span>
+                </div>
+                <div class="checklist-bar"><div class="checklist-bar-fill"></div></div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    cols = st.columns(3, gap="small")
-    for idx, item in enumerate(items):
-        with cols[idx % 3]:
-            st.checkbox(item, key=f"startup_check_{idx}")
+    for area_name, sections in groups:
+        st.markdown(f'<div class="checklist-area-title">{html.escape(area_name)}</div>', unsafe_allow_html=True)
+        area_cols = st.columns(len(sections), gap="large")
+        for col_ui, (section_name, items) in zip(area_cols, sections):
+            with col_ui:
+                st.markdown(
+                    f'<div class="checklist-section-title">{html.escape(section_name)}</div>',
+                    unsafe_allow_html=True,
+                )
+                with st.container(border=True):
+                    for item in items:
+                        key_base = f"{area_name}_{section_name}_{item}".lower()
+                        key = "check_cambio_" + "".join(ch if ch.isalnum() else "_" for ch in key_base)
+                        st.checkbox(item, key=key)
 
 # =========================
 # UI
@@ -5296,9 +5494,12 @@ except Exception as e:
     presets_df = None
     presets_load_exception = e
 
-tab_production, tab_tech_sheet = st.tabs([
+checklist_label = "Checklist" if lang == "IT" else "Checklist"
+
+tab_production, tab_tech_sheet, tab_checklist = st.tabs([
     production_label,
     tech_sheet_label,
+    checklist_label,
 ])
 
 if presets_df is None:
@@ -5724,8 +5925,6 @@ with tab_tech_sheet:
         components.html(make_preset_visual(selected_row, lang), height=470, scrolling=False)
 
     with machine_sheet_tab:
-        render_startup_checklist(lang)
-
         render_section_header(
             "Scheda parametri macchina" if lang == "IT" else "Machine parameter sheet",
             "Vista unica ordinata per introdurre tutti i valori in macchina senza separarli tra render e consultivi." if lang == "IT" else "A single grouped view for entering all values into the machine.",
@@ -5733,3 +5932,7 @@ with tab_tech_sheet:
         )
 
         render_machine_parameter_groups(selected_row, lang)
+
+with tab_checklist:
+    render_startup_checklist(lang)
+
