@@ -360,23 +360,37 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
         """
         <style>
         .preset-param-card {
-            background: var(--secondary-background-color);
-            border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
-            border-radius: 17px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 96%, var(--background-color))
+            );
+            border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent);
+            border-radius: 18px;
             padding: 18px 20px;
             min-height: 128px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 8px 22px rgba(0,0,0,0.08);
-            margin-bottom: 10px;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+            margin-bottom: 12px;
+        }
+        .preset-param-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 5px;
+            background: #ff4b4b;
+            opacity: 0.9;
         }
         .preset-param-label {
             font-size: 14px;
             line-height: 1.35;
-            font-weight: 650;
-            color: color-mix(in srgb, var(--text-color) 68%, transparent);
+            font-weight: 700;
+            color: color-mix(in srgb, var(--text-color) 72%, transparent);
             margin-bottom: 14px;
+            padding-left: 4px;
         }
         .preset-param-value {
             font-size: 31px;
@@ -384,11 +398,16 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
             font-weight: 800;
             color: var(--text-color);
             word-break: break-word;
+            padding-left: 4px;
         }
         @media (max-width: 900px) {
             .preset-param-card {
-                min-height: 104px;
+                min-height: 108px;
                 padding: 14px 16px;
+                margin-bottom: 10px;
+            }
+            .preset-param-card::before {
+                width: 4px;
             }
             .preset-param-label {
                 font-size: 13px;
@@ -404,6 +423,7 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
     )
 
     st.markdown(f"##### {title}")
+    st.markdown("<div style=\"height:6px\"></div>", unsafe_allow_html=True)
     for i in range(0, len(column_names), cards_per_row):
         row_columns = column_names[i:i + cards_per_row]
         ui_cols = st.columns(cards_per_row)
