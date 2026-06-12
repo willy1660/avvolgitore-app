@@ -1513,7 +1513,10 @@ def find_logo():
     candidates = [
         "New Logo PDM – rame.png",
         "New Logo PDM - rame.png",
+        "New Logo PDM rame.png",
         "new_logo_pdm_rame.png",
+        "logo_pdm.png",
+        "pdm_logo.png",
         "logo.png",
         "logo.svg",
         "logo.jpg",
@@ -1521,11 +1524,35 @@ def find_logo():
         "logo.webp",
     ]
 
-    for name in candidates:
-        if os.path.exists(name):
-            return name
+    search_dirs = [
+        ".",
+        "assets",
+        "asset",
+        "static",
+        "images",
+        "img",
+        "/mnt/data",
+    ]
 
-    for pattern in ("*.png", "*.svg", "*.jpg", "*.jpeg", "*.webp"):
+    for folder in search_dirs:
+        for name in candidates:
+            path = os.path.join(folder, name)
+            if os.path.exists(path):
+                return path
+
+    patterns = []
+    for folder in search_dirs:
+        patterns.extend([
+            os.path.join(folder, "*logo*.png"),
+            os.path.join(folder, "*Logo*.png"),
+            os.path.join(folder, "*PDM*.png"),
+            os.path.join(folder, "*.svg"),
+            os.path.join(folder, "*.jpg"),
+            os.path.join(folder, "*.jpeg"),
+            os.path.join(folder, "*.webp"),
+        ])
+
+    for pattern in patterns:
         files = glob.glob(pattern)
         if files:
             return files[0]
@@ -1544,6 +1571,18 @@ top1, top2 = st.columns([1.0, 5.0])
 with top1:
     if logo_path:
         st.image(logo_path, width=150)
+    else:
+        st.markdown(
+            """
+            <div style="font-size:24px;font-weight:950;letter-spacing:-0.04em;line-height:1;">
+                PDM
+            </div>
+            <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:color-mix(in srgb, var(--text-color) 58%, transparent);">
+                avvolgimento
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 with top2:
     title_placeholder = st.empty()
@@ -5514,7 +5553,7 @@ def render_roll_counter_dashboard(language):
         target_col = "Rotoli/contenitore"
         lot_total_col = "Rotoli lotto"
         completed_col = "Contenitori"
-        close_note = "Chiude il lotto attuale e avvia il nuovo formato."
+        close_note = "Prima cambia il numero di rotoli/contenitore e poi clicca Cambio misura / nuovo formato."
     else:
         title = "Shift roll counter"
         subtitle = "Counts total shift rolls. When size changes, the current lot is closed and saved in history."
@@ -5545,7 +5584,7 @@ def render_roll_counter_dashboard(language):
         target_col = "Rolls/container"
         lot_total_col = "Lot rolls"
         completed_col = "Containers"
-        close_note = "Closes the current lot and starts the new format."
+        close_note = "First change the rolls/container number, then click Change size / new format."
 
     # Persistent state
     defaults = {
@@ -5715,6 +5754,20 @@ def render_roll_counter_dashboard(language):
             font-weight:650;
             color:color-mix(in srgb, var(--text-color) 62%, transparent);
         }}
+        div[data-testid="stButton"] button[kind="primary"] {{
+            min-height:96px;
+            border-radius:26px;
+            background:#ff4b4b;
+            border:1px solid #ff4b4b;
+            box-shadow:0 16px 34px rgba(255,75,75,0.24);
+            font-size:30px;
+            font-weight:950;
+            letter-spacing:0.01em;
+        }}
+        div[data-testid="stButton"] button[kind="primary"] p {{
+            font-size:30px;
+            font-weight:950;
+        }}
         @media (max-width:900px) {{
             .roll-big-number {{
                 font-size:130px;
@@ -5803,7 +5856,7 @@ def render_roll_counter_dashboard(language):
             st.session_state["roll_counter_active_target"] = int(st.session_state.get("roll_counter_next_target", active_target_now))
             st.session_state["roll_counter_active_container"] = st.session_state.get("roll_counter_next_container", active_container_now)
             st.rerun()
-        st.caption(close_note)
+        st.warning(close_note, icon="⚠️")
 
     st.markdown(
         f"""
@@ -5837,7 +5890,7 @@ def render_roll_counter_dashboard(language):
             unsafe_allow_html=True,
         )
 
-        if st.button(f"＋ {add_label}", use_container_width=True, key="roll_counter_add_button"):
+        if st.button(f"＋ {add_label}", use_container_width=True, key="roll_counter_add_button", type="primary"):
             st.session_state["roll_counter_total"] = total_shift + 1
             st.session_state["roll_counter_lot_total"] = lot_total + 1
             st.rerun()
