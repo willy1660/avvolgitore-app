@@ -2296,6 +2296,42 @@ def viewer(
             font-weight:650;
         }}
 
+        .pack_roll_inline {{
+            display:grid;
+            grid-template-columns:42px 1fr 42px;
+            gap:7px;
+            align-items:center;
+        }}
+
+        .pack_roll_btn {{
+            min-height:40px !important;
+            font-size:20px !important;
+            line-height:1 !important;
+            padding:0 !important;
+        }}
+
+        #pack_roll_count {{
+            width:100%;
+            min-height:40px;
+            box-sizing:border-box;
+            border:none;
+            border-radius:10px;
+            padding:8px 10px;
+            font-weight:900;
+            font-size:18px;
+            text-align:center;
+            background:rgba(255,255,255,0.96);
+            color:#111;
+        }}
+
+        .pack_roll_hint {{
+            margin-top:7px;
+            font-size:11px;
+            opacity:0.72;
+            line-height:1.25;
+            font-weight:650;
+        }}
+
         .panel_checks_block {{
             display:flex;
             flex-direction:column;
@@ -2461,6 +2497,8 @@ def viewer(
         const containerBtns = [...document.querySelectorAll(".container_btn")];
         const packContainerBlock = document.getElementById("pack_container_block");
         const packRollCountInput = document.getElementById("pack_roll_count");
+        const packRollMinusBtn = document.getElementById("pack_roll_minus");
+        const packRollPlusBtn = document.getElementById("pack_roll_plus");
         const packagingStats = document.getElementById("packaging_stats");
         const viewerHud = document.getElementById("viewer_hud");
         const sidepanel = document.getElementById("viewer_sidepanel");
@@ -2485,6 +2523,8 @@ def viewer(
         document.getElementById("scene_winding_btn").textContent = T.title || "Avvolgimento";
         document.getElementById("scene_packaging_btn").textContent = T.packaging_title || "Packaging";
         document.getElementById("pack_roll_title").textContent = T.roll_count || "Numero rotoli";
+        const packRollHint = document.getElementById("pack_roll_hint");
+        if (packRollHint) packRollHint.textContent = (T.language === "Language") ? "Directly editable in render" : "Modifica diretta nel render";
         document.getElementById("grid_title").textContent = T.grid;
         document.getElementById("axes_title").textContent = T.axes;
         document.getElementById("section_title").textContent = T.section;
@@ -2729,8 +2769,31 @@ def viewer(
             }});
         }});
 
-        packRollCountInput.addEventListener("input", () => {{
+        function setPackRollCount(value) {{
+            const clamped = Math.max(1, Math.min(50, parseInt(value || "1", 10)));
+            packRollCountInput.value = clamped;
             updatePackagingScene();
+
+            if (sceneMode === "packaging") {{
+                const totalHeight = packagingGroup.userData.totalHeight || 800;
+                const sceneSpan = Math.max(palletSize * 1.45, totalHeight * 1.10);
+                camera.position.set(-sceneSpan * 1.15, -sceneSpan * 1.25, Math.max(980, totalHeight * 1.15));
+                controls.target.set(0, 0, palletHeight + totalHeight * 0.42);
+                camera.lookAt(0, 0, palletHeight + totalHeight * 0.42);
+                controls.update();
+            }}
+        }}
+
+        packRollCountInput.addEventListener("input", () => {{
+            setPackRollCount(packRollCountInput.value);
+        }});
+
+        packRollMinusBtn.addEventListener("click", () => {{
+            setPackRollCount(parseInt(packRollCountInput.value || "1", 10) - 1);
+        }});
+
+        packRollPlusBtn.addEventListener("click", () => {{
+            setPackRollCount(parseInt(packRollCountInput.value || "1", 10) + 1);
         }});
 
         resetViewBtn.addEventListener("click", () => {{
@@ -3572,8 +3635,10 @@ def viewer(
             guideGroup.visible = !packaging;
             overlayGroup.visible = !packaging;
             packagingGroup.visible = packaging;
-            packagingControls.style.display = "none";
-            if (packagingControls) packagingControls.style.marginTop = "2px";
+            if (packagingControls) {{
+                packagingControls.style.display = packaging ? "block" : "none";
+                packagingControls.style.marginTop = "2px";
+            }}
             if (animationBlock) animationBlock.style.display = packaging ? "none" : "block";
             if (speedBlock) speedBlock.style.display = packaging ? "none" : "block";
             if (spoolBlock) spoolBlock.style.display = packaging ? "none" : "block";
