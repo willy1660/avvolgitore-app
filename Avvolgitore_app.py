@@ -5478,6 +5478,320 @@ def render_startup_checklist(language):
                         key = "check_cambio_" + "".join(ch if ch.isalnum() else "_" for ch in key_base)
                         st.checkbox(item, key=key)
 
+
+
+def render_roll_counter_dashboard(language):
+    if language == "IT":
+        title = "Contatore rotoli"
+        subtitle = "Dashboard semplice per contare i rotoli inseriti in scatola o su pallet."
+        package_label = "Tipo contenitore"
+        target_label = "Rotoli previsti"
+        current_label = "Rotoli inseriti"
+        remaining_label = "Mancano"
+        status_label = "Stato"
+        add_label = "Aggiungi rotolo"
+        remove_label = "Togli 1"
+        reset_label = "Nuovo contenitore / reset"
+        box_label = "Scatola"
+        pallet_label = "Pallet"
+        complete = "COMPLETO"
+        in_progress = "IN CORSO"
+        over = "SUPERATO"
+        help_text = "L’operatore deve premere il pulsante ogni volta che inserisce un rotolo."
+    else:
+        title = "Roll counter"
+        subtitle = "Simple dashboard to count rolls loaded into a box or onto a pallet."
+        package_label = "Container type"
+        target_label = "Expected rolls"
+        current_label = "Loaded rolls"
+        remaining_label = "Remaining"
+        status_label = "Status"
+        add_label = "Add roll"
+        remove_label = "Remove 1"
+        reset_label = "New container / reset"
+        box_label = "Box"
+        pallet_label = "Pallet"
+        complete = "COMPLETE"
+        in_progress = "IN PROGRESS"
+        over = "OVER"
+        help_text = "The operator should press the button every time a roll is loaded."
+
+    if "roll_counter_value" not in st.session_state:
+        st.session_state["roll_counter_value"] = 0
+    if "roll_counter_target" not in st.session_state:
+        st.session_state["roll_counter_target"] = 6
+    if "roll_counter_container" not in st.session_state:
+        st.session_state["roll_counter_container"] = box_label
+
+    st.markdown(
+        f"""
+        <style>
+        .roll-counter-hero {{
+            margin:8px 0 16px 0;
+            border-radius:26px;
+            overflow:hidden;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 14px 32px rgba(0,0,0,0.11);
+        }}
+        .roll-counter-head {{
+            padding:18px 22px;
+            background:linear-gradient(90deg, rgba(255,75,75,0.22), transparent);
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+        }}
+        .roll-counter-title {{
+            font-size:30px;
+            line-height:1.05;
+            font-weight:950;
+            letter-spacing:-0.035em;
+        }}
+        .roll-counter-subtitle {{
+            margin-top:7px;
+            font-size:15px;
+            line-height:1.3;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 64%, transparent);
+        }}
+        .roll-status-banner {{
+            margin:14px 0 16px 0;
+            padding:18px 22px;
+            border-radius:22px;
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            background:color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color));
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:16px;
+        }}
+        .roll-status-label {{
+            font-size:13px;
+            text-transform:uppercase;
+            letter-spacing:0.08em;
+            font-weight:900;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+        }}
+        .roll-status-value {{
+            font-size:34px;
+            line-height:1;
+            font-weight:950;
+        }}
+        .roll-dashboard {{
+            display:grid;
+            grid-template-columns:1.15fr 0.85fr;
+            gap:18px;
+            align-items:stretch;
+            margin-top:12px;
+        }}
+        .roll-main-card, .roll-side-card {{
+            border-radius:28px;
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 14px 30px rgba(0,0,0,0.10);
+        }}
+        .roll-main-card {{
+            padding:26px;
+            text-align:center;
+        }}
+        .roll-side-card {{
+            padding:22px;
+        }}
+        .roll-big-label {{
+            font-size:15px;
+            line-height:1.1;
+            font-weight:900;
+            letter-spacing:0.08em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 60%, transparent);
+            margin-bottom:8px;
+        }}
+        .roll-big-number {{
+            font-size:150px;
+            line-height:0.92;
+            font-weight:950;
+            letter-spacing:-0.075em;
+            color:var(--text-color);
+            margin:8px 0 16px 0;
+        }}
+        .roll-progress-text {{
+            font-size:28px;
+            line-height:1.05;
+            font-weight:950;
+            color:color-mix(in srgb, var(--text-color) 72%, transparent);
+        }}
+        .roll-stat-grid {{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:12px;
+            margin-top:14px;
+        }}
+        .roll-stat {{
+            border-radius:20px;
+            padding:18px;
+            border:1px solid color-mix(in srgb, var(--text-color) 11%, transparent);
+            background:color-mix(in srgb, var(--background-color) 42%, transparent);
+        }}
+        .roll-stat-label {{
+            font-size:12px;
+            text-transform:uppercase;
+            letter-spacing:0.07em;
+            font-weight:900;
+            color:color-mix(in srgb, var(--text-color) 60%, transparent);
+            margin-bottom:8px;
+        }}
+        .roll-stat-value {{
+            font-size:42px;
+            line-height:1;
+            font-weight:950;
+            letter-spacing:-0.04em;
+        }}
+        div[data-testid="stButton"] button[kind="secondary"] {{
+            min-height:48px;
+            font-weight:850;
+        }}
+        .roll-counter-add-hint {{
+            margin-top:12px;
+            font-size:13px;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            text-align:center;
+        }}
+        @media (max-width:900px) {{
+            .roll-dashboard {{
+                grid-template-columns:1fr;
+            }}
+            .roll-big-number {{
+                font-size:122px;
+            }}
+            .roll-status-value {{
+                font-size:28px;
+            }}
+        }}
+        </style>
+        <div class="roll-counter-hero">
+            <div class="roll-counter-head">
+                <div class="roll-counter-title">{html.escape(title)}</div>
+                <div class="roll-counter-subtitle">{html.escape(subtitle)}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    setup_cols = st.columns([1.1, 0.9, 1.0], gap="large")
+    with setup_cols[0]:
+        container_options = [box_label, pallet_label]
+        current_container = st.session_state.get("roll_counter_container", box_label)
+        if current_container not in container_options:
+            current_container = box_label
+        st.session_state["roll_counter_container"] = st.selectbox(
+            package_label,
+            container_options,
+            index=container_options.index(current_container),
+            key="roll_counter_container_select",
+        )
+    with setup_cols[1]:
+        st.session_state["roll_counter_target"] = st.number_input(
+            target_label,
+            min_value=1,
+            max_value=999,
+            value=int(st.session_state.get("roll_counter_target", 6)),
+            step=1,
+            key="roll_counter_target_input",
+        )
+    with setup_cols[2]:
+        st.markdown("&nbsp;", unsafe_allow_html=True)
+        if st.button(reset_label, use_container_width=True):
+            st.session_state["roll_counter_value"] = 0
+            st.rerun()
+
+    current = int(st.session_state.get("roll_counter_value", 0))
+    target = int(st.session_state.get("roll_counter_target", 1))
+    remaining = max(0, target - current)
+
+    if current == target:
+        status = complete
+        status_color = "#22c55e"
+    elif current > target:
+        status = over
+        status_color = "#ef4444"
+    else:
+        status = in_progress
+        status_color = "#f59e0b"
+
+    pct = min(100.0, (current / target) * 100.0 if target else 0.0)
+
+    st.markdown(
+        f"""
+        <div class="roll-status-banner" style="border-left:8px solid {status_color};">
+            <div>
+                <div class="roll-status-label">{html.escape(status_label)}</div>
+                <div class="roll-status-value" style="color:{status_color};">{html.escape(status)}</div>
+            </div>
+            <div style="min-width:240px;">
+                <div style="height:18px; border-radius:999px; overflow:hidden; background:color-mix(in srgb, var(--text-color) 10%, transparent);">
+                    <div style="height:100%; width:{pct:.1f}%; background:{status_color}; border-radius:999px;"></div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    dash_left, dash_right = st.columns([1.25, 0.75], gap="large")
+
+    with dash_left:
+        st.markdown(
+            f"""
+            <div class="roll-main-card">
+                <div class="roll-big-label">{html.escape(current_label)}</div>
+                <div class="roll-big-number">{current}</div>
+                <div class="roll-progress-text">/ {target}</div>
+                <div class="roll-counter-add-hint">{html.escape(help_text)}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        add_clicked = st.button(f"＋ {add_label}", use_container_width=True, key="roll_counter_add_button")
+        if add_clicked:
+            st.session_state["roll_counter_value"] = current + 1
+            st.rerun()
+
+    with dash_right:
+        st.markdown(
+            f"""
+            <div class="roll-side-card">
+                <div class="roll-stat-grid">
+                    <div class="roll-stat">
+                        <div class="roll-stat-label">{html.escape(target_label)}</div>
+                        <div class="roll-stat-value">{target}</div>
+                    </div>
+                    <div class="roll-stat">
+                        <div class="roll-stat-label">{html.escape(remaining_label)}</div>
+                        <div class="roll-stat-value">{remaining}</div>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        col_minus, col_reset = st.columns(2, gap="small")
+        with col_minus:
+            if st.button(f"− {remove_label}", use_container_width=True):
+                st.session_state["roll_counter_value"] = max(0, current - 1)
+                st.rerun()
+        with col_reset:
+            if st.button("0", use_container_width=True, key="roll_counter_zero_button"):
+                st.session_state["roll_counter_value"] = 0
+                st.rerun()
+
 # =========================
 # UI
 # =========================
@@ -5494,12 +5808,14 @@ except Exception as e:
     presets_df = None
     presets_load_exception = e
 
-checklist_label = "Checklist" if lang == "IT" else "Checklist"
+checklist_label = "Cambio misura" if lang == "IT" else "Size change"
+counter_label = "Contatore rotoli" if lang == "IT" else "Roll counter"
 
-tab_production, tab_tech_sheet, tab_checklist = st.tabs([
+tab_production, tab_tech_sheet, tab_checklist, tab_roll_counter = st.tabs([
     production_label,
     tech_sheet_label,
     checklist_label,
+    counter_label,
 ])
 
 if presets_df is None:
@@ -5935,4 +6251,7 @@ with tab_tech_sheet:
 
 with tab_checklist:
     render_startup_checklist(lang)
+
+with tab_roll_counter:
+    render_roll_counter_dashboard(lang)
 
