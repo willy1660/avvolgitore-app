@@ -1379,6 +1379,8 @@ def simulate_winding_visual(
     lunghezza_m: float,
     gradi_start: float,
     deg_step: float = 2.0,
+    z_min_center: float | None = None,
+    z_max_center: float | None = None,
 ):
     max_len = lunghezza_m * 1000.0
 
@@ -1386,8 +1388,16 @@ def simulate_winding_visual(
     Rt = d_tubo / 2.0
     H = spalla
 
+    if z_min_center is None:
+        z_min_center = Rt
+    if z_max_center is None:
+        z_max_center = H - Rt
+
+    z_min_center = float(z_min_center)
+    z_max_center = float(z_max_center)
+
     theta = np.deg2rad(gradi_start)
-    z = Rt
+    z = z_min_center
     current_layer_radius = R + Rt
 
     first_contact_world = deposit_point_world(current_layer_radius, z)
@@ -1432,8 +1442,8 @@ def simulate_winding_visual(
             next_z = z + direction * passo * (deg_step / 360.0)
             next_radius = current_layer_radius
 
-            if next_z >= H - Rt:
-                next_z = H - Rt
+            if next_z >= z_max_center:
+                next_z = z_max_center
 
                 next_transition_progress = 0.0
                 next_transition_delay = max(rit_t, 0.0)
@@ -1451,8 +1461,8 @@ def simulate_winding_visual(
                     next_mode = "transition"
                     next_radius = next_transition_start_radius
 
-            elif next_z <= Rt:
-                next_z = Rt
+            elif next_z <= z_min_center:
+                next_z = z_min_center
 
                 next_transition_progress = 0.0
                 next_transition_delay = max(rit_b, 0.0)
@@ -3863,6 +3873,28 @@ with tab_calculator:
             f"incremento strato consigliato ≈ {incremento_consigliato:.2f} mm"
         )
 
+    z_min_center = None
+    z_max_center = None
+
+    if tube_layout_code == "double":
+        # Regola doppio verticale:
+        # - il tubo grande (inferiore) non deve uscire dalla spalla bassa
+        # - il tubo piccolo (superiore) non deve uscire dalla spalla alta
+        RtLower = d_tubo_lower / 2.0
+        RtUpper = d_tubo_upper / 2.0
+
+        candidate_min = RtLower
+        candidate_max = spalla - (RtLower + 2.0 * RtUpper)
+
+        if candidate_max > candidate_min:
+            z_min_center = candidate_min
+            z_max_center = candidate_max
+        else:
+            st.warning(
+                "Attenzione: la configurazione doppio non entra interamente nella spalla "
+                f"(spalla {spalla:.2f} mm, altezza coppia {d_tubo_lower + d_tubo_upper:.2f} mm)."
+            )
+
     # =========================
     # BUILD
     # =========================
@@ -3888,6 +3920,8 @@ with tab_calculator:
         lunghezza_m=lunghezza,
         gradi_start=gradi_start,
         deg_step=2.0,
+        z_min_center=z_min_center,
+        z_max_center=z_max_center,
     )
 
     visual_metrics = compute_metrics(local_points, d_tubo_footprint)
