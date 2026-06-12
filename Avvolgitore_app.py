@@ -2189,20 +2189,14 @@ def viewer(
             transition: width 0.22s ease, padding 0.22s ease, opacity 0.22s ease;
         }}
 
-        #viewer_sidepanel_content {{
-            display:flex;
-            flex-direction:column;
-            gap:10px;
-        }}
-
         .viewer_sidepanel_toggle {{
             position:absolute;
-            top:10px;
-            left:-16px;
-            width:32px;
-            height:32px;
-            border:none;
-            border-radius:999px;
+            top:8px;
+            right:8px;
+            width:30px;
+            height:30px;
+            border:1px solid rgba(255,255,255,0.16);
+            border-radius:10px;
             background:#ff4b4b;
             color:#ffffff;
             font-size:16px;
@@ -2215,10 +2209,17 @@ def viewer(
             z-index:30;
         }}
 
+        #viewer_sidepanel_content {{
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+            margin-top:30px;
+        }}
+
         #viewer_sidepanel.collapsed {{
-            width:34px !important;
-            min-width:34px !important;
-            padding:10px 6px !important;
+            width:46px !important;
+            min-width:46px !important;
+            padding:8px !important;
             overflow:hidden !important;
         }}
 
@@ -2227,7 +2228,8 @@ def viewer(
         }}
 
         #viewer_sidepanel.collapsed .viewer_sidepanel_toggle {{
-            left:-10px;
+            top:8px;
+            right:8px;
         }}
 
         .viewer_btn_small:hover,
@@ -2369,15 +2371,21 @@ def viewer(
             }}
 
             #viewer_sidepanel.collapsed {{
-                width:32px !important;
-                min-width:32px !important;
-                padding:8px 5px !important;
+                width:42px !important;
+                min-width:42px !important;
+                padding:7px !important;
             }}
 
             .viewer_sidepanel_toggle {{
-                width:30px !important;
-                height:30px !important;
+                width:28px !important;
+                height:28px !important;
                 font-size:15px !important;
+                top:7px !important;
+                right:7px !important;
+            }}
+
+            #viewer_sidepanel_content {{
+                margin-top:28px !important;
             }}
 
             .viewer_btn_small {{
@@ -3818,6 +3826,23 @@ def viewer(
             disposeMaterial(obj.material);
         }}
 
+        function makeTubeEndCap(point, tangentDir, radius, material) {{
+            const thickness = Math.max(1.8, radius * 0.22);
+            const geo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, thickness, 24, 1, false);
+            const mesh = new THREE.Mesh(geo, material);
+
+            mesh.position.copy(point);
+
+            const yAxis = new THREE.Vector3(0, 1, 0);
+            const dir = tangentDir.clone().normalize();
+            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir);
+            mesh.setRotationFromQuaternion(quat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+
+            return mesh;
+        }}
+
         function makeTubeMeshFromPoints(points, radius, material) {{
             if (!points || points.length < 2) return null;
 
@@ -3837,11 +3862,29 @@ def viewer(
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 22, false);
             geo.computeVertexNormals();
 
-            const mesh = new THREE.Mesh(geo, material);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
+            const body = new THREE.Mesh(geo, material);
+            body.castShadow = true;
+            body.receiveShadow = true;
 
-            return mesh;
+            const group = new THREE.Group();
+            group.add(body);
+
+            const startPoint = points[0];
+            const endPoint = points[points.length - 1];
+            const startDir = new THREE.Vector3().subVectors(points[1], points[0]);
+            const endDir = new THREE.Vector3().subVectors(points[points.length - 1], points[points.length - 2]);
+
+            if (startDir.length() > 1e-6) {{
+                const startCap = makeTubeEndCap(startPoint, startDir, radius, material);
+                group.add(startCap);
+            }}
+
+            if (endDir.length() > 1e-6) {{
+                const endCap = makeTubeEndCap(endPoint, endDir, radius, material);
+                group.add(endCap);
+            }}
+
+            return group;
         }}
 
         function offsetPointsVertical(points, offset) {{
