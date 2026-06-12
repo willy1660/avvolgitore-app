@@ -458,14 +458,20 @@ def evaluate_packaging(coil_footprint_mm, roll_height_mm, roll_count, packaging_
         height_limit_mm = 2580.0 if container_mode == "40hc" else 2280.0
         compared_height_mm = total_height_mm
 
-    width_ok = coil_footprint_mm <= pallet_size_mm
+    width_over_raw = max(0.0, coil_footprint_mm - pallet_size_mm)
+    width_ok = width_over_raw <= 0.001
+    width_warn = 0.001 < width_over_raw <= 20.001
+    width_bad = width_over_raw > 20.001
     height_ok = compared_height_mm <= height_limit_mm
     ok = width_ok and height_ok
+    warning = width_warn and height_ok
 
     if language == "IT":
         reasons = []
-        if not width_ok:
-            reasons.append(f"Il rotolo è troppo largo: ingombro {coil_footprint_mm:.1f} mm, limite {pallet_size_mm:.0f} mm.")
+        if width_warn:
+            reasons.append(f"Attenzione: ingombro {coil_footprint_mm:.1f} mm, limite pallet {pallet_size_mm:.0f} mm (+{width_over_raw:.1f} mm entro margine tollerato).")
+        elif width_bad:
+            reasons.append(f"Il rotolo è troppo largo: ingombro {coil_footprint_mm:.1f} mm, limite pallet {pallet_size_mm:.0f} mm (+{width_over_raw:.1f} mm).")
         if not height_ok and packaging_mode == "box":
             reasons.append(f"Il rotolo è troppo alto per la scatola: altezza rotoli {stack_height_mm:.1f} mm, limite utile {height_limit_mm:.0f} mm.")
         if not height_ok and packaging_mode != "box":
@@ -473,8 +479,10 @@ def evaluate_packaging(coil_footprint_mm, roll_height_mm, roll_count, packaging_
             reasons.append(f"La torre è troppo alta per il container {label}: altezza totale con pallet {total_height_mm:.1f} mm, limite {height_limit_mm:.0f} mm.")
     else:
         reasons = []
-        if not width_ok:
-            reasons.append(f"The coil is too wide: footprint {coil_footprint_mm:.1f} mm, limit {pallet_size_mm:.0f} mm.")
+        if width_warn:
+            reasons.append(f"Attention: footprint {coil_footprint_mm:.1f} mm, pallet limit {pallet_size_mm:.0f} mm (+{width_over_raw:.1f} mm within tolerated margin).")
+        elif width_bad:
+            reasons.append(f"The coil is too wide: footprint {coil_footprint_mm:.1f} mm, pallet limit {pallet_size_mm:.0f} mm (+{width_over_raw:.1f} mm).")
         if not height_ok and packaging_mode == "box":
             reasons.append(f"The coil stack is too tall for the box: stack height {stack_height_mm:.1f} mm, usable limit {height_limit_mm:.0f} mm.")
         if not height_ok and packaging_mode != "box":
@@ -483,7 +491,10 @@ def evaluate_packaging(coil_footprint_mm, roll_height_mm, roll_count, packaging_
 
     return {
         "ok": ok,
+        "warning": warning,
         "width_ok": width_ok,
+        "width_warn": width_warn,
+        "width_bad": width_bad,
         "height_ok": height_ok,
         "reasons": reasons,
         "stack_height_mm": stack_height_mm,
@@ -1699,6 +1710,52 @@ st.markdown(
         div[data-baseweb="select"] > div {
             min-height: 46px;
         }
+    }
+
+    /* Visual polish: more app-like, cleaner tablet interface */
+    [data-testid="stAppViewContainer"] {
+        background:
+            radial-gradient(circle at top left, rgba(255,75,75,0.055), transparent 34%),
+            radial-gradient(circle at top right, rgba(148,163,184,0.075), transparent 32%),
+            var(--background-color);
+    }
+
+    [data-testid="stTabs"] [role="tablist"] {
+        gap: 8px;
+        padding: 8px;
+        border-radius: 22px;
+        background: color-mix(in srgb, var(--secondary-background-color) 78%, transparent);
+        border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+        margin-bottom: 18px;
+    }
+
+    [data-testid="stTabs"] button {
+        border-radius: 16px !important;
+        transition: background .12s ease, transform .12s ease, box-shadow .12s ease;
+    }
+
+    [data-testid="stTabs"] button[aria-selected="true"] {
+        background: #ff4b4b !important;
+        color: #ffffff !important;
+        box-shadow: 0 10px 22px rgba(255,75,75,0.22);
+    }
+
+    [data-testid="stTabs"] button[aria-selected="true"] p {
+        color: #ffffff !important;
+        font-weight: 900 !important;
+    }
+
+    .stButton > button {
+        border-radius: 16px;
+        min-height: 48px;
+        font-weight: 850;
+    }
+
+    div[data-testid="stMetric"] {
+        border-radius: 18px;
+        padding: 12px 14px;
+        background: color-mix(in srgb, var(--secondary-background-color) 72%, transparent);
+        border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
     }
     </style>
     """,
@@ -3542,21 +3599,28 @@ def viewer(
             const comparedHeight = comparesTotal ? totalHeight : stackHeight;
             const heightMargin = Math.max(0, heightLimit - comparedHeight);
             const heightOver = Math.max(0, comparedHeight - heightLimit);
+            const widthWarn = footprintOver > 0.001 && footprintOver <= 20.001;
             const ok = footprintOver <= 0.001 && heightOver <= 0.001;
-            const statusText = ok ? (T.box_fit_ok || "OK") : (T.box_fit_over || "Fuori limite");
+            const warn = widthWarn && heightOver <= 0.001;
+            const toneColor = ok ? "#4ade80" : (warn ? "#fbbf24" : "#fca5a5");
+            const toneBorder = ok ? "rgba(74,222,128,0.35)" : (warn ? "rgba(251,191,36,0.42)" : "rgba(252,165,165,0.42)");
+            const toneBg = ok ? "rgba(20,83,45,0.56)" : (warn ? "rgba(120,78,0,0.56)" : "rgba(127,29,29,0.56)");
+            const statusText = ok ? (T.box_fit_ok || "OK") : (warn ? "Attenzione" : (T.box_fit_over || "Fuori limite"));
             const heightLimitText = `${{heightLimit.toFixed(0)}} mm`;
             const reasonText = ok
                 ? (packagingMode === "box" ? (T.packaging_box_desc || "") : (containerMode === "40hc" ? (T.container_40hc_desc || "") : (T.container_20ft_desc || "")))
-                : (footprintOver > 0.001
-                    ? `${{T.coil_footprint || "Ingombro rotolo"}}: ${{coilFootprint.toFixed(1)}} mm > ${{palletSize.toFixed(0)}} mm`
-                    : `${{T.height_over || "Superamento altezza"}}: ${{heightOver.toFixed(1)}} mm`);
+                : (warn
+                    ? `${{T.coil_footprint || "Ingombro rotolo"}}: ${{coilFootprint.toFixed(1)}} mm (+${{footprintOver.toFixed(1)}} mm, margine tollerato)`
+                    : (footprintOver > 20.001
+                        ? `${{T.coil_footprint || "Ingombro rotolo"}}: ${{coilFootprint.toFixed(1)}} mm > ${{(palletSize + 20).toFixed(0)}} mm`
+                        : `${{T.height_over || "Superamento altezza"}}: ${{heightOver.toFixed(1)}} mm`));
 
             if (packagingStatusBadge) {{
                 packagingStatusBadge.style.display = sceneMode === "packaging" ? "block" : "none";
-                packagingStatusBadge.style.borderColor = ok ? "rgba(74,222,128,0.35)" : "rgba(252,165,165,0.42)";
-                packagingStatusBadge.style.background = ok ? "rgba(20,83,45,0.56)" : "rgba(127,29,29,0.56)";
+                packagingStatusBadge.style.borderColor = toneBorder;
+                packagingStatusBadge.style.background = toneBg;
                 packagingStatusText.textContent = statusText;
-                packagingStatusText.style.color = ok ? "#4ade80" : "#fca5a5";
+                packagingStatusText.style.color = toneColor;
                 packagingStatusReason.textContent = reasonText || "";
             }}
 
@@ -3566,7 +3630,7 @@ def viewer(
             if (packagingStats) packagingStats.innerHTML = `
                 <div class="pack_stat">
                     <div class="pack_stat_label">Status</div>
-                    <div class="pack_stat_value" style="color:${{ok ? "#4ade80" : "#fca5a5"}}">${{statusText}}</div>
+                    <div class="pack_stat_value" style="color:${{toneColor}}">${{statusText}}</div>
                 </div>
                 <div class="pack_stat">
                     <div class="pack_stat_label">${{T.total_height || "Altezza totale"}}</div>
@@ -3690,9 +3754,14 @@ def viewer(
             const totalHeight = palletHeight + stackHeight;
             const heightLimit = packagingMode === "box" ? boxHeight : (containerMode === "40hc" ? 2580.0 : 2280.0);
             const comparedHeight = packagingMode === "box" ? stackHeight : totalHeight;
-            const footprintOk = coilFootprint <= palletSize + 0.001;
+            const footprintOver = Math.max(0, coilFootprint - palletSize);
+            const footprintOk = footprintOver <= 0.001;
+            const footprintWarn = footprintOver > 0.001 && footprintOver <= 20.001;
             const heightOk = comparedHeight <= heightLimit + 0.001;
             const ok = footprintOk && heightOk;
+            const warn = footprintWarn && heightOk;
+            const limitColor = ok ? 0x4ade80 : (warn ? 0xfbbf24 : 0xf87171);
+            const limitSoftColor = ok ? 0x4ade80 : (warn ? 0xfbbf24 : 0xfca5a5);
 
             const ground = new THREE.Mesh(
                 new THREE.PlaneGeometry(palletSize * 2.3, palletSize * 2.3),
@@ -3708,7 +3777,7 @@ def viewer(
 
             if (packagingMode === "box") {{
                 const boxMat = new THREE.MeshStandardMaterial({{
-                    color: ok ? 0x4ade80 : 0xf87171,
+                    color: limitColor,
                     transparent: true,
                     opacity: 0.04,
                     roughness: 0.70,
@@ -3719,10 +3788,10 @@ def viewer(
                 // Scatola appoggiata sul pallet: altezza utile sopra il pallet.
                 box.position.set(0, 0, palletHeight + boxHeight / 2);
                 packagingGroup.add(box);
-                addBoxEdges(palletSize, palletSize, boxHeight, palletHeight + boxHeight / 2, ok ? 0x4ade80 : 0xfca5a5, 0.95);
+                addBoxEdges(palletSize, palletSize, boxHeight, palletHeight + boxHeight / 2, limitSoftColor, 0.95);
             }} else {{
                 // Container height is total allowed height including pallet, so wireframe starts from ground.
-                addBoxEdges(palletSize, palletSize, heightLimit, heightLimit / 2, ok ? 0x4ade80 : 0xfca5a5, 0.45);
+                addBoxEdges(palletSize, palletSize, heightLimit, heightLimit / 2, limitSoftColor, 0.45);
             }}
 
             const coilRadius = coilFootprint / 2.0;
@@ -3742,7 +3811,7 @@ def viewer(
                 // Il piccolo gap è solo grafico e non entra nel calcolo dell'altezza.
             }}
 
-            const lineColor = ok ? 0x4ade80 : 0xf87171;
+            const lineColor = limitColor;
             const heightLineMat = new THREE.LineBasicMaterial({{ color: lineColor, transparent: true, opacity: 0.95 }});
             const xDim = palletSize * 0.72;
             const yDim = -palletSize * 0.70;
@@ -4642,7 +4711,15 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
         wind_title = "Avvolgimento"
         wind_note = f"Passo {passo_visuale:.1f} mm · incremento {incremento_visuale:.1f} mm"
         size_title = "Ingombro"
-        ok_note = "OK su pallet 750 × 750" if coil_footprint_mm <= pallet_size_mm else "Attenzione: fuori sagoma pallet"
+        if coil_footprint_mm <= pallet_size_mm:
+            ok_note = "OK su pallet 750 × 750"
+            size_tone = "ok"
+        elif coil_footprint_mm <= pallet_size_mm + 20.0:
+            ok_note = f"Attenzione: +{coil_footprint_mm - pallet_size_mm:.1f} mm, entro margine tollerato"
+            size_tone = "warn"
+        else:
+            ok_note = "Fuori margine pallet"
+            size_tone = "bad"
     else:
         title = "Quick reading"
         tube_title = "Tube"
@@ -4650,9 +4727,15 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
         wind_title = "Winding"
         wind_note = f"Pitch {passo_visuale:.1f} mm · layer {incremento_visuale:.1f} mm"
         size_title = "Footprint"
-        ok_note = "OK on 750 × 750 pallet" if coil_footprint_mm <= pallet_size_mm else "Warning: over pallet footprint"
-
-    size_tone = "ok" if coil_footprint_mm <= pallet_size_mm else "bad"
+        if coil_footprint_mm <= pallet_size_mm:
+            ok_note = "OK on 750 × 750 pallet"
+            size_tone = "ok"
+        elif coil_footprint_mm <= pallet_size_mm + 20.0:
+            ok_note = f"Attention: +{coil_footprint_mm - pallet_size_mm:.1f} mm, within tolerated margin"
+            size_tone = "warn"
+        else:
+            ok_note = "Over pallet margin"
+            size_tone = "bad"
 
     cards = [
         (tube_title, tube_diameter_label, tube_note, "neutral"),
@@ -5523,6 +5606,91 @@ def render_startup_checklist(language):
 
 
 
+
+
+def render_page_hero(title, subtitle, tag=None):
+    tag_html = ""
+    if tag:
+        tag_html = f'<div class="page-hero-tag">{html.escape(str(tag))}</div>'
+
+    st.markdown(
+        f"""
+        <style>
+        .page-hero {{
+            position:relative;
+            overflow:hidden;
+            margin:2px 0 18px 0;
+            padding:24px 26px;
+            border-radius:28px;
+            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            background:
+                radial-gradient(circle at 92% 18%, rgba(255,75,75,0.18), transparent 26%),
+                linear-gradient(180deg,
+                    color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                    color-mix(in srgb, var(--secondary-background-color) 99%, var(--background-color))
+                );
+            box-shadow:0 16px 38px rgba(0,0,0,0.10);
+        }}
+        .page-hero-kicker {{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            margin-bottom:9px;
+        }}
+        .page-hero-dot {{
+            width:12px;
+            height:12px;
+            border-radius:999px;
+            background:#ff4b4b;
+            box-shadow:0 0 0 5px rgba(255,75,75,0.16);
+        }}
+        .page-hero-tag {{
+            display:inline-flex;
+            align-items:center;
+            border-radius:999px;
+            padding:6px 10px;
+            font-size:11px;
+            line-height:1;
+            font-weight:950;
+            letter-spacing:0.08em;
+            text-transform:uppercase;
+            background:rgba(255,75,75,0.12);
+            border:1px solid rgba(255,75,75,0.22);
+            color:color-mix(in srgb, var(--text-color) 78%, transparent);
+        }}
+        .page-hero-title {{
+            font-size:34px;
+            line-height:1.02;
+            font-weight:950;
+            letter-spacing:-0.045em;
+            color:var(--text-color);
+            margin:0;
+        }}
+        .page-hero-subtitle {{
+            max-width:980px;
+            margin-top:9px;
+            font-size:15px;
+            line-height:1.38;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 64%, transparent);
+        }}
+        @media (max-width: 900px) {{
+            .page-hero {{ padding:20px; border-radius:24px; }}
+            .page-hero-title {{ font-size:29px; }}
+        }}
+        </style>
+        <div class="page-hero">
+            <div class="page-hero-kicker">
+                <div class="page-hero-dot"></div>
+                {tag_html}
+            </div>
+            <div class="page-hero-title">{html.escape(str(title))}</div>
+            <div class="page-hero-subtitle">{html.escape(str(subtitle))}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # =========================
 # UI
 # =========================
@@ -5561,7 +5729,11 @@ if "selected_preset_product" not in st.session_state or st.session_state["select
     st.session_state["selected_preset_product"] = preset_names[0]
 
 with tab_production:
-    st.markdown(f"### {production_label}")
+    render_page_hero(
+        production_label,
+        "Controllo rapido di avvolgimento e packaging con parametri modificabili." if lang == "IT" else "Fast winding and packaging check with editable parameters.",
+        "Linea PDM",
+    )
     render_workflow_bar(lang)
 
     render_section_header(
@@ -5726,7 +5898,20 @@ with tab_production:
 
     coil_footprint_for_status = float(visual_metrics["max_xy_span"])
     winding_ok = bool(local_points is not None and len(local_points) > 1 and visual_metrics["wound_length_m"] > 0)
-    packaging_basic_ok = coil_footprint_for_status <= 750.0
+    packaging_width_over = max(0.0, coil_footprint_for_status - 750.0)
+    if packaging_width_over <= 0.001:
+        packaging_tone = "ok"
+        packaging_value_it = "OK pallet"
+        packaging_value_en = "Pallet OK"
+    elif packaging_width_over <= 20.001:
+        packaging_tone = "warn"
+        packaging_value_it = "Attenzione"
+        packaging_value_en = "Attention"
+    else:
+        packaging_tone = "bad"
+        packaging_value_it = "Fuori sagoma"
+        packaging_value_en = "Over footprint"
+
     machine_complete = all([
         st.session_state.get("calc_diametro_aspo", 0) not in [None, 0],
         st.session_state.get("calc_spalla", 0) not in [None, 0],
@@ -5744,9 +5929,9 @@ with tab_production:
             },
             {
                 "label": "Packaging",
-                "value": "OK pallet" if packaging_basic_ok else "Fuori sagoma",
+                "value": packaging_value_it,
                 "note": f"Ingombro XY {coil_footprint_for_status:.1f} mm / limite 750 mm",
-                "tone": "ok" if packaging_basic_ok else "bad",
+                "tone": packaging_tone,
             },
             {
                 "label": "Dati macchina",
@@ -5765,9 +5950,9 @@ with tab_production:
             },
             {
                 "label": "Packaging",
-                "value": "Pallet OK" if packaging_basic_ok else "Over footprint",
+                "value": packaging_value_en,
                 "note": f"XY footprint {coil_footprint_for_status:.1f} mm / limit 750 mm",
-                "tone": "ok" if packaging_basic_ok else "bad",
+                "tone": packaging_tone,
             },
             {
                 "label": "Machine data",
@@ -5893,7 +6078,11 @@ with tab_production:
         st.warning(t["warning"])
 
 with tab_tech_sheet:
-    st.markdown(f"### {tech_sheet_label}")
+    render_page_hero(
+        tech_sheet_label,
+        "Anteprima tecnica, lettura rapida e parametri macchina in un'unica scheda ordinata." if lang == "IT" else "Technical preview, quick reading and machine parameters in a single ordered sheet.",
+        "Scheda",
+    )
 
     render_section_header(
         "Consultazione preset" if lang == "IT" else "Preset reference",
@@ -5979,5 +6168,10 @@ with tab_tech_sheet:
         render_machine_parameter_groups(selected_row, lang)
 
 with tab_checklist:
+    render_page_hero(
+        "Cambio misura" if lang == "IT" else "Size change",
+        "Checklist operativa ordinata per linea e avvolgitore." if lang == "IT" else "Operating checklist grouped by line and coiler.",
+        "Procedura",
+    )
     render_startup_checklist(lang)
 
