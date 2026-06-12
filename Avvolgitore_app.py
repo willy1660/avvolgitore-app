@@ -333,6 +333,29 @@ def param_label(column_name, language):
 
 
 def render_preset_param_cards(title, column_names, selected_row, language, cards_per_row=4):
+    visible_column_names = []
+
+    for column_name in column_names:
+        if column_name not in selected_row.index:
+            continue
+
+        raw_value = selected_row[column_name]
+
+        if pd.isna(raw_value):
+            continue
+
+        formatted_value = str(format_preset_value(raw_value)).strip()
+
+        if formatted_value in {"", "-"}:
+            continue
+
+        visible_column_names.append(column_name)
+
+    if not visible_column_names:
+        return
+
+    column_names = visible_column_names
+
     st.markdown(
         """
         <style>
@@ -896,6 +919,12 @@ def make_preset_visual(row, language):
     def v(value):
         return html.escape(format_preset_value(value))
 
+    def metric_html(label, value, suffix=""):
+        formatted = format_preset_value(value).strip() if value is not None else "-"
+        if formatted in {"", "-"}:
+            return ""
+        return f'<div class="metric"><span class="label">{html.escape(str(label))}</span><span class="value">{html.escape(formatted + suffix)}</span></div>'
+
     copper_label = html.escape(str(rame))
     line_speed_label = f"{v(velocita_linea)} m/min"
     soffiatori_label = html.escape(str(soffiatori))
@@ -960,14 +989,18 @@ def make_preset_visual(row, language):
             </div>
         """
 
+        tube_metrics_rows = "".join([
+            metric_html("Tipo tubo", "Doppio"),
+            metric_html("Inferiore", f"{rame_inf} · {format_preset_value(d_inf)} mm"),
+            metric_html("Superiore", f"{rame_sup} · {format_preset_value(d_sup)} mm"),
+            metric_html("Altezza coppia", d_coppia, " mm"),
+            metric_html(labels['length'], lunghezza, " m"),
+            metric_html(labels['line_speed'], velocita_linea, " m/min"),
+        ])
+
         tube_metrics_html = f"""
             <div class="metrics">
-                <div class="metric"><span class="label">Tipo tubo</span><span class="value">Doppio</span></div>
-                <div class="metric"><span class="label">Inferiore</span><span class="value">{html.escape(str(rame_inf))} · {format_preset_value(d_inf)} mm</span></div>
-                <div class="metric"><span class="label">Superiore</span><span class="value">{html.escape(str(rame_sup))} · {format_preset_value(d_sup)} mm</span></div>
-                <div class="metric"><span class="label">Altezza coppia</span><span class="value">{format_preset_value(d_coppia)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['length'])}</span><span class="value">{v(lunghezza)} m</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['line_speed'])}</span><span class="value">{line_speed_label}</span></div>
+                {tube_metrics_rows}
             </div>
         """
     else:
@@ -993,14 +1026,18 @@ def make_preset_visual(row, language):
             </div>
         """
 
+        tube_metrics_rows = "".join([
+            metric_html(labels['copper'], rame),
+            metric_html(labels['foam'], spessore, " mm"),
+            metric_html(labels['outer'], d_tubo, " mm"),
+            metric_html(labels['length'], lunghezza, " m"),
+            metric_html(labels['line_speed'], velocita_linea, " m/min"),
+            metric_html(labels['air'], soffiatori_label),
+        ])
+
         tube_metrics_html = f"""
             <div class="metrics">
-                <div class="metric"><span class="label">{html.escape(labels['copper'])}</span><span class="value">{copper_label}</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['foam'])}</span><span class="value">{v(spessore)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['outer'])}</span><span class="value">{v(d_tubo)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['length'])}</span><span class="value">{v(lunghezza)} m</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['line_speed'])}</span><span class="value">{line_speed_label}</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['air'])}</span><span class="value">{soffiatori_label}</span></div>
+                {tube_metrics_rows}
             </div>
         """
 
@@ -1124,7 +1161,6 @@ def make_preset_visual(row, language):
             {tube_section_html}
             {tube_metrics_html}
         </div>
-        </div>
     </div>
 
     <div class="card">
@@ -1161,12 +1197,14 @@ def make_preset_visual(row, language):
                 </svg>
             </div>
             <div class="metrics">
-                <div class="metric"><span class="label">{html.escape(labels['spool'])}</span><span class="value">{v(aspo)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['width'])}</span><span class="value">{v(spalla)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['pitch'])}</span><span class="value">{v(passo)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['layer'])}</span><span class="value">{v(incremento)} mm</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['rollers'])}</span><span class="value">{rulli_label}</span></div>
-                <div class="metric"><span class="label">{html.escape(labels['tail'])}</span><span class="value">{paletta_label}</span></div>
+                {''.join([
+                    metric_html(labels['spool'], aspo, " mm"),
+                    metric_html(labels['width'], spalla, " mm"),
+                    metric_html(labels['pitch'], passo, " mm"),
+                    metric_html(labels['layer'], incremento, " mm"),
+                    metric_html(labels['rollers'], rulli_label),
+                    metric_html(labels['tail'], paletta_label),
+                ])}
             </div>
         </div>
     </div>
