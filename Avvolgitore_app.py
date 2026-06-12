@@ -2217,10 +2217,13 @@ def viewer(
         }}
 
         #viewer_sidepanel.collapsed {{
-            width:46px !important;
-            min-width:46px !important;
+            width:52px !important;
+            min-width:52px !important;
+            height:52px !important;
+            min-height:52px !important;
+            max-height:52px !important;
             padding:8px !important;
-            overflow:hidden !important;
+            overflow:visible !important;
         }}
 
         #viewer_sidepanel.collapsed #viewer_sidepanel_content {{
@@ -2228,8 +2231,11 @@ def viewer(
         }}
 
         #viewer_sidepanel.collapsed .viewer_sidepanel_toggle {{
-            top:8px;
-            right:8px;
+            top:10px;
+            right:10px;
+            width:32px;
+            height:32px;
+            border-radius:999px;
         }}
 
         .viewer_btn_small:hover,
@@ -2371,17 +2377,21 @@ def viewer(
             }}
 
             #viewer_sidepanel.collapsed {{
-                width:42px !important;
-                min-width:42px !important;
+                width:50px !important;
+                min-width:50px !important;
+                height:50px !important;
+                min-height:50px !important;
+                max-height:50px !important;
                 padding:7px !important;
+                overflow:visible !important;
             }}
 
             .viewer_sidepanel_toggle {{
-                width:28px !important;
-                height:28px !important;
+                width:30px !important;
+                height:30px !important;
                 font-size:15px !important;
-                top:7px !important;
-                right:7px !important;
+                top:10px !important;
+                right:10px !important;
             }}
 
             #viewer_sidepanel_content {{
