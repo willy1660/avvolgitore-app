@@ -5001,9 +5001,8 @@ with tab_tech_sheet:
 
     render_tech_snapshot_cards(selected_row, lang)
 
-    overview_tab, render_params_tab, machine_params_tab = st.tabs([
+    overview_tab, machine_sheet_tab = st.tabs([
         "Anteprima" if lang == "IT" else "Overview",
-        "Parametri render" if lang == "IT" else "Render parameters",
         "Parametri macchina" if lang == "IT" else "Machine parameters",
     ])
 
@@ -5043,21 +5042,28 @@ with tab_tech_sheet:
             else:
                 st.caption("Nessuna nota disponibile." if lang == "IT" else "No note available.")
 
-    with render_params_tab:
+    with machine_sheet_tab:
         render_section_header(
-            t['linked_params'],
-            "Questi valori alimentano direttamente simulazione e render." if lang == "IT" else "These values directly feed the simulation and the render.",
+            "Scheda parametri macchina" if lang == "IT" else "Machine parameter sheet",
+            "Tutti i valori da consultare e introdurre in macchina, raggruppati in una sola vista." if lang == "IT" else "All values to check and enter into the machine, grouped in one view.",
             "B",
         )
-        render_preset_param_cards(t['linked_params'], linked_cols, selected_row, lang, cards_per_row=4)
 
-    with machine_params_tab:
-        render_section_header(
-            t['non_render_params'],
-            "Dati consultivi e parametri macchina aggiuntivi del preset." if lang == "IT" else "Reference data and additional machine parameters from the preset.",
-            "C",
+        render_preset_param_cards(
+            "Parametri principali / render" if lang == "IT" else "Main / render parameters",
+            linked_cols,
+            selected_row,
+            lang,
+            cards_per_row=4,
         )
+
         if consult_cols:
-            render_preset_param_cards(t['non_render_params'], consult_cols, selected_row, lang, cards_per_row=4)
+            render_preset_param_cards(
+                "Altri parametri macchina" if lang == "IT" else "Other machine parameters",
+                consult_cols,
+                selected_row,
+                lang,
+                cards_per_row=4,
+            )
         else:
             st.caption("Nessun parametro aggiuntivo." if lang == "IT" else "No additional parameters.")
