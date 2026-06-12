@@ -2537,13 +2537,13 @@ def viewer(
             powerPreference: "high-performance"
         }});
 
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.15));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.physicallyCorrectLights = true;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.04;
-        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.enabled = false;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.localClippingEnabled = true;
 
@@ -3838,7 +3838,7 @@ def viewer(
 
         function makeTubeEndCap(point, tangentDir, radius, material) {{
             const thickness = Math.max(1.8, radius * 0.22);
-            const geo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, thickness, 24, 1, false);
+            const geo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, thickness, 16, 1, false);
             const mesh = new THREE.Mesh(geo, material);
 
             mesh.position.copy(point);
@@ -3847,7 +3847,7 @@ def viewer(
             const dir = tangentDir.clone().normalize();
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir);
             mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = true;
+            mesh.castShadow = false;
             mesh.receiveShadow = true;
 
             return mesh;
@@ -3865,15 +3865,15 @@ def viewer(
             const curve = new PolylineCurve3(points);
 
             const tubularSegments = Math.max(
-                24,
-                Math.min(3200, Math.floor(totalLen / Math.max(1.10, radius * 0.40)))
+                18,
+                Math.min(1200, Math.floor(totalLen / Math.max(1.60, radius * 0.75)))
             );
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 22, false);
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
             geo.computeVertexNormals();
 
             const body = new THREE.Mesh(geo, material);
-            body.castShadow = true;
+            body.castShadow = false;
             body.receiveShadow = true;
 
             const group = new THREE.Group();
@@ -3933,7 +3933,7 @@ def viewer(
 
             if (len < 1e-6) return null;
 
-            const geo = new THREE.CylinderGeometry(radius, radius, len, 22, 1, false);
+            const geo = new THREE.CylinderGeometry(radius, radius, len, 14, 1, false);
             const mesh = new THREE.Mesh(geo, material);
 
             const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
@@ -3943,7 +3943,7 @@ def viewer(
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
 
             mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = true;
+            mesh.castShadow = false;
             mesh.receiveShadow = true;
 
             return mesh;
@@ -3972,7 +3972,7 @@ def viewer(
             const r = Math.max(7.0, Rt * radiusScale);
             const thickness = Math.max(2.0, Rt * 0.22);
 
-            const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 32);
+            const geo = new THREE.CylinderGeometry(r, r * 0.95, thickness, 18);
             const mesh = new THREE.Mesh(geo, material);
 
             mesh.position.copy(point);
@@ -3981,7 +3981,7 @@ def viewer(
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, tangentDir.clone().normalize());
 
             mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = true;
+            mesh.castShadow = false;
             mesh.receiveShadow = true;
 
             return mesh;
@@ -4060,7 +4060,7 @@ def viewer(
             if (!showGhost || !animationEnabled || localPts.length < 3) return;
 
             const i0 = Math.floor(drawPos);
-            const futureCount = 140;
+            const futureCount = 70;
             const end = Math.min(localPts.length - 1, i0 + futureCount);
 
             if (end <= i0 + 2) return;
@@ -4451,7 +4451,7 @@ with tab_calculator:
         rit_t=rit_t,
         lunghezza_m=lunghezza,
         gradi_start=gradi_start,
-        deg_step=2.0,
+        deg_step=4.0,
         z_min_center=z_min_center,
         z_max_center=z_max_center,
     )
