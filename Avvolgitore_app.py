@@ -4955,6 +4955,78 @@ with tab_production:
             cards_per_row=3,
         )
 
+    if view_mode == t["scene_packaging"]:
+        packaging_eval = evaluate_packaging(
+            coil_footprint_mm=coil_footprint_mm,
+            roll_height_mm=spalla,
+            roll_count=pack_roll_count,
+            packaging_mode=packaging_mode_selected,
+            container_mode=container_mode_selected,
+            language=lang,
+        )
+
+        if lang == "IT":
+            packaging_margin_title = "Margini packaging"
+            status_label = "Stato"
+            status_ok = "OK"
+            status_bad = "Fuori limite"
+            width_margin_label = "Margine larghezza"
+            width_over_label = "Superamento larghezza"
+            height_margin_label = "Margine altezza"
+            height_over_label = "Superamento altezza"
+            limit_note_width = f"Limite pallet {packaging_eval['pallet_size_mm']:.0f} mm"
+            limit_note_height = f"Limite {packaging_eval['height_limit_mm']:.0f} mm"
+        else:
+            packaging_margin_title = "Packaging margins"
+            status_label = "Status"
+            status_ok = "OK"
+            status_bad = "Over limit"
+            width_margin_label = "Width margin"
+            width_over_label = "Width over limit"
+            height_margin_label = "Height margin"
+            height_over_label = "Height over limit"
+            limit_note_width = f"Pallet limit {packaging_eval['pallet_size_mm']:.0f} mm"
+            limit_note_height = f"Limit {packaging_eval['height_limit_mm']:.0f} mm"
+
+        render_summary_cards(
+            packaging_margin_title,
+            [
+                {
+                    "label": status_label,
+                    "value": status_ok if packaging_eval["ok"] else status_bad,
+                    "tone": "ok" if packaging_eval["ok"] else "bad",
+                },
+                {
+                    "label": width_margin_label,
+                    "value": f"{packaging_eval['width_margin_mm']:.1f} mm",
+                    "note": limit_note_width,
+                    "tone": "ok" if packaging_eval["width_ok"] else "bad",
+                },
+                {
+                    "label": width_over_label,
+                    "value": f"{packaging_eval['width_over_mm']:.1f} mm",
+                    "note": limit_note_width,
+                    "tone": "bad" if not packaging_eval["width_ok"] else "neutral",
+                },
+                {
+                    "label": height_margin_label,
+                    "value": f"{packaging_eval['height_margin_mm']:.1f} mm",
+                    "note": limit_note_height,
+                    "tone": "ok" if packaging_eval["height_ok"] else "bad",
+                },
+                {
+                    "label": height_over_label,
+                    "value": f"{packaging_eval['height_over_mm']:.1f} mm",
+                    "note": limit_note_height,
+                    "tone": "bad" if not packaging_eval["height_ok"] else "neutral",
+                },
+            ],
+            cards_per_row=3,
+        )
+
+        if packaging_eval["reasons"]:
+            st.warning("\n".join([f"- {reason}" for reason in packaging_eval["reasons"]]))
+
     if coil_footprint_mm > pallet_size_mm:
         st.warning(t["warning"])
 
