@@ -1249,7 +1249,7 @@ def make_preset_visual(row, language):
         overflow:hidden;
         background:linear-gradient(180deg, var(--card-bg), rgba(255,255,255,0.58));
         border:1px solid var(--card-border);
-        border-left:6px solid var(--accent);
+        border-left:4px solid var(--accent);
         box-shadow:var(--shadow);
         backdrop-filter: blur(10px);
         border-radius:20px;
@@ -1620,11 +1620,31 @@ st.markdown(
         padding-right: 0.55rem;
     }
 
+    [data-testid="stTabs"] [role="tablist"] {
+        gap: 6px;
+        padding: 6px;
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--secondary-background-color) 72%, transparent);
+        border: 1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+        margin-bottom: 12px;
+    }
+
     [data-testid="stTabs"] button {
         font-weight: 750;
         min-height: 46px;
         padding-top: 0.45rem;
         padding-bottom: 0.45rem;
+        border-radius: 13px !important;
+    }
+
+    [data-testid="stTabs"] button[aria-selected="true"] {
+        background: color-mix(in srgb, var(--pdm-accent) 92%, #ffffff 8%) !important;
+        box-shadow: 0 7px 16px rgba(255,75,75,0.18);
+    }
+
+    [data-testid="stTabs"] button[aria-selected="true"] p {
+        color: #ffffff !important;
+        font-weight: 900 !important;
     }
 
     div[data-baseweb="input"] > div,
@@ -1635,6 +1655,55 @@ st.markdown(
 
     div[data-baseweb="select"] * {
         font-size: 0.98rem;
+    }
+
+    /* v95 · refinement elegante mantenendo identità PDM */
+    :root {
+        --pdm-accent: #ff4b4b;
+        --pdm-radius: 18px;
+        --pdm-radius-lg: 22px;
+        --pdm-border: color-mix(in srgb, var(--text-color) 12%, transparent);
+        --pdm-border-strong: color-mix(in srgb, var(--text-color) 18%, transparent);
+        --pdm-surface: color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color));
+        --pdm-surface-soft: color-mix(in srgb, var(--secondary-background-color) 74%, transparent);
+        --pdm-shadow: 0 8px 22px rgba(0,0,0,0.075);
+        --pdm-shadow-soft: 0 4px 14px rgba(0,0,0,0.055);
+    }
+
+    .main .block-container {
+        letter-spacing: -0.006em;
+    }
+
+    div[data-testid="stMetric"] {
+        border-radius: var(--pdm-radius);
+        padding: 12px 14px;
+        border: 1px solid var(--pdm-border);
+        background: linear-gradient(180deg, var(--pdm-surface), color-mix(in srgb, var(--secondary-background-color) 96%, var(--background-color)));
+        box-shadow: var(--pdm-shadow-soft);
+    }
+
+    div[data-testid="stMetric"] label {
+        color: color-mix(in srgb, var(--text-color) 62%, transparent) !important;
+        font-weight: 780 !important;
+    }
+
+    .stButton > button {
+        border-radius: 14px;
+        min-height: 46px;
+        font-weight: 820;
+        border-color: var(--pdm-border-strong);
+        box-shadow: var(--pdm-shadow-soft);
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--pdm-shadow);
+    }
+
+    hr {
+        margin-top: 1.35rem;
+        margin-bottom: 1.35rem;
+        border-color: color-mix(in srgb, var(--text-color) 9%, transparent);
     }
 
     div[role="radiogroup"] {
@@ -3556,7 +3625,7 @@ def viewer(
             const widthWarn = footprintOver > 0.001 && footprintOver <= 20.001;
             const ok = footprintOver <= 0.001 && heightOver <= 0.001;
             const warn = widthWarn && heightOver <= 0.001;
-            const toneColor = ok ? "#4ade80" : (warn ? "#fbbf24" : "#fca5a5");
+            const toneColor = ok ? "#4ade80" : (warn ? "#f59e0b" : "#fb7185");
             const toneBorder = ok ? "rgba(74,222,128,0.35)" : (warn ? "rgba(251,191,36,0.42)" : "rgba(252,165,165,0.42)");
             const toneBg = ok ? "rgba(20,83,45,0.56)" : (warn ? "rgba(120,78,0,0.56)" : "rgba(127,29,29,0.56)");
             const statusText = ok ? (T.box_fit_ok || "OK") : (warn ? "Attenzione" : (T.box_fit_over || "Fuori limite"));
@@ -3714,8 +3783,8 @@ def viewer(
             const heightOk = comparedHeight <= heightLimit + 0.001;
             const ok = footprintOk && heightOk;
             const warn = footprintWarn && heightOk;
-            const limitColor = ok ? 0x4ade80 : (warn ? 0xfbbf24 : 0xf87171);
-            const limitSoftColor = ok ? 0x4ade80 : (warn ? 0xfbbf24 : 0xfca5a5);
+            const limitColor = ok ? 0x4ade80 : (warn ? 0xf59e0b : 0xf87171);
+            const limitSoftColor = ok ? 0x4ade80 : (warn ? 0xf59e0b : 0xfb7185);
 
             const ground = new THREE.Mesh(
                 new THREE.PlaneGeometry(palletSize * 2.3, palletSize * 2.3),
@@ -3774,7 +3843,7 @@ def viewer(
             packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, 0), new THREE.Vector3(xDim + 24, yDim, 0)]), heightLineMat));
             packagingGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(xDim - 24, yDim, totalHeight), new THREE.Vector3(xDim + 24, yDim, totalHeight)]), heightLineMat));
 
-            const heightLabel = makeDimensionLabelSprite(`${{totalHeight.toFixed(0)}} mm`, ok ? "#4ade80" : (warn ? "#fbbf24" : "#fca5a5"));
+            const heightLabel = makeDimensionLabelSprite(`${{totalHeight.toFixed(0)}} mm`, ok ? "#4ade80" : (warn ? "#f59e0b" : "#fb7185"));
             heightLabel.position.set(xDim + 95, yDim, totalHeight * 0.5);
             packagingGroup.add(heightLabel);
 
@@ -3785,7 +3854,7 @@ def viewer(
             const marginToLimit = maxAllowedZ - totalHeight;
             const absMarginToLimit = Math.abs(marginToLimit);
             const marginColor = marginToLimit >= -0.001 ? 0x4ade80 : 0xf87171;
-            const marginTextColor = marginToLimit >= -0.001 ? "#4ade80" : "#fca5a5";
+            const marginTextColor = marginToLimit >= -0.001 ? "#4ade80" : "#fb7185";
             const marginMat = new THREE.LineBasicMaterial({{ color: marginColor, transparent: true, opacity: 0.98 }});
             const xMargin = xDim + 155;
             const yMargin = yDim;
@@ -4639,8 +4708,8 @@ def render_active_preset_card(product_name, language, modified=False):
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
             border:1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
-            box-shadow:0 8px 18px rgba(0,0,0,0.08);
-            border-left:5px solid {accent};
+            box-shadow:0 6px 16px rgba(0,0,0,0.055);
+            border-left:4px solid {accent};
         ">
             <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:color-mix(in srgb, var(--text-color) 62%, transparent); font-weight:800; margin-bottom:5px;">
                 {html.escape(title)}
@@ -4720,9 +4789,9 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
         .quick-card {{
             position:relative;
             overflow:hidden;
-            border-radius:18px;
+            border-radius:20px;
             padding:18px 20px;
-            min-height:122px;
+            min-height:118px;
             background:linear-gradient(180deg,
                 color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
@@ -4830,7 +4899,7 @@ def render_tech_snapshot_cards(selected_row, language):
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
             border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
-            box-shadow:0 8px 18px rgba(0,0,0,0.08);
+            box-shadow:0 6px 16px rgba(0,0,0,0.055);
             border-left:5px solid #ff4b4b;
         }}
         .tech-mini-label {{
@@ -5136,7 +5205,7 @@ def render_preset_summary_strip(product_name, selected_row, language, modified=F
                 color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
-            box-shadow:0 10px 24px rgba(0,0,0,0.09);
+            box-shadow:0 8px 20px rgba(0,0,0,0.065);
         }}
         .summary-strip-head {{
             padding:12px 16px;
@@ -5236,7 +5305,7 @@ def render_status_semaphore(items, language):
                 color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
-            box-shadow:0 8px 20px rgba(0,0,0,0.08);
+            box-shadow:0 6px 16px rgba(0,0,0,0.055);
         }}
         .semaphore-dot {{
             width:15px;
@@ -5247,7 +5316,7 @@ def render_status_semaphore(items, language):
             box-shadow:0 0 0 4px rgba(148,163,184,0.15);
         }}
         .semaphore-card.ok .semaphore-dot {{
-            background:#22c55e;
+            background:linear-gradient(90deg, #22c55e, #86efac);
             box-shadow:0 0 0 4px rgba(34,197,94,0.16);
         }}
         .semaphore-card.warn .semaphore-dot {{
@@ -5453,14 +5522,14 @@ def render_startup_checklist(language):
         <style>
         .checklist-hero {{
             margin:8px 0 14px 0;
-            border-radius:22px;
+            border-radius:24px;
             overflow:hidden;
             border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
             background:linear-gradient(180deg,
                 color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
-            box-shadow:0 10px 24px rgba(0,0,0,0.09);
+            box-shadow:0 8px 20px rgba(0,0,0,0.065);
         }}
         .checklist-hero-head {{
             padding:15px 18px;
@@ -5506,21 +5575,22 @@ def render_startup_checklist(language):
             border-radius:999px;
             transition:width .2s ease;
         }}
-        .checklist-area-title {{
-            margin:18px 0 10px 0;
-            font-size:19px;
+        .checklist-area-title {
+            margin:20px 0 10px 0;
+            font-size:18px;
             font-weight:950;
-            letter-spacing:0.04em;
-            text-transform:uppercase;
-        }}
-        .checklist-section-title {{
-            margin:2px 0 8px 0;
-            font-size:14px;
-            font-weight:950;
-            letter-spacing:0.055em;
+            letter-spacing:0.035em;
             text-transform:uppercase;
             color:var(--text-color);
-        }}
+        }
+        .checklist-section-title {
+            margin:2px 0 8px 0;
+            font-size:13px;
+            font-weight:950;
+            letter-spacing:0.06em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 72%, transparent);
+        }
         </style>
         <div class="checklist-hero">
             <div class="checklist-hero-head">
