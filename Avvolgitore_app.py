@@ -4557,9 +4557,15 @@ def render_section_header(title, subtitle=None, icon=""):
     )
 
 
-def render_active_preset_card(product_name, language):
-    title = "Preset attivo" if language == "IT" else "Active preset"
-    subtitle = "Caricamento automatico nel render" if language == "IT" else "Auto-loaded into render"
+def render_active_preset_card(product_name, language, modified=False):
+    if modified:
+        title = "Parametri modificati" if language == "IT" else "Modified parameters"
+        subtitle = "Base preset selezionato, ma valori cambiati manualmente" if language == "IT" else "Selected preset as base, but values changed manually"
+        accent = "#f59e0b"
+    else:
+        title = "Preset attivo" if language == "IT" else "Active preset"
+        subtitle = "Caricamento automatico nel render" if language == "IT" else "Auto-loaded into render"
+        accent = "#ff4b4b"
 
     st.markdown(
         f"""
@@ -4572,7 +4578,7 @@ def render_active_preset_card(product_name, language):
             );
             border:1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
             box-shadow:0 8px 18px rgba(0,0,0,0.08);
-            border-left:5px solid #ff4b4b;
+            border-left:5px solid {accent};
         ">
             <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:color-mix(in srgb, var(--text-color) 62%, transparent); font-weight:800; margin-bottom:5px;">
                 {html.escape(title)}
@@ -4986,7 +4992,7 @@ def render_machine_parameter_groups(selected_row, language):
                 # leave remaining columns empty if row_pairs shorter
 
 
-def render_preset_summary_strip(product_name, selected_row, language):
+def render_preset_summary_strip(product_name, selected_row, language, modified=False):
     def gv(*names, default="-"):
         for name in names:
             if name in selected_row.index:
@@ -5014,7 +5020,7 @@ def render_preset_summary_strip(product_name, selected_row, language):
         tubo_txt = f"{rame} · Ø {esterno} mm" if esterno != "-" else str(rame)
 
     if language == "IT":
-        title = "Preset attivo"
+        title = "Parametri attuali" if modified else "Preset attivo"
         fields = [
             ("Prodotto", product_name),
             ("Tubo", f"{tipo} · {tubo_txt}"),
@@ -5023,7 +5029,7 @@ def render_preset_summary_strip(product_name, selected_row, language):
             ("Spalla", f"{spalla} mm" if spalla != "-" else "-"),
         ]
     else:
-        title = "Active preset"
+        title = "Current parameters" if modified else "Active preset"
         fields = [
             ("Product", product_name),
             ("Tube", f"{tipo} · {tubo_txt}"),
@@ -5337,11 +5343,15 @@ with tab_production:
         st.session_state["loaded_preset_name"] = selected_product
         st.session_state["show_preset_loaded_success"] = False
 
+    # If the user changes any calculator value manually, the selected preset becomes only a base.
+    sync_active_preset_state()
+    preset_modified = st.session_state.get("loaded_preset_name") != selected_product
+
     with top_right:
         st.markdown("&nbsp;", unsafe_allow_html=True)
-        render_active_preset_card(selected_product, lang)
+        render_active_preset_card(selected_product, lang, modified=preset_modified)
 
-    render_preset_summary_strip(selected_product, selected_row, lang)
+    render_preset_summary_strip(selected_product, selected_row, lang, modified=preset_modified)
 
     render_section_header(
         "Parametri principali" if lang == "IT" else "Main parameters",
