@@ -4282,6 +4282,281 @@ def viewer(
     </script>
     """
 
+
+def render_workflow_bar(language):
+    if language == "IT":
+        steps = [
+            ("1", "Preset", "scegli prodotto"),
+            ("2", "Parametri", "controlla o modifica"),
+            ("3", "Render", "avvolgimento / packaging"),
+            ("4", "Risultati", "verifica finale"),
+        ]
+    else:
+        steps = [
+            ("1", "Preset", "select product"),
+            ("2", "Parameters", "check or edit"),
+            ("3", "Render", "winding / packaging"),
+            ("4", "Results", "final check"),
+        ]
+
+    items_html = "".join(
+        f"""
+        <div class="workflow-step">
+            <div class="workflow-num">{num}</div>
+            <div>
+                <div class="workflow-title">{title}</div>
+                <div class="workflow-subtitle">{subtitle}</div>
+            </div>
+        </div>
+        """
+        for num, title, subtitle in steps
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .workflow-bar {{
+            display:grid;
+            grid-template-columns:repeat(4, minmax(0, 1fr));
+            gap:10px;
+            margin:10px 0 18px 0;
+        }}
+        .workflow-step {{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            padding:12px 14px;
+            border-radius:16px;
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            box-shadow:0 8px 18px rgba(0,0,0,0.07);
+        }}
+        .workflow-num {{
+            width:30px;
+            height:30px;
+            min-width:30px;
+            border-radius:999px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:#ff4b4b;
+            color:#fff;
+            font-weight:900;
+            font-size:14px;
+        }}
+        .workflow-title {{
+            font-weight:900;
+            line-height:1.05;
+            font-size:15px;
+        }}
+        .workflow-subtitle {{
+            margin-top:3px;
+            font-size:12px;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            font-weight:650;
+            line-height:1.15;
+        }}
+        @media (max-width: 900px) {{
+            .workflow-bar {{
+                grid-template-columns:repeat(2, minmax(0, 1fr));
+            }}
+        }}
+        </style>
+        <div class="workflow-bar">{items_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_section_header(title, subtitle=None, icon=""):
+    subtitle_html = ""
+    if subtitle:
+        subtitle_html = f'<div class="section-subtitle">{html.escape(str(subtitle))}</div>'
+
+    st.markdown(
+        f"""
+        <style>
+        .section-header {{
+            margin-top:12px;
+            margin-bottom:10px;
+            padding:14px 16px;
+            border-radius:16px;
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 8px 18px rgba(0,0,0,0.07);
+        }}
+        .section-title {{
+            font-size:18px;
+            font-weight:900;
+            line-height:1.1;
+            display:flex;
+            align-items:center;
+            gap:8px;
+        }}
+        .section-subtitle {{
+            margin-top:5px;
+            font-size:13px;
+            line-height:1.28;
+            color:color-mix(in srgb, var(--text-color) 66%, transparent);
+            font-weight:650;
+        }}
+        </style>
+        <div class="section-header">
+            <div class="section-title">{html.escape(icon)} {html.escape(str(title))}</div>
+            {subtitle_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_active_preset_card(product_name, language):
+    title = "Preset attivo" if language == "IT" else "Active preset"
+    subtitle = "Caricamento automatico nel render" if language == "IT" else "Auto-loaded into render"
+
+    st.markdown(
+        f"""
+        <div style="
+            padding:14px 16px;
+            border-radius:16px;
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 84%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            border:1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+            box-shadow:0 8px 18px rgba(0,0,0,0.08);
+            border-left:5px solid #ff4b4b;
+        ">
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:color-mix(in srgb, var(--text-color) 62%, transparent); font-weight:800; margin-bottom:5px;">
+                {html.escape(title)}
+            </div>
+            <div style="font-size:21px; line-height:1.15; font-weight:900;">
+                {html.escape(str(product_name))}
+            </div>
+            <div style="font-size:12px; color:color-mix(in srgb, var(--text-color) 62%, transparent); font-weight:650; margin-top:5px;">
+                {html.escape(subtitle)}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_visuale, incremento_visuale, visual_metrics, coil_footprint_mm, pallet_size_mm=750.0):
+    if language == "IT":
+        title = "Lettura rapida"
+        tube_title = "Tubo"
+        tube_note = "Doppio verticale" if tube_layout_code == "double" else "Singolo"
+        wind_title = "Avvolgimento"
+        wind_note = f"Passo {passo_visuale:.1f} mm · incremento {incremento_visuale:.1f} mm"
+        size_title = "Ingombro"
+        ok_note = "OK su pallet 750 × 750" if coil_footprint_mm <= pallet_size_mm else "Attenzione: fuori sagoma pallet"
+    else:
+        title = "Quick reading"
+        tube_title = "Tube"
+        tube_note = "Vertical double" if tube_layout_code == "double" else "Single"
+        wind_title = "Winding"
+        wind_note = f"Pitch {passo_visuale:.1f} mm · layer {incremento_visuale:.1f} mm"
+        size_title = "Footprint"
+        ok_note = "OK on 750 × 750 pallet" if coil_footprint_mm <= pallet_size_mm else "Warning: over pallet footprint"
+
+    size_tone = "ok" if coil_footprint_mm <= pallet_size_mm else "bad"
+
+    cards = [
+        (tube_title, tube_diameter_label, tube_note, "neutral"),
+        (wind_title, f"{visual_metrics['wound_length_m']:.2f} m", wind_note, "neutral"),
+        (size_title, f"{coil_footprint_mm:.1f} mm", ok_note, size_tone),
+    ]
+
+    cards_html = ""
+    for label, value, note, tone in cards:
+        cls = f"quick-card {tone}"
+        cards_html += f"""
+        <div class="{cls}">
+            <div class="quick-label">{html.escape(str(label))}</div>
+            <div class="quick-value">{html.escape(str(value))}</div>
+            <div class="quick-note">{html.escape(str(note))}</div>
+        </div>
+        """
+
+    st.markdown(
+        f"""
+        <style>
+        .quick-grid {{
+            display:grid;
+            grid-template-columns:repeat(3, minmax(0, 1fr));
+            gap:12px;
+            margin:8px 0 16px 0;
+        }}
+        .quick-card {{
+            position:relative;
+            overflow:hidden;
+            border-radius:18px;
+            padding:18px 20px;
+            min-height:122px;
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            border:1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+            box-shadow:0 10px 24px rgba(0,0,0,0.10);
+        }}
+        .quick-card::before {{
+            content:"";
+            position:absolute;
+            inset:0 auto 0 0;
+            width:5px;
+            background:#ff4b4b;
+        }}
+        .quick-card.ok::before {{ background:#22c55e; }}
+        .quick-card.bad::before {{ background:#ef4444; }}
+        .quick-label {{
+            font-size:13px;
+            text-transform:uppercase;
+            letter-spacing:0.07em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            margin-bottom:10px;
+            padding-left:4px;
+        }}
+        .quick-value {{
+            font-size:30px;
+            line-height:1.05;
+            font-weight:950;
+            color:var(--text-color);
+            word-break:break-word;
+            padding-left:4px;
+        }}
+        .quick-note {{
+            margin-top:8px;
+            font-size:13px;
+            line-height:1.25;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 64%, transparent);
+            padding-left:4px;
+        }}
+        @media (max-width:900px) {{
+            .quick-grid {{
+                grid-template-columns:1fr;
+            }}
+            .quick-card {{
+                min-height:105px;
+            }}
+        }}
+        </style>
+        <h4 style="margin-top:0.6rem;">{html.escape(title)}</h4>
+        <div class="quick-grid">{cards_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # =========================
 # UI
 # =========================
@@ -4318,6 +4593,13 @@ if "selected_preset_product" not in st.session_state or st.session_state["select
 
 with tab_production:
     st.markdown(f"### {production_label}")
+    render_workflow_bar(lang)
+
+    render_section_header(
+        "Selezione prodotto" if lang == "IT" else "Product selection",
+        "Scegli un preset: i valori si caricano automaticamente nel render." if lang == "IT" else "Choose a preset: values are automatically loaded into the render.",
+        "①",
+    )
 
     top_left, top_right = st.columns([1.6, 1.0], gap="large")
 
@@ -4340,37 +4622,23 @@ with tab_production:
 
     with top_right:
         st.markdown("&nbsp;", unsafe_allow_html=True)
-        st.markdown(
-            f"""
-            <div style="
-                padding:14px 16px;
-                border-radius:16px;
-                background:var(--secondary-background-color);
-                border:1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
-                box-shadow:0 8px 18px rgba(0,0,0,0.08);
-            ">
-                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:color-mix(in srgb, var(--text-color) 62%, transparent); font-weight:800; margin-bottom:5px;">
-                    {t['active_preset']}
-                </div>
-                <div style="font-size:21px; line-height:1.15; font-weight:900;">
-                    {selected_product}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        render_active_preset_card(selected_product, lang)
 
-    st.markdown("#### Parametri principali" if lang == "IT" else "#### Main parameters")
+    render_section_header(
+        "Parametri principali" if lang == "IT" else "Main parameters",
+        "Solo i valori essenziali per simulare e verificare l’avvolgimento." if lang == "IT" else "Only the essential values for simulating and checking the winding.",
+        "②",
+    )
 
     colA, colB, colC = st.columns([0.95, 1.25, 1.0], gap="large")
 
     with colA:
-        st.markdown(f"##### {t['bobina']}")
+        st.markdown(f"**{t['bobina']}**")
         diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo")
         spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla")
 
     with colB:
-        st.markdown(f"##### {t['tubo']}")
+        st.markdown(f"**{t['tubo']}**")
         rame_options = list(COPPER_SIZES_MM.keys())
 
         tube_layout_label = st.radio(
@@ -4429,7 +4697,7 @@ with tab_production:
             incremento_consigliato = max(d_tubo_lower, d_tubo_upper)
 
     with colC:
-        st.markdown(f"##### {t['avvolg']}")
+        st.markdown(f"**{t['avvolg']}**")
         passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale")
         incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale")
         rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b")
@@ -4482,6 +4750,12 @@ with tab_production:
     visual_metrics = compute_metrics(local_points, d_tubo_footprint)
 
     st.divider()
+
+    render_section_header(
+        "Render 3D" if lang == "IT" else "3D render",
+        "Usa Avvolgimento per controllare la bobina e Packaging per verificare pallet/scatola/torretta." if lang == "IT" else "Use Winding to check the coil and Packaging to verify pallet/box/tower.",
+        "③",
+    )
 
     view_mode = st.radio(
         t["viewer_mode"],
@@ -4550,27 +4824,52 @@ with tab_production:
 
     st.divider()
 
-    render_summary_cards(
-        t["results"],
-        [
-            {"label": t["metric1"], "value": tube_diameter_label, "note": ("Configurazione verticale" if tube_layout_code == "double" else "")},
-            {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
-            {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
-            {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
-            {"label": t["metric5"], "value": f"{visual_metrics['max_xy_span']:.1f} mm"},
-            {"label": t["metric6"], "value": f"{visual_metrics['wound_length_m']:.3f} m"},
-        ],
-        cards_per_row=3,
+    render_section_header(
+        "Risultati" if lang == "IT" else "Results",
+        "Prima una lettura rapida, poi il dettaglio tecnico se serve." if lang == "IT" else "First a quick reading, then the technical detail if needed.",
+        "④",
     )
 
     pallet_size_mm = 750.0
     coil_footprint_mm = float(visual_metrics["max_xy_span"])
+
+    render_quick_reading(
+        lang,
+        tube_layout_code,
+        tube_diameter_label,
+        passo_visuale,
+        incremento_visuale,
+        visual_metrics,
+        coil_footprint_mm,
+        pallet_size_mm,
+    )
+
+    detail_label = "Dettaglio tecnico" if lang == "IT" else "Technical detail"
+    with st.expander(detail_label, expanded=False):
+        render_summary_cards(
+                t["results"],
+            [
+                {"label": t["metric1"], "value": tube_diameter_label, "note": ("Configurazione verticale" if tube_layout_code == "double" else "")},
+                {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
+                {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
+                {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
+                {"label": t["metric5"], "value": f"{visual_metrics['max_xy_span']:.1f} mm"},
+                {"label": t["metric6"], "value": f"{visual_metrics['wound_length_m']:.3f} m"},
+            ],
+            cards_per_row=3,
+        )
 
     if coil_footprint_mm > pallet_size_mm:
         st.warning(t["warning"])
 
 with tab_tech_sheet:
     st.markdown(f"### {tech_sheet_label}")
+
+    render_section_header(
+        "Consultazione preset" if lang == "IT" else "Preset reference",
+        "Qui trovi anteprima e parametri completi del CSV, separati dalla schermata operativa." if lang == "IT" else "Here you find preview and full CSV parameters, separated from the operating screen.",
+        "ⓘ",
+    )
 
     selected_product = st.session_state.get("selected_preset_product", preset_names[0])
     selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
