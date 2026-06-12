@@ -244,6 +244,11 @@ TEXTS = {
 PARAM_LABELS = {
     "IT": {
         "Prodotto": "Prodotto",
+        "Tipo tubo": "Tipo tubo",
+        "Diametro rame inferiore": "Diametro rame inferiore",
+        "Spessore guaina inferiore": "Spessore guaina inferiore",
+        "Diametro rame superiore": "Diametro rame superiore",
+        "Spessore guaina superiore": "Spessore guaina superiore",
         "Diametro Rame": "Diametro rame",
         "Spessore Guaina (mm)": "Spessore guaina (mm)",
         "Diametro esterno Guaina (mm)": "Diametro esterno guaina (mm)",
@@ -280,6 +285,11 @@ PARAM_LABELS = {
     },
     "EN": {
         "Prodotto": "Product",
+        "Tipo tubo": "Tube type",
+        "Diametro rame inferiore": "Lower copper diameter",
+        "Spessore guaina inferiore": "Lower foam thickness",
+        "Diametro rame superiore": "Upper copper diameter",
+        "Spessore guaina superiore": "Upper foam thickness",
         "Diametro Rame": "Copper diameter",
         "Spessore Guaina (mm)": "Foam thickness (mm)",
         "Diametro esterno Guaina (mm)": "Outer foam diameter (mm)",
@@ -740,6 +750,9 @@ guide_offset_x = 555.0
 def load_presets(path="Presets.csv"):
     df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
 
+    # Clean column names exported by Excel
+    df.columns = df.columns.astype(str).str.strip()
+
     # Remove empty columns exported by Excel
     df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
 
@@ -765,6 +778,13 @@ def safe_value(row, column, suffix=""):
         return "-"
 
     return f"{value}{suffix}"
+
+
+def first_existing_value(row, columns, default=None):
+    for column in columns:
+        if column in row.index and not pd.isna(row[column]):
+            return row[column]
+    return default
 
 
 def parse_float_value(value, default=0.0):
@@ -797,6 +817,10 @@ def format_preset_value(value):
         return f"{value:.2f}".rstrip("0").rstrip(".")
 
     return str(value)
+
+
+def tube_outer_diameter(rame, spessore):
+    return COPPER_SIZES_MM.get(str(rame), 0.0) + 2.0 * float(spessore)
 
 
 def make_preset_visual(row, language):
@@ -1103,6 +1127,11 @@ def current_calculator_snapshot():
         "calc_incremento_visuale": float(st.session_state.get("calc_incremento_visuale", 20.0)),
         "calc_rit_b": float(st.session_state.get("calc_rit_b", 360.0)),
         "calc_rit_t": float(st.session_state.get("calc_rit_t", 360.0)),
+        "calc_tube_layout": str(st.session_state.get("calc_tube_layout", "Singolo")),
+        "calc_rame_inf": str(st.session_state.get("calc_rame_inf", "3/8")),
+        "calc_spessore_inf": float(st.session_state.get("calc_spessore_inf", 7.0)),
+        "calc_rame_sup": str(st.session_state.get("calc_rame_sup", "1/4")),
+        "calc_spessore_sup": float(st.session_state.get("calc_spessore_sup", 7.0)),
     }
 
 
@@ -1134,12 +1163,57 @@ def sync_active_preset_state():
 
 
 def apply_preset_to_calculator(row):
-    rame = str(row.get("Diametro Rame", "1/4")).strip()
-    if rame not in COPPER_SIZES_MM:
-        rame = "1/4"
+    tipo_tubo = str(row.get("Tipo tubo", "Singolo")).strip().lower()
 
-    st.session_state["calc_rame"] = rame
-    st.session_state["calc_spessore"] = parse_float_value(row.get("Spessore Guaina (mm)", 7.0), 7.0)
+    if tipo_tubo == "doppio":
+        rame_inf = str(first_existing_value(
+            row,
+            ["Diametro rame inferiore", "Diametro Rame inferiore"],
+            "3/8",
+        )).strip()
+
+        rame_sup = str(first_existing_value(
+            row,
+            ["Diametro rame superiore", "Diametro Rame superiore"],
+            "1/4",
+        )).strip()
+
+        if rame_inf not in COPPER_SIZES_MM:
+            rame_inf = "3/8"
+        if rame_sup not in COPPER_SIZES_MM:
+            rame_sup = "1/4"
+
+        spessore_inf = parse_float_value(first_existing_value(
+            row,
+            ["Spessore guaina inferiore", "Spessore Guaina inferiore (mm)"],
+            7.0,
+        ), 7.0)
+
+        spessore_sup = parse_float_value(first_existing_value(
+            row,
+            ["Spessore guaina superiore", "Spessore Guaina superiore (mm)"],
+            7.0,
+        ), 7.0)
+
+        st.session_state["calc_tube_layout"] = "Doppio"
+        st.session_state["calc_rame_inf"] = rame_inf
+        st.session_state["calc_spessore_inf"] = spessore_inf
+        st.session_state["calc_rame_sup"] = rame_sup
+        st.session_state["calc_spessore_sup"] = spessore_sup
+
+        # Keep a coherent single-tube fallback value, although the render uses the doppio fields.
+        st.session_state["calc_rame"] = rame_sup
+        st.session_state["calc_spessore"] = spessore_sup
+
+    else:
+        rame = str(row.get("Diametro Rame", "1/4")).strip()
+        if rame not in COPPER_SIZES_MM:
+            rame = "1/4"
+
+        st.session_state["calc_tube_layout"] = "Singolo"
+        st.session_state["calc_rame"] = rame
+        st.session_state["calc_spessore"] = parse_float_value(row.get("Spessore Guaina (mm)", 7.0), 7.0)
+
     st.session_state["calc_lunghezza"] = parse_float_value(row.get("Lunghezza (m)", 50.0), 50.0)
     st.session_state["calc_diametro_aspo"] = parse_float_value(row.get("Diametro aspo (mm)", 450.0), 450.0)
     st.session_state["calc_spalla"] = parse_float_value(row.get("Spalla (mm)", 95.0), 95.0)
@@ -1149,10 +1223,10 @@ def apply_preset_to_calculator(row):
     # Mapping used by the current render: min delay -> base, max delay -> shoulder/top.
     st.session_state["calc_rit_b"] = parse_float_value(row.get("Ritardo invers min (º)", 360.0), 360.0)
     st.session_state["calc_rit_t"] = parse_float_value(row.get("Ritardo invers max (º)", 360.0), 360.0)
+
     st.session_state["loaded_preset_name"] = safe_value(row, "Prodotto")
     st.session_state["loaded_preset_values"] = current_calculator_snapshot()
     st.session_state["show_preset_loaded_success"] = True
-
 
 def init_calculator_state():
     defaults = {
@@ -1165,6 +1239,11 @@ def init_calculator_state():
         "calc_incremento_visuale": 20.0,
         "calc_rit_b": 360.0,
         "calc_rit_t": 360.0,
+        "calc_tube_layout": "Singolo",
+        "calc_rame_inf": "3/8",
+        "calc_spessore_inf": 7.0,
+        "calc_rame_sup": "1/4",
+        "calc_spessore_sup": 7.0,
     }
 
     for key, value in defaults.items():
@@ -1553,6 +1632,10 @@ def viewer(
     container_mode="40hc",
     pack_roll_count=5,
     tube_mode_initial="gelwhite",
+    tube_layout="single",
+    d_tubo_lower=None,
+    d_tubo_upper=None,
+    tube_diameter_label=None,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -1562,6 +1645,11 @@ def viewer(
     final_layers_json = json.dumps(final_layers)
     final_lengths_json = json.dumps(final_lengths)
     labels_json = json.dumps(TEXTS[language])
+    tube_layout = "double" if str(tube_layout).lower() in {"double", "doppio"} else "single"
+    d_tubo_lower = float(d_tubo if d_tubo_lower is None else d_tubo_lower)
+    d_tubo_upper = float(d_tubo if d_tubo_upper is None else d_tubo_upper)
+    tube_diameter_label = tube_diameter_label or f"{float(d_tubo):.2f} mm"
+    tube_diameter_label_json = json.dumps(str(tube_diameter_label))
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -1983,7 +2071,7 @@ def viewer(
         document.getElementById("hud_length_label").textContent = T.hud_length;
         document.getElementById("hud_layer_label").textContent = T.hud_layer;
         document.getElementById("hud_diameter_label").textContent = T.hud_diameter;
-        document.getElementById("hud_diameter_value").textContent = "{float(d_tubo):.2f} mm";
+        document.getElementById("hud_diameter_value").textContent = {tube_diameter_label_json};
 
         const W = Math.max(host.clientWidth, 600);
         const Hview = Math.max(host.clientHeight, 400);
@@ -2020,6 +2108,10 @@ def viewer(
 
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
+        const tubeLayout = "{tube_layout}";
+        const isDoubleTube = tubeLayout === "double";
+        const RtLower = {d_tubo_lower:.6f} / 2.0;
+        const RtUpper = {d_tubo_upper:.6f} / 2.0;
         const Hs = {float(spalla)};
         const guideOffsetX = {float(guide_offset_x)};
         const coilFootprint = {float(coil_footprint_mm):.6f};
@@ -2840,7 +2932,7 @@ def viewer(
 
             const packTubeMat = makeTubeMaterial(tubeMode, false, false);
             const pts = localPts.map(p => p.clone());
-            const rollMesh = makeTubeMeshFromPoints(pts, Rt, packTubeMat);
+            const rollMesh = makeWoundTubeObject(pts, packTubeMat);
 
             if (!rollMesh) return group;
 
@@ -3247,6 +3339,41 @@ def viewer(
             return mesh;
         }}
 
+        function radialUnitFromPoint(p) {{
+            const v = new THREE.Vector3(p.x, p.y, 0);
+            if (v.length() < 1e-6) return new THREE.Vector3(0, 1, 0);
+            return v.normalize();
+        }}
+
+        function offsetPointsRadial(points, offset) {{
+            return points.map(p => {{
+                const u = radialUnitFromPoint(p);
+                return new THREE.Vector3(p.x + u.x * offset, p.y + u.y * offset, p.z);
+            }});
+        }}
+
+        function offsetPointRadial(point, offset) {{
+            const u = radialUnitFromPoint(point);
+            return new THREE.Vector3(point.x + u.x * offset, point.y + u.y * offset, point.z);
+        }}
+
+        function makeWoundTubeObject(points, material) {{
+            if (!isDoubleTube) {{
+                return makeTubeMeshFromPoints(points, Rt, material);
+            }}
+
+            const group = new THREE.Group();
+
+            const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material);
+            if (lowerMesh) group.add(lowerMesh);
+
+            const upperPts = offsetPointsRadial(points, RtLower + RtUpper);
+            const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material);
+            if (upperMesh) group.add(upperMesh);
+
+            return group;
+        }}
+
         function makeTubeSegment(p0, p1, radius, material) {{
             const dir = new THREE.Vector3().subVectors(p1, p0);
             const len = dir.length();
@@ -3267,6 +3394,24 @@ def viewer(
             mesh.receiveShadow = true;
 
             return mesh;
+        }}
+
+        function makeWoundTubeSegment(p0, p1, material) {{
+            if (!isDoubleTube) {{
+                return makeTubeSegment(p0, p1, Rt, material);
+            }}
+
+            const group = new THREE.Group();
+
+            const lowerSeg = makeTubeSegment(p0, p1, RtLower, material);
+            if (lowerSeg) group.add(lowerSeg);
+
+            const p0u = offsetPointRadial(p0, RtLower + RtUpper);
+            const p1u = offsetPointRadial(p1, RtLower + RtUpper);
+            const upperSeg = makeTubeSegment(p0u, p1u, RtUpper, material);
+            if (upperSeg) group.add(upperSeg);
+
+            return group;
         }}
 
         function makeEndpointDisc(point, tangentDir, material, radiusScale = 0.92) {{
@@ -3311,7 +3456,7 @@ def viewer(
 
             const pts = localPts.slice(0, completedIndex + 1);
 
-            depositedMesh = makeTubeMeshFromPoints(pts, Rt, tubeMat);
+            depositedMesh = makeWoundTubeObject(pts, tubeMat);
 
             if (depositedMesh) {{
                 depositedGroup.add(depositedMesh);
@@ -3440,7 +3585,7 @@ def viewer(
             if (animationEnabled) {{
                 if (frac > 1e-6 && i1 > i0) {{
                     const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-                    activeCoilMesh = makeTubeSegment(activeStartWorld, endWorld, Rt, activeTubeMat);
+                    activeCoilMesh = makeWoundTubeSegment(activeStartWorld, endWorld, activeTubeMat);
 
                     if (activeCoilMesh) {{
                         overlayGroup.add(activeCoilMesh);
@@ -3449,7 +3594,7 @@ def viewer(
 
                 const guideWorld = guidePointWorld(radius, z);
 
-                freeMesh = makeTubeSegment(guideWorld, endWorld, Rt, freeTubeMat);
+                freeMesh = makeWoundTubeSegment(guideWorld, endWorld, freeTubeMat);
 
                 if (freeMesh) {{
                     overlayGroup.add(freeMesh);
@@ -3580,6 +3725,11 @@ with tab_presets:
         st.markdown(t["csv_params"])
 
         render_columns = {
+            "Tipo tubo",
+            "Diametro rame inferiore",
+            "Spessore guaina inferiore",
+            "Diametro rame superiore",
+            "Spessore guaina superiore",
             "Diametro Rame",
             "Spessore Guaina (mm)",
             "Diametro esterno Guaina (mm)",
@@ -3631,12 +3781,66 @@ with tab_calculator:
     with colB:
         st.markdown(f"#### {t['tubo']}")
         rame_options = list(COPPER_SIZES_MM.keys())
-        if st.session_state.get("calc_rame") not in rame_options:
-            st.session_state["calc_rame"] = "1/4"
-        rame = st.selectbox(t["rame"], rame_options, key="calc_rame")
-        spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore")
-        lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza")
-        d_rame = COPPER_SIZES_MM[rame]
+
+        tube_layout_label = st.radio(
+            "Tipo tubo",
+            ["Singolo", "Doppio"],
+            horizontal=True,
+            key="calc_tube_layout",
+        )
+
+        if tube_layout_label == "Singolo":
+            if st.session_state.get("calc_rame") not in rame_options:
+                st.session_state["calc_rame"] = "1/4"
+            rame = st.selectbox(t["rame"], rame_options, key="calc_rame")
+            spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore")
+            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza")
+
+            d_rame = COPPER_SIZES_MM[rame]
+            d_tubo = d_rame + 2.0 * spessore
+            d_tubo_lower = d_tubo
+            d_tubo_upper = d_tubo
+            d_tubo_sim = d_tubo
+            d_tubo_footprint = d_tubo
+            tube_layout_code = "single"
+            tube_diameter_label = f"{d_tubo:.2f} mm"
+            passo_consigliato = d_tubo
+            incremento_consigliato = d_tubo
+
+        else:
+            st.caption("Doppio verticale: tubo inferiore + tubo superiore")
+            c_inf, c_sup = st.columns(2)
+
+            with c_inf:
+                if st.session_state.get("calc_rame_inf") not in rame_options:
+                    st.session_state["calc_rame_inf"] = "3/8"
+                rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf")
+                spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf")
+
+            with c_sup:
+                if st.session_state.get("calc_rame_sup") not in rame_options:
+                    st.session_state["calc_rame_sup"] = "1/4"
+                rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup")
+                spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup")
+
+            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza")
+
+            d_tubo_lower = COPPER_SIZES_MM[rame_inf] + 2.0 * spessore_inf
+            d_tubo_upper = COPPER_SIZES_MM[rame_sup] + 2.0 * spessore_sup
+
+            # Regola richiesta: l'incremento strato è governato dal tubo più grande,
+            # mentre il passo consigliato deve lasciare spazio alla coppia dei due tubi.
+            d_tubo_sim = max(d_tubo_lower, d_tubo_upper)
+            d_tubo = d_tubo_sim
+
+            # The upper tube is offset radially over the lower tube.
+            # This footprint diameter approximates the visible outer envelope.
+            d_tubo_footprint = d_tubo_lower + 2.0 * d_tubo_upper
+
+            tube_layout_code = "double"
+            tube_diameter_label = f"Inf. {d_tubo_lower:.2f} / Sup. {d_tubo_upper:.2f} mm"
+            passo_consigliato = d_tubo_lower + d_tubo_upper
+            incremento_consigliato = max(d_tubo_lower, d_tubo_upper)
 
     with colC:
         st.markdown(f"#### {t['avvolg']}")
@@ -3645,7 +3849,11 @@ with tab_calculator:
         rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b")
         rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t")
 
-    d_tubo = d_rame + 2.0 * spessore
+    if tube_layout_code == "double":
+        st.info(
+            f"Doppio: passo consigliato ≈ {passo_consigliato:.2f} mm · "
+            f"incremento strato consigliato ≈ {incremento_consigliato:.2f} mm"
+        )
 
     # =========================
     # BUILD
@@ -3664,7 +3872,7 @@ with tab_calculator:
     ) = simulate_winding_visual(
         d_aspo=diametro_aspo,
         spalla=spalla,
-        d_tubo=d_tubo,
+        d_tubo=d_tubo_sim,
         passo=passo_visuale,
         incremento=incremento_visuale,
         rit_b=rit_b,
@@ -3674,7 +3882,7 @@ with tab_calculator:
         deg_step=2.0,
     )
 
-    visual_metrics = compute_metrics(local_points, d_tubo)
+    visual_metrics = compute_metrics(local_points, d_tubo_footprint)
 
     # =========================
     # VIEW / PACKAGING CONTROLS
@@ -3739,6 +3947,10 @@ with tab_calculator:
             packaging_mode=packaging_mode_selected,
             container_mode=container_mode_selected,
             pack_roll_count=pack_roll_count,
+            tube_layout=tube_layout_code,
+            d_tubo_lower=d_tubo_lower,
+            d_tubo_upper=d_tubo_upper,
+            tube_diameter_label=tube_diameter_label,
         ),
         height=820,
     )
@@ -3752,9 +3964,9 @@ with tab_calculator:
     render_summary_cards(
         t["results"],
         [
-            {"label": t["metric1"], "value": f"{d_tubo:.2f} mm"},
-            {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
-            {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
+            {"label": t["metric1"], "value": tube_diameter_label},
+            {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm", "note": (f"Cons. {passo_consigliato:.2f} mm" if tube_layout_code == "double" else "")},
+            {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm", "note": (f"Cons. {incremento_consigliato:.2f} mm" if tube_layout_code == "double" else "")},
             {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
             {"label": t["metric5"], "value": f"{visual_metrics['max_xy_span']:.1f} mm"},
             {"label": t["metric6"], "value": f"{visual_metrics['wound_length_m']:.3f} m"},
