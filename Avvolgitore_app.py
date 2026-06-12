@@ -4732,6 +4732,7 @@ def render_tech_snapshot_cards(selected_row, language):
 
 
 
+
 def render_machine_parameter_groups(selected_row, language):
     group_defs = [
         (
@@ -4802,100 +4803,141 @@ def render_machine_parameter_groups(selected_row, language):
         st.caption("Nessun parametro disponibile." if language == "IT" else "No parameters available.")
         return
 
+    def group_html(title, pairs):
+        row_html = "".join(
+            '<div class="machine-compact-row">'
+            f'<div class="machine-compact-label">{html.escape(str(label))}</div>'
+            f'<div class="machine-compact-value">{html.escape(str(value))}</div>'
+            '</div>'
+            for label, value in pairs
+        )
+        return (
+            '<section class="machine-compact-group">'
+            '<header class="machine-compact-head">'
+            f'<span class="machine-compact-title">{html.escape(str(title))}</span>'
+            f'<span class="machine-compact-count">{len(pairs)}</span>'
+            '</header>'
+            f'<div class="machine-compact-rows">{row_html}</div>'
+            '</section>'
+        )
+
+    groups_html = "".join(group_html(title, pairs) for title, pairs in groups)
+
     st.markdown(
-        """
-        <style>
-        .machine-group-head-native{
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:10px;
-            margin:4px 0 10px 0;
-            padding:12px 14px;
-            border-radius:16px 16px 0 0;
-            background:linear-gradient(90deg, rgba(255,75,75,0.18), transparent);
-            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-            border-bottom:none;
-        }
-        .machine-group-title-native{
-            font-size:15px;
-            font-weight:950;
-            letter-spacing:0.06em;
-            text-transform:uppercase;
-            color:var(--text-color);
-        }
-        .machine-group-count-native{
-            min-width:30px;
-            height:30px;
-            padding:0 10px;
-            border-radius:999px;
-            background:#ff4b4b;
-            color:#fff;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:13px;
-            font-weight:950;
-        }
-        .machine-label-native{
-            font-size:13px;
-            line-height:1.25;
-            font-weight:700;
-            color:color-mix(in srgb, var(--text-color) 68%, transparent);
-            padding:3px 0;
-        }
-        .machine-value-native{
-            display:inline-block;
-            width:100%;
-            text-align:right;
-            font-size:14px;
-            line-height:1.15;
-            font-weight:900;
-            color:var(--text-color);
-            background:color-mix(in srgb, var(--text-color) 7%, transparent);
-            border-radius:999px;
-            padding:7px 10px;
-            box-sizing:border-box;
-        }
-        @media (max-width:900px){
-            .machine-value-native{
-                text-align:left;
-            }
-        }
-        </style>
-        """,
+        f"""
+<style>
+.machine-compact-sheet {{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:14px;
+    margin-top:8px;
+}}
+.machine-compact-group {{
+    overflow:hidden;
+    border-radius:18px;
+    border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+    background:linear-gradient(180deg,
+        color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+        color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+    );
+    box-shadow:0 8px 20px rgba(0,0,0,0.08);
+}}
+.machine-compact-head {{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:11px 14px;
+    background:linear-gradient(90deg, rgba(255,75,75,0.17), transparent);
+    border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+}}
+.machine-compact-title {{
+    font-size:13px;
+    line-height:1.05;
+    font-weight:950;
+    letter-spacing:0.065em;
+    text-transform:uppercase;
+    color:var(--text-color);
+}}
+.machine-compact-count {{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:26px;
+    height:26px;
+    padding:0 8px;
+    border-radius:999px;
+    background:#ff4b4b;
+    color:#fff;
+    font-size:12px;
+    font-weight:950;
+}}
+.machine-compact-rows {{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:0;
+    padding:6px 10px 10px 10px;
+}}
+.machine-compact-row {{
+    min-height:34px;
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    align-items:center;
+    column-gap:8px;
+    padding:7px 8px;
+    border-bottom:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+}}
+.machine-compact-row:nth-last-child(-n+2) {{
+    border-bottom:none;
+}}
+.machine-compact-label {{
+    min-width:0;
+    font-size:11.5px;
+    line-height:1.18;
+    font-weight:760;
+    color:color-mix(in srgb, var(--text-color) 70%, transparent);
+    overflow:hidden;
+    text-overflow:ellipsis;
+}}
+.machine-compact-value {{
+    justify-self:end;
+    max-width:96px;
+    padding:4px 8px;
+    border-radius:999px;
+    background:color-mix(in srgb, var(--text-color) 8%, transparent);
+    color:var(--text-color);
+    font-size:12px;
+    line-height:1.1;
+    font-weight:950;
+    text-align:right;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}}
+@media (max-width:1100px) {{
+    .machine-compact-sheet {{
+        grid-template-columns:1fr;
+    }}
+}}
+@media (max-width:760px) {{
+    .machine-compact-rows {{
+        grid-template-columns:1fr;
+    }}
+    .machine-compact-row:nth-last-child(-n+2) {{
+        border-bottom:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+    }}
+    .machine-compact-row:last-child {{
+        border-bottom:none;
+    }}
+    .machine-compact-value {{
+        max-width:150px;
+    }}
+}}
+</style>
+<div class="machine-compact-sheet">{groups_html}</div>
+""",
         unsafe_allow_html=True,
     )
-
-    for i in range(0, len(groups), 2):
-        cols_ui = st.columns(2, gap="large")
-        for ui_col, group_data in zip(cols_ui, groups[i:i+2]):
-            title, pairs = group_data
-            with ui_col:
-                st.markdown(
-                    f"""
-                    <div class="machine-group-head-native">
-                        <div class="machine-group-title-native">{html.escape(str(title))}</div>
-                        <div class="machine-group-count-native">{len(pairs)}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                with st.container(border=True):
-                    for idx, (label, value) in enumerate(pairs):
-                        left, right = st.columns([1.45, 0.80], gap="small")
-                        with left:
-                            st.markdown(
-                                f'<div class="machine-label-native">{html.escape(str(label))}</div>',
-                                unsafe_allow_html=True,
-                            )
-                        with right:
-                            st.markdown(
-                                f'<div class="machine-value-native">{html.escape(str(value))}</div>',
-                                unsafe_allow_html=True,
-                            )
-                        if idx != len(pairs) - 1:
-                            st.divider()
 
 # =========================
 # UI
