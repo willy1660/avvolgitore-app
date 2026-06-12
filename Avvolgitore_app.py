@@ -4565,8 +4565,6 @@ with tab_calculator:
                 st.caption(t["packaging_box_desc"])
         with pc3:
             pack_roll_count = int(st.session_state.get("pack_roll_count_external", 5))
-            st.markdown("&nbsp;", unsafe_allow_html=True)
-            st.info(f"{t['roll_count']}: modifica direttamente nel render")
 
     components.html(
         viewer(
