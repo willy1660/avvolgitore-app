@@ -4734,6 +4734,7 @@ def render_tech_snapshot_cards(selected_row, language):
 
 
 
+
 def render_machine_parameter_groups(selected_row, language):
     group_defs = [
         (
@@ -4825,31 +4826,26 @@ def render_machine_parameter_groups(selected_row, language):
 
     def group_html(title, pairs):
         items_html = "".join(
-            f"""
-            <div class="machine-param-item">
-                <div class="machine-param-label">{html.escape(str(label))}</div>
-                <div class="machine-param-value">{html.escape(str(value))}</div>
-            </div>
-            """
+            '<div class="machine-param-item">'
+            f'<div class="machine-param-label">{html.escape(str(label))}</div>'
+            f'<div class="machine-param-value">{html.escape(str(value))}</div>'
+            '</div>'
             for label, value in pairs
         )
-        return f"""
-        <section class="machine-wide-group">
-            <div class="machine-wide-head">
-                <div class="machine-wide-title">{html.escape(str(title))}</div>
-                <div class="machine-wide-count">{len(pairs)}</div>
-            </div>
-            <div class="machine-param-grid">
-                {items_html}
-            </div>
-        </section>
-        """
+        return (
+            '<section class="machine-wide-group">'
+            '<div class="machine-wide-head">'
+            f'<div class="machine-wide-title">{html.escape(str(title))}</div>'
+            f'<div class="machine-wide-count">{len(pairs)}</div>'
+            '</div>'
+            f'<div class="machine-param-grid">{items_html}</div>'
+            '</section>'
+        )
 
     groups_html = "".join(group_html(title, pairs) for title, pairs in groups)
 
     st.markdown(
-        f"""
-<style>
+        f"""<style>
 .machine-wide-sheet {{
     display:grid;
     grid-template-columns:1fr;
@@ -4952,9 +4948,7 @@ def render_machine_parameter_groups(selected_row, language):
         max-width:180px;
     }}
 }}
-</style>
-<div class="machine-wide-sheet">{groups_html}</div>
-""",
+</style><div class="machine-wide-sheet">{groups_html}</div>""",
         unsafe_allow_html=True,
     )
 
