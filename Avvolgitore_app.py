@@ -4733,124 +4733,6 @@ def render_active_preset_card(product_name, language, modified=False):
     )
 
 
-def render_preset_summary_strip(product_name, selected_row, language, modified=False):
-    def gv(*names, default="-"):
-        for name in names:
-            if name in selected_row.index:
-                value = safe_value(selected_row, name)
-                if value != "-":
-                    return value
-        return default
-
-    tipo = gv("Tipo tubo")
-    lunghezza = gv("Lunghezza (m)")
-    aspo = gv("Diametro aspo (mm)")
-    spalla = gv("Spalla (mm)")
-
-    if str(tipo).strip().lower() == "doppio":
-        rame_inf = gv("Diametro rame inferiore", "Diametro Rame inferiore")
-        rame_sup = gv("Diametro rame superiore", "Diametro Rame superiore")
-        sp_inf = parse_float_value(gv("Spessore guaina inferiore", "Spessore Guaina inferiore (mm)", default=0), 0)
-        sp_sup = parse_float_value(gv("Spessore guaina superiore", "Spessore Guaina superiore (mm)", default=0), 0)
-        d_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0)) + 2.0 * sp_inf
-        d_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0)) + 2.0 * sp_sup
-        tubo_txt = f"{rame_sup}/{rame_inf} · {d_sup:.1f}/{d_inf:.1f} mm"
-    else:
-        rame = gv("Diametro Rame")
-        esterno = gv("Diametro esterno Guaina (mm)")
-        tubo_txt = f"{rame} · Ø {esterno} mm" if esterno != "-" else str(rame)
-
-    if language == "IT":
-        title = "Parametri attuali" if modified else "Preset attivo"
-        fields = [
-            ("Prodotto", product_name),
-            ("Tubo", f"{tipo} · {tubo_txt}"),
-            ("Lunghezza", f"{lunghezza} m" if lunghezza != "-" else "-"),
-            ("Aspo", f"Ø {aspo} mm" if aspo != "-" else "-"),
-            ("Spalla", f"{spalla} mm" if spalla != "-" else "-"),
-        ]
-    else:
-        title = "Current parameters" if modified else "Active preset"
-        fields = [
-            ("Product", product_name),
-            ("Tube", f"{tipo} · {tubo_txt}"),
-            ("Length", f"{lunghezza} m" if lunghezza != "-" else "-"),
-            ("Spool", f"Ø {aspo} mm" if aspo != "-" else "-"),
-            ("Width", f"{spalla} mm" if spalla != "-" else "-"),
-        ]
-
-    items_html = "".join(
-        f"""
-        <div class="summary-strip-item">
-            <div class="summary-strip-label">{html.escape(str(label))}</div>
-            <div class="summary-strip-value">{html.escape(str(value))}</div>
-        </div>
-        """
-        for label, value in fields
-    )
-
-    st.markdown(
-        f"""
-        <style>
-        .summary-strip {{
-            margin:8px 0 16px 0;
-            border-radius:20px;
-            overflow:hidden;
-            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
-            background:linear-gradient(180deg,
-                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
-                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-            );
-            box-shadow:0 8px 20px rgba(0,0,0,0.065);
-        }}
-        .summary-strip-head {{
-            padding:12px 16px;
-            background:linear-gradient(90deg, rgba(255,75,75,0.20), transparent);
-            border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
-            font-size:13px;
-            font-weight:950;
-            letter-spacing:0.07em;
-            text-transform:uppercase;
-        }}
-        .summary-strip-grid {{
-            display:grid;
-            grid-template-columns:1.3fr 1.4fr 0.8fr 0.8fr 0.8fr;
-            gap:10px;
-            padding:14px 16px;
-        }}
-        .summary-strip-item {{
-            min-width:0;
-        }}
-        .summary-strip-label {{
-            font-size:11px;
-            line-height:1.1;
-            text-transform:uppercase;
-            letter-spacing:0.06em;
-            font-weight:850;
-            color:color-mix(in srgb, var(--text-color) 58%, transparent);
-            margin-bottom:6px;
-        }}
-        .summary-strip-value {{
-            font-size:17px;
-            line-height:1.14;
-            font-weight:950;
-            color:var(--text-color);
-            word-break:break-word;
-        }}
-        @media (max-width:950px) {{
-            .summary-strip-grid {{
-                grid-template-columns:1fr 1fr;
-            }}
-        }}
-        </style>
-        <div class="summary-strip">
-            <div class="summary-strip-head">{html.escape(title)}</div>
-            <div class="summary-strip-grid">{items_html}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_visuale, incremento_visuale, visual_metrics, coil_footprint_mm, pallet_size_mm=750.0):
     if language == "IT":
         title = "Lettura rapida"
@@ -4977,6 +4859,414 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_tech_snapshot_cards(selected_row, language):
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return value
+        return default
+
+    if language == "IT":
+        items = [
+            ("Tipo tubo", gv("Tipo tubo")),
+            ("Lunghezza", f"{gv('Lunghezza (m)')} m" if gv("Lunghezza (m)") != "-" else "-"),
+            ("Aspo", f"{gv('Diametro aspo (mm)')} mm" if gv("Diametro aspo (mm)") != "-" else "-"),
+            ("Spalla", f"{gv('Spalla (mm)')} mm" if gv("Spalla (mm)") != "-" else "-"),
+        ]
+    else:
+        items = [
+            ("Tube type", gv("Tipo tubo")),
+            ("Length", f"{gv('Lunghezza (m)')} m" if gv("Lunghezza (m)") != "-" else "-"),
+            ("Spool", f"{gv('Diametro aspo (mm)')} mm" if gv("Diametro aspo (mm)") != "-" else "-"),
+            ("Width", f"{gv('Spalla (mm)')} mm" if gv("Spalla (mm)") != "-" else "-"),
+        ]
+
+    cards_html = ""
+    for label, value in items:
+        cards_html += f"""
+        <div class="tech-mini-card">
+            <div class="tech-mini-label">{html.escape(str(label))}</div>
+            <div class="tech-mini-value">{html.escape(str(value))}</div>
+        </div>
+        """
+
+    st.markdown(
+        f"""
+        <style>
+        .tech-mini-grid {{
+            display:grid;
+            grid-template-columns:repeat(4, minmax(0, 1fr));
+            gap:12px;
+            margin:0 0 16px 0;
+        }}
+        .tech-mini-card {{
+            border-radius:16px;
+            padding:16px 18px;
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            box-shadow:0 6px 16px rgba(0,0,0,0.055);
+            border-left:5px solid #ff4b4b;
+        }}
+        .tech-mini-label {{
+            font-size:12px;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            margin-bottom:9px;
+        }}
+        .tech-mini-value {{
+            font-size:22px;
+            line-height:1.08;
+            font-weight:900;
+            word-break:break-word;
+        }}
+        @media (max-width:900px) {{
+            .tech-mini-grid {{
+                grid-template-columns:repeat(2, minmax(0, 1fr));
+            }}
+        }}
+        </style>
+        <div class="tech-mini-grid">{cards_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+
+
+
+
+
+
+
+
+
+def render_machine_parameter_groups(selected_row, language):
+    group_defs = [
+        (
+            "Tubo e prodotto" if language == "IT" else "Tube and product",
+            ["Tipo tubo", "Diametro Rame", "Spessore Guaina (mm)", "Diametro esterno Guaina (mm)",
+             "Diametro rame inferiore", "Spessore guaina inferiore", "Diametro rame superiore", "Spessore guaina superiore",
+             "Lunghezza (m)"],
+        ),
+        (
+            "Avvolgimento" if language == "IT" else "Winding",
+            ["Diametro aspo (mm)", "Spalla (mm)", "Nº Spire", "Passo (mm)", "Incremento strato (mm)",
+             "Ritardo invers min (º)", "Ritardo invers max (º)", "Quota massima (mm)", "Quota minima (mm)",
+             "Quota start pinza (mm)", "Quota coda tubo (mm)", "Quota chiusura morsa coda (mm)",
+             "Interasse regetta (mm)"],
+        ),
+        (
+            "Attrezzaggio linea" if language == "IT" else "Line setup",
+            ["Boccole rulliera adrizzatubo", "Boccola uscita rulliera", "Rulliera adrizzatubo",
+             "Boccola uscita traino", "Rulli convogliatore (mm)", "Rulli estrusore(mm)",
+             "Ruote godronatore", "Soffiatori aria (mm)", "Rulli avvolgitore (mm)",
+             "Paleta ferma coda (mm)", "Guidatubo (mm)"],
+        ),
+        (
+            "Velocità e coppie" if language == "IT" else "Speed and torque",
+            ["Velocita linea (m/min)", "Velocita recupero (m/min)", "Coppia lavoro (%)",
+             "Riduzione coppia (%)", "Coppia recupero (%)"],
+        ),
+    ]
+
+    search_label = "Cerca parametro" if language == "IT" else "Search parameter"
+    search_placeholder = "Es. passo, quota, soffiatori, boccola..." if language == "IT" else "E.g. pitch, quota, blowers, bushing..."
+    query = st.text_input(
+        search_label,
+        value="",
+        placeholder=search_placeholder,
+        key="machine_param_search",
+    ).strip().lower()
+
+    def visible_value(col):
+        if col not in selected_row.index:
+            return None
+        raw = selected_row[col]
+        if pd.isna(raw):
+            return None
+        formatted = str(format_preset_value(raw)).strip()
+        if formatted in {"", "-"}:
+            return None
+        return formatted
+
+    def matches_query(label, value):
+        if not query:
+            return True
+        haystack = f"{label} {value}".lower()
+        return query in haystack
+
+    groups = []
+    used = set()
+
+    for group_title, cols in group_defs:
+        pairs = []
+        for col in cols:
+            value = visible_value(col)
+            if value is None:
+                continue
+            label = param_label(col, language)
+            used.add(col)
+            if matches_query(label, value):
+                pairs.append((label, value))
+        if pairs:
+            groups.append((group_title, pairs))
+
+    extra_pairs = []
+    for col in selected_row.index:
+        if col in used or str(col).startswith("Unnamed") or col in {"Note", "Prodotto"}:
+            continue
+        value = visible_value(col)
+        if value is None:
+            continue
+        label = param_label(col, language)
+        if matches_query(label, value):
+            extra_pairs.append((label, value))
+
+    if extra_pairs:
+        groups.append(("Altri parametri" if language == "IT" else "Other parameters", extra_pairs))
+
+    if not groups:
+        st.info("Nessun parametro trovato." if language == "IT" else "No parameter found.")
+        return
+
+    st.markdown(
+        """
+        <style>
+        .machine-group-head-native{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            margin:12px 0 10px 0;
+            padding:12px 14px;
+            border-radius:18px 18px 0 0;
+            background:linear-gradient(90deg, rgba(255,75,75,0.18), transparent);
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            border-bottom:none;
+        }
+        .machine-group-title-native{
+            font-size:15px;
+            font-weight:950;
+            letter-spacing:0.065em;
+            text-transform:uppercase;
+            color:var(--text-color);
+        }
+        .machine-group-count-native{
+            min-width:30px;
+            height:30px;
+            padding:0 10px;
+            border-radius:999px;
+            background:#ff4b4b;
+            color:#fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:13px;
+            font-weight:950;
+        }
+        .machine-card-native{
+            min-height:88px;
+            padding:12px 13px;
+            border-radius:16px;
+            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--text-color) 4%, transparent),
+                color-mix(in srgb, var(--text-color) 7%, transparent)
+            );
+            display:flex;
+            flex-direction:column;
+            justify-content:space-between;
+            gap:12px;
+            box-sizing:border-box;
+        }
+        .machine-card-label-native{
+            font-size:12px;
+            line-height:1.18;
+            font-weight:760;
+            color:color-mix(in srgb, var(--text-color) 72%, transparent);
+            word-break:break-word;
+        }
+        .machine-card-value-native{
+            font-size:24px;
+            line-height:1.02;
+            font-weight:950;
+            color:var(--text-color);
+            letter-spacing:-0.01em;
+            word-break:break-word;
+        }
+        @media (max-width: 900px){
+            .machine-card-native{
+                min-height:80px;
+            }
+            .machine-card-value-native{
+                font-size:22px;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    for group_title, pairs in groups:
+        st.markdown(
+            f"""
+            <div class="machine-group-head-native">
+                <div class="machine-group-title-native">{html.escape(str(group_title))}</div>
+                <div class="machine-group-count-native">{len(pairs)}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        with st.container(border=True):
+            cols_per_row = 4 if len(pairs) >= 8 else (3 if len(pairs) >= 4 else 2)
+            cols_per_row = max(1, cols_per_row)
+
+            for i in range(0, len(pairs), cols_per_row):
+                row_pairs = pairs[i:i + cols_per_row]
+                cols = st.columns(cols_per_row, gap="small")
+                for col_ui, pair in zip(cols, row_pairs):
+                    label, value = pair
+                    with col_ui:
+                        st.markdown(
+                            f"""
+                            <div class="machine-card-native">
+                                <div class="machine-card-label-native">{html.escape(str(label))}</div>
+                                <div class="machine-card-value-native">{html.escape(str(value))}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                # leave remaining columns empty if row_pairs shorter
+
+
+def render_preset_summary_strip(product_name, selected_row, language, modified=False):
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return value
+        return default
+
+    tipo = gv("Tipo tubo")
+    lunghezza = gv("Lunghezza (m)")
+    aspo = gv("Diametro aspo (mm)")
+    spalla = gv("Spalla (mm)")
+
+    if str(tipo).strip().lower() == "doppio":
+        rame_inf = gv("Diametro rame inferiore", "Diametro Rame inferiore")
+        rame_sup = gv("Diametro rame superiore", "Diametro Rame superiore")
+        sp_inf = parse_float_value(gv("Spessore guaina inferiore", "Spessore Guaina inferiore (mm)", default=0), 0)
+        sp_sup = parse_float_value(gv("Spessore guaina superiore", "Spessore Guaina superiore (mm)", default=0), 0)
+        d_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0)) + 2.0 * sp_inf
+        d_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0)) + 2.0 * sp_sup
+        tubo_txt = f"{rame_sup}/{rame_inf} · {d_sup:.1f}/{d_inf:.1f} mm"
+    else:
+        rame = gv("Diametro Rame")
+        esterno = gv("Diametro esterno Guaina (mm)")
+        tubo_txt = f"{rame} · Ø {esterno} mm" if esterno != "-" else str(rame)
+
+    if language == "IT":
+        title = "Parametri attuali" if modified else "Preset attivo"
+        fields = [
+            ("Prodotto", product_name),
+            ("Tubo", f"{tipo} · {tubo_txt}"),
+            ("Lunghezza", f"{lunghezza} m" if lunghezza != "-" else "-"),
+            ("Aspo", f"Ø {aspo} mm" if aspo != "-" else "-"),
+            ("Spalla", f"{spalla} mm" if spalla != "-" else "-"),
+        ]
+    else:
+        title = "Current parameters" if modified else "Active preset"
+        fields = [
+            ("Product", product_name),
+            ("Tube", f"{tipo} · {tubo_txt}"),
+            ("Length", f"{lunghezza} m" if lunghezza != "-" else "-"),
+            ("Spool", f"Ø {aspo} mm" if aspo != "-" else "-"),
+            ("Width", f"{spalla} mm" if spalla != "-" else "-"),
+        ]
+
+    items_html = "".join(
+        f"""
+        <div class="summary-strip-item">
+            <div class="summary-strip-label">{html.escape(str(label))}</div>
+            <div class="summary-strip-value">{html.escape(str(value))}</div>
+        </div>
+        """
+        for label, value in fields
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .summary-strip {{
+            margin:8px 0 16px 0;
+            border-radius:20px;
+            overflow:hidden;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 8px 20px rgba(0,0,0,0.065);
+        }}
+        .summary-strip-head {{
+            padding:12px 16px;
+            background:linear-gradient(90deg, rgba(255,75,75,0.20), transparent);
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            font-size:13px;
+            font-weight:950;
+            letter-spacing:0.07em;
+            text-transform:uppercase;
+        }}
+        .summary-strip-grid {{
+            display:grid;
+            grid-template-columns:1.3fr 1.4fr 0.8fr 0.8fr 0.8fr;
+            gap:10px;
+            padding:14px 16px;
+        }}
+        .summary-strip-item {{
+            min-width:0;
+        }}
+        .summary-strip-label {{
+            font-size:11px;
+            line-height:1.1;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            margin-bottom:6px;
+        }}
+        .summary-strip-value {{
+            font-size:17px;
+            line-height:1.14;
+            font-weight:950;
+            color:var(--text-color);
+            word-break:break-word;
+        }}
+        @media (max-width:950px) {{
+            .summary-strip-grid {{
+                grid-template-columns:1fr 1fr;
+            }}
+        }}
+        </style>
+        <div class="summary-strip">
+            <div class="summary-strip-head">{html.escape(title)}</div>
+            <div class="summary-strip-grid">{items_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 def render_status_semaphore(items, language):
     title = "Stato rapido" if language == "IT" else "Quick status"
