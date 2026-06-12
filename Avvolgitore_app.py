@@ -4735,6 +4735,7 @@ def render_tech_snapshot_cards(selected_row, language):
 
 
 
+
 def render_machine_parameter_groups(selected_row, language):
     group_defs = [
         (
@@ -4826,60 +4827,65 @@ def render_machine_parameter_groups(selected_row, language):
 
     def group_html(title, pairs):
         items_html = "".join(
-            '<div class="machine-param-item">'
-            f'<div class="machine-param-label">{html.escape(str(label))}</div>'
-            f'<div class="machine-param-value">{html.escape(str(value))}</div>'
-            '</div>'
+            f"""
+            <div class="machine-card-item">
+                <div class="machine-card-label">{html.escape(str(label))}</div>
+                <div class="machine-card-value">{html.escape(str(value))}</div>
+            </div>
+            """
             for label, value in pairs
         )
-        return (
-            '<section class="machine-wide-group">'
-            '<div class="machine-wide-head">'
-            f'<div class="machine-wide-title">{html.escape(str(title))}</div>'
-            f'<div class="machine-wide-count">{len(pairs)}</div>'
-            '</div>'
-            f'<div class="machine-param-grid">{items_html}</div>'
-            '</section>'
-        )
+        return f"""
+        <section class="machine-block">
+            <div class="machine-block-head">
+                <div class="machine-block-title">{html.escape(str(title))}</div>
+                <div class="machine-block-count">{len(pairs)}</div>
+            </div>
+            <div class="machine-card-grid">
+                {items_html}
+            </div>
+        </section>
+        """
 
     groups_html = "".join(group_html(title, pairs) for title, pairs in groups)
 
     st.markdown(
-        f"""<style>
-.machine-wide-sheet {{
+        f"""
+<style>
+.machine-sheet-blocks {{
     display:grid;
     grid-template-columns:1fr;
-    gap:12px;
+    gap:14px;
     margin-top:12px;
 }}
-.machine-wide-group {{
+.machine-block {{
     overflow:hidden;
-    border-radius:18px;
+    border-radius:20px;
     border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
     background:linear-gradient(180deg,
         color-mix(in srgb, var(--secondary-background-color) 90%, var(--background-color)),
         color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
     );
-    box-shadow:0 8px 20px rgba(0,0,0,0.08);
+    box-shadow:0 10px 24px rgba(0,0,0,0.08);
 }}
-.machine-wide-head {{
+.machine-block-head {{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:12px;
-    padding:12px 16px;
-    background:linear-gradient(90deg, rgba(255,75,75,0.19), transparent);
+    padding:13px 16px;
+    background:linear-gradient(90deg, rgba(255,75,75,0.18), transparent);
     border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
 }}
-.machine-wide-title {{
+.machine-block-title {{
     font-size:14px;
     line-height:1.05;
     font-weight:950;
-    letter-spacing:0.065em;
+    letter-spacing:0.07em;
     text-transform:uppercase;
     color:var(--text-color);
 }}
-.machine-wide-count {{
+.machine-block-count {{
     display:inline-flex;
     align-items:center;
     justify-content:center;
@@ -4892,63 +4898,69 @@ def render_machine_parameter_groups(selected_row, language):
     font-size:12px;
     font-weight:950;
 }}
-.machine-param-grid {{
+.machine-card-grid {{
     display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(255px, 1fr));
-    gap:8px 14px;
-    padding:12px 16px 14px 16px;
-}}
-.machine-param-item {{
-    display:grid;
-    grid-template-columns:minmax(0, 1fr) auto;
-    align-items:center;
+    grid-template-columns:repeat(4, minmax(0, 1fr));
     gap:10px;
-    min-height:38px;
-    padding:8px 0;
-    border-bottom:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+    padding:14px;
 }}
-.machine-param-label {{
-    min-width:0;
-    font-size:13px;
+.machine-card-item {{
+    min-height:88px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    gap:10px;
+    padding:13px 14px;
+    border-radius:16px;
+    background:linear-gradient(180deg,
+        color-mix(in srgb, var(--text-color) 4%, transparent),
+        color-mix(in srgb, var(--text-color) 7%, transparent)
+    );
+    border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}}
+.machine-card-label {{
+    font-size:12px;
     line-height:1.18;
     font-weight:760;
-    color:color-mix(in srgb, var(--text-color) 74%, transparent);
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
+    color:color-mix(in srgb, var(--text-color) 72%, transparent);
+    word-break:break-word;
 }}
-.machine-param-value {{
-    justify-self:end;
-    max-width:150px;
-    padding:5px 10px;
-    border-radius:999px;
-    background:color-mix(in srgb, var(--text-color) 8%, transparent);
-    color:var(--text-color);
-    font-size:14px;
-    line-height:1.12;
+.machine-card-value {{
+    font-size:26px;
+    line-height:1.02;
     font-weight:950;
-    text-align:right;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    color:var(--text-color);
+    letter-spacing:-0.01em;
+    word-break:break-word;
 }}
-@media (max-width:900px) {{
-    .machine-param-grid {{
-        grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+@media (max-width:1400px) {{
+    .machine-card-grid {{
+        grid-template-columns:repeat(3, minmax(0, 1fr));
     }}
-    .machine-param-label {{
-        white-space:normal;
+}}
+@media (max-width:1000px) {{
+    .machine-card-grid {{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+    }}
+    .machine-card-item {{
+        min-height:82px;
+    }}
+    .machine-card-value {{
+        font-size:24px;
     }}
 }}
 @media (max-width:640px) {{
-    .machine-param-grid {{
+    .machine-card-grid {{
         grid-template-columns:1fr;
     }}
-    .machine-param-value {{
-        max-width:180px;
+    .machine-card-value {{
+        font-size:22px;
     }}
 }}
-</style><div class="machine-wide-sheet">{groups_html}</div>""",
+</style>
+<div class="machine-sheet-blocks">{groups_html}</div>
+""",
         unsafe_allow_html=True,
     )
 
