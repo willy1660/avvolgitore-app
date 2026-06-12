@@ -500,31 +500,51 @@ def render_summary_cards(title, items, cards_per_row=4):
         """
         <style>
         .summary-card {
-            background: var(--secondary-background-color);
-            border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
-            border-radius: 17px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 96%, var(--background-color))
+            );
+            border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent);
+            border-radius: 18px;
             padding: 18px 20px;
             min-height: 128px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 8px 22px rgba(0,0,0,0.08);
-            margin-bottom: 10px;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+            margin-bottom: 12px;
+        }
+        .summary-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 5px;
+            background: #ff4b4b;
+            opacity: 0.9;
         }
         .summary-card.status-ok {
-            border-color: rgba(34,197,94,0.36);
-            background: color-mix(in srgb, #22c55e 11%, var(--secondary-background-color));
+            border-color: rgba(34,197,94,0.42);
+            background: color-mix(in srgb, #22c55e 12%, var(--secondary-background-color));
+        }
+        .summary-card.status-ok::before {
+            background: #22c55e;
         }
         .summary-card.status-bad {
-            border-color: rgba(239,68,68,0.36);
-            background: color-mix(in srgb, #ef4444 11%, var(--secondary-background-color));
+            border-color: rgba(239,68,68,0.44);
+            background: color-mix(in srgb, #ef4444 13%, var(--secondary-background-color));
+        }
+        .summary-card.status-bad::before {
+            background: #ef4444;
         }
         .summary-card-label {
             font-size: 14px;
             line-height: 1.3;
-            font-weight: 650;
-            color: color-mix(in srgb, var(--text-color) 68%, transparent);
+            font-weight: 700;
+            color: color-mix(in srgb, var(--text-color) 72%, transparent);
             margin-bottom: 12px;
+            padding-left: 4px;
         }
         .summary-card-value {
             font-size: 34px;
@@ -532,12 +552,14 @@ def render_summary_cards(title, items, cards_per_row=4):
             font-weight: 800;
             color: var(--text-color);
             word-break: break-word;
+            padding-left: 4px;
         }
         .summary-card-note {
             font-size: 13px;
-            color: color-mix(in srgb, var(--text-color) 62%, transparent);
+            color: color-mix(in srgb, var(--text-color) 64%, transparent);
             margin-top: 8px;
             line-height: 1.3;
+            padding-left: 4px;
         }
         </style>
         """,
@@ -545,6 +567,7 @@ def render_summary_cards(title, items, cards_per_row=4):
     )
 
     st.markdown(f"##### {title}")
+    st.markdown("<div style=\"height:6px\"></div>", unsafe_allow_html=True)
     for i in range(0, len(items), cards_per_row):
         chunk = items[i:i+cards_per_row]
         cols = st.columns(cards_per_row)
@@ -2107,6 +2130,16 @@ def viewer(
             line-height:1;
         }}
 
+        html.pseudo_fullscreen_doc,
+        body.pseudo_fullscreen_doc {{
+            width:100vw !important;
+            height:100vh !important;
+            margin:0 !important;
+            padding:0 !important;
+            overflow:hidden !important;
+            background:#101216 !important;
+        }}
+
         #viewer_root.pseudo_fullscreen {{
             position:fixed !important;
             inset:0 !important;
@@ -2665,13 +2698,56 @@ def viewer(
         }});
 
         let pseudoFullscreen = false;
+        let savedFrameStyle = null;
+
+        function setFrameFullscreen(active) {{
+            try {{
+                const frame = window.frameElement;
+                if (!frame) return false;
+
+                if (active) {{
+                    savedFrameStyle = {{
+                        position: frame.style.position,
+                        inset: frame.style.inset,
+                        top: frame.style.top,
+                        left: frame.style.left,
+                        width: frame.style.width,
+                        height: frame.style.height,
+                        zIndex: frame.style.zIndex,
+                        border: frame.style.border,
+                        borderRadius: frame.style.borderRadius,
+                    }};
+
+                    frame.style.position = "fixed";
+                    frame.style.inset = "0";
+                    frame.style.top = "0";
+                    frame.style.left = "0";
+                    frame.style.width = "100vw";
+                    frame.style.height = "100vh";
+                    frame.style.zIndex = "2147483647";
+                    frame.style.border = "none";
+                    frame.style.borderRadius = "0";
+                }} else if (savedFrameStyle) {{
+                    Object.assign(frame.style, savedFrameStyle);
+                    savedFrameStyle = null;
+                }}
+
+                return true;
+            }} catch (err) {{
+                return false;
+            }}
+        }}
 
         function setPseudoFullscreen(active) {{
             pseudoFullscreen = active;
             host.classList.toggle("pseudo_fullscreen", active);
+            document.documentElement.classList.toggle("pseudo_fullscreen_doc", active);
+            document.body.classList.toggle("pseudo_fullscreen_doc", active);
+            setFrameFullscreen(active);
+
             fullscreenBtn.textContent = active ? "×" : "⛶";
             fullscreenBtn.title = active ? T.exit : T.fullscreen;
-            setTimeout(resizeViewer, 80);
+            setTimeout(resizeViewer, 120);
         }}
 
         fullscreenBtn.addEventListener("click", async () => {{
@@ -2711,7 +2787,13 @@ def viewer(
                 fullscreenBtn.textContent = pseudoFullscreen ? "×" : "⛶";
                 fullscreenBtn.title = pseudoFullscreen ? T.exit : T.fullscreen;
             }}
-            setTimeout(resizeViewer, 80);
+            setTimeout(resizeViewer, 120);
+        }});
+
+        window.addEventListener("keydown", (event) => {{
+            if (event.key === "Escape" && pseudoFullscreen) {{
+                setPseudoFullscreen(false);
+            }}
         }});
 
         progressSlider.addEventListener("input", () => {{
