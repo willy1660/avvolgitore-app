@@ -4984,6 +4984,296 @@ def render_machine_parameter_groups(selected_row, language):
                             unsafe_allow_html=True,
                         )
                 # leave remaining columns empty if row_pairs shorter
+
+
+def render_preset_summary_strip(product_name, selected_row, language):
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return value
+        return default
+
+    tipo = gv("Tipo tubo")
+    lunghezza = gv("Lunghezza (m)")
+    aspo = gv("Diametro aspo (mm)")
+    spalla = gv("Spalla (mm)")
+
+    if str(tipo).strip().lower() == "doppio":
+        rame_inf = gv("Diametro rame inferiore", "Diametro Rame inferiore")
+        rame_sup = gv("Diametro rame superiore", "Diametro Rame superiore")
+        sp_inf = parse_float_value(gv("Spessore guaina inferiore", "Spessore Guaina inferiore (mm)", default=0), 0)
+        sp_sup = parse_float_value(gv("Spessore guaina superiore", "Spessore Guaina superiore (mm)", default=0), 0)
+        d_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0)) + 2.0 * sp_inf
+        d_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0)) + 2.0 * sp_sup
+        tubo_txt = f"{rame_sup}/{rame_inf} · {d_sup:.1f}/{d_inf:.1f} mm"
+    else:
+        rame = gv("Diametro Rame")
+        esterno = gv("Diametro esterno Guaina (mm)")
+        tubo_txt = f"{rame} · Ø {esterno} mm" if esterno != "-" else str(rame)
+
+    if language == "IT":
+        title = "Preset attivo"
+        fields = [
+            ("Prodotto", product_name),
+            ("Tubo", f"{tipo} · {tubo_txt}"),
+            ("Lunghezza", f"{lunghezza} m" if lunghezza != "-" else "-"),
+            ("Aspo", f"Ø {aspo} mm" if aspo != "-" else "-"),
+            ("Spalla", f"{spalla} mm" if spalla != "-" else "-"),
+        ]
+    else:
+        title = "Active preset"
+        fields = [
+            ("Product", product_name),
+            ("Tube", f"{tipo} · {tubo_txt}"),
+            ("Length", f"{lunghezza} m" if lunghezza != "-" else "-"),
+            ("Spool", f"Ø {aspo} mm" if aspo != "-" else "-"),
+            ("Width", f"{spalla} mm" if spalla != "-" else "-"),
+        ]
+
+    items_html = "".join(
+        f"""
+        <div class="summary-strip-item">
+            <div class="summary-strip-label">{html.escape(str(label))}</div>
+            <div class="summary-strip-value">{html.escape(str(value))}</div>
+        </div>
+        """
+        for label, value in fields
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .summary-strip {{
+            margin:8px 0 16px 0;
+            border-radius:20px;
+            overflow:hidden;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 10px 24px rgba(0,0,0,0.09);
+        }}
+        .summary-strip-head {{
+            padding:12px 16px;
+            background:linear-gradient(90deg, rgba(255,75,75,0.20), transparent);
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            font-size:13px;
+            font-weight:950;
+            letter-spacing:0.07em;
+            text-transform:uppercase;
+        }}
+        .summary-strip-grid {{
+            display:grid;
+            grid-template-columns:1.3fr 1.4fr 0.8fr 0.8fr 0.8fr;
+            gap:10px;
+            padding:14px 16px;
+        }}
+        .summary-strip-item {{
+            min-width:0;
+        }}
+        .summary-strip-label {{
+            font-size:11px;
+            line-height:1.1;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            margin-bottom:6px;
+        }}
+        .summary-strip-value {{
+            font-size:17px;
+            line-height:1.14;
+            font-weight:950;
+            color:var(--text-color);
+            word-break:break-word;
+        }}
+        @media (max-width:950px) {{
+            .summary-strip-grid {{
+                grid-template-columns:1fr 1fr;
+            }}
+        }}
+        </style>
+        <div class="summary-strip">
+            <div class="summary-strip-head">{html.escape(title)}</div>
+            <div class="summary-strip-grid">{items_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_status_semaphore(items, language):
+    title = "Stato rapido" if language == "IT" else "Quick status"
+
+    cards_html = ""
+    for item in items:
+        label = item.get("label", "")
+        value = item.get("value", "")
+        note = item.get("note", "")
+        tone = item.get("tone", "neutral")
+        cards_html += f"""
+        <div class="semaphore-card {html.escape(tone)}">
+            <div class="semaphore-dot"></div>
+            <div>
+                <div class="semaphore-label">{html.escape(str(label))}</div>
+                <div class="semaphore-value">{html.escape(str(value))}</div>
+                <div class="semaphore-note">{html.escape(str(note))}</div>
+            </div>
+        </div>
+        """
+
+    st.markdown(
+        f"""
+        <style>
+        .semaphore-title {{
+            margin:4px 0 10px 0;
+            font-size:15px;
+            font-weight:950;
+            letter-spacing:0.05em;
+            text-transform:uppercase;
+        }}
+        .semaphore-grid {{
+            display:grid;
+            grid-template-columns:repeat(3, minmax(0, 1fr));
+            gap:12px;
+            margin:6px 0 16px 0;
+        }}
+        .semaphore-card {{
+            display:grid;
+            grid-template-columns:18px 1fr;
+            gap:11px;
+            align-items:start;
+            min-height:88px;
+            padding:15px 16px;
+            border-radius:18px;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 8px 20px rgba(0,0,0,0.08);
+        }}
+        .semaphore-dot {{
+            width:15px;
+            height:15px;
+            border-radius:999px;
+            margin-top:3px;
+            background:#94a3b8;
+            box-shadow:0 0 0 4px rgba(148,163,184,0.15);
+        }}
+        .semaphore-card.ok .semaphore-dot {{
+            background:#22c55e;
+            box-shadow:0 0 0 4px rgba(34,197,94,0.16);
+        }}
+        .semaphore-card.warn .semaphore-dot {{
+            background:#f59e0b;
+            box-shadow:0 0 0 4px rgba(245,158,11,0.16);
+        }}
+        .semaphore-card.bad .semaphore-dot {{
+            background:#ef4444;
+            box-shadow:0 0 0 4px rgba(239,68,68,0.16);
+        }}
+        .semaphore-label {{
+            font-size:12px;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            margin-bottom:6px;
+        }}
+        .semaphore-value {{
+            font-size:20px;
+            line-height:1.08;
+            font-weight:950;
+        }}
+        .semaphore-note {{
+            margin-top:6px;
+            font-size:12px;
+            line-height:1.25;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+        }}
+        @media (max-width:900px) {{
+            .semaphore-grid {{
+                grid-template-columns:1fr;
+            }}
+        }}
+        </style>
+        <div class="semaphore-title">{html.escape(title)}</div>
+        <div class="semaphore-grid">{cards_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_startup_checklist(language):
+    if language == "IT":
+        title = "Checklist di avviamento"
+        subtitle = "Controlli rapidi prima di impostare o avviare la macchina."
+        items = [
+            "Preset prodotto verificato",
+            "Tubo e guaina corretti",
+            "Guidatubo montato",
+            "Rulli / boccole impostati",
+            "Quote macchina verificate",
+            "Velocità e coppie impostate",
+        ]
+    else:
+        title = "Startup checklist"
+        subtitle = "Quick checks before setting or starting the machine."
+        items = [
+            "Product preset checked",
+            "Tube and foam checked",
+            "Tube guide mounted",
+            "Rollers / bushings set",
+            "Machine quotas checked",
+            "Speed and torque set",
+        ]
+
+    st.markdown(
+        f"""
+        <style>
+        .startup-box {{
+            margin:8px 0 16px 0;
+            border-radius:20px;
+            padding:16px 18px;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 8px 20px rgba(0,0,0,0.08);
+        }}
+        .startup-title {{
+            font-size:15px;
+            font-weight:950;
+            letter-spacing:0.06em;
+            text-transform:uppercase;
+            margin-bottom:4px;
+        }}
+        .startup-subtitle {{
+            font-size:12px;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            margin-bottom:12px;
+        }}
+        </style>
+        <div class="startup-box">
+            <div class="startup-title">{html.escape(title)}</div>
+            <div class="startup-subtitle">{html.escape(subtitle)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    cols = st.columns(3, gap="small")
+    for idx, item in enumerate(items):
+        with cols[idx % 3]:
+            st.checkbox(item, key=f"startup_check_{idx}")
+
 # =========================
 # UI
 # =========================
@@ -5050,6 +5340,8 @@ with tab_production:
     with top_right:
         st.markdown("&nbsp;", unsafe_allow_html=True)
         render_active_preset_card(selected_product, lang)
+
+    render_preset_summary_strip(selected_product, selected_row, lang)
 
     render_section_header(
         "Parametri principali" if lang == "IT" else "Main parameters",
@@ -5175,6 +5467,61 @@ with tab_production:
     )
 
     visual_metrics = compute_metrics(local_points, d_tubo_footprint)
+
+    coil_footprint_for_status = float(visual_metrics["max_xy_span"])
+    winding_ok = bool(local_points is not None and len(local_points) > 1 and visual_metrics["wound_length_m"] > 0)
+    packaging_basic_ok = coil_footprint_for_status <= 750.0
+    machine_complete = all([
+        st.session_state.get("calc_diametro_aspo", 0) not in [None, 0],
+        st.session_state.get("calc_spalla", 0) not in [None, 0],
+        st.session_state.get("calc_lunghezza", 0) not in [None, 0],
+        st.session_state.get("calc_passo_visuale", 0) not in [None, 0],
+    ])
+
+    if lang == "IT":
+        status_items = [
+            {
+                "label": "Avvolgimento",
+                "value": "OK" if winding_ok else "Da verificare",
+                "note": f"Lunghezza simulata {visual_metrics['wound_length_m']:.2f} m",
+                "tone": "ok" if winding_ok else "warn",
+            },
+            {
+                "label": "Packaging",
+                "value": "OK pallet" if packaging_basic_ok else "Fuori sagoma",
+                "note": f"Ingombro XY {coil_footprint_for_status:.1f} mm / limite 750 mm",
+                "tone": "ok" if packaging_basic_ok else "bad",
+            },
+            {
+                "label": "Dati macchina",
+                "value": "Completi" if machine_complete else "Da completare",
+                "note": "Preset caricato e parametri principali presenti",
+                "tone": "ok" if machine_complete else "warn",
+            },
+        ]
+    else:
+        status_items = [
+            {
+                "label": "Winding",
+                "value": "OK" if winding_ok else "Check",
+                "note": f"Simulated length {visual_metrics['wound_length_m']:.2f} m",
+                "tone": "ok" if winding_ok else "warn",
+            },
+            {
+                "label": "Packaging",
+                "value": "Pallet OK" if packaging_basic_ok else "Over footprint",
+                "note": f"XY footprint {coil_footprint_for_status:.1f} mm / limit 750 mm",
+                "tone": "ok" if packaging_basic_ok else "bad",
+            },
+            {
+                "label": "Machine data",
+                "value": "Complete" if machine_complete else "Incomplete",
+                "note": "Preset loaded and main parameters present",
+                "tone": "ok" if machine_complete else "warn",
+            },
+        ]
+
+    render_status_semaphore(status_items, lang)
 
     st.divider()
 
@@ -5367,6 +5714,8 @@ with tab_tech_sheet:
         components.html(make_preset_visual(selected_row, lang), height=470, scrolling=False)
 
     with machine_sheet_tab:
+        render_startup_checklist(lang)
+
         render_section_header(
             "Scheda parametri macchina" if lang == "IT" else "Machine parameter sheet",
             "Vista unica ordinata per introdurre tutti i valori in macchina senza separarli tra render e consultivi." if lang == "IT" else "A single grouped view for entering all values into the machine.",
