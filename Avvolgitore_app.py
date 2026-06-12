@@ -1028,9 +1028,9 @@ def make_preset_visual(row, language):
         tube_section_html = f"""
             <div class="drawing">
                 <svg viewBox="0 0 340 260" role="img" aria-label="Double tube section preview">
-                    <line x1="36" y1="70" x2="188" y2="70" class="d-center"/>
-                    <line x1="36" y1="{cy_inf:.1f}" x2="188" y2="{cy_inf:.1f}" class="d-center"/>
-                    <line x1="{cx_pair:.1f}" y1="18" x2="{cx_pair:.1f}" y2="205" class="d-center"/>
+                    <line x1="32" y1="{cy_sup:.1f}" x2="200" y2="{cy_sup:.1f}" class="d-center"/>
+                    <line x1="32" y1="{cy_inf:.1f}" x2="200" y2="{cy_inf:.1f}" class="d-center"/>
+                    <line x1="{cx_pair:.1f}" y1="20" x2="{cx_pair:.1f}" y2="206" class="d-center"/>
 
                     <circle cx="{cx_pair}" cy="{cy_inf}" r="{r_inf_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
                     <circle cx="{cx_pair}" cy="{cy_inf}" r="{max(16, r_inf_svg * 0.36):.1f}" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.4"/>
@@ -1040,27 +1040,20 @@ def make_preset_visual(row, language):
                     <circle cx="{cx_pair}" cy="{cy_sup}" r="{max(13, r_sup_svg * 0.36):.1f}" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.4"/>
                     <circle cx="{cx_pair}" cy="{cy_sup}" r="{max(8, r_sup_svg * 0.24):.1f}" fill="var(--copper-light)" opacity="0.95"/>
 
-                    <line x1="196" y1="{cy_sup-r_sup_svg:.1f}" x2="196" y2="{cy_inf+r_inf_svg:.1f}" class="d-line"/>
-                    <line x1="{cx_pair+r_sup_svg:.1f}" y1="{cy_sup-r_sup_svg:.1f}" x2="196" y2="{cy_sup-r_sup_svg:.1f}" class="d-guide"/>
-                    <line x1="{cx_pair+r_inf_svg:.1f}" y1="{cy_inf+r_inf_svg:.1f}" x2="196" y2="{cy_inf+r_inf_svg:.1f}" class="d-guide"/>
-                    <polygon points="192,{cy_sup-r_sup_svg+7:.1f} 196,{cy_sup-r_sup_svg:.1f} 200,{cy_sup-r_sup_svg+7:.1f}" fill="var(--white-line)"/>
-                    <polygon points="192,{cy_inf+r_inf_svg-7:.1f} 196,{cy_inf+r_inf_svg:.1f} 200,{cy_inf+r_inf_svg-7:.1f}" fill="var(--white-line)"/>
+                    <line x1="197" y1="{cy_sup-r_sup_svg:.1f}" x2="197" y2="{cy_inf+r_inf_svg:.1f}" class="d-line"/>
+                    <line x1="{cx_pair+r_sup_svg:.1f}" y1="{cy_sup-r_sup_svg:.1f}" x2="197" y2="{cy_sup-r_sup_svg:.1f}" class="d-guide"/>
+                    <line x1="{cx_pair+r_inf_svg:.1f}" y1="{cy_inf+r_inf_svg:.1f}" x2="197" y2="{cy_inf+r_inf_svg:.1f}" class="d-guide"/>
+                    <text x="207" y="{(cy_sup + cy_inf) / 2:.1f}" transform="rotate(90 207 {(cy_sup + cy_inf) / 2:.1f})" text-anchor="middle" class="d-value">{format_preset_value(d_coppia)} mm</text>
 
-                    <line x1="56" y1="220" x2="184" y2="220" class="d-line"/>
-                    <line x1="56" y1="208" x2="56" y2="232" class="d-line"/>
-                    <line x1="184" y1="208" x2="184" y2="232" class="d-line"/>
-                    <text x="120" y="214" text-anchor="middle" class="d-value">{format_preset_value(d_coppia)} mm</text>
-                    <text x="120" y="236" text-anchor="middle" class="d-label">H coppia</text>
+                    <rect x="222" y="42" width="102" height="44" class="callout-box"/>
+                    <text x="273" y="60" text-anchor="middle" class="d-label">{html.escape(extra_labels['upper'])}</text>
+                    <text x="273" y="79" text-anchor="middle" class="d-value">{html.escape(str(rame_sup))} · {format_preset_value(d_sup)} mm</text>
 
-                    <rect x="218" y="34" width="104" height="50" class="callout-box"/>
-                    <text x="270" y="54" text-anchor="middle" class="d-label">{html.escape(extra_labels['upper'])}</text>
-                    <text x="270" y="75" text-anchor="middle" class="d-value">{html.escape(str(rame_sup))} · {format_preset_value(d_sup)} mm</text>
+                    <rect x="222" y="144" width="102" height="44" class="callout-box"/>
+                    <text x="273" y="162" text-anchor="middle" class="d-label">{html.escape(extra_labels['lower'])}</text>
+                    <text x="273" y="181" text-anchor="middle" class="d-value">{html.escape(str(rame_inf))} · {format_preset_value(d_inf)} mm</text>
 
-                    <rect x="218" y="140" width="104" height="50" class="callout-box"/>
-                    <text x="270" y="160" text-anchor="middle" class="d-label">{html.escape(extra_labels['lower'])}</text>
-                    <text x="270" y="181" text-anchor="middle" class="d-value">{html.escape(str(rame_inf))} · {format_preset_value(d_inf)} mm</text>
-
-                    <text x="122" y="252" text-anchor="middle" class="d-caption">{html.escape(extra_labels['double_note'])}</text>
+                    <text x="122" y="248" text-anchor="middle" class="d-caption">{html.escape(extra_labels['double_note'])}</text>
                 </svg>
             </div>
         """
@@ -1083,37 +1076,35 @@ def make_preset_visual(row, language):
         tube_section_html = f"""
             <div class="drawing">
                 <svg viewBox="0 0 340 248" role="img" aria-label="Tube section preview">
-                    <line x1="30" y1="106" x2="200" y2="106" class="d-center"/>
-                    <line x1="115" y1="20" x2="115" y2="192" class="d-center"/>
+                    <line x1="28" y1="110" x2="210" y2="110" class="d-center"/>
+                    <line x1="119" y1="20" x2="119" y2="200" class="d-center"/>
 
-                    <circle cx="115" cy="106" r="80" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
-                    <circle cx="115" cy="106" r="34" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.6"/>
-                    <circle cx="115" cy="106" r="25" fill="var(--copper-light)" opacity="0.95"/>
+                    <circle cx="119" cy="110" r="78" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
+                    <circle cx="119" cy="110" r="33" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.4"/>
+                    <circle cx="119" cy="110" r="24" fill="var(--copper-light)" opacity="0.95"/>
 
-                    <line x1="35" y1="212" x2="195" y2="212" class="d-line"/>
-                    <line x1="35" y1="198" x2="35" y2="226" class="d-line"/>
-                    <line x1="195" y1="198" x2="195" y2="226" class="d-line"/>
-                    <text x="115" y="206" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
-                    <text x="115" y="230" text-anchor="middle" class="d-label">{html.escape(labels['outer'])}</text>
+                    <line x1="41" y1="214" x2="197" y2="214" class="d-line"/>
+                    <line x1="41" y1="199" x2="41" y2="229" class="d-line"/>
+                    <line x1="197" y1="199" x2="197" y2="229" class="d-line"/>
+                    <text x="119" y="207" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
+                    <text x="119" y="232" text-anchor="middle" class="d-label">Ø esterno</text>
 
-                    <line x1="144" y1="64" x2="218" y2="48" class="d-guide"/>
-                    <line x1="115" y1="106" x2="145" y2="106" class="d-guide"/>
-                    <line x1="145" y1="106" x2="145" y2="64" class="d-guide"/>
-                    <line x1="149" y1="106" x2="191" y2="106" class="d-line"/>
-                    <polygon points="149,106 157,102 157,110" fill="var(--white-line)"/>
-                    <polygon points="191,106 183,102 183,110" fill="var(--white-line)"/>
+                    <line x1="152" y1="110" x2="197" y2="110" class="d-thin"/>
+                    <polygon points="152,110 160,106 160,114" fill="var(--white-line)"/>
+                    <polygon points="197,110 189,106 189,114" fill="var(--white-line)"/>
+                    <text x="174" y="102" text-anchor="middle" class="d-label">{v(spessore)} mm</text>
 
-                    <rect x="208" y="34" width="108" height="48" class="callout-box"/>
-                    <text x="262" y="54" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
-                    <text x="262" y="74" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
+                    <rect x="218" y="44" width="104" height="42" class="callout-box"/>
+                    <text x="270" y="62" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
+                    <text x="270" y="80" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
 
-                    <rect x="208" y="96" width="108" height="48" class="callout-box"/>
-                    <text x="262" y="116" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
-                    <text x="262" y="136" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
+                    <rect x="218" y="103" width="104" height="42" class="callout-box"/>
+                    <text x="270" y="121" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
+                    <text x="270" y="139" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
 
-                    <rect x="208" y="158" width="108" height="40" class="callout-box"/>
-                    <text x="262" y="176" text-anchor="middle" class="d-label">{html.escape(labels['copper'])}</text>
-                    <text x="262" y="193" text-anchor="middle" class="d-value">{copper_label}</text>
+                    <rect x="218" y="162" width="104" height="42" class="callout-box"/>
+                    <text x="270" y="180" text-anchor="middle" class="d-label">{html.escape(labels['copper'])}</text>
+                    <text x="270" y="198" text-anchor="middle" class="d-value">{copper_label}</text>
                 </svg>
             </div>
         """
@@ -1166,14 +1157,14 @@ def make_preset_visual(row, language):
                     <line x1="106" y1="44" x2="294" y2="44" class="d-line"/>
                     <line x1="106" y1="32" x2="106" y2="56" class="d-line"/>
                     <line x1="294" y1="32" x2="294" y2="56" class="d-line"/>
-                    <text x="200" y="38" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
-                    <text x="200" y="58" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
+                    <text x="200" y="38" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
+                    <text x="200" y="58" text-anchor="middle" class="d-label">{html.escape(labels['spool'])}</text>
 
                     <line x1="52" y1="82" x2="52" y2="146" class="d-line"/>
                     <line x1="40" y1="82" x2="64" y2="82" class="d-line"/>
                     <line x1="40" y1="146" x2="64" y2="146" class="d-line"/>
-                    <text x="69" y="116" transform="rotate(90 69 116)" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
-                    <text x="52" y="116" transform="rotate(90 52 116)" text-anchor="middle" class="d-label">{html.escape(labels['spool'])}</text>
+                    <text x="69" y="116" transform="rotate(90 69 116)" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
+                    <text x="52" y="116" transform="rotate(90 52 116)" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
 
                     <line x1="324" y1="82" x2="354" y2="82" class="d-guide"/>
                     <line x1="324" y1="94" x2="354" y2="94" class="d-guide"/>
