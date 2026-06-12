@@ -1193,7 +1193,10 @@ def make_preset_visual(row, language):
         align-items:start;
     }}
     .drawing {{
-        background:var(--drawing-bg);
+        background:
+            repeating-linear-gradient(0deg, rgba(148,163,184,0.08) 0 1px, transparent 1px 28px),
+            repeating-linear-gradient(90deg, rgba(148,163,184,0.08) 0 1px, transparent 1px 28px),
+            var(--drawing-bg);
         border:1px solid var(--line);
         border-radius:18px;
         padding:12px;
@@ -1213,11 +1216,11 @@ def make_preset_visual(row, language):
     .metric:last-child {{ border-bottom:none; }}
     .label {{ font-size:12px; color:var(--muted); font-weight:700; }}
     .value {{ font-size:18px; color:var(--text); font-weight:900; text-align:right; white-space:nowrap; }}
-    .callout-box {{ fill:var(--card-bg); stroke:var(--line); stroke-width:1.2; rx:10; }}
-    .d-label {{ fill:var(--muted); font-size:11px; font-weight:700; }}
-    .d-value {{ fill:var(--text); font-size:15px; font-weight:800; }}
-    .d-line {{ stroke:var(--white-line); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }}
-    .d-guide {{ stroke:var(--white-line); stroke-width:2; stroke-linecap:round; stroke-dasharray:6 6; }}
+    .callout-box {{ fill:var(--card-bg); stroke:rgba(255,75,75,0.28); stroke-width:1.25; rx:10; }}
+    .d-label {{ fill:var(--muted); font-size:11px; font-weight:800; letter-spacing:0.02em; }}
+    .d-value {{ fill:var(--text); font-size:15px; font-weight:900; }}
+    .d-line {{ stroke:var(--white-line); stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round; }}
+    .d-guide {{ stroke:var(--white-line); stroke-width:2.1; stroke-linecap:round; stroke-dasharray:6 6; }}
     @media (max-width: 920px) {{
         .preset-preview {{ grid-template-columns:1fr; }}
         .layout {{ grid-template-columns:1fr; }}
@@ -4728,6 +4731,7 @@ def render_tech_snapshot_cards(selected_row, language):
 
 
 
+
 def render_machine_parameter_groups(selected_row, language):
     group_defs = [
         (
@@ -4757,9 +4761,6 @@ def render_machine_parameter_groups(selected_row, language):
         ),
     ]
 
-    used = set()
-    groups_html = ""
-
     def visible_value(col):
         if col not in selected_row.index:
             return None
@@ -4771,164 +4772,130 @@ def render_machine_parameter_groups(selected_row, language):
             return None
         return formatted
 
+    groups = []
+    used = set()
+
     for group_title, cols in group_defs:
-        rows_html = ""
-        count = 0
+        pairs = []
         for col in cols:
             value = visible_value(col)
             if value is None:
                 continue
             used.add(col)
-            count += 1
-            rows_html += f"""
-            <div class="machine-row">
-                <div class="machine-label">{html.escape(str(param_label(col, language)))}</div>
-                <div class="machine-value">{html.escape(str(value))}</div>
-            </div>
-            """
-        if count == 0:
-            continue
+            pairs.append((param_label(col, language), value))
+        if pairs:
+            groups.append((group_title, pairs))
 
-        groups_html += f"""
-        <div class="machine-group">
-            <div class="machine-group-head">
-                <div class="machine-group-title">{html.escape(group_title)}</div>
-                <div class="machine-count">{count}</div>
-            </div>
-            <div class="machine-rows">{rows_html}</div>
-        </div>
-        """
-
-    extra_rows = ""
-    extra_count = 0
+    extra_pairs = []
     for col in selected_row.index:
-        if col in used or str(col).startswith("Unnamed") or col == "Note" or col == "Prodotto":
+        if col in used or str(col).startswith("Unnamed") or col in {"Note", "Prodotto"}:
             continue
         value = visible_value(col)
         if value is None:
             continue
-        extra_count += 1
-        extra_rows += f"""
-        <div class="machine-row">
-            <div class="machine-label">{html.escape(str(param_label(col, language)))}</div>
-            <div class="machine-value">{html.escape(str(value))}</div>
-        </div>
-        """
+        extra_pairs.append((param_label(col, language), value))
 
-    if extra_count:
-        groups_html += f"""
-        <div class="machine-group">
-            <div class="machine-group-head">
-                <div class="machine-group-title">{html.escape("Altri parametri" if language == "IT" else "Other parameters")}</div>
-                <div class="machine-count">{extra_count}</div>
-            </div>
-            <div class="machine-rows">{extra_rows}</div>
-        </div>
-        """
+    if extra_pairs:
+        groups.append(("Altri parametri" if language == "IT" else "Other parameters", extra_pairs))
 
-    if not groups_html:
+    if not groups:
         st.caption("Nessun parametro disponibile." if language == "IT" else "No parameters available.")
         return
 
     st.markdown(
-        f"""
+        """
         <style>
-        .machine-sheet {{
-            display:grid;
-            grid-template-columns:repeat(2, minmax(0, 1fr));
-            gap:16px;
-            margin-top:8px;
-        }}
-        .machine-group {{
-            overflow:hidden;
-            border-radius:20px;
-            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
-            background:linear-gradient(180deg,
-                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
-                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-            );
-            box-shadow:0 10px 24px rgba(0,0,0,0.09);
-        }}
-        .machine-group-head {{
+        .machine-group-head-native{
             display:flex;
             align-items:center;
             justify-content:space-between;
-            gap:12px;
-            padding:15px 18px;
-            border-bottom:1px solid color-mix(in srgb, var(--text-color) 13%, transparent);
-            background:linear-gradient(90deg, rgba(255,75,75,0.14), transparent);
-        }}
-        .machine-group-title {{
+            gap:10px;
+            margin:4px 0 10px 0;
+            padding:12px 14px;
+            border-radius:16px 16px 0 0;
+            background:linear-gradient(90deg, rgba(255,75,75,0.18), transparent);
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            border-bottom:none;
+        }
+        .machine-group-title-native{
             font-size:15px;
-            text-transform:uppercase;
-            letter-spacing:0.065em;
             font-weight:950;
+            letter-spacing:0.06em;
+            text-transform:uppercase;
             color:var(--text-color);
-        }}
-        .machine-count {{
+        }
+        .machine-group-count-native{
+            min-width:30px;
+            height:30px;
+            padding:0 10px;
+            border-radius:999px;
+            background:#ff4b4b;
+            color:#fff;
             display:flex;
             align-items:center;
             justify-content:center;
-            min-width:30px;
-            height:30px;
-            padding:0 8px;
-            border-radius:999px;
-            background:#ff4b4b;
-            color:white;
-            font-weight:950;
             font-size:13px;
-        }}
-        .machine-rows {{
-            padding:6px 14px 12px 14px;
-        }}
-        .machine-row {{
-            display:grid;
-            grid-template-columns:minmax(0, 1.35fr) minmax(88px, 0.65fr);
-            gap:14px;
-            align-items:center;
-            padding:11px 4px;
-            border-bottom:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-        }}
-        .machine-row:last-child {{
-            border-bottom:none;
-        }}
-        .machine-label {{
+            font-weight:950;
+        }
+        .machine-label-native{
             font-size:13px;
             line-height:1.25;
-            font-weight:720;
+            font-weight:700;
             color:color-mix(in srgb, var(--text-color) 68%, transparent);
-        }}
-        .machine-value {{
-            justify-self:end;
-            max-width:100%;
-            padding:6px 10px;
-            border-radius:999px;
-            background:color-mix(in srgb, var(--text-color) 7%, transparent);
-            color:var(--text-color);
+            padding:3px 0;
+        }
+        .machine-value-native{
+            display:inline-block;
+            width:100%;
+            text-align:right;
             font-size:14px;
             line-height:1.15;
             font-weight:900;
-            text-align:right;
-            word-break:break-word;
-        }}
-        @media (max-width: 900px) {{
-            .machine-sheet {{
-                grid-template-columns:1fr;
-            }}
-            .machine-row {{
-                grid-template-columns:1fr;
-                gap:6px;
-            }}
-            .machine-value {{
-                justify-self:start;
+            color:var(--text-color);
+            background:color-mix(in srgb, var(--text-color) 7%, transparent);
+            border-radius:999px;
+            padding:7px 10px;
+            box-sizing:border-box;
+        }
+        @media (max-width:900px){
+            .machine-value-native{
                 text-align:left;
-            }}
-        }}
+            }
+        }
         </style>
-        <div class="machine-sheet">{groups_html}</div>
         """,
         unsafe_allow_html=True,
     )
+
+    for i in range(0, len(groups), 2):
+        cols_ui = st.columns(2, gap="large")
+        for ui_col, group_data in zip(cols_ui, groups[i:i+2]):
+            title, pairs = group_data
+            with ui_col:
+                st.markdown(
+                    f"""
+                    <div class="machine-group-head-native">
+                        <div class="machine-group-title-native">{html.escape(str(title))}</div>
+                        <div class="machine-group-count-native">{len(pairs)}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                with st.container(border=True):
+                    for idx, (label, value) in enumerate(pairs):
+                        left, right = st.columns([1.45, 0.80], gap="small")
+                        with left:
+                            st.markdown(
+                                f'<div class="machine-label-native">{html.escape(str(label))}</div>',
+                                unsafe_allow_html=True,
+                            )
+                        with right:
+                            st.markdown(
+                                f'<div class="machine-value-native">{html.escape(str(value))}</div>',
+                                unsafe_allow_html=True,
+                            )
+                        if idx != len(pairs) - 1:
+                            st.divider()
 
 # =========================
 # UI
@@ -5310,7 +5277,7 @@ with tab_tech_sheet:
             "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
             "A",
         )
-        components.html(make_preset_visual(selected_row, lang), height=450, scrolling=False)
+        components.html(make_preset_visual(selected_row, lang), height=470, scrolling=False)
 
     with machine_sheet_tab:
         render_section_header(
