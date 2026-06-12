@@ -4733,6 +4733,7 @@ def render_tech_snapshot_cards(selected_row, language):
 
 
 
+
 def render_machine_parameter_groups(selected_row, language):
     group_defs = [
         (
@@ -4762,6 +4763,15 @@ def render_machine_parameter_groups(selected_row, language):
         ),
     ]
 
+    search_label = "Cerca parametro" if language == "IT" else "Search parameter"
+    search_placeholder = "Es. passo, quota, soffiatori, boccola..." if language == "IT" else "E.g. pitch, quota, blowers, bushing..."
+    query = st.text_input(
+        search_label,
+        value="",
+        placeholder=search_placeholder,
+        key="machine_param_search",
+    ).strip().lower()
+
     def visible_value(col):
         if col not in selected_row.index:
             return None
@@ -4773,6 +4783,12 @@ def render_machine_parameter_groups(selected_row, language):
             return None
         return formatted
 
+    def matches_query(label, value):
+        if not query:
+            return True
+        haystack = f"{label} {value}".lower()
+        return query in haystack
+
     groups = []
     used = set()
 
@@ -4782,8 +4798,10 @@ def render_machine_parameter_groups(selected_row, language):
             value = visible_value(col)
             if value is None:
                 continue
+            label = param_label(col, language)
             used.add(col)
-            pairs.append((param_label(col, language), value))
+            if matches_query(label, value):
+                pairs.append((label, value))
         if pairs:
             groups.append((group_title, pairs))
 
@@ -4794,147 +4812,148 @@ def render_machine_parameter_groups(selected_row, language):
         value = visible_value(col)
         if value is None:
             continue
-        extra_pairs.append((param_label(col, language), value))
+        label = param_label(col, language)
+        if matches_query(label, value):
+            extra_pairs.append((label, value))
 
     if extra_pairs:
         groups.append(("Altri parametri" if language == "IT" else "Other parameters", extra_pairs))
 
     if not groups:
-        st.caption("Nessun parametro disponibile." if language == "IT" else "No parameters available.")
+        st.info("Nessun parametro trovato." if language == "IT" else "No parameter found.")
         return
 
     def group_html(title, pairs):
-        row_html = "".join(
-            '<div class="machine-compact-row">'
-            f'<div class="machine-compact-label">{html.escape(str(label))}</div>'
-            f'<div class="machine-compact-value">{html.escape(str(value))}</div>'
-            '</div>'
+        items_html = "".join(
+            f"""
+            <div class="machine-param-item">
+                <div class="machine-param-label">{html.escape(str(label))}</div>
+                <div class="machine-param-value">{html.escape(str(value))}</div>
+            </div>
+            """
             for label, value in pairs
         )
-        return (
-            '<section class="machine-compact-group">'
-            '<header class="machine-compact-head">'
-            f'<span class="machine-compact-title">{html.escape(str(title))}</span>'
-            f'<span class="machine-compact-count">{len(pairs)}</span>'
-            '</header>'
-            f'<div class="machine-compact-rows">{row_html}</div>'
-            '</section>'
-        )
+        return f"""
+        <section class="machine-wide-group">
+            <div class="machine-wide-head">
+                <div class="machine-wide-title">{html.escape(str(title))}</div>
+                <div class="machine-wide-count">{len(pairs)}</div>
+            </div>
+            <div class="machine-param-grid">
+                {items_html}
+            </div>
+        </section>
+        """
 
     groups_html = "".join(group_html(title, pairs) for title, pairs in groups)
 
     st.markdown(
         f"""
 <style>
-.machine-compact-sheet {{
+.machine-wide-sheet {{
     display:grid;
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:14px;
-    margin-top:8px;
+    grid-template-columns:1fr;
+    gap:12px;
+    margin-top:12px;
 }}
-.machine-compact-group {{
+.machine-wide-group {{
     overflow:hidden;
     border-radius:18px;
     border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
     background:linear-gradient(180deg,
-        color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+        color-mix(in srgb, var(--secondary-background-color) 90%, var(--background-color)),
         color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
     );
     box-shadow:0 8px 20px rgba(0,0,0,0.08);
 }}
-.machine-compact-head {{
+.machine-wide-head {{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    gap:10px;
-    padding:11px 14px;
-    background:linear-gradient(90deg, rgba(255,75,75,0.17), transparent);
+    gap:12px;
+    padding:12px 16px;
+    background:linear-gradient(90deg, rgba(255,75,75,0.19), transparent);
     border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
 }}
-.machine-compact-title {{
-    font-size:13px;
+.machine-wide-title {{
+    font-size:14px;
     line-height:1.05;
     font-weight:950;
     letter-spacing:0.065em;
     text-transform:uppercase;
     color:var(--text-color);
 }}
-.machine-compact-count {{
+.machine-wide-count {{
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    min-width:26px;
-    height:26px;
-    padding:0 8px;
+    min-width:28px;
+    height:28px;
+    padding:0 9px;
     border-radius:999px;
     background:#ff4b4b;
     color:#fff;
     font-size:12px;
     font-weight:950;
 }}
-.machine-compact-rows {{
+.machine-param-grid {{
     display:grid;
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:0;
-    padding:6px 10px 10px 10px;
+    grid-template-columns:repeat(auto-fit, minmax(255px, 1fr));
+    gap:8px 14px;
+    padding:12px 16px 14px 16px;
 }}
-.machine-compact-row {{
-    min-height:34px;
+.machine-param-item {{
     display:grid;
     grid-template-columns:minmax(0, 1fr) auto;
     align-items:center;
-    column-gap:8px;
-    padding:7px 8px;
+    gap:10px;
+    min-height:38px;
+    padding:8px 0;
     border-bottom:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
 }}
-.machine-compact-row:nth-last-child(-n+2) {{
-    border-bottom:none;
-}}
-.machine-compact-label {{
+.machine-param-label {{
     min-width:0;
-    font-size:11.5px;
+    font-size:13px;
     line-height:1.18;
     font-weight:760;
-    color:color-mix(in srgb, var(--text-color) 70%, transparent);
+    color:color-mix(in srgb, var(--text-color) 74%, transparent);
     overflow:hidden;
     text-overflow:ellipsis;
+    white-space:nowrap;
 }}
-.machine-compact-value {{
+.machine-param-value {{
     justify-self:end;
-    max-width:96px;
-    padding:4px 8px;
+    max-width:150px;
+    padding:5px 10px;
     border-radius:999px;
     background:color-mix(in srgb, var(--text-color) 8%, transparent);
     color:var(--text-color);
-    font-size:12px;
-    line-height:1.1;
+    font-size:14px;
+    line-height:1.12;
     font-weight:950;
     text-align:right;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
 }}
-@media (max-width:1100px) {{
-    .machine-compact-sheet {{
-        grid-template-columns:1fr;
+@media (max-width:900px) {{
+    .machine-param-grid {{
+        grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+    }}
+    .machine-param-label {{
+        white-space:normal;
     }}
 }}
-@media (max-width:760px) {{
-    .machine-compact-rows {{
+@media (max-width:640px) {{
+    .machine-param-grid {{
         grid-template-columns:1fr;
     }}
-    .machine-compact-row:nth-last-child(-n+2) {{
-        border-bottom:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
-    }}
-    .machine-compact-row:last-child {{
-        border-bottom:none;
-    }}
-    .machine-compact-value {{
-        max-width:150px;
+    .machine-param-value {{
+        max-width:180px;
     }}
 }}
 </style>
-<div class="machine-compact-sheet">{groups_html}</div>
+<div class="machine-wide-sheet">{groups_html}</div>
 """,
         unsafe_allow_html=True,
     )
