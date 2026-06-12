@@ -2015,6 +2015,8 @@ def viewer(
             font-size:13px;
             user-select:none;
         ">
+            <button id="viewer_sidepanel_toggle" class="viewer_sidepanel_toggle" title="Nascondi opzioni">❮</button>
+            <div id="viewer_sidepanel_content">
             <div>
                 <div class="panel_label" id="animation_title"></div>
                 <label class="panel_check">
@@ -2104,6 +2106,7 @@ def viewer(
                     <span id="section_title"></span>
                 </label>
             </div>
+            </div>
         </div>
     </div>
 
@@ -2180,6 +2183,51 @@ def viewer(
             min-height:38px;
             width:100%;
             box-sizing:border-box;
+        }}
+
+        #viewer_sidepanel {{
+            transition: width 0.22s ease, padding 0.22s ease, opacity 0.22s ease;
+        }}
+
+        #viewer_sidepanel_content {{
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+        }}
+
+        .viewer_sidepanel_toggle {{
+            position:absolute;
+            top:10px;
+            left:-16px;
+            width:32px;
+            height:32px;
+            border:none;
+            border-radius:999px;
+            background:#ff4b4b;
+            color:#ffffff;
+            font-size:16px;
+            font-weight:900;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            box-shadow:0 8px 18px rgba(0,0,0,0.22);
+            z-index:30;
+        }}
+
+        #viewer_sidepanel.collapsed {{
+            width:34px !important;
+            min-width:34px !important;
+            padding:10px 6px !important;
+            overflow:hidden !important;
+        }}
+
+        #viewer_sidepanel.collapsed #viewer_sidepanel_content {{
+            display:none !important;
+        }}
+
+        #viewer_sidepanel.collapsed .viewer_sidepanel_toggle {{
+            left:-10px;
         }}
 
         .viewer_btn_small:hover,
@@ -2320,6 +2368,18 @@ def viewer(
                 gap:8px !important;
             }}
 
+            #viewer_sidepanel.collapsed {{
+                width:32px !important;
+                min-width:32px !important;
+                padding:8px 5px !important;
+            }}
+
+            .viewer_sidepanel_toggle {{
+                width:30px !important;
+                height:30px !important;
+                font-size:15px !important;
+            }}
+
             .viewer_btn_small {{
                 font-size:12px !important;
                 min-height:38px !important;
@@ -2385,6 +2445,9 @@ def viewer(
         const packRollCountInput = document.getElementById("pack_roll_count");
         const packagingStats = document.getElementById("packaging_stats");
         const viewerHud = document.getElementById("viewer_hud");
+        const sidepanel = document.getElementById("viewer_sidepanel");
+        const sidepanelContent = document.getElementById("viewer_sidepanel_content");
+        const sidepanelToggle = document.getElementById("viewer_sidepanel_toggle");
         const packagingStatusBadge = document.getElementById("packaging_status_badge");
         const packagingStatusText = document.getElementById("packaging_status_text");
         const packagingStatusReason = document.getElementById("packaging_status_reason");
@@ -2422,6 +2485,20 @@ def viewer(
         document.getElementById("view_side_btn").textContent = T.view_side;
         resetViewBtn.title = T.reset_view;
         fullscreenBtn.title = T.fullscreen;
+
+        function updateSidepanelToggle() {{
+            const collapsed = sidepanel.classList.contains("collapsed");
+            sidepanelToggle.textContent = collapsed ? "❯" : "❮";
+            sidepanelToggle.title = collapsed ? "Mostra opzioni" : "Nascondi opzioni";
+        }}
+
+        sidepanelToggle.addEventListener("click", () => {{
+            sidepanel.classList.toggle("collapsed");
+            updateSidepanelToggle();
+            setTimeout(resizeViewer, 120);
+        }});
+
+        updateSidepanelToggle();
 
         document.getElementById("hud_length_label").textContent = T.hud_length;
         document.getElementById("hud_layer_label").textContent = T.hud_layer;
