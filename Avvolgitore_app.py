@@ -4736,6 +4736,7 @@ def render_tech_snapshot_cards(selected_row, language):
 
 
 
+
 def render_machine_parameter_groups(selected_row, language):
     group_defs = [
         (
@@ -4826,143 +4827,43 @@ def render_machine_parameter_groups(selected_row, language):
         return
 
     def group_html(title, pairs):
-        items_html = "".join(
-            f"""
-            <div class="machine-card-item">
-                <div class="machine-card-label">{html.escape(str(label))}</div>
-                <div class="machine-card-value">{html.escape(str(value))}</div>
-            </div>
-            """
-            for label, value in pairs
+        items = []
+        for label, value in pairs:
+            items.append(
+                '<div class="machine-card-item">'
+                f'<div class="machine-card-label">{html.escape(str(label))}</div>'
+                f'<div class="machine-card-value">{html.escape(str(value))}</div>'
+                '</div>'
+            )
+        return (
+            '<section class="machine-block">'
+            '<div class="machine-block-head">'
+            f'<div class="machine-block-title">{html.escape(str(title))}</div>'
+            f'<div class="machine-block-count">{len(pairs)}</div>'
+            '</div>'
+            f'<div class="machine-card-grid">{"".join(items)}</div>'
+            '</section>'
         )
-        return f"""
-        <section class="machine-block">
-            <div class="machine-block-head">
-                <div class="machine-block-title">{html.escape(str(title))}</div>
-                <div class="machine-block-count">{len(pairs)}</div>
-            </div>
-            <div class="machine-card-grid">
-                {items_html}
-            </div>
-        </section>
-        """
 
     groups_html = "".join(group_html(title, pairs) for title, pairs in groups)
 
-    st.markdown(
-        f"""
+    css = """
 <style>
-.machine-sheet-blocks {{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:14px;
-    margin-top:12px;
-}}
-.machine-block {{
-    overflow:hidden;
-    border-radius:20px;
-    border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
-    background:linear-gradient(180deg,
-        color-mix(in srgb, var(--secondary-background-color) 90%, var(--background-color)),
-        color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-    );
-    box-shadow:0 10px 24px rgba(0,0,0,0.08);
-}}
-.machine-block-head {{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    padding:13px 16px;
-    background:linear-gradient(90deg, rgba(255,75,75,0.18), transparent);
-    border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
-}}
-.machine-block-title {{
-    font-size:14px;
-    line-height:1.05;
-    font-weight:950;
-    letter-spacing:0.07em;
-    text-transform:uppercase;
-    color:var(--text-color);
-}}
-.machine-block-count {{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    min-width:28px;
-    height:28px;
-    padding:0 9px;
-    border-radius:999px;
-    background:#ff4b4b;
-    color:#fff;
-    font-size:12px;
-    font-weight:950;
-}}
-.machine-card-grid {{
-    display:grid;
-    grid-template-columns:repeat(4, minmax(0, 1fr));
-    gap:10px;
-    padding:14px;
-}}
-.machine-card-item {{
-    min-height:88px;
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-    gap:10px;
-    padding:13px 14px;
-    border-radius:16px;
-    background:linear-gradient(180deg,
-        color-mix(in srgb, var(--text-color) 4%, transparent),
-        color-mix(in srgb, var(--text-color) 7%, transparent)
-    );
-    border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-}}
-.machine-card-label {{
-    font-size:12px;
-    line-height:1.18;
-    font-weight:760;
-    color:color-mix(in srgb, var(--text-color) 72%, transparent);
-    word-break:break-word;
-}}
-.machine-card-value {{
-    font-size:26px;
-    line-height:1.02;
-    font-weight:950;
-    color:var(--text-color);
-    letter-spacing:-0.01em;
-    word-break:break-word;
-}}
-@media (max-width:1400px) {{
-    .machine-card-grid {{
-        grid-template-columns:repeat(3, minmax(0, 1fr));
-    }}
-}}
-@media (max-width:1000px) {{
-    .machine-card-grid {{
-        grid-template-columns:repeat(2, minmax(0, 1fr));
-    }}
-    .machine-card-item {{
-        min-height:82px;
-    }}
-    .machine-card-value {{
-        font-size:24px;
-    }}
-}}
-@media (max-width:640px) {{
-    .machine-card-grid {{
-        grid-template-columns:1fr;
-    }}
-    .machine-card-value {{
-        font-size:22px;
-    }}
-}}
+.machine-sheet-blocks{display:grid;grid-template-columns:1fr;gap:14px;margin-top:12px}
+.machine-block{overflow:hidden;border-radius:20px;border:1px solid color-mix(in srgb,var(--text-color) 16%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--secondary-background-color) 90%,var(--background-color)),color-mix(in srgb,var(--secondary-background-color) 98%,var(--background-color)));box-shadow:0 10px 24px rgba(0,0,0,.08)}
+.machine-block-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:linear-gradient(90deg,rgba(255,75,75,.18),transparent);border-bottom:1px solid color-mix(in srgb,var(--text-color) 12%,transparent)}
+.machine-block-title{font-size:14px;line-height:1.05;font-weight:950;letter-spacing:.07em;text-transform:uppercase;color:var(--text-color)}
+.machine-block-count{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 9px;border-radius:999px;background:#ff4b4b;color:#fff;font-size:12px;font-weight:950}
+.machine-card-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px}
+.machine-card-item{min-height:88px;display:flex;flex-direction:column;justify-content:space-between;gap:10px;padding:13px 14px;border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb,var(--text-color) 4%,transparent),color-mix(in srgb,var(--text-color) 7%,transparent));border:1px solid color-mix(in srgb,var(--text-color) 10%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.machine-card-label{font-size:12px;line-height:1.18;font-weight:760;color:color-mix(in srgb,var(--text-color) 72%,transparent);word-break:break-word}
+.machine-card-value{font-size:26px;line-height:1.02;font-weight:950;color:var(--text-color);letter-spacing:-.01em;word-break:break-word}
+@media(max-width:1400px){.machine-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1000px){.machine-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.machine-card-item{min-height:82px}.machine-card-value{font-size:24px}}
+@media(max-width:640px){.machine-card-grid{grid-template-columns:1fr}.machine-card-value{font-size:22px}}
 </style>
-<div class="machine-sheet-blocks">{groups_html}</div>
-""",
-        unsafe_allow_html=True,
-    )
+"""
+    st.markdown(css + '<div class="machine-sheet-blocks">' + groups_html + '</div>', unsafe_allow_html=True)
 
 # =========================
 # UI
