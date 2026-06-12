@@ -4288,117 +4288,89 @@ def viewer(
 
 init_calculator_state()
 
-tab_presets, tab_calculator = st.tabs([
-    t["tab_presets"],
-    t["tab_calculator"],
+production_label = "Produzione" if lang == "IT" else "Production"
+tech_sheet_label = "Scheda tecnica" if lang == "IT" else "Technical sheet"
+
+try:
+    presets_df = load_presets("Presets.csv")
+    presets_load_exception = None
+except Exception as e:
+    presets_df = None
+    presets_load_exception = e
+
+tab_production, tab_tech_sheet = st.tabs([
+    production_label,
+    tech_sheet_label,
 ])
 
-with tab_presets:
-    st.markdown(t["presets_title"])
+if presets_df is None:
+    if isinstance(presets_load_exception, FileNotFoundError):
+        st.error(t["presets_file_missing"])
+    else:
+        st.error(f"{t['presets_load_error']}: {presets_load_exception}")
+    st.stop()
 
-    try:
-        presets_df = load_presets("Presets.csv")
+# Shared selected preset
+preset_names = presets_df["Prodotto"].tolist()
 
-        st.caption(f"{len(presets_df)} {t['presets_loaded']}")
+if "selected_preset_product" not in st.session_state or st.session_state["selected_preset_product"] not in preset_names:
+    st.session_state["selected_preset_product"] = preset_names[0]
 
+with tab_production:
+    st.markdown(f"### {production_label}")
+
+    top_left, top_right = st.columns([1.6, 1.0], gap="large")
+
+    with top_left:
         selected_product = st.selectbox(
             t["select_product"],
-            presets_df["Prodotto"].tolist(),
+            preset_names,
             key="selected_preset_product",
         )
 
-        selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
+    selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
+    # Auto-load preset when product changes. This removes the old "select + load + switch tab" flow.
+    last_auto_loaded = st.session_state.get("last_auto_loaded_preset")
+    if last_auto_loaded != selected_product:
+        apply_preset_to_calculator(selected_row)
+        st.session_state["last_auto_loaded_preset"] = selected_product
+        st.session_state["loaded_preset_name"] = selected_product
+        st.session_state["show_preset_loaded_success"] = False
+
+    with top_right:
+        st.markdown("&nbsp;", unsafe_allow_html=True)
         st.markdown(
             f"""
             <div style="
-                margin-top:12px;
-                margin-bottom:18px;
-                padding:22px 24px;
-                border-radius:18px;
+                padding:14px 16px;
+                border-radius:16px;
                 background:var(--secondary-background-color);
-                border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-                box-shadow:0 8px 22px rgba(0,0,0,0.08);
+                border:1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+                box-shadow:0 8px 18px rgba(0,0,0,0.08);
             ">
-                <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
-                    {t["preset_sheet"]}
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:color-mix(in srgb, var(--text-color) 62%, transparent); font-weight:800; margin-bottom:5px;">
+                    {t['active_preset']}
                 </div>
-                <div style="font-size:30px; font-weight:800; color:var(--text-color); line-height:1.15;">
+                <div style="font-size:21px; line-height:1.15; font-weight:900;">
                     {selected_product}
-                </div>
-                <div style="font-size:14px; color:color-mix(in srgb, var(--text-color) 68%, transparent); margin-top:8px;">
-                    {t["preset_subtitle"]}
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        st.markdown(f"#### {t['preset_visual_title']}")
-        components.html(make_preset_visual(selected_row, lang), height=400, scrolling=False)
+    st.markdown("#### Parametri principali" if lang == "IT" else "#### Main parameters")
 
-        if st.button(t["load_to_calculator"], type="primary", use_container_width=True):
-            apply_preset_to_calculator(selected_row)
-            st.rerun()
-
-        st.markdown(t["csv_params"])
-
-        render_columns = {
-            "Tipo tubo",
-            "Diametro rame inferiore",
-            "Spessore guaina inferiore",
-            "Diametro rame superiore",
-            "Spessore guaina superiore",
-            "Diametro Rame",
-            "Spessore Guaina (mm)",
-            "Diametro esterno Guaina (mm)",
-            "Lunghezza (m)",
-            "Guidatubo (mm)",
-            "Spalla (mm)",
-            "Diametro aspo (mm)",
-            "Ritardo invers max (º)",
-            "Ritardo invers min (º)",
-            "Passo (mm)",
-            "Incremento strato (mm)",
-        }
-
-        linked_cols = [c for c in presets_df.columns if c in render_columns]
-        cards_per_row = 4
-        render_preset_param_cards(t['linked_params'], linked_cols, selected_row, lang, cards_per_row=cards_per_row)
-
-        consult_cols = [c for c in presets_df.columns if c not in render_columns]
-        if consult_cols:
-            render_preset_param_cards(t['non_render_params'], consult_cols, selected_row, lang, cards_per_row=cards_per_row)
-
-        note_value = safe_value(selected_row, "Note")
-        if note_value != "-":
-            st.info(note_value)
-
-    except FileNotFoundError:
-        st.error(t["presets_file_missing"])
-    except Exception as e:
-        st.error(f"{t['presets_load_error']}: {e}")
-
-
-with tab_calculator:
     colA, colB, colC = st.columns([0.95, 1.25, 1.0], gap="large")
 
-    sync_active_preset_state()
-    loaded_preset_name = st.session_state.get("loaded_preset_name")
-    show_loaded_success = st.session_state.get("show_preset_loaded_success", False)
-    if loaded_preset_name:
-        if show_loaded_success:
-            st.success(t["preset_loaded_ok"].format(name=loaded_preset_name))
-            st.session_state["show_preset_loaded_success"] = False
-        st.caption(f"{t['active_preset']}: {loaded_preset_name}")
-
     with colA:
-        st.markdown(f"#### {t['bobina']}")
+        st.markdown(f"##### {t['bobina']}")
         diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo")
         spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla")
 
     with colB:
-        st.markdown(f"#### {t['tubo']}")
+        st.markdown(f"##### {t['tubo']}")
         rame_options = list(COPPER_SIZES_MM.keys())
 
         tube_layout_label = st.radio(
@@ -4447,15 +4419,8 @@ with tab_calculator:
             d_tubo_lower = COPPER_SIZES_MM[rame_inf] + 2.0 * spessore_inf
             d_tubo_upper = COPPER_SIZES_MM[rame_sup] + 2.0 * spessore_sup
 
-            # Regola richiesta: l'incremento strato è governato dal tubo più grande,
-            # mentre il passo consigliato deve lasciare spazio alla coppia dei due tubi.
             d_tubo_sim = max(d_tubo_lower, d_tubo_upper)
             d_tubo = d_tubo_sim
-
-            # Doppio verticale:
-            # - incremento strato: governato dal diametro esterno più grande
-            # - passo: deve lasciare spazio alla coppia verticale dei due tubi
-            # L'ingombro radiale/diametro finale resta governato dal tubo più grande.
             d_tubo_footprint = d_tubo_sim
 
             tube_layout_code = "double"
@@ -4464,7 +4429,7 @@ with tab_calculator:
             incremento_consigliato = max(d_tubo_lower, d_tubo_upper)
 
     with colC:
-        st.markdown(f"#### {t['avvolg']}")
+        st.markdown(f"##### {t['avvolg']}")
         passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale")
         incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale")
         rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b")
@@ -4474,9 +4439,6 @@ with tab_calculator:
     z_max_center = None
 
     if tube_layout_code == "double":
-        # Regola doppio verticale:
-        # - il tubo grande (inferiore) non deve uscire dalla spalla bassa
-        # - il tubo piccolo (superiore) non deve uscire dalla spalla alta
         RtLower = d_tubo_lower / 2.0
         RtUpper = d_tubo_upper / 2.0
 
@@ -4491,10 +4453,6 @@ with tab_calculator:
                 "Attenzione: la configurazione doppio non entra interamente nella spalla "
                 f"(spalla {spalla:.2f} mm, altezza coppia {d_tubo_lower + d_tubo_upper:.2f} mm)."
             )
-
-    # =========================
-    # BUILD
-    # =========================
 
     (
         world_contacts,
@@ -4523,10 +4481,6 @@ with tab_calculator:
 
     visual_metrics = compute_metrics(local_points, d_tubo_footprint)
 
-    # =========================
-    # VIEW / PACKAGING CONTROLS
-    # =========================
-
     st.divider()
 
     view_mode = st.radio(
@@ -4538,11 +4492,11 @@ with tab_calculator:
 
     packaging_mode_selected = "box"
     container_mode_selected = "40hc"
-    pack_roll_count = 1
+    pack_roll_count = int(st.session_state.get("pack_roll_count_external", 5))
 
     if view_mode == t["scene_packaging"]:
         st.markdown(f"#### {t['packaging_controls_title']}")
-        pc1, pc2, pc3 = st.columns(3)
+        pc1, pc2 = st.columns([1.0, 1.0], gap="large")
         with pc1:
             packaging_mode_label = st.radio(
                 t["packaging_mode"],
@@ -4563,15 +4517,15 @@ with tab_calculator:
             else:
                 st.markdown("&nbsp;", unsafe_allow_html=True)
                 st.caption(t["packaging_box_desc"])
-        with pc3:
-            pack_roll_count = int(st.session_state.get("pack_roll_count_external", 5))
+
+    st.markdown("#### Render" if lang == "IT" else "#### Render")
 
     components.html(
         viewer(
             diametro_aspo,
             spalla,
             d_tubo,
-            640,
+            660,
             local_points.tolist(),
             theta_values.tolist(),
             radius_values.tolist(),
@@ -4591,12 +4545,8 @@ with tab_calculator:
             d_tubo_upper=d_tubo_upper,
             tube_diameter_label=tube_diameter_label,
         ),
-        height=640,
+        height=660,
     )
-
-    # =========================
-    # METRICS
-    # =========================
 
     st.divider()
 
@@ -4604,8 +4554,8 @@ with tab_calculator:
         t["results"],
         [
             {"label": t["metric1"], "value": tube_diameter_label, "note": ("Configurazione verticale" if tube_layout_code == "double" else "")},
-            {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm", "note": (f"Cons. {passo_consigliato:.2f} mm" if tube_layout_code == "double" else "")},
-            {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm", "note": (f"Cons. {incremento_consigliato:.2f} mm" if tube_layout_code == "double" else "")},
+            {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
+            {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
             {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
             {"label": t["metric5"], "value": f"{visual_metrics['max_xy_span']:.1f} mm"},
             {"label": t["metric6"], "value": f"{visual_metrics['wound_length_m']:.3f} m"},
@@ -4619,31 +4569,69 @@ with tab_calculator:
     if coil_footprint_mm > pallet_size_mm:
         st.warning(t["warning"])
 
-    if view_mode == t["scene_packaging"]:
-        packaging_eval = evaluate_packaging(
-            coil_footprint_mm=coil_footprint_mm,
-            roll_height_mm=spalla,
-            roll_count=pack_roll_count,
-            packaging_mode=packaging_mode_selected,
-            container_mode=container_mode_selected,
-            language=lang,
-        )
+with tab_tech_sheet:
+    st.markdown(f"### {tech_sheet_label}")
 
-        mode_note = t["packaging_box_desc"] if packaging_mode_selected == "box" else (t["container_40hc_desc"] if container_mode_selected == "40hc" else t["container_20ft_desc"])
-        status_value = t["box_fit_ok"] if packaging_eval["ok"] else t["box_fit_over"]
+    selected_product = st.session_state.get("selected_preset_product", preset_names[0])
+    selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
-        render_summary_cards(
-            t["packaging_results_title"],
-            [
-                {"label": "Status", "value": status_value, "note": mode_note, "tone": "ok" if packaging_eval["ok"] else "bad"},
-                {"label": t["coil_footprint"], "value": f"{packaging_eval['coil_footprint_mm']:.1f} mm", "note": f"Limite {packaging_eval['pallet_size_mm']:.0f} mm"},
-                {"label": t["roll_stack_height"], "value": f"{packaging_eval['stack_height_mm']:.1f} mm"},
-                {"label": t["total_height"], "value": f"{packaging_eval['total_height_mm']:.1f} mm"},
-                {"label": t["height_limit"], "value": f"{packaging_eval['height_limit_mm']:.0f} mm"},
-                {"label": t["height_margin"], "value": f"{packaging_eval['height_margin_mm']:.1f} mm"},
-            ],
-            cards_per_row=3,
-        )
+    st.markdown(
+        f"""
+        <div style="
+            margin-top:12px;
+            margin-bottom:18px;
+            padding:22px 24px;
+            border-radius:18px;
+            background:var(--secondary-background-color);
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            box-shadow:0 8px 22px rgba(0,0,0,0.08);
+        ">
+            <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
+                {t["preset_sheet"]}
+            </div>
+            <div style="font-size:30px; font-weight:800; color:var(--text-color); line-height:1.15;">
+                {selected_product}
+            </div>
+            <div style="font-size:14px; color:color-mix(in srgb, var(--text-color) 68%, transparent); margin-top:8px;">
+                {t["preset_subtitle"]}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-        if packaging_eval["reasons"]:
-            st.warning("\n".join([f"- {reason}" for reason in packaging_eval["reasons"]]))
+    st.markdown(f"#### {t['preset_visual_title']}")
+    components.html(make_preset_visual(selected_row, lang), height=400, scrolling=False)
+
+    st.markdown(t["csv_params"])
+
+    render_columns = {
+        "Tipo tubo",
+        "Diametro rame inferiore",
+        "Spessore guaina inferiore",
+        "Diametro rame superiore",
+        "Spessore guaina superiore",
+        "Diametro Rame",
+        "Spessore Guaina (mm)",
+        "Diametro esterno Guaina (mm)",
+        "Lunghezza (m)",
+        "Guidatubo (mm)",
+        "Spalla (mm)",
+        "Diametro aspo (mm)",
+        "Ritardo invers max (º)",
+        "Ritardo invers min (º)",
+        "Passo (mm)",
+        "Incremento strato (mm)",
+    }
+
+    linked_cols = [c for c in presets_df.columns if c in render_columns]
+    cards_per_row = 4
+    render_preset_param_cards(t['linked_params'], linked_cols, selected_row, lang, cards_per_row=cards_per_row)
+
+    consult_cols = [c for c in presets_df.columns if c not in render_columns]
+    if consult_cols:
+        render_preset_param_cards(t['non_render_params'], consult_cols, selected_row, lang, cards_per_row=cards_per_row)
+
+    note_value = safe_value(selected_row, "Note")
+    if note_value != "-":
+        st.info(note_value)
