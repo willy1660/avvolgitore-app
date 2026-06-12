@@ -5540,6 +5540,7 @@ def render_roll_counter_dashboard(language):
         change_size_label = "Cambio misura"
         finish_shift_label = "Fine turno · salva e azzera"
         reset_without_save_label = "Azzera senza salvare"
+        reset_history_label = "Azzera storico"
         box_label = "Scatola"
         pallet_label = "Pedana"
         history_title = "Storico registrato"
@@ -5569,6 +5570,7 @@ def render_roll_counter_dashboard(language):
         change_size_label = "Change size"
         finish_shift_label = "End shift · save and reset"
         reset_without_save_label = "Reset without saving"
+        reset_history_label = "Reset history"
         box_label = "Box"
         pallet_label = "Pallet"
         history_title = "Saved history"
@@ -5896,7 +5898,14 @@ def render_roll_counter_dashboard(language):
             st.rerun()
 
     st.divider()
-    st.markdown(f"### {history_title}")
+    hist_col_title, hist_col_btn = st.columns([1.0, 0.28], gap="large")
+    with hist_col_title:
+        st.markdown(f"### {history_title}")
+    with hist_col_btn:
+        st.markdown("&nbsp;", unsafe_allow_html=True)
+        if st.button(reset_history_label, use_container_width=True):
+            st.session_state["roll_counter_history"] = []
+            st.rerun()
 
     history = list(st.session_state.get("roll_counter_history", []))
     if not history:
