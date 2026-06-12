@@ -361,10 +361,10 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
         <style>
         .preset-param-card {
             background: var(--secondary-background-color);
-            border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-            border-radius: 16px;
-            padding: 16px 18px;
-            min-height: 120px;
+            border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+            border-radius: 17px;
+            padding: 18px 20px;
+            min-height: 128px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -372,14 +372,14 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
             margin-bottom: 10px;
         }
         .preset-param-label {
-            font-size: 13px;
+            font-size: 14px;
             line-height: 1.35;
             font-weight: 650;
             color: color-mix(in srgb, var(--text-color) 68%, transparent);
             margin-bottom: 14px;
         }
         .preset-param-value {
-            font-size: 28px;
+            font-size: 31px;
             line-height: 1.08;
             font-weight: 800;
             color: var(--text-color);
@@ -481,10 +481,10 @@ def render_summary_cards(title, items, cards_per_row=4):
         <style>
         .summary-card {
             background: var(--secondary-background-color);
-            border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-            border-radius: 16px;
-            padding: 16px 18px;
-            min-height: 118px;
+            border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+            border-radius: 17px;
+            padding: 18px 20px;
+            min-height: 128px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -500,21 +500,21 @@ def render_summary_cards(title, items, cards_per_row=4):
             background: color-mix(in srgb, #ef4444 11%, var(--secondary-background-color));
         }
         .summary-card-label {
-            font-size: 13px;
+            font-size: 14px;
             line-height: 1.3;
             font-weight: 650;
             color: color-mix(in srgb, var(--text-color) 68%, transparent);
             margin-bottom: 12px;
         }
         .summary-card-value {
-            font-size: 30px;
+            font-size: 34px;
             line-height: 1.08;
             font-weight: 800;
             color: var(--text-color);
             word-break: break-word;
         }
         .summary-card-note {
-            font-size: 12px;
+            font-size: 13px;
             color: color-mix(in srgb, var(--text-color) 62%, transparent);
             margin-top: 8px;
             line-height: 1.3;
@@ -1903,9 +1903,9 @@ def viewer(
             user-select:none;
             line-height:1.25;
         ">
-            <button id="play_pause_btn" class="viewer_btn">Pause</button>
-            <button id="reset_view_btn" class="viewer_btn">Reset</button>
-            <button id="fullscreen_btn" class="viewer_btn">Full</button>
+            <button id="play_pause_btn" class="viewer_btn viewer_icon_btn">⏸</button>
+            <button id="reset_view_btn" class="viewer_btn viewer_icon_btn">↺</button>
+            <button id="fullscreen_btn" class="viewer_btn viewer_icon_btn">⛶</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
         </div>
@@ -2071,8 +2071,30 @@ def viewer(
             padding:7px 12px;
             background:#f4f4f4;
             color:#111;
-            font-weight:700;
+            font-weight:800;
             cursor:pointer;
+        }}
+
+        .viewer_icon_btn {{
+            width:36px;
+            min-width:36px;
+            height:34px;
+            padding:0;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            font-size:18px;
+            line-height:1;
+        }}
+
+        #viewer_root.pseudo_fullscreen {{
+            position:fixed !important;
+            inset:0 !important;
+            z-index:999999 !important;
+            width:100vw !important;
+            height:100vh !important;
+            border-radius:0 !important;
+            border:none !important;
         }}
 
         #viewer_root:fullscreen {{
@@ -2346,6 +2368,7 @@ def viewer(
         document.getElementById("view_front_btn").textContent = T.view_front;
         document.getElementById("view_side_btn").textContent = T.view_side;
         resetViewBtn.title = T.reset_view;
+        fullscreenBtn.title = T.fullscreen;
 
         document.getElementById("hud_length_label").textContent = T.hud_length;
         document.getElementById("hud_layer_label").textContent = T.hud_layer;
@@ -2358,7 +2381,7 @@ def viewer(
         const scene = new THREE.Scene();
 
         const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
-        camera.position.set(-950, -1500, 520);
+        camera.position.set(-1350, -2150, 760);
         camera.up.set(0, 0, 1);
 
         const renderer = new THREE.WebGLRenderer({{
@@ -2481,7 +2504,7 @@ def viewer(
         }}
 
         function updatePlayBtn() {{
-            playPauseBtn.textContent = isPlaying ? "Pause" : "Play";
+            playPauseBtn.textContent = isPlaying ? "⏸" : "▶";
             playPauseBtn.title = isPlaying ? T.pause : T.play;
         }}
 
@@ -2505,11 +2528,11 @@ def viewer(
             const target = new THREE.Vector3(0, 0, Hs * 0.52);
 
             if (viewName === "front") {{
-                camera.position.set(0, -1900, Hs * 0.52);
+                camera.position.set(0, -2600, Hs * 0.56);
             }} else if (viewName === "side") {{
-                camera.position.set(-1900, 0, Hs * 0.52);
+                camera.position.set(-2600, 0, Hs * 0.56);
             }} else {{
-                camera.position.set(-950, -1500, 520);
+                camera.position.set(-1350, -2150, 760);
             }}
 
             camera.up.set(0, 0, 1);
@@ -2621,19 +2644,43 @@ def viewer(
             updatePlayBtn();
         }});
 
+        let pseudoFullscreen = false;
+
+        function setPseudoFullscreen(active) {{
+            pseudoFullscreen = active;
+            host.classList.toggle("pseudo_fullscreen", active);
+            fullscreenBtn.textContent = active ? "×" : "⛶";
+            fullscreenBtn.title = active ? T.exit : T.fullscreen;
+            setTimeout(resizeViewer, 80);
+        }}
+
         fullscreenBtn.addEventListener("click", async () => {{
             try {{
-                if (!document.fullscreenElement) {{
-                    await host.requestFullscreen();
-                    fullscreenBtn.textContent = "Close";
-                    fullscreenBtn.title = T.exit;
-                }} else {{
+                if (document.fullscreenElement) {{
                     await document.exitFullscreen();
-                    fullscreenBtn.textContent = "Full";
+                    fullscreenBtn.textContent = "⛶";
                     fullscreenBtn.title = T.fullscreen;
+                    setTimeout(resizeViewer, 80);
+                    return;
+                }}
+
+                if (pseudoFullscreen) {{
+                    setPseudoFullscreen(false);
+                    return;
+                }}
+
+                if (host.requestFullscreen && document.fullscreenEnabled) {{
+                    await host.requestFullscreen();
+                    fullscreenBtn.textContent = "×";
+                    fullscreenBtn.title = T.exit;
+                    setTimeout(resizeViewer, 80);
+                }} else {{
+                    // Fallback for tablets/browsers where iframe fullscreen is blocked.
+                    setPseudoFullscreen(true);
                 }}
             }} catch (err) {{
-                console.error(err);
+                // Fallback for Streamlit iframe / iPad cases where Fullscreen API is blocked.
+                setPseudoFullscreen(!pseudoFullscreen);
             }}
         }});
 
@@ -2641,10 +2688,10 @@ def viewer(
 
         document.addEventListener("fullscreenchange", () => {{
             if (!document.fullscreenElement) {{
-                fullscreenBtn.textContent = "Full";
-                fullscreenBtn.title = T.fullscreen;
+                fullscreenBtn.textContent = pseudoFullscreen ? "×" : "⛶";
+                fullscreenBtn.title = pseudoFullscreen ? T.exit : T.fullscreen;
             }}
-            setTimeout(resizeViewer, 30);
+            setTimeout(resizeViewer, 80);
         }});
 
         progressSlider.addEventListener("input", () => {{
@@ -2656,7 +2703,7 @@ def viewer(
 
         function resizeViewer() {{
             const nw = Math.max(host.clientWidth, 600);
-            const nh = Math.max(host.clientHeight, 400);
+            const nh = Math.max(host.clientHeight, pseudoFullscreen || document.fullscreenElement ? 520 : 360);
 
             camera.aspect = nw / nh;
             camera.updateProjectionMatrix();
@@ -4227,7 +4274,7 @@ with tab_calculator:
             diametro_aspo,
             spalla,
             d_tubo,
-            680,
+            640,
             local_points.tolist(),
             theta_values.tolist(),
             radius_values.tolist(),
@@ -4247,7 +4294,7 @@ with tab_calculator:
             d_tubo_upper=d_tubo_upper,
             tube_diameter_label=tube_diameter_label,
         ),
-        height=680,
+        height=640,
     )
 
     # =========================
