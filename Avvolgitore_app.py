@@ -1379,8 +1379,6 @@ def simulate_winding_visual(
     lunghezza_m: float,
     gradi_start: float,
     deg_step: float = 2.0,
-    z_min_center: float | None = None,
-    z_max_center: float | None = None,
 ):
     max_len = lunghezza_m * 1000.0
 
@@ -1388,22 +1386,8 @@ def simulate_winding_visual(
     Rt = d_tubo / 2.0
     H = spalla
 
-    if z_min_center is None:
-        z_min_center = Rt
-    if z_max_center is None:
-        z_max_center = H - Rt
-
-    z_min_center = float(z_min_center)
-    z_max_center = float(z_max_center)
-
-    # Safety: if the allowed axial window is invalid, keep at least a tiny valid range.
-    if z_max_center <= z_min_center:
-        mid = max(Rt, H * 0.5)
-        z_min_center = min(z_min_center, mid)
-        z_max_center = max(z_max_center, z_min_center + 1e-3)
-
     theta = np.deg2rad(gradi_start)
-    z = z_min_center
+    z = Rt
     current_layer_radius = R + Rt
 
     first_contact_world = deposit_point_world(current_layer_radius, z)
@@ -1448,8 +1432,8 @@ def simulate_winding_visual(
             next_z = z + direction * passo * (deg_step / 360.0)
             next_radius = current_layer_radius
 
-            if next_z >= z_max_center:
-                next_z = z_max_center
+            if next_z >= H - Rt:
+                next_z = H - Rt
 
                 next_transition_progress = 0.0
                 next_transition_delay = max(rit_t, 0.0)
@@ -1467,8 +1451,8 @@ def simulate_winding_visual(
                     next_mode = "transition"
                     next_radius = next_transition_start_radius
 
-            elif next_z <= z_min_center:
-                next_z = z_min_center
+            elif next_z <= Rt:
+                next_z = Rt
 
                 next_transition_progress = 0.0
                 next_transition_delay = max(rit_b, 0.0)
@@ -3878,13 +3862,6 @@ with tab_calculator:
             f"Doppio: passo consigliato ≈ {passo_consigliato:.2f} mm · "
             f"incremento strato consigliato ≈ {incremento_consigliato:.2f} mm"
         )
-
-        pair_height = d_tubo_lower + d_tubo_upper
-        if pair_height > spalla:
-            st.warning(
-                f"Attenzione: la coppia verticale dei due tubi ({pair_height:.2f} mm) "
-                f"supera la spalla disponibile ({spalla:.2f} mm)."
-            )
 
     # =========================
     # BUILD
