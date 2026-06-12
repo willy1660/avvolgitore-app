@@ -748,7 +748,17 @@ guide_offset_x = 555.0
 
 @st.cache_data
 def load_presets(path="Presets.csv"):
-    df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
+    # Excel sometimes saves CSV files in Windows/Latin encoding instead of UTF-8.
+    # Try UTF-8 first, then common Excel encodings.
+    last_error = None
+    for encoding in ("utf-8-sig", "cp1252", "latin1"):
+        try:
+            df = pd.read_csv(path, sep=";", encoding=encoding)
+            break
+        except UnicodeDecodeError as exc:
+            last_error = exc
+    else:
+        raise last_error
 
     # Clean column names exported by Excel
     df.columns = df.columns.astype(str).str.strip()
@@ -3339,22 +3349,12 @@ def viewer(
             return mesh;
         }}
 
-        function radialUnitFromPoint(p) {{
-            const v = new THREE.Vector3(p.x, p.y, 0);
-            if (v.length() < 1e-6) return new THREE.Vector3(0, 1, 0);
-            return v.normalize();
+        function offsetPointsVertical(points, offset) {{
+            return points.map(p => new THREE.Vector3(p.x, p.y, p.z + offset));
         }}
 
-        function offsetPointsRadial(points, offset) {{
-            return points.map(p => {{
-                const u = radialUnitFromPoint(p);
-                return new THREE.Vector3(p.x + u.x * offset, p.y + u.y * offset, p.z);
-            }});
-        }}
-
-        function offsetPointRadial(point, offset) {{
-            const u = radialUnitFromPoint(point);
-            return new THREE.Vector3(point.x + u.x * offset, point.y + u.y * offset, point.z);
+        function offsetPointVertical(point, offset) {{
+            return new THREE.Vector3(point.x, point.y, point.z + offset);
         }}
 
         function makeWoundTubeObject(points, material) {{
@@ -3362,12 +3362,17 @@ def viewer(
                 return makeTubeMeshFromPoints(points, Rt, material);
             }}
 
+            // Doppio verticale:
+            // - tubo inferiore = diametro maggiore, appoggiato "sotto"
+            // - tubo superiore = diametro minore, posizionato "sopra"
+            // L'offset è assiale/verticale (asse Z locale), non radiale.
             const group = new THREE.Group();
 
             const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material);
             if (lowerMesh) group.add(lowerMesh);
 
-            const upperPts = offsetPointsRadial(points, RtLower + RtUpper);
+            const verticalOffset = RtLower + RtUpper;
+            const upperPts = offsetPointsVertical(points, verticalOffset);
             const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material);
             if (upperMesh) group.add(upperMesh);
 
@@ -3406,8 +3411,9 @@ def viewer(
             const lowerSeg = makeTubeSegment(p0, p1, RtLower, material);
             if (lowerSeg) group.add(lowerSeg);
 
-            const p0u = offsetPointRadial(p0, RtLower + RtUpper);
-            const p1u = offsetPointRadial(p1, RtLower + RtUpper);
+            const verticalOffset = RtLower + RtUpper;
+            const p0u = offsetPointVertical(p0, verticalOffset);
+            const p1u = offsetPointVertical(p1, verticalOffset);
             const upperSeg = makeTubeSegment(p0u, p1u, RtUpper, material);
             if (upperSeg) group.add(upperSeg);
 
@@ -3808,7 +3814,7 @@ with tab_calculator:
             incremento_consigliato = d_tubo
 
         else:
-            st.caption("Doppio verticale: tubo inferiore + tubo superiore")
+            st.caption("Doppio verticale: diametro grande sotto, diametro piccolo sopra")
             c_inf, c_sup = st.columns(2)
 
             with c_inf:
@@ -3833,12 +3839,14 @@ with tab_calculator:
             d_tubo_sim = max(d_tubo_lower, d_tubo_upper)
             d_tubo = d_tubo_sim
 
-            # The upper tube is offset radially over the lower tube.
-            # This footprint diameter approximates the visible outer envelope.
-            d_tubo_footprint = d_tubo_lower + 2.0 * d_tubo_upper
+            # Doppio verticale:
+            # - incremento strato: governato dal diametro esterno più grande
+            # - passo: deve lasciare spazio alla coppia verticale dei due tubi
+            # L'ingombro radiale/diametro finale resta governato dal tubo più grande.
+            d_tubo_footprint = d_tubo_sim
 
             tube_layout_code = "double"
-            tube_diameter_label = f"Inf. {d_tubo_lower:.2f} / Sup. {d_tubo_upper:.2f} mm"
+            tube_diameter_label = f"Inferiore {d_tubo_lower:.2f} / Superiore {d_tubo_upper:.2f} mm"
             passo_consigliato = d_tubo_lower + d_tubo_upper
             incremento_consigliato = max(d_tubo_lower, d_tubo_upper)
 
@@ -3964,7 +3972,7 @@ with tab_calculator:
     render_summary_cards(
         t["results"],
         [
-            {"label": t["metric1"], "value": tube_diameter_label},
+            {"label": t["metric1"], "value": tube_diameter_label, "note": ("Configurazione verticale" if tube_layout_code == "double" else "")},
             {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm", "note": (f"Cons. {passo_consigliato:.2f} mm" if tube_layout_code == "double" else "")},
             {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm", "note": (f"Cons. {incremento_consigliato:.2f} mm" if tube_layout_code == "double" else "")},
             {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
