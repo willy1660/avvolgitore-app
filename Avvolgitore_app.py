@@ -1126,7 +1126,7 @@ def make_preset_visual(row, language):
         background:var(--accent-soft);
         border:1px solid var(--line);
         border-radius:16px;
-        padding:12px;
+        padding:10px;
     }}
     svg {{ display:block; width:100%; height:auto; }}
     .metrics {{ display:grid; gap:8px; }}
@@ -1428,11 +1428,11 @@ st.markdown(
     """
     <style>
     .main .block-container {
-        max-width: 1600px;
+        max-width: 1800px;
         padding-top: 0.8rem;
         padding-bottom: 1.6rem;
-        padding-left: 1.05rem;
-        padding-right: 1.05rem;
+        padding-left: 0.55rem;
+        padding-right: 0.55rem;
     }
 
     [data-testid="stTabs"] button {
@@ -1483,9 +1483,9 @@ st.markdown(
     }
 
     div[role="radiogroup"] label:has(input:checked) {
-        background: color-mix(in srgb, var(--primary-color) 12%, var(--secondary-background-color));
-        border-color: color-mix(in srgb, var(--primary-color) 55%, transparent);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-color) 35%, transparent), 0 10px 18px rgba(0,0,0,0.10);
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 30%, transparent), 0 10px 20px rgba(0,0,0,0.18);
     }
 
     div[role="radiogroup"] label p {
@@ -1495,12 +1495,16 @@ st.markdown(
         text-align: center;
     }
 
+    div[role="radiogroup"] label:has(input:checked) p {
+        color: #ffffff !important;
+    }
+
     /* Better tablet spacing and readability */
     @media (max-width: 1280px) {
         .main .block-container {
             max-width: 100%;
-            padding-left: 0.8rem;
-            padding-right: 0.8rem;
+            padding-left: 0.35rem;
+            padding-right: 0.35rem;
         }
 
         [data-testid="stTabs"] button {
@@ -1952,7 +1956,7 @@ def viewer(
             display:flex;
             flex-direction:column;
             gap:10px;
-            width:300px;
+            width:278px;
             max-width:calc(100% - 28px);
             max-height:calc(100% - 28px);
             overflow-y:auto;
@@ -2076,18 +2080,18 @@ def viewer(
 
         .viewer_btn_small {{
             border:none;
-            border-radius:12px;
-            padding:9px 10px;
+            border-radius:11px;
+            padding:8px 8px;
             background:rgba(235,235,235,0.95);
             color:#111;
             font-weight:800;
-            font-size:14px;
+            font-size:13px;
             cursor:pointer;
             text-align:center;
             white-space:normal;
             overflow-wrap:anywhere;
-            line-height:1.18;
-            min-height:46px;
+            line-height:1.15;
+            min-height:42px;
             width:100%;
             box-sizing:border-box;
         }}
@@ -2100,7 +2104,9 @@ def viewer(
         .active_speed,
         .active_opt {{
             outline:2px solid #ffffff;
-            background:#ffffff;
+            background:#2563eb !important;
+            color:#ffffff !important;
+            box-shadow:0 0 0 2px rgba(37,99,235,0.35), 0 8px 18px rgba(0,0,0,0.18);
         }}
 
         .panel_label {{
@@ -2217,6 +2223,49 @@ def viewer(
             font-size:15px;
             font-weight:700;
             white-space:nowrap;
+        }}
+
+        @media (max-width: 1180px) {{
+            #viewer_sidepanel {{
+                width:238px !important;
+                top:10px !important;
+                right:10px !important;
+                padding:9px !important;
+                gap:8px !important;
+            }}
+
+            .viewer_btn_small {{
+                font-size:12px !important;
+                min-height:38px !important;
+                padding:7px 7px !important;
+                border-radius:10px !important;
+            }}
+
+            .panel_label {{
+                font-size:10px !important;
+                margin-bottom:5px !important;
+            }}
+
+            .btn_grid_3,
+            .btn_grid_2 {{
+                gap:5px !important;
+            }}
+
+            #viewer_topbar {{
+                top:10px !important;
+                left:10px !important;
+                padding:8px 9px !important;
+                gap:6px !important;
+            }}
+
+            #progress_slider {{
+                width:120px !important;
+            }}
+
+            .viewer_btn {{
+                padding:6px 9px !important;
+                border-radius:8px !important;
+            }}
         }}
     </style>
 
@@ -4167,7 +4216,7 @@ with tab_calculator:
             diametro_aspo,
             spalla,
             d_tubo,
-            860,
+            760,
             local_points.tolist(),
             theta_values.tolist(),
             radius_values.tolist(),
@@ -4187,7 +4236,7 @@ with tab_calculator:
             d_tubo_upper=d_tubo_upper,
             tube_diameter_label=tube_diameter_label,
         ),
-        height=820,
+        height=760,
     )
 
     # =========================
