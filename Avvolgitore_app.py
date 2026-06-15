@@ -1611,7 +1611,7 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
     b1, b2, b3 = st.columns([1, 1, 1.2], gap="small")
     with b1:
         if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True):
-            apply_preset_to_calculator(selected_row)
+            st.session_state["restore_preset_request"] = str(selected_product)
             st.rerun()
     with b2:
         st.toggle("Blocca parametri" if language == "IT" else "Lock parameters", key="params_locked")
@@ -6083,6 +6083,11 @@ with tab_production:
         )
 
     selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
+
+    # Pending restore request must be applied before any calc_* widget is instantiated.
+    if st.session_state.get("restore_preset_request") == selected_product:
+        st.session_state.pop("restore_preset_request", None)
+        apply_preset_to_calculator(selected_row)
 
     # Auto-load preset when product changes. This removes the old "select + load + switch tab" flow.
     last_auto_loaded = st.session_state.get("last_auto_loaded_preset")
