@@ -1541,7 +1541,7 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
             100% {{ box-shadow:0 0 0 12px rgba(197,126,90,0); }}
         }}
         .pdm-action-bar {{
-            margin:12px 0 18px 0;
+            margin:12px 0 20px 0;
             padding:14px;
             border-radius:18px;
             background:linear-gradient(180deg,
@@ -1737,24 +1737,24 @@ st.markdown(
     <style>
     .main .block-container {
         max-width: 1800px;
-        padding-top: 0.8rem;
-        padding-bottom: 1.6rem;
-        padding-left: 0.55rem;
-        padding-right: 0.55rem;
+        padding-top: 0.95rem;
+        padding-bottom: 1.75rem;
+        padding-left: 0.90rem;
+        padding-right: 0.90rem;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
-        gap: 28px;
-        padding: 0 8px;
+        gap: 32px;
+        padding: 0;
         background: transparent;
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-        margin-bottom: 22px;
+        margin: 0 0 24px 0;
         align-items: center;
     }
 
     [data-testid="stTabs"] button {
         font-weight: 780;
-        min-height: 50px;
+        min-height: 52px;
         padding: 0.50rem 0.18rem 0.64rem 0.18rem;
         border-radius: 0 !important;
         background: transparent !important;
@@ -1786,6 +1786,21 @@ st.markdown(
 
     div[data-baseweb="select"] * {
         font-size: 0.98rem;
+    }
+
+
+    div[data-testid="stSelectbox"],
+    div[data-testid="stNumberInput"],
+    div[data-testid="stRadio"],
+    div[data-testid="stMarkdownContainer"] {
+        margin-top: 0 !important;
+    }
+
+    div[data-testid="stSelectbox"] > label,
+    div[data-testid="stNumberInput"] > label,
+    div[data-testid="stRadio"] > label {
+        margin-bottom: 0.28rem !important;
+        font-weight: 760 !important;
     }
 
     /* v95 · refinement elegante mantenendo identità PDM */
@@ -1892,7 +1907,7 @@ st.markdown(
     }
 
     div[role="radiogroup"] {
-        gap: 0.90rem;
+        gap: 0.95rem;
         flex-wrap: wrap;
         align-items: stretch;
     }
@@ -1901,9 +1916,9 @@ st.markdown(
         background: var(--secondary-background-color);
         border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
         border-radius: 999px;
-        padding: 0.64rem 1.22rem;
+        padding: 0.72rem 1.28rem;
         min-height: 50px;
-        min-width: 108px;
+        min-width: 120px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1968,8 +1983,9 @@ st.markdown(
     div[role="radiogroup"] label p {
         font-weight: 800;
         font-size: 0.99rem;
-        line-height: 1.15;
+        line-height: 1.1;
         text-align: center;
+        letter-spacing: -0.01em;
     }
 
     div[role="radiogroup"] label:has(input:checked) p {
@@ -1989,8 +2005,8 @@ st.markdown(
     @media (max-width: 1280px) {
         .main .block-container {
             max-width: 100%;
-            padding-left: 0.35rem;
-            padding-right: 0.35rem;
+            padding-left: 0.60rem;
+            padding-right: 0.60rem;
         }
 
         [data-testid="stTabs"] button {
@@ -4896,6 +4912,43 @@ def render_workflow_bar(language):
     )
 
 
+def render_page_title(title):
+    st.markdown(
+        f"""
+        <style>
+        .page-title-shell {{
+            margin:0 0 12px 0;
+            padding:0;
+        }}
+        .page-title-text {{
+            margin:0;
+            padding:0;
+            font-size:30px;
+            line-height:1.04;
+            font-weight:950;
+            letter-spacing:-0.02em;
+            color:var(--text-color);
+        }}
+        .page-title-subline {{
+            margin-top:4px;
+            height:1px;
+            width:100%;
+            background:linear-gradient(90deg,
+                color-mix(in srgb, var(--pdm-accent) 42%, transparent) 0%,
+                color-mix(in srgb, var(--text-color) 8%, transparent) 32%,
+                transparent 100%
+            );
+        }}
+        </style>
+        <div class="page-title-shell">
+            <div class="page-title-text">{html.escape(str(title))}</div>
+            <div class="page-title-subline"></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_section_header(title, subtitle=None, icon=""):
     subtitle_html = ""
     if subtitle:
@@ -4909,8 +4962,8 @@ def render_section_header(title, subtitle=None, icon=""):
         f"""
         <style>
         .section-header {{
-            margin-top:12px;
-            margin-bottom:10px;
+            margin-top:14px;
+            margin-bottom:12px;
             padding:16px 18px;
             border-radius:16px;
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
@@ -6091,7 +6144,7 @@ if "selected_preset_product" not in st.session_state or st.session_state["select
     st.session_state["selected_preset_product"] = preset_names[0]
 
 with tab_production:
-    st.markdown(f'''<div style="font-size:30px;font-weight:900;line-height:1.05;margin:0 0 6px 0;padding:0;">{production_label}</div>''', unsafe_allow_html=True)
+    render_page_title(production_label)
     render_workflow_bar(lang)
 
     render_section_header(
@@ -6451,7 +6504,7 @@ with tab_production:
         st.warning(t["warning"])
 
 with tab_tech_sheet:
-    st.markdown(f'''<div style="font-size:30px;font-weight:900;line-height:1.05;margin:0 0 6px 0;padding:0;">{tech_sheet_label}</div>''', unsafe_allow_html=True)
+    render_page_title(tech_sheet_label)
 
     render_section_header(
         "Consultazione preset" if lang == "IT" else "Preset reference",
