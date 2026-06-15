@@ -1100,30 +1100,40 @@ def make_preset_visual(row, language):
 
     coil_svg = f"""
     <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Coiling layout">
-        <rect x="128" y="92" width="240" height="66" rx="33" class="coil-body"/>
-        <rect x="114" y="70" width="12" height="110" rx="6" class="flange"/>
-        <rect x="370" y="70" width="12" height="110" rx="6" class="flange"/>
-        <path d="M 136 106 C 182 100, 226 100, 270 106 S 340 112, 360 106" class="coil-stripe"/>
-        <path d="M 136 122 C 182 116, 226 116, 270 122 S 340 128, 360 122" class="coil-stripe"/>
-        <path d="M 136 138 C 182 132, 226 132, 270 138 S 340 144, 360 138" class="coil-stripe"/>
-        <path d="M 136 154 C 182 148, 226 148, 270 154 S 340 160, 360 154" class="coil-stripe"/>
-        <circle cx="248" cy="125" r="24" class="hub-ring"/>
-        <circle cx="248" cy="125" r="7" class="axis-dot"/>
+        <!-- Front view: spool seen from the front with the coil around it -->
+        <circle cx="190" cy="126" r="82" class="coil-outer"/>
+        <circle cx="190" cy="126" r="58" class="coil-inner"/>
+        <circle cx="190" cy="126" r="8" class="axis-dot"/>
 
-        <line x1="96" y1="70" x2="96" y2="180" class="dim-line"/>
-        <line x1="84" y1="70" x2="108" y2="70" class="dim-line"/>
-        <line x1="84" y1="180" x2="108" y2="180" class="dim-line"/>
-        <text x="72" y="118" class="dim-label-left">Ø aspo</text>
-        <text x="72" y="136" class="dim-value-left">{fmt(aspo)} mm</text>
+        <!-- soft winding hints -->
+        <circle cx="190" cy="126" r="76" class="coil-ring-detail"/>
+        <circle cx="190" cy="126" r="70" class="coil-ring-detail"/>
+        <circle cx="190" cy="126" r="64" class="coil-ring-detail"/>
 
-        <line x1="114" y1="212" x2="382" y2="212" class="dim-line"/>
-        <line x1="114" y1="198" x2="114" y2="226" class="dim-line"/>
-        <line x1="382" y1="198" x2="382" y2="226" class="dim-line"/>
-        <text x="248" y="204" class="dim-value">{fmt(spalla)} mm</text>
-        <text x="248" y="232" class="dim-label">{safe_text(labels['width'])}</text>
+        <!-- spool diameter -->
+        <line x1="132" y1="126" x2="248" y2="126" class="dim-line"/>
+        <line x1="132" y1="114" x2="132" y2="138" class="dim-line"/>
+        <line x1="248" y1="114" x2="248" y2="138" class="dim-line"/>
+        <text x="190" y="118" class="dim-label">Ø aspo</text>
+        <text x="190" y="144" class="dim-value">{fmt(aspo)} mm</text>
 
-        <text x="414" y="108" class="label-title">{safe_text(labels['pitch'])}</text>
-        <text x="414" y="136" class="label-value">{fmt(passo)} mm</text>
+        <!-- callout to pitch -->
+        <line x1="248" y1="86" x2="338" y2="70" class="leader"/>
+        <text x="356" y="68" class="label-title">{safe_text(labels['pitch'])}</text>
+        <text x="356" y="94" class="label-value">{fmt(passo)} mm</text>
+
+        <!-- simple width / side schematic -->
+        <rect x="330" y="126" width="132" height="38" rx="18" class="coil-body"/>
+        <rect x="320" y="118" width="8" height="54" rx="4" class="flange"/>
+        <rect x="464" y="118" width="8" height="54" rx="4" class="flange"/>
+        <path d="M 340 138 C 368 134, 394 134, 422 138 S 446 142, 456 138" class="coil-stripe"/>
+        <path d="M 340 152 C 368 148, 394 148, 422 152 S 446 156, 456 152" class="coil-stripe"/>
+
+        <line x1="320" y1="198" x2="472" y2="198" class="dim-line"/>
+        <line x1="320" y1="186" x2="320" y2="210" class="dim-line"/>
+        <line x1="472" y1="186" x2="472" y2="210" class="dim-line"/>
+        <text x="396" y="192" class="dim-value">{fmt(spalla)} mm</text>
+        <text x="396" y="220" class="dim-label">{safe_text(labels['width'])}</text>
     </svg>
     """
 
