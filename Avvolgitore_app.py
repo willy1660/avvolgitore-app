@@ -629,12 +629,28 @@ def make_pallet_visual(coil_diameter_mm, pallet_size_mm, language):
         --card-border: rgba(255,255,255,0.10);
         --text: #f8fafc;
         --muted: rgba(248,250,252,0.70);
+        --measure: #f8fafc;
+        --coil-measure: #bfdbfe;
         --pallet: rgba(194,154,106,0.38);
         --pallet-stroke: rgba(223,190,145,0.85);
         --coil-fill: rgba(96,165,250,0.18);
         --coil-stroke: rgba(191,219,254,0.96);
         --warn-fill: rgba(248,113,113,0.18);
         --warn-stroke: rgba(252,165,165,0.98);
+    }}
+    html[data-theme="light"] {{
+        --card-bg: rgba(255,255,255,0.78);
+        --card-border: rgba(15,23,42,0.12);
+        --text: #111827;
+        --muted: rgba(75,85,99,0.72);
+        --measure: #111827;
+        --coil-measure: #2563eb;
+        --pallet: rgba(194,154,106,0.28);
+        --pallet-stroke: rgba(146,95,49,0.72);
+        --coil-fill: rgba(37,99,235,0.12);
+        --coil-stroke: rgba(37,99,235,0.80);
+        --warn-fill: rgba(239,68,68,0.12);
+        --warn-stroke: rgba(220,38,38,0.88);
     }}
     body {{ margin:0; font-family: Arial, Helvetica, sans-serif; color:var(--text); background:var(--bg); }}
     .wrap {{ border:1px solid var(--card-border); border-radius:18px; padding:18px; background:var(--card-bg); }}
@@ -654,20 +670,48 @@ def make_pallet_visual(coil_diameter_mm, pallet_size_mm, language):
         <line x1="130" y1="35" x2="130" y2="215" stroke="var(--pallet-stroke)" opacity="0.35"/>
         <line x1="190" y1="35" x2="190" y2="215" stroke="var(--pallet-stroke)" opacity="0.35"/>
         <circle cx="160" cy="125" r="{circle_r:.2f}" fill="{coil_fill}" stroke="{coil_stroke}" stroke-width="3"/>
-        <line x1="70" y1="230" x2="250" y2="230" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-        <line x1="70" y1="220" x2="70" y2="240" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-        <line x1="250" y1="220" x2="250" y2="240" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-        <text x="160" y="225" text-anchor="middle" fill="#f8fafc" font-size="14" font-weight="800">{pallet_size_mm:.0f} mm</text>
-        <line x1="{160-circle_r:.2f}" y1="22" x2="{160+circle_r:.2f}" y2="22" stroke="#bfdbfe" stroke-width="3" stroke-linecap="round"/>
-        <line x1="{160-circle_r:.2f}" y1="14" x2="{160-circle_r:.2f}" y2="30" stroke="#bfdbfe" stroke-width="3" stroke-linecap="round"/>
-        <line x1="{160+circle_r:.2f}" y1="14" x2="{160+circle_r:.2f}" y2="30" stroke="#bfdbfe" stroke-width="3" stroke-linecap="round"/>
-        <text x="160" y="16" text-anchor="middle" fill="#bfdbfe" font-size="14" font-weight="800">{coil_diameter_mm:.1f} mm</text>
+        <line x1="70" y1="230" x2="250" y2="230" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="70" y1="220" x2="70" y2="240" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="250" y1="220" x2="250" y2="240" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+        <text x="160" y="225" text-anchor="middle" fill="var(--measure)" font-size="14" font-weight="800">{pallet_size_mm:.0f} mm</text>
+        <line x1="{160-circle_r:.2f}" y1="22" x2="{160+circle_r:.2f}" y2="22" stroke="var(--coil-measure)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="{160-circle_r:.2f}" y1="14" x2="{160-circle_r:.2f}" y2="30" stroke="var(--coil-measure)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="{160+circle_r:.2f}" y1="14" x2="{160+circle_r:.2f}" y2="30" stroke="var(--coil-measure)" stroke-width="3" stroke-linecap="round"/>
+        <text x="160" y="16" text-anchor="middle" fill="var(--coil-measure)" font-size="14" font-weight="800">{coil_diameter_mm:.1f} mm</text>
     </svg>
     <div class="legend">
         <div class="legend-item"><span class="swatch" style="background:var(--pallet);"></span>{labels['pallet']}</div>
         <div class="legend-item"><span class="swatch" style="background:{coil_fill}; border:1px solid {coil_stroke};"></span>{labels['coil']}</div>
     </div>
 </div>
+
+<script>
+(() => {{
+    function luminance(rgb) {{
+        const parts = (rgb || "").match(/\\d+(\\.\\d+)?/g);
+        if (!parts || parts.length < 3) return null;
+        const vals = parts.slice(0,3).map(Number).map(v => {{
+            v = v / 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        }});
+        return 0.2126 * vals[0] + 0.7152 * vals[1] + 0.0722 * vals[2];
+    }}
+    function applyTheme() {{
+        try {{
+            const parentDoc = window.parent && window.parent.document;
+            const bg = parentDoc ? window.parent.getComputedStyle(parentDoc.body).backgroundColor : "";
+            const lum = luminance(bg);
+            if (lum !== null) {{
+                document.documentElement.dataset.theme = lum > 0.55 ? "light" : "dark";
+                return;
+            }}
+        }} catch (err) {{}}
+        document.documentElement.dataset.theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    }}
+    applyTheme();
+    setInterval(applyTheme, 1000);
+}})();
+</script>
 </body>
 </html>
 """
@@ -757,6 +801,7 @@ def make_packaging_visual(
         --card-border: rgba(255,255,255,0.10);
         --text: #f8fafc;
         --muted: rgba(248,250,252,0.70);
+        --measure: #f8fafc;
         --pallet: rgba(194,154,106,0.50);
         --pallet-stroke: rgba(223,190,145,0.92);
         --box-fill: rgba(148,163,184,0.08);
@@ -768,6 +813,24 @@ def make_packaging_visual(
         --warn-fill: rgba(248,113,113,0.18);
         --warn-stroke: rgba(252,165,165,0.98);
         --ok: rgba(74,222,128,0.98);
+    }}
+    html[data-theme="light"] {{
+        --card-bg: rgba(255,255,255,0.78);
+        --card-border: rgba(15,23,42,0.12);
+        --text: #111827;
+        --muted: rgba(75,85,99,0.72);
+        --measure: #111827;
+        --pallet: rgba(194,154,106,0.34);
+        --pallet-stroke: rgba(146,95,49,0.72);
+        --box-fill: rgba(15,23,42,0.035);
+        --box-stroke: rgba(71,85,105,0.55);
+        --coil-fill: rgba(37,99,235,0.12);
+        --coil-fill-2: rgba(226,232,240,0.96);
+        --coil-highlight: rgba(255,255,255,0.98);
+        --coil-stroke: rgba(37,99,235,0.76);
+        --warn-fill: rgba(239,68,68,0.12);
+        --warn-stroke: rgba(220,38,38,0.88);
+        --ok: rgba(22,163,74,0.96);
     }}
     body {{ margin:0; font-family: Arial, Helvetica, sans-serif; color:var(--text); background:var(--bg); }}
     .wrap {{ border:1px solid var(--card-border); border-radius:18px; padding:18px; background:var(--card-bg); }}
@@ -785,10 +848,10 @@ def make_packaging_visual(
             <rect x="34" y="{box_top_y}" width="168" height="{box_h_px}" rx="8" fill="{'var(--box-fill)' if is_box else 'none'}" stroke="{box_stroke}" stroke-width="3" stroke-dasharray="{'0' if is_box else '8 7'}"/>
             {''.join(roll_svgs)}
             <rect x="18" y="{pallet_y}" width="200" height="{pallet_h_px}" rx="5" fill="var(--pallet)" stroke="var(--pallet-stroke)" stroke-width="2"/>
-            <line x1="228" y1="{box_top_y}" x2="228" y2="{pallet_y + pallet_h_px}" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-            <line x1="218" y1="{box_top_y}" x2="238" y2="{box_top_y}" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-            <line x1="218" y1="{pallet_y + pallet_h_px}" x2="238" y2="{pallet_y + pallet_h_px}" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-            <text x="242" y="{(box_top_y + pallet_y + pallet_h_px)/2:.1f}" transform="rotate(90 242 {(box_top_y + pallet_y + pallet_h_px)/2:.1f})" fill="#f8fafc" font-size="13" font-weight="800" text-anchor="middle">{total_height_mm:.0f} mm</text>
+            <line x1="228" y1="{box_top_y}" x2="228" y2="{pallet_y + pallet_h_px}" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+            <line x1="218" y1="{box_top_y}" x2="238" y2="{box_top_y}" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+            <line x1="218" y1="{pallet_y + pallet_h_px}" x2="238" y2="{pallet_y + pallet_h_px}" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+            <text x="242" y="{(box_top_y + pallet_y + pallet_h_px)/2:.1f}" transform="rotate(90 242 {(box_top_y + pallet_y + pallet_h_px)/2:.1f})" fill="var(--measure)" font-size="13" font-weight="800" text-anchor="middle">{total_height_mm:.0f} mm</text>
             <text x="118" y="{pallet_y + pallet_h_px + 18}" fill="var(--muted)" font-size="12" font-weight="700" text-anchor="middle">{labels['pallet']} {pallet_height_mm:.0f} mm</text>
         </svg>
 
@@ -796,14 +859,42 @@ def make_packaging_visual(
             <text x="22" y="18" class="caption">{labels['top']}</text>
             <rect x="40" y="38" width="140" height="140" rx="8" fill="var(--pallet)" stroke="var(--pallet-stroke)" stroke-width="2"/>
             <circle cx="110" cy="108" r="{top_r:.2f}" fill="{coil_fill}" stroke="{coil_stroke}" stroke-width="3"/>
-            <line x1="40" y1="194" x2="180" y2="194" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-            <line x1="40" y1="184" x2="40" y2="204" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-            <line x1="180" y1="184" x2="180" y2="204" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
-            <text x="110" y="190" fill="#f8fafc" font-size="13" font-weight="800" text-anchor="middle">{pallet_size_mm:.0f} mm</text>
+            <line x1="40" y1="194" x2="180" y2="194" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+            <line x1="40" y1="184" x2="40" y2="204" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+            <line x1="180" y1="184" x2="180" y2="204" stroke="var(--measure)" stroke-width="3" stroke-linecap="round"/>
+            <text x="110" y="190" fill="var(--measure)" font-size="13" font-weight="800" text-anchor="middle">{pallet_size_mm:.0f} mm</text>
             <text x="110" y="211" fill="var(--muted)" font-size="12" font-weight="700" text-anchor="middle">{labels['coil']} Ø {coil_diameter_mm:.0f} mm</text>
         </svg>
     </div>
 </div>
+
+<script>
+(() => {{
+    function luminance(rgb) {{
+        const parts = (rgb || "").match(/\\d+(\\.\\d+)?/g);
+        if (!parts || parts.length < 3) return null;
+        const vals = parts.slice(0,3).map(Number).map(v => {{
+            v = v / 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        }});
+        return 0.2126 * vals[0] + 0.7152 * vals[1] + 0.0722 * vals[2];
+    }}
+    function applyTheme() {{
+        try {{
+            const parentDoc = window.parent && window.parent.document;
+            const bg = parentDoc ? window.parent.getComputedStyle(parentDoc.body).backgroundColor : "";
+            const lum = luminance(bg);
+            if (lum !== null) {{
+                document.documentElement.dataset.theme = lum > 0.55 ? "light" : "dark";
+                return;
+            }}
+        }} catch (err) {{}}
+        document.documentElement.dataset.theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    }}
+    applyTheme();
+    setInterval(applyTheme, 1000);
+}})();
+</script>
 </body>
 </html>
 """
@@ -1109,11 +1200,78 @@ def make_preset_visual(row, language):
 
     return f"""
     <style>
+    :root {{
+        color-scheme: light dark;
+        --component-bg: transparent;
+        --component-text: #f8fafc;
+        --component-muted: rgba(226,232,240,0.66);
+        --component-muted-strong: rgba(226,232,240,0.82);
+        --component-border: rgba(226,232,240,0.14);
+        --component-border-soft: rgba(226,232,240,0.10);
+        --component-surface: linear-gradient(180deg, rgba(18,22,27,0.44), rgba(18,22,27,0.25));
+        --component-surface-solid: rgba(226,232,240,0.055);
+        --component-drawing-bg:
+            radial-gradient(circle at 38% 45%, rgba(197,126,90,0.10), transparent 44%),
+            linear-gradient(180deg, #09111a, #101923);
+        --component-shadow: 0 12px 26px rgba(0,0,0,0.10);
+        --foam-fill: rgba(231,236,242,0.88);
+        --foam-stroke: rgba(248,250,252,0.92);
+        --center-line: rgba(226,232,240,0.24);
+        --dim-line: rgba(235,241,248,0.92);
+        --dim-guide: rgba(193,204,219,0.56);
+        --dim-label: rgba(203,214,228,0.88);
+        --copper-fill: #C57E5A;
+        --copper-stroke: #7a4124;
+        --copper-highlight: #E7B18F;
+    }}
+
+    html[data-theme="light"] {{
+        --component-text: #111827;
+        --component-muted: rgba(75,85,99,0.74);
+        --component-muted-strong: rgba(31,41,55,0.82);
+        --component-border: rgba(17,24,39,0.12);
+        --component-border-soft: rgba(17,24,39,0.09);
+        --component-surface: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.88));
+        --component-surface-solid: rgba(17,24,39,0.035);
+        --component-drawing-bg:
+            radial-gradient(circle at 38% 45%, rgba(197,126,90,0.12), transparent 44%),
+            linear-gradient(180deg, #f8fafc, #e9eef4);
+        --component-shadow: 0 12px 26px rgba(15,23,42,0.08);
+        --foam-fill: rgba(226,232,240,0.96);
+        --foam-stroke: rgba(100,116,139,0.50);
+        --center-line: rgba(51,65,85,0.24);
+        --dim-line: rgba(15,23,42,0.78);
+        --dim-guide: rgba(71,85,105,0.38);
+        --dim-label: rgba(51,65,85,0.76);
+    }}
+
+    @media (prefers-color-scheme: light) {{
+        html:not([data-theme="dark"]) {{
+            --component-text: #111827;
+            --component-muted: rgba(75,85,99,0.74);
+            --component-muted-strong: rgba(31,41,55,0.82);
+            --component-border: rgba(17,24,39,0.12);
+            --component-border-soft: rgba(17,24,39,0.09);
+            --component-surface: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.88));
+            --component-surface-solid: rgba(17,24,39,0.035);
+            --component-drawing-bg:
+                radial-gradient(circle at 38% 45%, rgba(197,126,90,0.12), transparent 44%),
+                linear-gradient(180deg, #f8fafc, #e9eef4);
+            --component-shadow: 0 12px 26px rgba(15,23,42,0.08);
+            --foam-fill: rgba(226,232,240,0.96);
+            --foam-stroke: rgba(100,116,139,0.50);
+            --center-line: rgba(51,65,85,0.24);
+            --dim-line: rgba(15,23,42,0.78);
+            --dim-guide: rgba(71,85,105,0.38);
+            --dim-label: rgba(51,65,85,0.76);
+        }}
+    }}
+
     html, body {{
         margin:0;
         padding:0;
-        background:transparent;
-        color:#f8fafc;
+        background:var(--component-bg);
+        color:var(--component-text);
         font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }}
     .preview-card {{
@@ -1121,9 +1279,9 @@ def make_preset_visual(row, language):
         box-sizing:border-box;
         border-radius:22px;
         overflow:hidden;
-        background:linear-gradient(180deg, rgba(18,22,27,0.44), rgba(18,22,27,0.25));
-        border:1px solid rgba(226,232,240,0.14);
-        box-shadow:0 12px 26px rgba(0,0,0,0.10);
+        background:var(--component-surface);
+        border:1px solid var(--component-border);
+        box-shadow:var(--component-shadow);
     }}
     .preview-head {{
         display:flex;
@@ -1131,14 +1289,14 @@ def make_preset_visual(row, language):
         justify-content:space-between;
         gap:12px;
         padding:15px 18px;
-        border-bottom:1px solid rgba(226,232,240,0.10);
+        border-bottom:1px solid var(--component-border-soft);
     }}
     .preview-title {{
         font-size:20px;
         line-height:1.05;
         font-weight:950;
         letter-spacing:-0.035em;
-        color:#f8fafc;
+        color:var(--component-text);
     }}
     .preview-tag {{
         flex:0 0 auto;
@@ -1149,8 +1307,8 @@ def make_preset_visual(row, language):
         border-radius:999px;
         padding:0 12px;
         background:rgba(197,126,90,0.16);
-        border:1px solid rgba(197,126,90,0.32);
-        color:#f8fafc;
+        border:1px solid rgba(197,126,90,0.36);
+        color:var(--component-text);
         font-size:12px;
         font-weight:900;
         letter-spacing:0.035em;
@@ -1159,10 +1317,8 @@ def make_preset_visual(row, language):
         margin:14px;
         border-radius:18px;
         overflow:hidden;
-        background:
-            radial-gradient(circle at 38% 45%, rgba(197,126,90,0.08), transparent 44%),
-            linear-gradient(180deg, #09111a, #101923);
-        border:1px solid rgba(226,232,240,0.10);
+        background:var(--component-drawing-bg);
+        border:1px solid var(--component-border-soft);
     }}
     .section-svg {{
         width:100%;
@@ -1170,45 +1326,45 @@ def make_preset_visual(row, language):
         display:block;
     }}
     .foam {{
-        fill:rgba(231,236,242,0.88);
-        stroke:rgba(248,250,252,0.92);
+        fill:var(--foam-fill);
+        stroke:var(--foam-stroke);
         stroke-width:2.3;
     }}
     .copper {{
-        fill:#C57E5A;
-        stroke:#7a4124;
+        fill:var(--copper-fill);
+        stroke:var(--copper-stroke);
         stroke-width:2.0;
     }}
     .copper-hi {{
-        fill:#E7B18F;
+        fill:var(--copper-highlight);
         opacity:0.82;
     }}
     .center-line {{
-        stroke:rgba(226,232,240,0.22);
+        stroke:var(--center-line);
         stroke-width:1.15;
         stroke-dasharray:5 6;
     }}
     .dim-line {{
-        stroke:rgba(235,241,248,0.92);
+        stroke:var(--dim-line);
         stroke-width:1.9;
         stroke-linecap:round;
     }}
     .dim-guide,
     .leader {{
-        stroke:rgba(193,204,219,0.56);
+        stroke:var(--dim-guide);
         stroke-width:1.15;
         fill:none;
         stroke-dasharray:4 5;
     }}
     .dim-label {{
-        fill:rgba(203,214,228,0.88);
+        fill:var(--dim-label);
         font-size:12px;
         font-weight:850;
         text-anchor:middle;
         letter-spacing:0.03em;
     }}
     .dim-value {{
-        fill:#ffffff;
+        fill:var(--component-text);
         font-size:15px;
         font-weight:950;
         text-anchor:middle;
@@ -1219,7 +1375,7 @@ def make_preset_visual(row, language):
         transform:rotate(-90deg);
     }}
     .call-label {{
-        fill:rgba(203,214,228,0.88);
+        fill:var(--dim-label);
         font-size:13px;
         font-weight:900;
         letter-spacing:0.055em;
@@ -1227,7 +1383,7 @@ def make_preset_visual(row, language):
         text-anchor:start;
     }}
     .call-value {{
-        fill:#ffffff;
+        fill:var(--component-text);
         font-size:19px;
         font-weight:950;
         text-anchor:start;
@@ -1243,8 +1399,8 @@ def make_preset_visual(row, language):
         border-radius:14px;
         padding:10px 11px;
         box-sizing:border-box;
-        background:rgba(226,232,240,0.055);
-        border:1px solid rgba(226,232,240,0.09);
+        background:var(--component-surface-solid);
+        border:1px solid var(--component-border-soft);
     }}
     .preview-metric-label {{
         font-size:10px;
@@ -1252,7 +1408,7 @@ def make_preset_visual(row, language):
         font-weight:900;
         letter-spacing:0.055em;
         text-transform:uppercase;
-        color:rgba(226,232,240,0.52);
+        color:var(--component-muted);
         margin-bottom:6px;
         white-space:nowrap;
         overflow:hidden;
@@ -1262,7 +1418,7 @@ def make_preset_visual(row, language):
         font-size:15px;
         line-height:1.06;
         font-weight:950;
-        color:#f8fafc;
+        color:var(--component-text);
         overflow-wrap:anywhere;
     }}
     @media (max-width: 900px) {{
@@ -1281,6 +1437,34 @@ def make_preset_visual(row, language):
         </div>
         <div class="metrics">{metrics}</div>
     </section>
+
+    <script>
+    (() => {{
+        function luminance(rgb) {{
+            const parts = (rgb || "").match(/\\d+(\\.\\d+)?/g);
+            if (!parts || parts.length < 3) return null;
+            const vals = parts.slice(0,3).map(Number).map(v => {{
+                v = v / 255;
+                return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            }});
+            return 0.2126 * vals[0] + 0.7152 * vals[1] + 0.0722 * vals[2];
+        }}
+        function applyTheme() {{
+            try {{
+                const parentDoc = window.parent && window.parent.document;
+                const bg = parentDoc ? window.parent.getComputedStyle(parentDoc.body).backgroundColor : "";
+                const lum = luminance(bg);
+                if (lum !== null) {{
+                    document.documentElement.dataset.theme = lum > 0.55 ? "light" : "dark";
+                    return;
+                }}
+            }} catch (err) {{}}
+            document.documentElement.dataset.theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }}
+        applyTheme();
+        setInterval(applyTheme, 1000);
+    }})();
+    </script>
     """
 
 def current_calculator_snapshot():
