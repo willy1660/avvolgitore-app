@@ -7744,7 +7744,8 @@ def render_elegant_panel_open(title=None, subtitle=None, tag=None):
 
 
 def render_elegant_panel_close():
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    # No-op: closing raw HTML panels can be rendered as visible text by Streamlit in some layouts.
+    return
 
 # =========================
 # UI
