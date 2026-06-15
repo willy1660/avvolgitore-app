@@ -1525,83 +1525,76 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
     lock_txt = "Bloccato" if language == "IT" else "Locked"
     free_txt = "Editabile" if language == "IT" else "Editable"
 
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return value
+        return default
+
+    tipo = gv("Tipo tubo")
+    lunghezza = gv("Lunghezza (m)")
+    aspo = gv("Diametro aspo (mm)")
+    spalla = gv("Spalla (mm)")
+
     status_badge = modified_txt if modified else original_txt
     lock_badge = lock_txt if locked else free_txt
     details = ", ".join(field_list[:4])
     if len(field_list) > 4:
         details += f" +{len(field_list) - 4}"
     if not details:
-        details = "Nessun valore modificato" if language == "IT" else "No changed value"
+        details = "Nessuna modifica manuale" if language == "IT" else "No manual changes"
+
+    info_items = [
+        ("Preset", selected_product),
+        ("Tubo" if language == "IT" else "Tube", str(tipo)),
+        ("Lunghezza" if language == "IT" else "Length", f"{lunghezza} m" if lunghezza != "-" else "-"),
+        ("Aspo", f"Ø {aspo} mm" if aspo != "-" else "-"),
+        ("Spalla", f"{spalla} mm" if spalla != "-" else "-"),
+    ]
 
     st.markdown(
         f"""
         <style>
-        @keyframes pdmPulse {{
-            0% {{ box-shadow:0 0 0 0 rgba(197,126,90,0.34); }}
-            100% {{ box-shadow:0 0 0 12px rgba(197,126,90,0); }}
-        }}
         .pdm-action-bar {{
-            margin:12px 0 20px 0;
-            padding:14px;
+            margin:12px 0 18px 0;
+            padding:14px 16px;
             border-radius:18px;
             background:linear-gradient(180deg,
-                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 90%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
             border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:12px;
-            flex-wrap:wrap;
         }}
-        .pdm-action-title {{
-            font-size:13px;
-            font-weight:900;
-            color:var(--text-color);
+        .pdm-action-top {{
+            display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;
         }}
-        .pdm-action-sub {{
-            font-size:12px;
-            font-weight:650;
-            color:color-mix(in srgb, var(--text-color) 62%, transparent);
-            margin-top:3px;
-        }}
-        .pdm-badges {{
-            display:flex;
-            gap:8px;
-            flex-wrap:wrap;
-            align-items:center;
-        }}
-        .pdm-badge {{
-            border-radius:999px;
-            padding:7px 10px;
-            font-size:11px;
-            line-height:1;
-            font-weight:900;
-            letter-spacing:0.045em;
-            text-transform:uppercase;
-            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-            background:color-mix(in srgb, var(--secondary-background-color) 80%, var(--background-color));
-        }}
-        .pdm-badge.mod {{
-            background:{'#f59e0b' if modified else '#C57E5A'};
-            border-color:{'#f59e0b' if modified else '#C57E5A'};
-            color:white;
-            animation:{'pdmPulse 1.1s ease-out 1' if modified else 'none'};
-        }}
-        .pdm-badge.lock {{
-            background:{'#64748b' if locked else 'color-mix(in srgb, var(--secondary-background-color) 80%, var(--background-color))'};
-            color:{'white' if locked else 'var(--text-color)'};
-        }}
+        .pdm-action-title {{ font-size:14px; font-weight:900; color:var(--text-color); }}
+        .pdm-action-sub {{ font-size:12px; font-weight:650; color:color-mix(in srgb, var(--text-color) 62%, transparent); margin-top:4px; }}
+        .pdm-badges {{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }}
+        .pdm-badge {{ border-radius:999px; padding:7px 10px; font-size:11px; line-height:1; font-weight:900; letter-spacing:0.045em; text-transform:uppercase; border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent); background:color-mix(in srgb, var(--secondary-background-color) 80%, var(--background-color)); }}
+        .pdm-badge.mod {{ background:{'#f59e0b' if modified else '#C57E5A'}; border-color:{'#f59e0b' if modified else '#C57E5A'}; color:white; }}
+        .pdm-badge.lock {{ background:{'#64748b' if locked else 'color-mix(in srgb, var(--secondary-background-color) 80%, var(--background-color))'}; color:{'white' if locked else 'var(--text-color)'}; }}
+        .pdm-action-grid {{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-top:14px; }}
+        .pdm-action-item {{ padding:10px 12px; border-radius:14px; border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent); background:linear-gradient(180deg, color-mix(in srgb, var(--text-color) 3%, transparent), color-mix(in srgb, var(--text-color) 7%, transparent)); min-height:72px; }}
+        .pdm-action-item-label {{ font-size:11px; font-weight:850; text-transform:uppercase; letter-spacing:0.04em; color:color-mix(in srgb, var(--text-color) 66%, transparent); margin-bottom:8px; }}
+        .pdm-action-item-value {{ font-size:24px; line-height:1.05; font-weight:950; color:var(--text-color); word-break:break-word; }}
+        @media (max-width: 1000px) {{ .pdm-action-grid {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} }}
         </style>
         <div class="pdm-action-bar">
-            <div>
-                <div class="pdm-action-title">{html.escape(str(selected_product))}</div>
-                <div class="pdm-action-sub">{html.escape(details)}</div>
+            <div class="pdm-action-top">
+                <div>
+                    <div class="pdm-action-title">{html.escape(str(selected_product))}</div>
+                    <div class="pdm-action-sub">{html.escape(details)}</div>
+                </div>
+                <div class="pdm-badges">
+                    <span class="pdm-badge mod">{html.escape(status_badge)}</span>
+                    <span class="pdm-badge lock">{html.escape(lock_badge)}</span>
+                </div>
             </div>
-            <div class="pdm-badges">
-                <span class="pdm-badge mod">{html.escape(status_badge)}</span>
-                <span class="pdm-badge lock">{html.escape(lock_badge)}</span>
+            <div class="pdm-action-grid">
+                {''.join([f'<div class="pdm-action-item"><div class="pdm-action-item-label">{html.escape(str(lbl))}</div><div class="pdm-action-item-value">{html.escape(str(val))}</div></div>' for lbl,val in info_items])}
             </div>
         </div>
         """,
@@ -6333,7 +6326,6 @@ if "selected_preset_product" not in st.session_state or st.session_state["select
 
 with tab_production:
     render_page_title(production_label)
-    render_workflow_bar(lang)
 
     render_section_header(
         "Selezione prodotto" if lang == "IT" else "Product selection",
@@ -6341,14 +6333,11 @@ with tab_production:
         "1",
     )
 
-    top_left, top_right = st.columns([1.6, 1.0], gap="large")
-
-    with top_left:
-        selected_product = st.selectbox(
-            t["select_product"],
-            preset_names,
-            key="selected_preset_product",
-        )
+    selected_product = st.selectbox(
+        t["select_product"],
+        preset_names,
+        key="selected_preset_product",
+    )
 
     selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
@@ -6370,29 +6359,19 @@ with tab_production:
     preset_modified = bool(st.session_state.get("preset_values_modified", False))
     params_locked = bool(st.session_state.get("params_locked", False))
 
-    with top_right:
-        st.markdown("&nbsp;", unsafe_allow_html=True)
-        render_active_preset_card(selected_product, lang, modified=preset_modified)
-
-    render_preset_summary_strip(selected_product, selected_row, lang, modified=preset_modified)
+    render_preset_action_bar(selected_product, selected_row, lang, preset_modified)
 
     render_section_header(
-        "Parametri principali" if lang == "IT" else "Main parameters",
-        "Solo i valori essenziali per simulare e verificare l’avvolgimento." if lang == "IT" else "Only the essential values for simulating and checking the winding.",
+        "Configurazione" if lang == "IT" else "Configuration",
+        "Imposta i valori principali, poi verifica rapidamente risultato e packaging." if lang == "IT" else "Set the main values, then quickly verify winding and packaging.",
         "2",
     )
 
-    colA, colB, colC = st.columns([0.95, 1.25, 1.0], gap="large")
+    rame_options = list(COPPER_SIZES_MM.keys())
+    colA, colB, colC = st.columns([1, 1, 1], gap="large")
 
     with colA:
-        st.markdown(f"**{t['bobina']}**")
-        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo", disabled=params_locked)
-        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla", disabled=params_locked)
-
-    with colB:
-        st.markdown(f"**{t['tubo']}**")
-        rame_options = list(COPPER_SIZES_MM.keys())
-
+        st.markdown("**Tubo**")
         tube_layout_label = st.radio(
             "Tipo tubo",
             ["Singolo", "Doppio"],
@@ -6418,43 +6397,46 @@ with tab_production:
             tube_diameter_label = f"{d_tubo:.2f} mm"
             passo_consigliato = d_tubo
             incremento_consigliato = d_tubo
-
         else:
             st.caption("Doppio verticale: diametro grande sotto, diametro piccolo sopra")
             c_inf, c_sup = st.columns(2)
-
             with c_inf:
                 if st.session_state.get("calc_rame_inf") not in rame_options:
                     st.session_state["calc_rame_inf"] = "3/8"
                 rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf", disabled=params_locked)
                 spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf", disabled=params_locked)
-
             with c_sup:
                 if st.session_state.get("calc_rame_sup") not in rame_options:
                     st.session_state["calc_rame_sup"] = "1/4"
                 rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup", disabled=params_locked)
                 spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup", disabled=params_locked)
-
             lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked)
 
             d_tubo_lower = COPPER_SIZES_MM[rame_inf] + 2.0 * spessore_inf
             d_tubo_upper = COPPER_SIZES_MM[rame_sup] + 2.0 * spessore_sup
-
             d_tubo_sim = max(d_tubo_lower, d_tubo_upper)
             d_tubo = d_tubo_sim
             d_tubo_footprint = d_tubo_sim
-
             tube_layout_code = "double"
             tube_diameter_label = f"Inferiore {d_tubo_lower:.2f} / Superiore {d_tubo_upper:.2f} mm"
             passo_consigliato = d_tubo_lower + d_tubo_upper
             incremento_consigliato = max(d_tubo_lower, d_tubo_upper)
 
-    with colC:
-        st.markdown(f"**{t['avvolg']}**")
+    with colB:
+        st.markdown("**Avvolgitore**")
+        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo", disabled=params_locked)
+        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla", disabled=params_locked)
         passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale", disabled=params_locked)
         incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale", disabled=params_locked)
-        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked)
-        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
+
+    with colC:
+        st.markdown("**Controlli e avanzati**" if lang == "IT" else "Checks and advanced")
+        st.metric("Preset", selected_product)
+        st.metric("Stato" if lang == "IT" else "Status", ("Modificato" if preset_modified else "Originale") if lang == "IT" else ("Modified" if preset_modified else "Original"))
+        with st.expander("Parametri avanzati" if lang == "IT" else "Advanced parameters", expanded=False):
+            rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked)
+            rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
+            st.caption("Usa questi valori solo quando serve una regolazione fine del movimento." if lang == "IT" else "Use these values only when a fine motion adjustment is needed.")
 
     z_min_center = None
     z_max_center = None
@@ -6568,16 +6550,20 @@ with tab_production:
             },
         ]
 
-    render_status_semaphore(status_items, lang)
+    render_section_header(
+        "Verifica rapida" if lang == "IT" else "Quick check",
+        "Prima controlla lo stato generale, poi apri il render per il dettaglio visivo." if lang == "IT" else "Check the overall status first, then open the render for the visual detail.",
+        "3",
+    )
 
-    render_preset_action_bar(selected_product, selected_row, lang, preset_modified, status_items=status_items)
+    render_status_semaphore(status_items, lang)
 
     st.divider()
 
     render_section_header(
         "Render 3D" if lang == "IT" else "3D render",
-        "Usa Avvolgimento per controllare la bobina e Packaging per verificare pallet/scatola/torretta." if lang == "IT" else "Use Winding to check the coil and Packaging to verify pallet/box/tower.",
-        "3",
+        "Avvolgimento e packaging in una vista unica." if lang == "IT" else "Winding and packaging in one integrated view.",
+        "4",
     )
 
     view_mode = st.radio(
@@ -6656,7 +6642,7 @@ with tab_production:
     render_section_header(
         "Risultati" if lang == "IT" else "Results",
         "Prima una lettura rapida, poi il dettaglio tecnico se serve." if lang == "IT" else "First a quick reading, then the technical detail if needed.",
-        "4",
+        "5",
     )
 
     pallet_size_mm = 750.0
@@ -6771,7 +6757,7 @@ with tab_tech_sheet:
     with machine_sheet_tab:
         render_section_header(
             "Scheda parametri macchina" if lang == "IT" else "Machine parameter sheet",
-            "Vista unica ordinata per introdurre tutti i valori in macchina senza separarli tra render e consultivi." if lang == "IT" else "A single grouped view for entering all values into the machine.",
+            "Vista unica ordinata per introdurre tutti i valori in macchina. Usa la ricerca per trovare subito il parametro che ti serve." if lang == "IT" else "Single grouped view to enter all machine values. Use search to find the parameter you need instantly.",
             "B",
         )
 
