@@ -131,6 +131,9 @@ TEXTS = {
         "box_fit_ok": "Packaging OK",
         "box_fit_over": "Fuori limite",
         "box_fit_note": "Calcolo basato sui parametri attuali del render.",
+        "capture_render": "Salva immagine render",
+        "print_sheet": "Scheda stampabile",
+        "print_sheet_help": "Scarica una scheda HTML pronta da stampare.",
     },
     "EN": {
         "title": "Coiling",
@@ -242,6 +245,9 @@ TEXTS = {
         "box_fit_ok": "Packaging OK",
         "box_fit_over": "Out of bounds",
         "box_fit_note": "Calculation based on the current render parameters.",
+        "capture_render": "Save render image",
+        "print_sheet": "Printable sheet",
+        "print_sheet_help": "Download a print-ready HTML sheet.",
     },
 }
 
@@ -1638,6 +1644,9 @@ def make_preset_export_html(product_name, selected_row, language, status_items=N
     field_labels = FIELD_LABELS_IT if language == "IT" else FIELD_LABELS_EN
 
     title = "Scheda preset avvolgimento" if language == "IT" else "Winding preset sheet"
+    calc_title = "Valori calcolatore" if language == "IT" else "Calculator values"
+    csv_title = "Valori CSV" if language == "IT" else "CSV values"
+    print_label = "Stampa scheda" if language == "IT" else "Print sheet"
     modified_label = "Sì" if modified and language == "IT" else ("Yes" if modified else ("No" if language != "IT" else "No"))
     rows = []
     for key, label in field_labels.items():
@@ -1672,6 +1681,8 @@ body{{font-family:Inter,Arial,sans-serif;margin:32px;color:#111827;background:#f
 h1{{margin:0;font-size:28px;}}
 .subtitle{{margin-top:8px;color:#64748b;font-weight:700;}}
 .badge{{display:inline-block;margin-top:12px;padding:7px 11px;border-radius:999px;background:#C57E5A;color:white;font-weight:800;font-size:12px;}}
+.print-actions{{display:flex;justify-content:flex-end;margin:0 0 18px 0;}}
+.print-btn{{border:none;border-radius:999px;padding:10px 16px;background:#C57E5A;color:white;font-weight:900;cursor:pointer;box-shadow:0 8px 18px rgba(197,126,90,.22);}}
 .grid{{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px;}}
 .card{{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 6px 16px rgba(0,0,0,.045);}}
 h2{{margin:0 0 14px 0;font-size:18px;}}
@@ -1683,10 +1694,11 @@ td{{font-weight:800;padding:8px;border-bottom:1px solid #e5e7eb;}}
 .status b{{display:block;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.06em;}}
 .status span{{display:block;font-size:22px;font-weight:900;margin-top:6px;}}
 .status small{{display:block;color:#64748b;margin-top:6px;}}
-@media print{{body{{background:white}}.card,.header,.status{{box-shadow:none}}}}
+@media print{{body{{background:white;margin:18px}}.card,.header,.status{{box-shadow:none}}.print-actions{{display:none}}}}
 </style>
 </head>
 <body>
+<div class="print-actions"><button class="print-btn" onclick="window.print()">{html.escape(print_label)}</button></div>
 <div class="header">
 <h1>{html.escape(str(product_name))}</h1>
 <div class="subtitle">{html.escape(title)}</div>
@@ -1694,8 +1706,8 @@ td{{font-weight:800;padding:8px;border-bottom:1px solid #e5e7eb;}}
 </div>
 {status_html}
 <div class="grid">
-<div class="card"><h2>Valori calcolatore</h2><table>{"".join(rows)}</table></div>
-<div class="card"><h2>Valori CSV</h2><table>{"".join(source_rows)}</table></div>
+<div class="card"><h2>{html.escape(calc_title)}</h2><table>{"".join(rows)}</table></div>
+<div class="card"><h2>{html.escape(csv_title)}</h2><table>{"".join(source_rows)}</table></div>
 </div>
 </body>
 </html>"""
@@ -3021,6 +3033,7 @@ def viewer(
             <button id="play_pause_btn" class="viewer_btn viewer_icon_btn">⏸</button>
             <button id="reset_view_btn" class="viewer_btn viewer_icon_btn">↺</button>
             <button id="fullscreen_btn" class="viewer_btn viewer_icon_btn">⛶</button>
+            <button id="capture_render_btn" class="viewer_btn viewer_icon_btn">📷</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
         </div>
@@ -3650,6 +3663,7 @@ def viewer(
         const playPauseBtn = document.getElementById("play_pause_btn");
         const resetViewBtn = document.getElementById("reset_view_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
+        const captureRenderBtn = document.getElementById("capture_render_btn");
         const progressSlider = document.getElementById("progress_slider");
         const animationCheck = document.getElementById("animation_check");
 
@@ -3713,6 +3727,7 @@ def viewer(
         document.getElementById("view_side_btn").textContent = T.view_side;
         resetViewBtn.title = T.reset_view;
         fullscreenBtn.title = T.fullscreen;
+        captureRenderBtn.title = T.capture_render || "Save render image";
 
         function updateSidepanelToggle() {{
             const collapsed = sidepanel.classList.contains("collapsed");
@@ -4116,6 +4131,22 @@ def viewer(
         }});
 
         fullscreenBtn.title = T.fullscreen;
+        captureRenderBtn.title = T.capture_render || "Save render image";
+
+        captureRenderBtn.addEventListener("click", () => {{
+            try {{
+                renderer.render(scene, camera);
+                const link = document.createElement("a");
+                const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+                link.download = `avvolgimento-render-${{stamp}}.png`;
+                link.href = renderer.domElement.toDataURL("image/png");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }} catch (err) {{
+                console.warn("Render capture failed", err);
+            }}
+        }});
 
         document.addEventListener("fullscreenchange", () => {{
             if (!document.fullscreenElement) {{
@@ -7824,7 +7855,7 @@ with tab_production:
 
     render_elegant_panel_open(
         "Render 3D" if lang == "IT" else "3D render",
-        "Vista ampia: il render occupa tutto lo spazio disponibile. L’esito rapido resta sotto, senza togliere larghezza alla simulazione." if lang == "IT" else "Wide view: the render uses all available width. The quick result stays below without reducing the simulation area.",
+        None,
         selected_product,
     )
 
@@ -7859,6 +7890,20 @@ with tab_production:
     render_elegant_panel_close()
 
     render_status_semaphore(status_items, lang)
+
+    safe_product_filename = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(selected_product)).strip("_") or "preset"
+    printable_html = make_preset_export_html(selected_product, selected_row, lang, status_items=status_items)
+    dl_col1, dl_col2 = st.columns([0.25, 0.75], gap="small")
+    with dl_col1:
+        st.download_button(
+            t["print_sheet"],
+            data=printable_html.encode("utf-8"),
+            file_name=f"scheda_{safe_product_filename}.html",
+            mime="text/html",
+            use_container_width=True,
+        )
+    with dl_col2:
+        st.caption(t["print_sheet_help"])
 
     st.divider()
 
