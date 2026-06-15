@@ -5668,7 +5668,7 @@ def render_startup_checklist(language):
     st.markdown(
         f"""
         <style>
-        .stButton > button {
+        .stButton > button {{
             border-radius:999px !important;
             min-height:46px;
             padding:0.72rem 1.35rem !important;
@@ -5679,25 +5679,25 @@ def render_startup_checklist(language):
             letter-spacing:0.01em;
             box-shadow:0 8px 18px rgba(197,126,90,0.22), 0 3px 8px rgba(0,0,0,0.10) !important;
             transition:transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease, background 0.16s ease !important;
-        }
-        .stButton > button:hover {
+        }}
+        .stButton > button:hover {{
             transform:translateY(-1px);
             filter:brightness(1.05);
             box-shadow:0 10px 22px rgba(197,126,90,0.28), 0 5px 12px rgba(0,0,0,0.12) !important;
             border-color:#C57E5A !important;
             background:#C57E5A !important;
             color:#ffffff !important;
-        }
+        }}
         .stButton > button:focus,
-        .stButton > button:focus-visible {
+        .stButton > button:focus-visible {{
             outline:none !important;
             box-shadow:0 0 0 2px rgba(255,255,255,0.88), 0 0 0 5px rgba(197,126,90,0.34), 0 10px 22px rgba(197,126,90,0.24) !important;
             border-color:#C57E5A !important;
-        }
-        .stButton > button:active {
+        }}
+        .stButton > button:active {{
             transform:translateY(0);
             filter:brightness(0.98);
-        }
+        }}
 
         .checklist-hero {{
             margin:8px 0 14px 0;
