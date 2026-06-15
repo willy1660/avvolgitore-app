@@ -1541,7 +1541,7 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
             100% {{ box-shadow:0 0 0 12px rgba(197,126,90,0); }}
         }}
         .pdm-action-bar {{
-            margin:10px 0 18px 0;
+            margin:12px 0 18px 0;
             padding:14px;
             border-radius:18px;
             background:linear-gradient(180deg,
@@ -4850,7 +4850,7 @@ def render_workflow_bar(language):
             display:flex;
             align-items:center;
             gap:10px;
-            padding:12px 14px;
+            padding:16px 18px;
             border-radius:16px;
             background:linear-gradient(180deg,
                 color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
@@ -4901,13 +4901,17 @@ def render_section_header(title, subtitle=None, icon=""):
     if subtitle:
         subtitle_html = f'<div class="section-subtitle">{html.escape(str(subtitle))}</div>'
 
+    badge_html = ""
+    if str(icon).strip():
+        badge_html = f'<div class="section-badge">{html.escape(str(icon))}</div>'
+
     st.markdown(
         f"""
         <style>
         .section-header {{
             margin-top:12px;
             margin-bottom:10px;
-            padding:14px 16px;
+            padding:16px 18px;
             border-radius:16px;
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
             background:linear-gradient(180deg,
@@ -4916,13 +4920,39 @@ def render_section_header(title, subtitle=None, icon=""):
             );
             box-shadow:0 8px 18px rgba(0,0,0,0.07);
         }}
+        .section-header-row {{
+            display:flex;
+            align-items:flex-start;
+            gap:12px;
+        }}
+        .section-badge {{
+            width:30px;
+            height:30px;
+            min-width:30px;
+            border-radius:999px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:#C57E5A;
+            color:#ffffff;
+            font-size:14px;
+            font-weight:900;
+            line-height:1;
+            box-shadow:0 4px 10px rgba(197,126,90,0.22);
+            margin-top:1px;
+        }}
+        .section-header-copy {{
+            display:flex;
+            flex-direction:column;
+            justify-content:flex-start;
+            min-width:0;
+        }}
         .section-title {{
             font-size:18px;
             font-weight:900;
             line-height:1.1;
-            display:flex;
-            align-items:center;
-            gap:8px;
+            margin:0;
+            padding:0;
         }}
         .section-subtitle {{
             margin-top:5px;
@@ -4930,11 +4960,17 @@ def render_section_header(title, subtitle=None, icon=""):
             line-height:1.28;
             color:color-mix(in srgb, var(--text-color) 66%, transparent);
             font-weight:650;
+            margin-bottom:0;
         }}
         </style>
         <div class="section-header">
-            <div class="section-title">{html.escape(icon)} {html.escape(str(title))}</div>
-            {subtitle_html}
+            <div class="section-header-row">
+                {badge_html}
+                <div class="section-header-copy">
+                    <div class="section-title">{html.escape(str(title))}</div>
+                    {subtitle_html}
+                </div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -6055,13 +6091,13 @@ if "selected_preset_product" not in st.session_state or st.session_state["select
     st.session_state["selected_preset_product"] = preset_names[0]
 
 with tab_production:
-    st.markdown(f"### {production_label}")
+    st.markdown(f'''<div style="font-size:30px;font-weight:900;line-height:1.05;margin:0 0 6px 0;padding:0;">{production_label}</div>''', unsafe_allow_html=True)
     render_workflow_bar(lang)
 
     render_section_header(
         "Selezione prodotto" if lang == "IT" else "Product selection",
         "Scegli un preset: i valori si caricano automaticamente nel render." if lang == "IT" else "Choose a preset: values are automatically loaded into the render.",
-        "①",
+        "1",
     )
 
     top_left, top_right = st.columns([1.6, 1.0], gap="large")
@@ -6102,7 +6138,7 @@ with tab_production:
     render_section_header(
         "Parametri principali" if lang == "IT" else "Main parameters",
         "Solo i valori essenziali per simulare e verificare l’avvolgimento." if lang == "IT" else "Only the essential values for simulating and checking the winding.",
-        "②",
+        "2",
     )
 
     colA, colB, colC = st.columns([0.95, 1.25, 1.0], gap="large")
@@ -6300,7 +6336,7 @@ with tab_production:
     render_section_header(
         "Render 3D" if lang == "IT" else "3D render",
         "Usa Avvolgimento per controllare la bobina e Packaging per verificare pallet/scatola/torretta." if lang == "IT" else "Use Winding to check the coil and Packaging to verify pallet/box/tower.",
-        "③",
+        "3",
     )
 
     view_mode = st.radio(
@@ -6379,7 +6415,7 @@ with tab_production:
     render_section_header(
         "Risultati" if lang == "IT" else "Results",
         "Prima una lettura rapida, poi il dettaglio tecnico se serve." if lang == "IT" else "First a quick reading, then the technical detail if needed.",
-        "④",
+        "4",
     )
 
     pallet_size_mm = 750.0
@@ -6415,12 +6451,12 @@ with tab_production:
         st.warning(t["warning"])
 
 with tab_tech_sheet:
-    st.markdown(f"### {tech_sheet_label}")
+    st.markdown(f'''<div style="font-size:30px;font-weight:900;line-height:1.05;margin:0 0 6px 0;padding:0;">{tech_sheet_label}</div>''', unsafe_allow_html=True)
 
     render_section_header(
         "Consultazione preset" if lang == "IT" else "Preset reference",
         "Qui trovi anteprima, lettura rapida e parametri completi del CSV in una vista più ordinata." if lang == "IT" else "Here you find preview, quick reading and full CSV parameters in a cleaner layout.",
-        "ⓘ",
+        "i",
     )
 
     selected_product = st.session_state.get("selected_preset_product", preset_names[0])
