@@ -1111,45 +1111,67 @@ def make_preset_visual(row, language):
     coil_svg = f"""
     <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Coiling layout">
         <defs>
-            <pattern id="gridCoil" width="18" height="18" patternUnits="userSpaceOnUse">
-                <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+            <linearGradient id="tubeGradDark" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#6f767f"/>
+                <stop offset="32%" stop-color="#343a42"/>
+                <stop offset="68%" stop-color="#151a20"/>
+                <stop offset="100%" stop-color="#59616b"/>
+            </linearGradient>
+            <linearGradient id="discTopDark" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#2e3540"/>
+                <stop offset="60%" stop-color="#090d12"/>
+                <stop offset="100%" stop-color="#020409"/>
+            </linearGradient>
+            <linearGradient id="discBottomDark" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#b7bdc5"/>
+                <stop offset="52%" stop-color="#6e7680"/>
+                <stop offset="100%" stop-color="#303841"/>
+            </linearGradient>
+            <pattern id="darkGrid" width="18" height="18" patternUnits="userSpaceOnUse">
+                <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.045)" stroke-width="1"/>
             </pattern>
-            <linearGradient id="tubeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#46505d"/>
-                <stop offset="35%" stop-color="#1a1f26"/>
-                <stop offset="68%" stop-color="#090d12"/>
-                <stop offset="100%" stop-color="#3e4652"/>
-            </linearGradient>
-            <linearGradient id="topDisc" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#39414c"/>
-                <stop offset="100%" stop-color="#070b10"/>
-            </linearGradient>
-            <linearGradient id="bottomDisc" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#d4d7dd"/>
-                <stop offset="100%" stop-color="#8a9099"/>
-            </linearGradient>
         </defs>
-        <rect x="0" y="0" width="560" height="250" fill="url(#gridCoil)"/>
-        <line x1="4" y1="138" x2="122" y2="138" class="tube-line-dark"/>
-        <ellipse cx="314" cy="46" rx="190" ry="13" fill="url(#topDisc)" stroke="#02050a" stroke-width="1.3"/>
-        <ellipse cx="314" cy="196" rx="190" ry="14" fill="url(#bottomDisc)" stroke="#7b848f" stroke-width="1.1"/>
-        <line x1="154" y1="76" x2="474" y2="76" class="tube-line-dark"/>
-        <line x1="150" y1="102" x2="478" y2="102" class="tube-line-dark"/>
-        <line x1="148" y1="128" x2="480" y2="128" class="tube-line-dark"/>
-        <line x1="150" y1="154" x2="478" y2="154" class="tube-line-dark"/>
-        <line x1="154" y1="180" x2="474" y2="180" class="tube-line-dark"/>
-        <line x1="114" y1="46" x2="114" y2="196" class="dim-line-blue"/>
-        <line x1="102" y1="46" x2="126" y2="46" class="dim-line-blue"/>
-        <line x1="102" y1="196" x2="126" y2="196" class="dim-line-blue"/>
-        <text x="84" y="108" class="dim-label-blue vertical">Ø aspo</text>
-        <text x="100" y="108" class="dim-value-blue vertical">{fmt(aspo)} mm</text>
-        <line x1="154" y1="226" x2="474" y2="226" class="dim-line-blue"/>
-        <line x1="154" y1="214" x2="154" y2="238" class="dim-line-blue"/>
-        <line x1="474" y1="214" x2="474" y2="238" class="dim-line-blue"/>
-        <text x="314" y="220" class="dim-value-blue">{fmt(spalla)} mm</text>
-        <text x="314" y="244" class="dim-label-blue">{safe_text(labels['width'])}</text>
-        <text x="496" y="110" class="label-title-blue">{safe_text(labels['pitch'])}</text>
-        <text x="496" y="134" class="label-value-blue">{fmt(passo)} mm</text>
+
+        <rect x="0" y="0" width="560" height="250" fill="#070b10"/>
+        <rect x="0" y="0" width="560" height="250" fill="url(#darkGrid)" opacity="0.28"/>
+
+        <!-- entrada del tub -->
+        <line x1="0" y1="137" x2="126" y2="137" class="tube-band"/>
+
+        <!-- aspo i rotllo, vista lateral com la referència -->
+        <ellipse cx="316" cy="43" rx="205" ry="15" fill="url(#discTopDark)" stroke="#00040a" stroke-width="1.4"/>
+        <ellipse cx="316" cy="198" rx="205" ry="16" fill="url(#discBottomDark)" stroke="#808993" stroke-width="1.1"/>
+
+        <!-- voltes visibles del rotllo -->
+        <line x1="154" y1="72" x2="478" y2="72" class="tube-band"/>
+        <line x1="150" y1="98" x2="482" y2="98" class="tube-band"/>
+        <line x1="148" y1="124" x2="484" y2="124" class="tube-band"/>
+        <line x1="150" y1="150" x2="482" y2="150" class="tube-band"/>
+        <line x1="154" y1="176" x2="478" y2="176" class="tube-band"/>
+
+        <!-- brillantors subtils per llegir el volum -->
+        <path d="M 162 84 C 230 75, 398 75, 470 84" class="tube-highlight"/>
+        <path d="M 158 110 C 236 101, 396 101, 474 110" class="tube-highlight"/>
+        <path d="M 158 136 C 236 127, 396 127, 474 136" class="tube-highlight"/>
+        <path d="M 162 162 C 230 153, 398 153, 470 162" class="tube-highlight"/>
+
+        <!-- cota Ø aspo -->
+        <line x1="108" y1="43" x2="108" y2="198" class="dim-line-darkpreview"/>
+        <line x1="96" y1="43" x2="120" y2="43" class="dim-line-darkpreview"/>
+        <line x1="96" y1="198" x2="120" y2="198" class="dim-line-darkpreview"/>
+        <text x="78" y="112" class="dim-label-darkpreview vertical">Ø aspo</text>
+        <text x="96" y="112" class="dim-value-darkpreview vertical">{fmt(aspo)} mm</text>
+
+        <!-- cota spalla -->
+        <line x1="154" y1="226" x2="478" y2="226" class="dim-line-darkpreview"/>
+        <line x1="154" y1="214" x2="154" y2="238" class="dim-line-darkpreview"/>
+        <line x1="478" y1="214" x2="478" y2="238" class="dim-line-darkpreview"/>
+        <text x="316" y="219" class="dim-value-darkpreview">{fmt(spalla)} mm</text>
+        <text x="316" y="244" class="dim-label-darkpreview">{safe_text(labels['width'])}</text>
+
+        <!-- passo -->
+        <text x="503" y="110" class="label-title-darkpreview">{safe_text(labels['pitch'])}</text>
+        <text x="503" y="136" class="label-value-darkpreview">{fmt(passo)} mm</text>
     </svg>
     """
 
@@ -1172,11 +1194,11 @@ def make_preset_visual(row, language):
         --preview-copper-light:#E7B18F;
         --preview-foam:#d7dde5;
         --preview-foam-stroke:#a7b2bf;
-        --preview-blue-top:#0f2746;
-        --preview-blue-bottom:#081629;
-        --preview-blue-line:#cbe4ff;
-        --preview-blue-muted:#8bb0d8;
-        --preview-blue-text:#edf6ff;
+        --preview-blue-top:#070b10;
+        --preview-blue-bottom:#0d131b;
+        --preview-blue-line:#d7dee8;
+        --preview-blue-muted:#9aa6b5;
+        --preview-blue-text:#f8fafc;
         --preview-blue-shadow:#07111e;
     }}
     html, body {{ margin:0; padding:0; background:transparent; color:#f8fafc; font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }}
@@ -1186,7 +1208,7 @@ def make_preset_visual(row, language):
     .preview-title {{ font-size:20px; line-height:1.05; font-weight:950; letter-spacing:-0.035em; color:#f8fafc; }}
     .preview-tag {{ flex:0 0 auto; min-height:30px; display:flex; align-items:center; justify-content:center; border-radius:999px; padding:0 12px; background:rgba(197,126,90,0.16); border:1px solid rgba(197,126,90,0.32); color:#f8fafc; font-size:12px; font-weight:900; letter-spacing:0.035em; }}
     .drawing-wrap {{ padding:14px 14px 0 14px; }}
-    .preview-svg {{ width:100%; height:250px; display:block; border-radius:18px; background:linear-gradient(180deg,var(--preview-blue-top),var(--preview-blue-bottom)); border:1px solid rgba(203,228,255,0.18); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.02); }}
+    .preview-svg {{ width:100%; height:250px; display:block; border-radius:18px; background:linear-gradient(180deg,#070b10,#0d131b); border:1px solid rgba(226,232,240,0.12); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.02); }}
     .foam-shape {{ fill:var(--preview-foam); stroke:var(--preview-foam-stroke); stroke-width:2.2; }}
     .copper-shape {{ fill:var(--preview-copper); stroke:rgba(126,67,36,0.92); stroke-width:1.8; }}
     .copper-highlight {{ fill:var(--preview-copper-light); opacity:0.82; }}
@@ -1199,6 +1221,13 @@ def make_preset_visual(row, language):
     .label-value-blue {{ fill:var(--preview-blue-text); font-size:18px; font-weight:950; }}
     .label-sub-blue {{ fill:#d1e6ff; font-size:14px; font-weight:800; }}
     .tube-line-dark {{ stroke:url(#tubeGrad); stroke-width:20; stroke-linecap:round; }}
+    .tube-band {{ stroke:url(#tubeGradDark); stroke-width:22; stroke-linecap:round; filter:drop-shadow(0 4px 3px rgba(0,0,0,0.42)); }}
+    .tube-highlight {{ fill:none; stroke:rgba(255,255,255,0.13); stroke-width:1.4; stroke-linecap:round; }}
+    .dim-line-darkpreview {{ stroke:#d7dee8; stroke-width:1.8; stroke-linecap:round; }}
+    .dim-label-darkpreview {{ fill:#9aa6b5; font-size:12px; font-weight:850; text-anchor:middle; letter-spacing:0.03em; }}
+    .dim-value-darkpreview {{ fill:#f8fafc; font-size:14px; font-weight:950; text-anchor:middle; }}
+    .label-title-darkpreview {{ fill:#9aa6b5; font-size:12px; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; }}
+    .label-value-darkpreview {{ fill:#f8fafc; font-size:18px; font-weight:950; }}
     .metrics {{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:9px; padding:14px; }}
     .preview-metric {{ min-height:54px; border-radius:14px; padding:10px 11px; box-sizing:border-box; background:rgba(226,232,240,0.055); border:1px solid rgba(226,232,240,0.09); }}
     .preview-metric-label {{ display:block; font-size:10px; line-height:1.1; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; color:rgba(226,232,240,0.52); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
