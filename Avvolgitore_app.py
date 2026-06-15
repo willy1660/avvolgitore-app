@@ -6571,6 +6571,88 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
 
 
 
+def render_prototype_product_card(prototype_name, language):
+    """Hero card for a manual prototype. Makes clear it is not an official CSV preset."""
+    locked = bool(st.session_state.get("params_locked", False))
+    pulse_class = " pdm-pulse" if bool(st.session_state.get("changed_values_pulse", False)) else ""
+    if pulse_class:
+        st.session_state["changed_values_pulse"] = False
+
+    tube_layout = str(st.session_state.get("calc_tube_layout", "Singolo"))
+    length = format_preset_value(st.session_state.get("calc_lunghezza", "-"))
+    aspo = format_preset_value(st.session_state.get("calc_diametro_aspo", "-"))
+    spalla = format_preset_value(st.session_state.get("calc_spalla", "-"))
+
+    if tube_layout == "Doppio":
+        copper_value = f"{st.session_state.get('calc_rame_sup', '-')}/{st.session_state.get('calc_rame_inf', '-')}"
+        foam_value = f"{format_preset_value(st.session_state.get('calc_spessore_sup', '-'))}/{format_preset_value(st.session_state.get('calc_spessore_inf', '-'))} mm"
+    else:
+        copper_value = st.session_state.get("calc_rame", "-")
+        foam_value = f"{format_preset_value(st.session_state.get('calc_spessore', '-'))} mm"
+
+    if language == "IT":
+        kicker = "Prototipo prodotto"
+        subtitle = "Configurazione manuale · non salvata nel CSV · PDF scheda CSV non disponibile"
+        prototype_txt = "Prototipo"
+        locked_txt = "Bloccato"
+        editable_txt = "Editabile"
+        chip_defs = [
+            ("Tipo tubo", tube_layout),
+            ("Ø rame", copper_value),
+            ("Guaina", foam_value),
+            ("Lunghezza", f"{length} m"),
+            ("Aspo", f"Ø {aspo} mm"),
+            ("Spalla", f"{spalla} mm"),
+        ]
+    else:
+        kicker = "Product prototype"
+        subtitle = "Manual configuration · not saved in the CSV · CSV sheet PDF unavailable"
+        prototype_txt = "Prototype"
+        locked_txt = "Locked"
+        editable_txt = "Editable"
+        chip_defs = [
+            ("Tube type", tube_layout),
+            ("Copper Ø", copper_value),
+            ("Foam", foam_value),
+            ("Length", f"{length} m"),
+            ("Spool", f"Ø {aspo} mm"),
+            ("Width", f"{spalla} mm"),
+        ]
+
+    lock_txt = locked_txt if locked else editable_txt
+    lock_class = "locked" if locked else "editable"
+    chips_html = "".join(
+        f"""
+        <div class="preset-hero-chip">
+            <span>{html.escape(str(label))}</span>
+            <strong>{html.escape(str(value))}</strong>
+        </div>
+        """
+        for label, value in chip_defs
+    )
+
+    st.markdown(
+        f"""
+        <div class="preset-hero{pulse_class}">
+            <div class="preset-hero-top">
+                <div>
+                    <div class="preset-hero-kicker">{html.escape(kicker)}</div>
+                    <div class="preset-hero-title">{html.escape(str(prototype_name))}</div>
+                    <div class="preset-hero-subtitle">{html.escape(subtitle)}</div>
+                </div>
+                <div class="preset-hero-badges">
+                    <span class="preset-hero-badge modified">{html.escape(prototype_txt)}</span>
+                    <span class="preset-hero-badge {lock_class}">{html.escape(lock_txt)}</span>
+                </div>
+            </div>
+            <div class="preset-hero-chips">{chips_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+
 def render_render_hero(language, selected_product, tube_diameter_label, lunghezza, view_mode_label, packaging_tone, packaging_value, coil_footprint_mm):
     if language == "IT":
         title = "Simulazione avvolgimento"
@@ -7997,37 +8079,99 @@ with tab_production:
         "1",
     )
 
-    preset_selector_col, preset_selector_spacer = st.columns([1.05, 2.95], gap="large")
-    with preset_selector_col:
-        selected_product = st.selectbox(
-            t["select_product"],
-            preset_names,
-            index=preset_names.index(st.session_state["selected_preset_product"]),
-            key="selected_preset_product_selectbox",
+    source_options = ["Preset CSV", "Prototipo"] if lang == "IT" else ["CSV preset", "Prototype"]
+    default_source = st.session_state.get("product_source_mode", "preset")
+    source_index = 1 if default_source == "prototype" else 0
+
+    source_col, selector_col, spacer_col = st.columns([0.72, 1.18, 2.10], gap="large")
+    with source_col:
+        source_label = "Origine dati" if lang == "IT" else "Data source"
+        selected_source_label = st.radio(
+            source_label,
+            source_options,
+            index=source_index,
+            horizontal=True,
+            key="product_source_radio",
         )
-        st.session_state["selected_preset_product"] = selected_product
 
-    selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
+    is_prototype = selected_source_label == source_options[1]
+    st.session_state["product_source_mode"] = "prototype" if is_prototype else "preset"
 
-    # Pending restore request must be applied before any calc_* widget is instantiated.
-    if st.session_state.get("restore_preset_request") == selected_product:
-        st.session_state.pop("restore_preset_request", None)
-        apply_preset_to_calculator(selected_row)
+    with selector_col:
+        if is_prototype:
+            prototype_default = st.session_state.get("prototype_name", "Nuovo prototipo" if lang == "IT" else "New prototype")
+            selected_product = st.text_input(
+                "Nome prototipo" if lang == "IT" else "Prototype name",
+                value=prototype_default,
+                key="prototype_name_input",
+            ).strip() or ("Nuovo prototipo" if lang == "IT" else "New prototype")
+            st.session_state["prototype_name"] = selected_product
+        else:
+            selected_product = st.selectbox(
+                t["select_product"],
+                preset_names,
+                index=preset_names.index(st.session_state["selected_preset_product"]),
+                key="selected_preset_product_selectbox",
+            )
+            st.session_state["selected_preset_product"] = selected_product
 
-    # Auto-load preset when product changes. This removes the old "select + load + switch tab" flow.
-    last_auto_loaded = st.session_state.get("last_auto_loaded_preset")
-    if last_auto_loaded != selected_product:
-        apply_preset_to_calculator(selected_row)
-        st.session_state["last_auto_loaded_preset"] = selected_product
-        st.session_state["loaded_preset_name"] = selected_product
-        st.session_state["show_preset_loaded_success"] = False
+    selected_row = None if is_prototype else presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
-    # If the user changes any calculator value manually, keep the preset as base and mark it as modified.
-    sync_active_preset_state()
-    preset_modified = bool(st.session_state.get("preset_values_modified", False))
+    # Prototype reset must be applied before any calc_* widget is instantiated.
+    if st.session_state.get("reset_prototype_request"):
+        st.session_state.pop("reset_prototype_request", None)
+        prototype_defaults = {
+            "calc_diametro_aspo": 450.0,
+            "calc_spalla": 95.0,
+            "calc_rame": "1/4",
+            "calc_spessore": 7.0,
+            "calc_lunghezza": 50.0,
+            "calc_passo_visuale": 20.0,
+            "calc_incremento_visuale": 20.0,
+            "calc_rit_b": 360.0,
+            "calc_rit_t": 360.0,
+            "calc_tube_layout": "Singolo",
+            "calc_rame_inf": "3/8",
+            "calc_spessore_inf": 7.0,
+            "calc_rame_sup": "1/4",
+            "calc_spessore_sup": 7.0,
+        }
+        for key, value in prototype_defaults.items():
+            st.session_state[key] = value
+        st.session_state["changed_values_pulse"] = True
+
+    if is_prototype:
+        # Keep prototype clearly independent from official CSV presets.
+        st.session_state["last_auto_loaded_preset"] = None
+        st.session_state.pop("loaded_preset_name", None)
+        st.session_state.pop("loaded_preset_values", None)
+        st.session_state["preset_values_modified"] = False
+        st.session_state["modified_preset_fields"] = []
+        preset_modified = False
+    else:
+        # Pending restore request must be applied before any calc_* widget is instantiated.
+        if st.session_state.get("restore_preset_request") == selected_product:
+            st.session_state.pop("restore_preset_request", None)
+            apply_preset_to_calculator(selected_row)
+
+        # Auto-load preset when product changes. This removes the old "select + load + switch tab" flow.
+        last_auto_loaded = st.session_state.get("last_auto_loaded_preset")
+        if last_auto_loaded != selected_product:
+            apply_preset_to_calculator(selected_row)
+            st.session_state["last_auto_loaded_preset"] = selected_product
+            st.session_state["loaded_preset_name"] = selected_product
+            st.session_state["show_preset_loaded_success"] = False
+
+        # If the user changes any calculator value manually, keep the preset as base and mark it as modified.
+        sync_active_preset_state()
+        preset_modified = bool(st.session_state.get("preset_values_modified", False))
+
     params_locked = bool(st.session_state.get("params_locked", False))
 
-    render_preset_product_card(selected_product, selected_row, lang, preset_modified)
+    if is_prototype:
+        render_prototype_product_card(selected_product, lang)
+    else:
+        render_preset_product_card(selected_product, selected_row, lang, preset_modified)
 
     render_section_header(
         "Configurazione" if lang == "IT" else "Configuration",
@@ -8109,9 +8253,15 @@ with tab_production:
         action_a, action_b = st.columns([1, 1], gap="small")
 
         with action_a:
-            if st.button(restore_label_inline, use_container_width=True, key="restore_preset_inline"):
-                st.session_state["restore_preset_request"] = str(selected_product)
-                st.rerun()
+            if is_prototype:
+                reset_label_inline = "Reset prototipo" if lang == "IT" else "Reset prototype"
+                if st.button(reset_label_inline, use_container_width=True, key="reset_prototype_inline"):
+                    st.session_state["reset_prototype_request"] = True
+                    st.rerun()
+            else:
+                if st.button(restore_label_inline, use_container_width=True, key="restore_preset_inline"):
+                    st.session_state["restore_preset_request"] = str(selected_product)
+                    st.rerun()
 
         with action_b:
             st.toggle(lock_label_inline, key="params_locked")
@@ -8203,7 +8353,7 @@ with tab_production:
             {
                 "label": "Dati macchina",
                 "value": "Completi" if machine_complete else "Da completare",
-                "note": "Preset caricato e parametri principali presenti",
+                "note": "Prototipo manuale" if is_prototype else "Preset caricato e parametri principali presenti",
                 "tone": "ok" if machine_complete else "warn",
             },
         ]
@@ -8224,7 +8374,7 @@ with tab_production:
             {
                 "label": "Machine data",
                 "value": "Complete" if machine_complete else "Incomplete",
-                "note": "Preset loaded and main parameters present",
+                "note": "Manual prototype" if is_prototype else "Preset loaded and main parameters present",
                 "tone": "ok" if machine_complete else "warn",
             },
         ]
@@ -8373,142 +8523,164 @@ with tab_tech_sheet:
         "i",
     )
 
-    selected_product = st.session_state.get("selected_preset_product", preset_names[0])
-    selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
-
-    st.markdown(
-        f"""
-        <div style="
-            margin-top:12px;
-            margin-bottom:18px;
-            padding:22px 24px;
-            border-radius:18px;
-            background:linear-gradient(180deg,
-                color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
-                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-            );
-            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-            box-shadow:0 8px 22px rgba(0,0,0,0.08);
-            border-left:6px solid #C57E5A;
-        ">
-            <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
-                {t["preset_sheet"]}
+    if st.session_state.get("product_source_mode") == "prototype":
+        prototype_name = st.session_state.get("prototype_name", "Nuovo prototipo" if lang == "IT" else "New prototype")
+        st.markdown(
+            f"""
+            <div class="preset-hero">
+                <div class="preset-hero-top">
+                    <div>
+                        <div class="preset-hero-kicker">{"Prototipo prodotto" if lang == "IT" else "Product prototype"}</div>
+                        <div class="preset-hero-title">{html.escape(str(prototype_name))}</div>
+                        <div class="preset-hero-subtitle">{"La scheda CSV non è disponibile perché questo prodotto non esiste ancora nei preset ufficiali." if lang == "IT" else "The CSV sheet is unavailable because this product does not yet exist in the official presets."}</div>
+                    </div>
+                    <div class="preset-hero-badges">
+                        <span class="preset-hero-badge modified">{"PROTOTIPO" if lang == "IT" else "PROTOTYPE"}</span>
+                    </div>
+                </div>
             </div>
-            <div style="font-size:30px; font-weight:800; color:var(--text-color); line-height:1.15;">
-                {selected_product}
-            </div>
-            <div style="font-size:14px; color:color-mix(in srgb, var(--text-color) 68%, transparent); margin-top:8px;">
-                {t["preset_subtitle"]}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
+        st.info(
+            "Per i prototipi usa il PDF di simulazione nella scheda Simulazione. La scheda CSV resta disponibile solo per preset ufficiali." if lang == "IT" else "For prototypes, use the simulation PDF in the Simulation tab. The CSV sheet remains available only for official presets."
+        )
+    else:
+        selected_product = st.session_state.get("selected_preset_product", preset_names[0])
+        selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
-    safe_product_filename = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(selected_product)).strip("_") or "preset"
-    csv_print_pdf = make_csv_preset_pdf_bytes(selected_product, selected_row, lang)
+        st.markdown(
+            f"""
+            <div style="
+                margin-top:12px;
+                margin-bottom:18px;
+                padding:22px 24px;
+                border-radius:18px;
+                background:linear-gradient(180deg,
+                    color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
+                    color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+                );
+                border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+                box-shadow:0 8px 22px rgba(0,0,0,0.08);
+                border-left:6px solid #C57E5A;
+            ">
+                <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
+                    {t["preset_sheet"]}
+                </div>
+                <div style="font-size:30px; font-weight:800; color:var(--text-color); line-height:1.15;">
+                    {selected_product}
+                </div>
+                <div style="font-size:14px; color:color-mix(in srgb, var(--text-color) 68%, transparent); margin-top:8px;">
+                    {t["preset_subtitle"]}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    st.markdown(
-        """
-        <style>
-        div[data-testid="stDownloadButton"] > button {
-            border-radius:999px !important;
-            min-height:42px !important;
-            background:#C57E5A !important;
-            color:#ffffff !important;
-            border:1px solid #C57E5A !important;
-            font-weight:950 !important;
-            letter-spacing:0.01em !important;
-            box-shadow:0 9px 20px rgba(197,126,90,0.24) !important;
-            padding-left:18px !important;
-            padding-right:18px !important;
+        safe_product_filename = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(selected_product)).strip("_") or "preset"
+        csv_print_pdf = make_csv_preset_pdf_bytes(selected_product, selected_row, lang)
+
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stDownloadButton"] > button {
+                border-radius:999px !important;
+                min-height:42px !important;
+                background:#C57E5A !important;
+                color:#ffffff !important;
+                border:1px solid #C57E5A !important;
+                font-weight:950 !important;
+                letter-spacing:0.01em !important;
+                box-shadow:0 9px 20px rgba(197,126,90,0.24) !important;
+                padding-left:18px !important;
+                padding-right:18px !important;
+            }
+            div[data-testid="stDownloadButton"] > button:hover {
+                filter:brightness(1.06) !important;
+                transform:translateY(-1px) !important;
+                box-shadow:0 12px 24px rgba(197,126,90,0.30) !important;
+            }
+            .csv-print-row {
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                gap:12px;
+                margin:-4px 0 16px 0;
+                padding:12px 14px;
+                border-radius:16px;
+                border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+                background:color-mix(in srgb, var(--secondary-background-color) 72%, transparent);
+            }
+            .csv-print-copy {
+                font-size:12px;
+                line-height:1.25;
+                font-weight:700;
+                color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        csv_copy = "Scarica il PDF del preset originale CSV, senza cattura render." if lang == "IT" else "Download the original CSV preset PDF, without render capture."
+        csv_note_col, csv_button_col = st.columns([0.78, 0.22], gap="small")
+        with csv_note_col:
+            st.markdown(f'<div class="csv-print-copy">{html.escape(csv_copy)}</div>', unsafe_allow_html=True)
+        with csv_button_col:
+            if csv_print_pdf is not None:
+                st.download_button(
+                    t["print_preset_csv"],
+                    data=csv_print_pdf,
+                    file_name=f"preset_csv_{safe_product_filename}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+            else:
+                st.warning("Per scaricare il PDF aggiungi `reportlab` a requirements.txt." if lang == "IT" else "To download the PDF, add `reportlab` to requirements.txt.")
+
+        render_tech_snapshot_cards(selected_row, lang)
+
+        overview_tab, machine_sheet_tab = st.tabs([
+            "Anteprima" if lang == "IT" else "Overview",
+            "Parametri macchina" if lang == "IT" else "Machine parameters",
+        ])
+
+        render_columns = {
+            "Tipo tubo",
+            "Diametro rame inferiore",
+            "Spessore guaina inferiore",
+            "Diametro rame superiore",
+            "Spessore guaina superiore",
+            "Diametro Rame",
+            "Spessore Guaina (mm)",
+            "Diametro esterno Guaina (mm)",
+            "Lunghezza (m)",
+            "Guidatubo (mm)",
+            "Spalla (mm)",
+            "Diametro aspo (mm)",
+            "Ritardo invers max (º)",
+            "Ritardo invers min (º)",
+            "Passo (mm)",
+            "Incremento strato (mm)",
         }
-        div[data-testid="stDownloadButton"] > button:hover {
-            filter:brightness(1.06) !important;
-            transform:translateY(-1px) !important;
-            box-shadow:0 12px 24px rgba(197,126,90,0.30) !important;
-        }
-        .csv-print-row {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:12px;
-            margin:-4px 0 16px 0;
-            padding:12px 14px;
-            border-radius:16px;
-            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-            background:color-mix(in srgb, var(--secondary-background-color) 72%, transparent);
-        }
-        .csv-print-copy {
-            font-size:12px;
-            line-height:1.25;
-            font-weight:700;
-            color:color-mix(in srgb, var(--text-color) 62%, transparent);
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    csv_copy = "Scarica il PDF del preset originale CSV, senza cattura render." if lang == "IT" else "Download the original CSV preset PDF, without render capture."
-    csv_note_col, csv_button_col = st.columns([0.78, 0.22], gap="small")
-    with csv_note_col:
-        st.markdown(f'<div class="csv-print-copy">{html.escape(csv_copy)}</div>', unsafe_allow_html=True)
-    with csv_button_col:
-        if csv_print_pdf is not None:
-            st.download_button(
-                t["print_preset_csv"],
-                data=csv_print_pdf,
-                file_name=f"preset_csv_{safe_product_filename}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
+        linked_cols = [c for c in presets_df.columns if c in render_columns]
+        consult_cols = [c for c in presets_df.columns if c not in render_columns]
+
+        with overview_tab:
+            render_section_header(
+                "Anteprima tecnica" if lang == "IT" else "Technical preview",
+                "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
+                "A",
             )
-        else:
-            st.warning("Per scaricare il PDF aggiungi `reportlab` a requirements.txt." if lang == "IT" else "To download the PDF, add `reportlab` to requirements.txt.")
+            components.html(make_preset_visual(selected_row, lang), height=660, scrolling=False)
 
-    render_tech_snapshot_cards(selected_row, lang)
+        with machine_sheet_tab:
+            render_section_header(
+                "Scheda parametri macchina" if lang == "IT" else "Machine parameter sheet",
+                "Vista unica ordinata per introdurre tutti i valori in macchina. Usa la ricerca per trovare subito il parametro che ti serve." if lang == "IT" else "Single grouped view to enter all machine values. Use search to find the parameter you need instantly.",
+                "B",
+            )
 
-    overview_tab, machine_sheet_tab = st.tabs([
-        "Anteprima" if lang == "IT" else "Overview",
-        "Parametri macchina" if lang == "IT" else "Machine parameters",
-    ])
-
-    render_columns = {
-        "Tipo tubo",
-        "Diametro rame inferiore",
-        "Spessore guaina inferiore",
-        "Diametro rame superiore",
-        "Spessore guaina superiore",
-        "Diametro Rame",
-        "Spessore Guaina (mm)",
-        "Diametro esterno Guaina (mm)",
-        "Lunghezza (m)",
-        "Guidatubo (mm)",
-        "Spalla (mm)",
-        "Diametro aspo (mm)",
-        "Ritardo invers max (º)",
-        "Ritardo invers min (º)",
-        "Passo (mm)",
-        "Incremento strato (mm)",
-    }
-    linked_cols = [c for c in presets_df.columns if c in render_columns]
-    consult_cols = [c for c in presets_df.columns if c not in render_columns]
-
-    with overview_tab:
-        render_section_header(
-            "Anteprima tecnica" if lang == "IT" else "Technical preview",
-            "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
-            "A",
-        )
-        components.html(make_preset_visual(selected_row, lang), height=660, scrolling=False)
-
-    with machine_sheet_tab:
-        render_section_header(
-            "Scheda parametri macchina" if lang == "IT" else "Machine parameter sheet",
-            "Vista unica ordinata per introdurre tutti i valori in macchina. Usa la ricerca per trovare subito il parametro che ti serve." if lang == "IT" else "Single grouped view to enter all machine values. Use search to find the parameter you need instantly.",
-            "B",
-        )
-
-        render_machine_parameter_groups(selected_row, lang, key_suffix="_tech")
-
+            render_machine_parameter_groups(selected_row, lang, key_suffix="_tech")
 with tab_checklist:
     render_startup_checklist(lang)
