@@ -1626,12 +1626,13 @@ st.markdown(
         background: transparent;
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
         margin-bottom: 20px;
+        align-items: center;
     }
 
     [data-testid="stTabs"] button {
         font-weight: 780;
         min-height: 48px;
-        padding: 0.45rem 0.15rem 0.6rem 0.15rem;
+        padding: 0.45rem 0.15rem 0.60rem 0.15rem;
         border-radius: 0 !important;
         background: transparent !important;
         box-shadow: none !important;
@@ -1718,7 +1719,7 @@ st.markdown(
     }
 
     div[role="radiogroup"] {
-        gap: 0.7rem;
+        gap: 0.85rem;
         flex-wrap: wrap;
         align-items: stretch;
     }
@@ -1727,13 +1728,23 @@ st.markdown(
         background: var(--secondary-background-color);
         border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
         border-radius: 999px;
-        padding: 0.58rem 0.95rem;
-        min-height: 46px;
+        padding: 0.62rem 1.15rem;
+        min-height: 48px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         box-shadow: 0 6px 16px rgba(0,0,0,0.08);
         transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+        box-sizing: border-box;
+    }
+
+    div[role="radiogroup"] label > div {
+        display:flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        width:100%;
+        height:100%;
+        text-align:center;
     }
 
     /* Hide the default radio dot so the options look like real buttons */
@@ -1750,7 +1761,7 @@ st.markdown(
     div[role="radiogroup"] label:has(input:checked) {
         background: #C57E5A;
         border-color: #C57E5A;
-        box-shadow: 0 0 0 2px rgba(255,75,75,0.32), 0 10px 20px rgba(0,0,0,0.18);
+        box-shadow: 0 0 0 2px rgba(197,126,90,0.34), 0 10px 20px rgba(0,0,0,0.18);
     }
 
     div[role="radiogroup"] label p {
@@ -5097,19 +5108,26 @@ def render_machine_parameter_groups(selected_row, language):
         }
         .machine-card-label-native{
             font-size:11px;
-            line-height:1.18;
-            font-weight:760;
-            color:color-mix(in srgb, var(--text-color) 72%, transparent);
+            line-height:1.22;
+            font-weight:820;
+            text-transform:uppercase;
+            letter-spacing:0.04em;
+            color:color-mix(in srgb, var(--text-color) 68%, transparent);
             word-break:break-word;
             min-height:30px;
+            display:flex;
+            align-items:flex-start;
         }
         .machine-card-value-native{
-            font-size:25px;
+            font-size:26px;
             line-height:1.02;
             font-weight:950;
             color:var(--text-color);
             letter-spacing:-0.01em;
             word-break:break-word;
+            min-height:32px;
+            display:flex;
+            align-items:flex-end;
         }
         @media (max-width: 900px){
             .machine-card-native{
@@ -5136,12 +5154,11 @@ def render_machine_parameter_groups(selected_row, language):
         )
 
         with st.container(border=True):
-            cols_per_row = 4 if len(pairs) >= 8 else (3 if len(pairs) >= 4 else 2)
-            cols_per_row = max(1, cols_per_row)
+            cols_per_row = 4
 
             for i in range(0, len(pairs), cols_per_row):
                 row_pairs = pairs[i:i + cols_per_row]
-                cols = st.columns(cols_per_row, gap="small")
+                cols = st.columns(cols_per_row, gap="medium")
                 for col_ui, pair in zip(cols, row_pairs):
                     label, value = pair
                     with col_ui:
