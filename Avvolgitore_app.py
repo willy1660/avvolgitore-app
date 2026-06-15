@@ -2599,6 +2599,40 @@ st.markdown(
             color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
         ) !important;
         box-shadow: 0 7px 18px rgba(0,0,0,0.055) !important;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .summary-card::after,
+    .preset-param-card::after,
+    .quick-card-v2::after,
+    .semaphore-card::after,
+    .tech-mini-card::after,
+    .machine-card-native::after,
+    .preview-metric::after,
+    .summary-strip::after,
+    .elegant-panel::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.11) 42%, transparent 68%);
+        transform: translateX(-120%);
+        opacity: 0;
+        z-index: 1;
+    }
+
+    .summary-card:hover::after,
+    .preset-param-card:hover::after,
+    .quick-card-v2:hover::after,
+    .semaphore-card:hover::after,
+    .tech-mini-card:hover::after,
+    .machine-card-native:hover::after,
+    .preview-metric:hover::after,
+    .summary-strip:hover::after,
+    .elegant-panel:hover::after {
+        opacity: 1;
+        animation: pdmPresetCardShine 0.72s ease-out both;
     }
 
     .summary-card,
