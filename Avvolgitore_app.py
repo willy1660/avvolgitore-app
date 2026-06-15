@@ -1313,20 +1313,28 @@ def sync_active_preset_state():
     loaded_values = st.session_state.get("loaded_preset_values")
 
     if not loaded_name or not loaded_values:
+        st.session_state["preset_values_modified"] = False
+        st.session_state["modified_preset_fields"] = []
         return
 
     current = current_calculator_snapshot()
+    modified_fields = []
 
     for key, loaded_value in loaded_values.items():
         current_value = current.get(key)
         if isinstance(loaded_value, str):
             if str(current_value).strip() != str(loaded_value).strip():
-                clear_active_preset_state()
-                return
+                modified_fields.append(key)
         else:
-            if abs(float(current_value) - float(loaded_value)) > 1e-9:
-                clear_active_preset_state()
-                return
+            try:
+                if abs(float(current_value) - float(loaded_value)) > 1e-9:
+                    modified_fields.append(key)
+            except Exception:
+                if str(current_value).strip() != str(loaded_value).strip():
+                    modified_fields.append(key)
+
+    st.session_state["preset_values_modified"] = bool(modified_fields)
+    st.session_state["modified_preset_fields"] = modified_fields
 
 
 def apply_preset_to_calculator(row):
@@ -1393,7 +1401,230 @@ def apply_preset_to_calculator(row):
 
     st.session_state["loaded_preset_name"] = safe_value(row, "Prodotto")
     st.session_state["loaded_preset_values"] = current_calculator_snapshot()
+    st.session_state["preset_values_modified"] = False
+    st.session_state["modified_preset_fields"] = []
+    st.session_state["changed_values_pulse"] = True
     st.session_state["show_preset_loaded_success"] = True
+
+
+FIELD_LABELS_IT = {
+    "calc_rame": "Rame",
+    "calc_spessore": "Guaina",
+    "calc_lunghezza": "Lunghezza",
+    "calc_diametro_aspo": "Ø aspo",
+    "calc_spalla": "Spalla",
+    "calc_passo_visuale": "Passo",
+    "calc_incremento_visuale": "Incremento",
+    "calc_rit_b": "Ritardo base",
+    "calc_rit_t": "Ritardo spalla",
+    "calc_tube_layout": "Tipo tubo",
+    "calc_rame_inf": "Rame inferiore",
+    "calc_spessore_inf": "Guaina inferiore",
+    "calc_rame_sup": "Rame superiore",
+    "calc_spessore_sup": "Guaina superiore",
+}
+
+FIELD_LABELS_EN = {
+    "calc_rame": "Copper",
+    "calc_spessore": "Foam",
+    "calc_lunghezza": "Length",
+    "calc_diametro_aspo": "Spool Ø",
+    "calc_spalla": "Width",
+    "calc_passo_visuale": "Pitch",
+    "calc_incremento_visuale": "Layer increment",
+    "calc_rit_b": "Base delay",
+    "calc_rit_t": "Shoulder delay",
+    "calc_tube_layout": "Tube type",
+    "calc_rame_inf": "Lower copper",
+    "calc_spessore_inf": "Lower foam",
+    "calc_rame_sup": "Upper copper",
+    "calc_spessore_sup": "Upper foam",
+}
+
+
+def modified_field_labels(language):
+    labels = FIELD_LABELS_IT if language == "IT" else FIELD_LABELS_EN
+    fields = st.session_state.get("modified_preset_fields", [])
+    return [labels.get(field, field) for field in fields]
+
+
+def make_preset_export_html(product_name, selected_row, language, status_items=None):
+    snapshot = current_calculator_snapshot()
+    modified = bool(st.session_state.get("preset_values_modified", False))
+    field_labels = FIELD_LABELS_IT if language == "IT" else FIELD_LABELS_EN
+
+    title = "Scheda preset avvolgimento" if language == "IT" else "Winding preset sheet"
+    modified_label = "Sì" if modified and language == "IT" else ("Yes" if modified else ("No" if language != "IT" else "No"))
+    rows = []
+    for key, label in field_labels.items():
+        value = snapshot.get(key, "-")
+        rows.append(f"<tr><th>{html.escape(str(label))}</th><td>{html.escape(format_preset_value(value))}</td></tr>")
+
+    source_rows = []
+    for col in selected_row.index:
+        val = safe_value(selected_row, col)
+        if val != "-":
+            source_rows.append(f"<tr><th>{html.escape(str(col))}</th><td>{html.escape(str(val))}</td></tr>")
+
+    status_html = ""
+    if status_items:
+        cards = []
+        for item in status_items:
+            cards.append(
+                f"<div class='status'><b>{html.escape(str(item.get('label','')))}</b>"
+                f"<span>{html.escape(str(item.get('value','')))}</span>"
+                f"<small>{html.escape(str(item.get('note','')))}</small></div>"
+            )
+        status_html = "<div class='statusgrid'>" + "".join(cards) + "</div>"
+
+    return f"""<!doctype html>
+<html lang="{html.escape(language.lower())}">
+<head>
+<meta charset="utf-8">
+<title>{html.escape(str(product_name))} · {html.escape(title)}</title>
+<style>
+body{{font-family:Inter,Arial,sans-serif;margin:32px;color:#111827;background:#f8fafc;}}
+.header{{border-left:6px solid #C57E5A;padding:16px 20px;background:white;border-radius:16px;box-shadow:0 8px 20px rgba(0,0,0,.06);}}
+h1{{margin:0;font-size:28px;}}
+.subtitle{{margin-top:8px;color:#64748b;font-weight:700;}}
+.badge{{display:inline-block;margin-top:12px;padding:7px 11px;border-radius:999px;background:#C57E5A;color:white;font-weight:800;font-size:12px;}}
+.grid{{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px;}}
+.card{{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 6px 16px rgba(0,0,0,.045);}}
+h2{{margin:0 0 14px 0;font-size:18px;}}
+table{{width:100%;border-collapse:collapse;font-size:13px;}}
+th{{text-align:left;color:#64748b;width:44%;padding:8px;border-bottom:1px solid #e5e7eb;}}
+td{{font-weight:800;padding:8px;border-bottom:1px solid #e5e7eb;}}
+.statusgrid{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px;}}
+.status{{background:white;border:1px solid #e5e7eb;border-radius:14px;padding:14px;}}
+.status b{{display:block;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.06em;}}
+.status span{{display:block;font-size:22px;font-weight:900;margin-top:6px;}}
+.status small{{display:block;color:#64748b;margin-top:6px;}}
+@media print{{body{{background:white}}.card,.header,.status{{box-shadow:none}}}}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>{html.escape(str(product_name))}</h1>
+<div class="subtitle">{html.escape(title)}</div>
+<span class="badge">Preset modificato: {html.escape(modified_label)}</span>
+</div>
+{status_html}
+<div class="grid">
+<div class="card"><h2>Valori calcolatore</h2><table>{"".join(rows)}</table></div>
+<div class="card"><h2>Valori CSV</h2><table>{"".join(source_rows)}</table></div>
+</div>
+</body>
+</html>"""
+
+
+def render_preset_action_bar(selected_product, selected_row, language, modified, status_items=None):
+    locked = bool(st.session_state.get("params_locked", False))
+    field_list = modified_field_labels(language)
+    modified_txt = "Modificato" if language == "IT" else "Modified"
+    original_txt = "Originale" if language == "IT" else "Original"
+    lock_txt = "Bloccato" if language == "IT" else "Locked"
+    free_txt = "Editabile" if language == "IT" else "Editable"
+
+    status_badge = modified_txt if modified else original_txt
+    lock_badge = lock_txt if locked else free_txt
+    details = ", ".join(field_list[:4])
+    if len(field_list) > 4:
+        details += f" +{len(field_list) - 4}"
+    if not details:
+        details = "Nessun valore modificato" if language == "IT" else "No changed value"
+
+    st.markdown(
+        f"""
+        <style>
+        @keyframes pdmPulse {{
+            0% {{ box-shadow:0 0 0 0 rgba(197,126,90,0.34); }}
+            100% {{ box-shadow:0 0 0 12px rgba(197,126,90,0); }}
+        }}
+        .pdm-action-bar {{
+            margin:10px 0 18px 0;
+            padding:14px;
+            border-radius:18px;
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            flex-wrap:wrap;
+        }}
+        .pdm-action-title {{
+            font-size:13px;
+            font-weight:900;
+            color:var(--text-color);
+        }}
+        .pdm-action-sub {{
+            font-size:12px;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            margin-top:3px;
+        }}
+        .pdm-badges {{
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            align-items:center;
+        }}
+        .pdm-badge {{
+            border-radius:999px;
+            padding:7px 10px;
+            font-size:11px;
+            line-height:1;
+            font-weight:900;
+            letter-spacing:0.045em;
+            text-transform:uppercase;
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            background:color-mix(in srgb, var(--secondary-background-color) 80%, var(--background-color));
+        }}
+        .pdm-badge.mod {{
+            background:{'#f59e0b' if modified else '#C57E5A'};
+            border-color:{'#f59e0b' if modified else '#C57E5A'};
+            color:white;
+            animation:{'pdmPulse 1.1s ease-out 1' if modified else 'none'};
+        }}
+        .pdm-badge.lock {{
+            background:{'#64748b' if locked else 'color-mix(in srgb, var(--secondary-background-color) 80%, var(--background-color))'};
+            color:{'white' if locked else 'var(--text-color)'};
+        }}
+        </style>
+        <div class="pdm-action-bar">
+            <div>
+                <div class="pdm-action-title">{html.escape(str(selected_product))}</div>
+                <div class="pdm-action-sub">{html.escape(details)}</div>
+            </div>
+            <div class="pdm-badges">
+                <span class="pdm-badge mod">{html.escape(status_badge)}</span>
+                <span class="pdm-badge lock">{html.escape(lock_badge)}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    b1, b2, b3 = st.columns([1, 1, 1.2], gap="small")
+    with b1:
+        if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True):
+            apply_preset_to_calculator(selected_row)
+            st.rerun()
+    with b2:
+        st.toggle("Blocca parametri" if language == "IT" else "Lock parameters", key="params_locked")
+    with b3:
+        export_html = make_preset_export_html(selected_product, selected_row, language, status_items=status_items)
+        st.download_button(
+            "Scarica scheda preset" if language == "IT" else "Download preset sheet",
+            data=export_html,
+            file_name=f"scheda_preset_{str(selected_product).replace(' ', '_').replace('/', '-')}.html",
+            mime="text/html",
+            use_container_width=True,
+        )
+
 
 def init_calculator_state():
     defaults = {
@@ -5861,9 +6092,10 @@ with tab_production:
         st.session_state["loaded_preset_name"] = selected_product
         st.session_state["show_preset_loaded_success"] = False
 
-    # If the user changes any calculator value manually, the selected preset becomes only a base.
+    # If the user changes any calculator value manually, keep the preset as base and mark it as modified.
     sync_active_preset_state()
-    preset_modified = st.session_state.get("loaded_preset_name") != selected_product
+    preset_modified = bool(st.session_state.get("preset_values_modified", False))
+    params_locked = bool(st.session_state.get("params_locked", False))
 
     with top_right:
         st.markdown("&nbsp;", unsafe_allow_html=True)
@@ -5881,8 +6113,8 @@ with tab_production:
 
     with colA:
         st.markdown(f"**{t['bobina']}**")
-        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo")
-        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla")
+        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo", disabled=params_locked)
+        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla", disabled=params_locked)
 
     with colB:
         st.markdown(f"**{t['tubo']}**")
@@ -5893,14 +6125,15 @@ with tab_production:
             ["Singolo", "Doppio"],
             horizontal=True,
             key="calc_tube_layout",
+            disabled=params_locked,
         )
 
         if tube_layout_label == "Singolo":
             if st.session_state.get("calc_rame") not in rame_options:
                 st.session_state["calc_rame"] = "1/4"
-            rame = st.selectbox(t["rame"], rame_options, key="calc_rame")
-            spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore")
-            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza")
+            rame = st.selectbox(t["rame"], rame_options, key="calc_rame", disabled=params_locked)
+            spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore", disabled=params_locked)
+            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked)
 
             d_rame = COPPER_SIZES_MM[rame]
             d_tubo = d_rame + 2.0 * spessore
@@ -5920,16 +6153,16 @@ with tab_production:
             with c_inf:
                 if st.session_state.get("calc_rame_inf") not in rame_options:
                     st.session_state["calc_rame_inf"] = "3/8"
-                rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf")
-                spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf")
+                rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf", disabled=params_locked)
+                spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf", disabled=params_locked)
 
             with c_sup:
                 if st.session_state.get("calc_rame_sup") not in rame_options:
                     st.session_state["calc_rame_sup"] = "1/4"
-                rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup")
-                spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup")
+                rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup", disabled=params_locked)
+                spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup", disabled=params_locked)
 
-            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza")
+            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked)
 
             d_tubo_lower = COPPER_SIZES_MM[rame_inf] + 2.0 * spessore_inf
             d_tubo_upper = COPPER_SIZES_MM[rame_sup] + 2.0 * spessore_sup
@@ -5945,10 +6178,10 @@ with tab_production:
 
     with colC:
         st.markdown(f"**{t['avvolg']}**")
-        passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale")
-        incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale")
-        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b")
-        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t")
+        passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale", disabled=params_locked)
+        incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale", disabled=params_locked)
+        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked)
+        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
 
     z_min_center = None
     z_max_center = None
@@ -6063,6 +6296,8 @@ with tab_production:
         ]
 
     render_status_semaphore(status_items, lang)
+
+    render_preset_action_bar(selected_product, selected_row, lang, preset_modified, status_items=status_items)
 
     st.divider()
 
