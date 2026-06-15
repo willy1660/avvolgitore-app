@@ -4997,155 +4997,49 @@ def render_machine_parameter_groups(selected_row, language):
     search_placeholder = "Es. passo, quota, soffiatori, boccole..." if language == "IT" else "E.g. pitch, quota, blowers, bushings..."
     query = st.text_input(search_label, placeholder=search_placeholder, key="machine_param_search").strip().lower()
 
-    def normalize_key(value):
-        value = str(value).strip().lower()
-        repl = {
-            "à":"a","á":"a","ä":"a","â":"a",
-            "è":"e","é":"e","ë":"e","ê":"e",
-            "ì":"i","í":"i","ï":"i","î":"i",
-            "ò":"o","ó":"o","ö":"o","ô":"o",
-            "ù":"u","ú":"u","ü":"u","û":"u",
-            "º":"o","°":"o"
-        }
-        for k, v in repl.items():
-            value = value.replace(k, v)
-        value = value.replace("n°", "no").replace("nº", "no")
-        value = value.replace("/", " ").replace("-", " ")
-        value = re.sub(r"\s+", " ", value)
-        return value
-
-    aliases = {
-        "Diametro Rame": ["Diametro rame"],
-        "Spessore Guaina (mm)": ["Spessore guaina (mm)", "Spessore guaina"],
-        "Diametro esterno Guaina (mm)": ["Diametro esterno guaina (mm)", "Diametro esterno guaina"],
-        "Diametro rame inferiore": ["Diametro Rame inferiore"],
-        "Spessore guaina inferiore": ["Spessore guaina inferiore (mm)", "Spessore Guaina inferiore (mm)", "Spessore guaina inferiore"],
-        "Diametro rame superiore": ["Diametro Rame superiore"],
-        "Spessore guaina superiore": ["Spessore guaina superiore (mm)", "Spessore Guaina superiore (mm)", "Spessore guaina superiore"],
-        "Nº Spire": ["N° spire", "No spire"],
-        "Boccole rulliera adrizzatubo": ["Boccole rulliera adrizztatubo"],
-        "Rulli estrusore(mm)": ["Rulli estrusore (mm)"],
-        "Paleta ferma coda (mm)": ["Paletta ferma coda (mm)"],
-        "Velocita linea (m/min)": ["Velocità linea (m/min)"],
-        "Velocita recupero (m/min)": ["Velocità recupero (m/min)"],
-    }
-
-    columns = list(selected_row.index)
-
-    def raw_find_value(label):
-        candidates = [label] + aliases.get(label, [])
-        norm_columns = {normalize_key(col): col for col in columns}
-
-        for cand in candidates:
-            nk = normalize_key(cand)
-            if nk in norm_columns:
-                col = norm_columns[nk]
-                val = safe_value(selected_row, col)
-                if val not in ("-", "", None):
-                    return val
-
-        for cand in candidates:
-            nk = normalize_key(cand)
-            for col in columns:
-                ncol = normalize_key(col)
-                if nk == ncol or nk in ncol or ncol in nk:
-                    val = safe_value(selected_row, col)
-                    if val not in ("-", "", None):
-                        return val
-        return None
-
-    def visible_value(label):
-        value = raw_find_value(label)
-        if value is None:
+    def visible_value(col):
+        if col not in selected_row.index:
             return None
-        txt = str(value).strip()
-        if txt == "" or txt == "-":
+        raw = selected_row[col]
+        if pd.isna(raw):
             return None
-        return txt
-
-    def param_label(label, language):
-        if language != "EN":
-            return label
-        translations = {
-            "Tipo tubo": "Tube type",
-            "Diametro Rame": "Copper diameter",
-            "Spessore Guaina (mm)": "Foam thickness (mm)",
-            "Diametro esterno Guaina (mm)": "Outer insulated diameter (mm)",
-            "Diametro rame inferiore": "Lower copper diameter",
-            "Spessore guaina inferiore": "Lower foam thickness",
-            "Diametro rame superiore": "Upper copper diameter",
-            "Spessore guaina superiore": "Upper foam thickness",
-            "Lunghezza (m)": "Length (m)",
-            "Diametro aspo (mm)": "Spool diameter (mm)",
-            "Spalla (mm)": "Width (mm)",
-            "Nº Spire": "Coils count",
-            "Passo (mm)": "Pitch (mm)",
-            "Incremento strato (mm)": "Layer increment (mm)",
-            "Ritardo invers min (º)": "Reverse delay min (°)",
-            "Ritardo invers max (º)": "Reverse delay max (°)",
-            "Quota massima (mm)": "Max quota (mm)",
-            "Quota minima (mm)": "Min quota (mm)",
-            "Quota start pinza (mm)": "Clamp start quota (mm)",
-            "Quota coda tubo (mm)": "Tube tail quota (mm)",
-            "Quota chiusura morsa coda (mm)": "Tail clamp close quota (mm)",
-            "Interasse regetta (mm)": "Strap distance (mm)",
-            "Boccole rulliera adrizzatubo": "Straightener roller table bushings",
-            "Boccola uscita rulliera": "Roller table output bushing",
-            "Rulliera adrizzatubo": "Straightener roller table",
-            "Boccola uscita traino": "Haul-off output bushing",
-            "Rulli convogliatore (mm)": "Conveyor rollers (mm)",
-            "Rulli estrusore(mm)": "Extruder rollers (mm)",
-            "Ruote godronatore": "Knurler wheels",
-            "Soffiatori aria (mm)": "Air blowers (mm)",
-            "Rulli avvolgitore (mm)": "Winder rollers (mm)",
-            "Paleta ferma coda (mm)": "Tail stop paddle (mm)",
-            "Guidatubo (mm)": "Tube guide (mm)",
-            "Velocita linea (m/min)": "Line speed (m/min)",
-            "Velocita recupero (m/min)": "Recovery speed (m/min)",
-            "Coppia lavoro (%)": "Work torque (%)",
-            "Riduzione coppia (%)": "Torque reduction (%)",
-            "Coppia recupero (%)": "Recovery torque (%)",
-        }
-        return translations.get(label, label)
+        formatted = str(format_preset_value(raw)).strip()
+        if formatted in {"", "-"}:
+            return None
+        return formatted
 
     def matches_query(label, value):
         if not query:
             return True
-        blob = f"{param_label(label, language)} {value} {label}".lower()
-        return query in blob
+        haystack = f"{label} {value}".lower()
+        return query in haystack
 
     groups = []
-    used_cols = set()
+    used = set()
 
-    for group_title, labels in group_defs:
+    for group_title, cols in group_defs:
         pairs = []
-        for label in labels:
-            value = visible_value(label)
+        for col in cols:
+            value = visible_value(col)
             if value is None:
                 continue
+            label = param_label(col, language)
+            used.add(col)
             if matches_query(label, value):
-                pairs.append((param_label(label, language), value))
-            found = raw_find_value(label)
-            if found is not None:
-                for col in columns:
-                    val = safe_value(selected_row, col)
-                    if str(val).strip() == str(found).strip():
-                        used_cols.add(col)
+                pairs.append((label, value))
         if pairs:
             groups.append((group_title, pairs))
 
     extra_pairs = []
-    for col in columns:
-        if str(col).startswith("Unnamed") or col in {"Note", "Prodotto"}:
+    for col in selected_row.index:
+        if col in used or str(col).startswith("Unnamed") or col in {"Note", "Prodotto"}:
             continue
-        value = safe_value(selected_row, col)
-        if value in ("-", "", None):
+        value = visible_value(col)
+        if value is None:
             continue
-        if col in used_cols:
-            continue
-        label = str(col)
+        label = param_label(col, language)
         if matches_query(label, value):
-            extra_pairs.append((param_label(label, language), str(value)))
+            extra_pairs.append((label, value))
 
     if extra_pairs:
         groups.append(("Altri parametri" if language == "IT" else "Other parameters", extra_pairs))
@@ -5158,17 +5052,17 @@ def render_machine_parameter_groups(selected_row, language):
         """
         <style>
         .machine-groups-shell{
-            margin-top: 6px;
+            margin-top:6px;
         }
         .machine-group-block{
-            margin: 0 0 24px 0;
+            margin:0 0 24px 0;
         }
         .machine-group-head-native{
             display:flex;
             align-items:center;
             justify-content:space-between;
             gap:14px;
-            margin:0 0 0 0;
+            margin:0;
             padding:14px 18px;
             border-radius:20px 20px 0 0;
             background:linear-gradient(90deg, rgba(197,126,90,0.18), transparent);
@@ -5306,6 +5200,236 @@ def render_machine_parameter_groups(selected_row, language):
         )
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+
+def render_preset_summary_strip(product_name, selected_row, language, modified=False):
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return value
+        return default
+
+    tipo = gv("Tipo tubo")
+    lunghezza = gv("Lunghezza (m)")
+    aspo = gv("Diametro aspo (mm)")
+    spalla = gv("Spalla (mm)")
+
+    if str(tipo).strip().lower() == "doppio":
+        rame_inf = gv("Diametro rame inferiore", "Diametro Rame inferiore")
+        rame_sup = gv("Diametro rame superiore", "Diametro Rame superiore")
+        sp_inf = parse_float_value(gv("Spessore guaina inferiore", "Spessore Guaina inferiore (mm)", default=0), 0)
+        sp_sup = parse_float_value(gv("Spessore guaina superiore", "Spessore Guaina superiore (mm)", default=0), 0)
+        d_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0)) + 2.0 * sp_inf
+        d_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0)) + 2.0 * sp_sup
+        tubo_txt = f"{rame_sup}/{rame_inf} · {d_sup:.1f}/{d_inf:.1f} mm"
+    else:
+        rame = gv("Diametro Rame")
+        esterno = gv("Diametro esterno Guaina (mm)")
+        tubo_txt = f"{rame} · Ø {esterno} mm" if esterno != "-" else str(rame)
+
+    if language == "IT":
+        title = "Parametri attuali" if modified else "Preset attivo"
+        fields = [
+            ("Prodotto", product_name),
+            ("Tubo", f"{tipo} · {tubo_txt}"),
+            ("Lunghezza", f"{lunghezza} m" if lunghezza != "-" else "-"),
+            ("Aspo", f"Ø {aspo} mm" if aspo != "-" else "-"),
+            ("Spalla", f"{spalla} mm" if spalla != "-" else "-"),
+        ]
+    else:
+        title = "Current parameters" if modified else "Active preset"
+        fields = [
+            ("Product", product_name),
+            ("Tube", f"{tipo} · {tubo_txt}"),
+            ("Length", f"{lunghezza} m" if lunghezza != "-" else "-"),
+            ("Spool", f"Ø {aspo} mm" if aspo != "-" else "-"),
+            ("Width", f"{spalla} mm" if spalla != "-" else "-"),
+        ]
+
+    items_html = "".join(
+        f"""
+        <div class="summary-strip-item">
+            <div class="summary-strip-label">{html.escape(str(label))}</div>
+            <div class="summary-strip-value">{html.escape(str(value))}</div>
+        </div>
+        """
+        for label, value in fields
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .summary-strip {{
+            margin:8px 0 16px 0;
+            border-radius:20px;
+            overflow:hidden;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 8px 20px rgba(0,0,0,0.065);
+        }}
+        .summary-strip-head {{
+            padding:12px 16px;
+            background:linear-gradient(90deg, rgba(197,126,90,0.20), transparent);
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            font-size:13px;
+            font-weight:950;
+            letter-spacing:0.07em;
+            text-transform:uppercase;
+        }}
+        .summary-strip-grid {{
+            display:grid;
+            grid-template-columns:repeat(5, minmax(0, 1fr));
+            gap:16px;
+            padding:16px 18px;
+            align-items:start;
+        }}
+        .summary-strip-item {{
+            min-width:0;
+            display:flex;
+            flex-direction:column;
+            justify-content:flex-start;
+            gap:6px;
+            min-height:60px;
+        }}
+        .summary-strip-label {{
+            font-size:11px;
+            line-height:1.1;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            margin-bottom:6px;
+        }}
+        .summary-strip-value {{
+            font-size:17px;
+            line-height:1.14;
+            font-weight:950;
+            color:var(--text-color);
+            word-break:break-word;
+        }}
+        @media (max-width:950px) {{
+            .summary-strip-grid {{
+                grid-template-columns:1fr 1fr;
+            }}
+        }}
+        </style>
+        <div class="summary-strip">
+            <div class="summary-strip-head">{html.escape(title)}</div>
+            <div class="summary-strip-grid">{items_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_status_semaphore(items, language):
+    title = "Stato rapido" if language == "IT" else "Quick status"
+
+    cards_html = ""
+    for item in items:
+        label = item.get("label", "")
+        value = item.get("value", "")
+        note = item.get("note", "")
+        tone = item.get("tone", "neutral")
+        cards_html += f"""
+        <div class="semaphore-card {html.escape(tone)}">
+            <div class="semaphore-dot"></div>
+            <div>
+                <div class="semaphore-label">{html.escape(str(label))}</div>
+                <div class="semaphore-value">{html.escape(str(value))}</div>
+                <div class="semaphore-note">{html.escape(str(note))}</div>
+            </div>
+        </div>
+        """
+
+    st.markdown(
+        f"""
+        <style>
+        .semaphore-title {{
+            margin:4px 0 10px 0;
+            font-size:15px;
+            font-weight:950;
+            letter-spacing:0.05em;
+            text-transform:uppercase;
+        }}
+        .semaphore-grid {{
+            display:grid;
+            grid-template-columns:repeat(3, minmax(0, 1fr));
+            gap:12px;
+            margin:6px 0 16px 0;
+        }}
+        .semaphore-card {{
+            display:grid;
+            grid-template-columns:18px 1fr;
+            gap:11px;
+            align-items:start;
+            min-height:88px;
+            padding:15px 16px;
+            border-radius:18px;
+            border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 6px 16px rgba(0,0,0,0.055);
+        }}
+        .semaphore-dot {{
+            width:15px;
+            height:15px;
+            border-radius:999px;
+            margin-top:3px;
+            background:#94a3b8;
+            box-shadow:0 0 0 4px rgba(148,163,184,0.15);
+        }}
+        .semaphore-card.ok .semaphore-dot {{
+            background:linear-gradient(90deg, #22c55e, #86efac);
+            box-shadow:0 0 0 4px rgba(34,197,94,0.16);
+        }}
+        .semaphore-card.warn .semaphore-dot {{
+            background:#f59e0b;
+            box-shadow:0 0 0 4px rgba(245,158,11,0.16);
+        }}
+        .semaphore-card.bad .semaphore-dot {{
+            background:#ef4444;
+            box-shadow:0 0 0 4px rgba(239,68,68,0.16);
+        }}
+        .semaphore-label {{
+            font-size:12px;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+            font-weight:850;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            margin-bottom:6px;
+        }}
+        .semaphore-value {{
+            font-size:20px;
+            line-height:1.08;
+            font-weight:950;
+        }}
+        .semaphore-note {{
+            margin-top:6px;
+            font-size:12px;
+            line-height:1.25;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+        }}
+        @media (max-width:900px) {{
+            .semaphore-grid {{
+                grid-template-columns:1fr;
+            }}
+        }}
+        </style>
+        <div class="semaphore-title">{html.escape(title)}</div>
+        <div class="semaphore-grid">{cards_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 
 def render_startup_checklist(language):
