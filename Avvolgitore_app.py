@@ -385,7 +385,7 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
             position: absolute;
             inset: 0 auto 0 0;
             width: 5px;
-            background: #ff4b4b;
+            background: #C57E5A;
             opacity: 0.9;
         }
         .preset-param-label {
@@ -538,7 +538,7 @@ def render_summary_cards(title, items, cards_per_row=4):
             position: absolute;
             inset: 0 auto 0 0;
             width: 5px;
-            background: #ff4b4b;
+            background: #C57E5A;
             opacity: 0.9;
         }
         .summary-card.status-ok {
@@ -1203,7 +1203,7 @@ def make_preset_visual(row, language):
         --muted: rgba(15,23,42,0.64);
         --line: rgba(15,23,42,0.18);
         --shadow: 0 16px 38px rgba(15,23,42,0.12);
-        --accent: #ff4b4b;
+        --accent: #C57E5A;
         --accent-soft: rgba(255,75,75,0.075);
         --drawing-bg: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(241,245,249,0.76));
         --copper: #b8602b;
@@ -1222,7 +1222,7 @@ def make_preset_visual(row, language):
         --muted: rgba(248,250,252,0.70);
         --line: rgba(255,255,255,0.16);
         --shadow: 0 20px 42px rgba(0,0,0,0.32);
-        --accent-soft: rgba(255,75,75,0.10);
+        --accent-soft: rgba(197,126,90,0.10);
         --drawing-bg: linear-gradient(180deg, rgba(30,41,59,0.72), rgba(15,23,42,0.58));
         --foam: #d9d3c7;
         --foam-stroke: #8d96a0;
@@ -1662,7 +1662,7 @@ st.markdown(
 
     /* v95 · refinement elegante mantenendo identità PDM */
     :root {
-        --pdm-accent: #ff4b4b;
+        --pdm-accent: #C57E5A;
         --pdm-radius: 18px;
         --pdm-radius-lg: 22px;
         --pdm-border: color-mix(in srgb, var(--text-color) 12%, transparent);
@@ -1744,8 +1744,8 @@ st.markdown(
     }
 
     div[role="radiogroup"] label:has(input:checked) {
-        background: #ff4b4b;
-        border-color: #ff4b4b;
+        background: #C57E5A;
+        border-color: #C57E5A;
         box-shadow: 0 0 0 2px rgba(255,75,75,0.32), 0 10px 20px rgba(0,0,0,0.18);
     }
 
@@ -2408,7 +2408,7 @@ def viewer(
             height:30px;
             border:1px solid rgba(255,255,255,0.16);
             border-radius:10px;
-            background:#ff4b4b;
+            background:#C57E5A;
             color:#ffffff;
             font-size:16px;
             font-weight:900;
@@ -2457,7 +2457,7 @@ def viewer(
         .active_speed,
         .active_opt {{
             outline:2px solid #ffffff;
-            background:#ff4b4b !important;
+            background:#C57E5A !important;
             color:#ffffff !important;
             box-shadow:0 0 0 2px rgba(255,75,75,0.35), 0 8px 18px rgba(0,0,0,0.18);
         }}
@@ -4621,7 +4621,7 @@ def render_workflow_bar(language):
             display:flex;
             align-items:center;
             justify-content:center;
-            background:#ff4b4b;
+            background:#C57E5A;
             color:#fff;
             font-weight:900;
             font-size:14px;
@@ -4703,7 +4703,7 @@ def render_active_preset_card(product_name, language, modified=False):
     else:
         title = "Preset attivo" if language == "IT" else "Active preset"
         subtitle = "Caricamento automatico nel render" if language == "IT" else "Auto-loaded into render"
-        accent = "#ff4b4b"
+        accent = "#C57E5A"
 
     st.markdown(
         f"""
@@ -4912,7 +4912,7 @@ def render_tech_snapshot_cards(selected_row, language):
             );
             border:1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
             box-shadow:0 6px 16px rgba(0,0,0,0.055);
-            border-left:5px solid #ff4b4b;
+            border-left:5px solid #C57E5A;
         }}
         .tech-mini-label {{
             font-size:12px;
@@ -5049,7 +5049,7 @@ def render_machine_parameter_groups(selected_row, language):
             margin:12px 0 10px 0;
             padding:12px 14px;
             border-radius:18px 18px 0 0;
-            background:linear-gradient(90deg, rgba(255,75,75,0.18), transparent);
+            background:linear-gradient(90deg, rgba(197,126,90,0.18), transparent);
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
             border-bottom:none;
         }
@@ -5065,7 +5065,7 @@ def render_machine_parameter_groups(selected_row, language):
             height:30px;
             padding:0 10px;
             border-radius:999px;
-            background:#ff4b4b;
+            background:#C57E5A;
             color:#fff;
             display:flex;
             align-items:center;
@@ -5221,7 +5221,7 @@ def render_preset_summary_strip(product_name, selected_row, language, modified=F
         }}
         .summary-strip-head {{
             padding:12px 16px;
-            background:linear-gradient(90deg, rgba(255,75,75,0.20), transparent);
+            background:linear-gradient(90deg, rgba(197,126,90,0.20), transparent);
             border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
             font-size:13px;
             font-weight:950;
@@ -5545,7 +5545,7 @@ def render_startup_checklist(language):
         }}
         .checklist-hero-head {{
             padding:15px 18px;
-            background:linear-gradient(90deg, rgba(255,75,75,0.22), transparent);
+            background:linear-gradient(90deg, rgba(197,126,90,0.22), transparent);
             border-bottom:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
         }}
         .checklist-title {{
@@ -5670,7 +5670,7 @@ def render_elegant_panel_open(title=None, subtitle=None, tag=None):
             gap:16px;
             padding:15px 18px 13px 18px;
             border-bottom:1px solid color-mix(in srgb, var(--text-color) 8%, transparent);
-            background:linear-gradient(90deg, rgba(255,75,75,0.08), transparent 58%);
+            background:linear-gradient(90deg, rgba(197,126,90,0.08), transparent 58%);
         }}
         .elegant-panel-title {{
             font-size:15px;
@@ -5696,8 +5696,8 @@ def render_elegant_panel_open(title=None, subtitle=None, tag=None):
             font-weight:900;
             letter-spacing:0.065em;
             text-transform:uppercase;
-            border:1px solid rgba(255,75,75,0.20);
-            background:rgba(255,75,75,0.08);
+            border:1px solid rgba(197,126,90,0.20);
+            background:rgba(197,126,90,0.08);
             color:color-mix(in srgb, var(--text-color) 75%, transparent);
         }}
         .elegant-panel-body {{
@@ -6131,7 +6131,7 @@ with tab_tech_sheet:
             );
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
             box-shadow:0 8px 22px rgba(0,0,0,0.08);
-            border-left:6px solid #ff4b4b;
+            border-left:6px solid #C57E5A;
         ">
             <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
                 {t["preset_sheet"]}
