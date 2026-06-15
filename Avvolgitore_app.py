@@ -988,7 +988,6 @@ def make_preset_visual(row, language):
             "pitch": "Passo",
             "rollers": "Rulli",
             "tail": "Paletta",
-            "double_note": "Doppio verticale · grande sotto",
         },
         "EN": {
             "section_title": "Tube section",
@@ -1009,7 +1008,6 @@ def make_preset_visual(row, language):
             "pitch": "Pitch",
             "rollers": "Rollers",
             "tail": "Tail stop",
-            "double_note": "Vertical double · large below",
         },
     }[language]
 
@@ -1025,31 +1023,37 @@ def make_preset_visual(row, language):
         d_pair = d_inf + d_sup
         r_inf = 48.0
         r_sup = max(26.0, min(40.0, r_inf * d_sup / max(d_inf, 1e-9)))
-        cx = 145.0
-        cy_inf = 156.0
+        cx = 160.0
+        cy_inf = 154.0
         cy_sup = cy_inf - r_inf - r_sup
         copper_inf = max(12.0, r_inf * d_rame_inf / max(d_inf, 1e-9) / 2.0)
         copper_sup = max(9.0, r_sup * d_rame_sup / max(d_sup, 1e-9) / 2.0)
         tube_svg = f"""
         <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Double tube section">
+            <defs>
+                <pattern id="gridSec" width="18" height="18" patternUnits="userSpaceOnUse">
+                    <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                </pattern>
+            </defs>
+            <rect x="0" y="0" width="560" height="250" fill="url(#gridSec)"/>
             <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{r_inf:.1f}" class="foam-shape"/>
             <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{copper_inf:.1f}" class="copper-shape"/>
             <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{max(6, copper_inf * 0.52):.1f}" class="copper-highlight"/>
             <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{r_sup:.1f}" class="foam-shape"/>
             <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{copper_sup:.1f}" class="copper-shape"/>
             <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{max(5, copper_sup * 0.52):.1f}" class="copper-highlight"/>
-            <line x1="238" y1="{cy_sup-r_sup:.1f}" x2="238" y2="{cy_inf+r_inf:.1f}" class="dim-line"/>
-            <line x1="{cx+r_sup:.1f}" y1="{cy_sup-r_sup:.1f}" x2="248" y2="{cy_sup-r_sup:.1f}" class="dim-guide"/>
-            <line x1="{cx+r_inf:.1f}" y1="{cy_inf+r_inf:.1f}" x2="248" y2="{cy_inf+r_inf:.1f}" class="dim-guide"/>
-            <text x="262" y="{(cy_sup+cy_inf)/2:.1f}" class="dim-value vertical">{fmt(d_pair)} mm</text>
-            <line x1="228" y1="{cy_sup:.1f}" x2="318" y2="82" class="leader"/>
-            <line x1="228" y1="{cy_inf:.1f}" x2="318" y2="164" class="leader"/>
-            <text x="334" y="78" class="label-title">{safe_text(labels['upper'])}</text>
-            <text x="334" y="103" class="label-value">{safe_text(rame_sup)}</text>
-            <text x="334" y="124" class="label-sub">{fmt(d_sup)} mm</text>
-            <text x="334" y="160" class="label-title">{safe_text(labels['lower'])}</text>
-            <text x="334" y="185" class="label-value">{safe_text(rame_inf)}</text>
-            <text x="334" y="206" class="label-sub">{fmt(d_inf)} mm</text>
+            <line x1="258" y1="{cy_sup-r_sup:.1f}" x2="258" y2="{cy_inf+r_inf:.1f}" class="dim-line-blue"/>
+            <line x1="{cx+r_sup:.1f}" y1="{cy_sup-r_sup:.1f}" x2="268" y2="{cy_sup-r_sup:.1f}" class="dim-guide-blue"/>
+            <line x1="{cx+r_inf:.1f}" y1="{cy_inf+r_inf:.1f}" x2="268" y2="{cy_inf+r_inf:.1f}" class="dim-guide-blue"/>
+            <text x="286" y="{(cy_sup+cy_inf)/2:.1f}" class="dim-value-blue vertical">{fmt(d_pair)} mm</text>
+            <line x1="248" y1="{cy_sup:.1f}" x2="334" y2="84" class="leader-blue"/>
+            <line x1="248" y1="{cy_inf:.1f}" x2="334" y2="166" class="leader-blue"/>
+            <text x="350" y="80" class="label-title-blue">{safe_text(labels['upper'])}</text>
+            <text x="350" y="104" class="label-value-blue">{safe_text(rame_sup)}</text>
+            <text x="350" y="124" class="label-sub-blue">{fmt(d_sup)} mm</text>
+            <text x="350" y="162" class="label-title-blue">{safe_text(labels['lower'])}</text>
+            <text x="350" y="186" class="label-value-blue">{safe_text(rame_inf)}</text>
+            <text x="350" y="206" class="label-sub-blue">{fmt(d_inf)} mm</text>
         </svg>
         """
         tube_metrics = "".join([
@@ -1064,28 +1068,34 @@ def make_preset_visual(row, language):
     else:
         foam_r = 76.0
         copper_r = max(18.0, min(38.0, foam_r * d_rame / max(d_tubo, 1e-9)))
-        cx = 170.0
+        cx = 180.0
         cy = 126.0
         tube_svg = f"""
         <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Tube section">
+            <defs>
+                <pattern id="gridSecS" width="18" height="18" patternUnits="userSpaceOnUse">
+                    <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                </pattern>
+            </defs>
+            <rect x="0" y="0" width="560" height="250" fill="url(#gridSecS)"/>
             <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{foam_r:.1f}" class="foam-shape"/>
             <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{copper_r:.1f}" class="copper-shape"/>
             <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{max(8, copper_r * 0.52):.1f}" class="copper-highlight"/>
-            <line x1="{cx-foam_r:.1f}" y1="220" x2="{cx+foam_r:.1f}" y2="220" class="dim-line"/>
-            <line x1="{cx-foam_r:.1f}" y1="206" x2="{cx-foam_r:.1f}" y2="234" class="dim-line"/>
-            <line x1="{cx+foam_r:.1f}" y1="206" x2="{cx+foam_r:.1f}" y2="234" class="dim-line"/>
-            <text x="{cx:.1f}" y="213" class="dim-value">{fmt(d_tubo)} mm</text>
-            <text x="{cx:.1f}" y="240" class="dim-label">{safe_text(labels['outer'])}</text>
-            <line x1="{cx+copper_r:.1f}" y1="{cy:.1f}" x2="{cx+foam_r:.1f}" y2="{cy:.1f}" class="dim-line"/>
-            <text x="{cx+(copper_r+foam_r)/2:.1f}" y="{cy-14:.1f}" class="dim-label">{fmt(spessore)} mm</text>
-            <line x1="{cx+copper_r:.1f}" y1="{cy-6:.1f}" x2="336" y2="78" class="leader"/>
-            <line x1="{cx+foam_r:.1f}" y1="{cy:.1f}" x2="336" y2="156" class="leader"/>
-            <text x="352" y="74" class="label-title">{safe_text(labels['copper'])}</text>
-            <text x="352" y="99" class="label-value">{safe_text(rame)}</text>
-            <text x="352" y="152" class="label-title">{safe_text(labels['foam_thickness'])}</text>
-            <text x="352" y="177" class="label-value">{fmt(spessore)} mm</text>
-            <text x="352" y="205" class="label-title">{safe_text(labels['outer'])}</text>
-            <text x="352" y="230" class="label-value">{fmt(d_tubo)} mm</text>
+            <line x1="{cx-foam_r:.1f}" y1="216" x2="{cx+foam_r:.1f}" y2="216" class="dim-line-blue"/>
+            <line x1="{cx-foam_r:.1f}" y1="202" x2="{cx-foam_r:.1f}" y2="230" class="dim-line-blue"/>
+            <line x1="{cx+foam_r:.1f}" y1="202" x2="{cx+foam_r:.1f}" y2="230" class="dim-line-blue"/>
+            <text x="{cx:.1f}" y="210" class="dim-value-blue">{fmt(d_tubo)} mm</text>
+            <text x="{cx:.1f}" y="238" class="dim-label-blue">{safe_text(labels['outer'])}</text>
+            <line x1="{cx+copper_r:.1f}" y1="{cy:.1f}" x2="{cx+foam_r:.1f}" y2="{cy:.1f}" class="dim-line-blue"/>
+            <text x="{cx+(copper_r+foam_r)/2:.1f}" y="{cy-14:.1f}" class="dim-label-blue">{fmt(spessore)} mm</text>
+            <line x1="{cx+copper_r:.1f}" y1="{cy-6:.1f}" x2="352" y2="82" class="leader-blue"/>
+            <line x1="{cx+foam_r:.1f}" y1="{cy:.1f}" x2="352" y2="162" class="leader-blue"/>
+            <text x="368" y="80" class="label-title-blue">{safe_text(labels['copper'])}</text>
+            <text x="368" y="104" class="label-value-blue">{safe_text(rame)}</text>
+            <text x="368" y="160" class="label-title-blue">{safe_text(labels['foam_thickness'])}</text>
+            <text x="368" y="184" class="label-value-blue">{fmt(spessore)} mm</text>
+            <text x="368" y="212" class="label-title-blue">{safe_text(labels['outer'])}</text>
+            <text x="368" y="236" class="label-value-blue">{fmt(d_tubo)} mm</text>
         </svg>
         """
         tube_metrics = "".join([
@@ -1101,48 +1111,45 @@ def make_preset_visual(row, language):
     coil_svg = f"""
     <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Coiling layout">
         <defs>
+            <pattern id="gridCoil" width="18" height="18" patternUnits="userSpaceOnUse">
+                <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+            </pattern>
             <linearGradient id="tubeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#3e434b"/>
-                <stop offset="50%" stop-color="#1f2329"/>
-                <stop offset="100%" stop-color="#4a5059"/>
+                <stop offset="0%" stop-color="#46505d"/>
+                <stop offset="35%" stop-color="#1a1f26"/>
+                <stop offset="68%" stop-color="#090d12"/>
+                <stop offset="100%" stop-color="#3e4652"/>
             </linearGradient>
-            <linearGradient id="discGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#2d3138"/>
-                <stop offset="100%" stop-color="#0e1218"/>
+            <linearGradient id="topDisc" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#39414c"/>
+                <stop offset="100%" stop-color="#070b10"/>
+            </linearGradient>
+            <linearGradient id="bottomDisc" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#d4d7dd"/>
+                <stop offset="100%" stop-color="#8a9099"/>
             </linearGradient>
         </defs>
-
-        <!-- incoming tube -->
-        <line x1="18" y1="138" x2="118" y2="138" class="tube-line"/>
-
-        <!-- top and bottom spool discs -->
-        <ellipse cx="312" cy="48" rx="190" ry="14" fill="url(#discGrad)" stroke="#1b2027" stroke-width="1.4"/>
-        <ellipse cx="312" cy="194" rx="190" ry="14" fill="#8c9198" opacity="0.55" stroke="#50565e" stroke-width="1.2"/>
-
-        <!-- wound tube turns -->
-        <line x1="154" y1="74" x2="470" y2="74" class="tube-line"/>
-        <line x1="150" y1="98" x2="474" y2="98" class="tube-line"/>
-        <line x1="148" y1="122" x2="476" y2="122" class="tube-line"/>
-        <line x1="150" y1="146" x2="474" y2="146" class="tube-line"/>
-        <line x1="154" y1="170" x2="470" y2="170" class="tube-line"/>
-
-        <!-- dimension: spool diameter -->
-        <line x1="112" y1="48" x2="112" y2="194" class="dim-line-dark"/>
-        <line x1="100" y1="48" x2="124" y2="48" class="dim-line-dark"/>
-        <line x1="100" y1="194" x2="124" y2="194" class="dim-line-dark"/>
-        <text x="82" y="112" class="dim-label-dark vertical">Ø aspo</text>
-        <text x="98" y="112" class="dim-value-dark vertical">{fmt(aspo)} mm</text>
-
-        <!-- dimension: width -->
-        <line x1="154" y1="226" x2="470" y2="226" class="dim-line-dark"/>
-        <line x1="154" y1="214" x2="154" y2="238" class="dim-line-dark"/>
-        <line x1="470" y1="214" x2="470" y2="238" class="dim-line-dark"/>
-        <text x="312" y="220" class="dim-value-dark">{fmt(spalla)} mm</text>
-        <text x="312" y="244" class="dim-label-dark">{safe_text(labels['width'])}</text>
-
-        <!-- pitch label -->
-        <text x="500" y="108" class="label-title-dark">{safe_text(labels['pitch'])}</text>
-        <text x="500" y="132" class="label-value-dark">{fmt(passo)} mm</text>
+        <rect x="0" y="0" width="560" height="250" fill="url(#gridCoil)"/>
+        <line x1="4" y1="138" x2="122" y2="138" class="tube-line-dark"/>
+        <ellipse cx="314" cy="46" rx="190" ry="13" fill="url(#topDisc)" stroke="#02050a" stroke-width="1.3"/>
+        <ellipse cx="314" cy="196" rx="190" ry="14" fill="url(#bottomDisc)" stroke="#7b848f" stroke-width="1.1"/>
+        <line x1="154" y1="76" x2="474" y2="76" class="tube-line-dark"/>
+        <line x1="150" y1="102" x2="478" y2="102" class="tube-line-dark"/>
+        <line x1="148" y1="128" x2="480" y2="128" class="tube-line-dark"/>
+        <line x1="150" y1="154" x2="478" y2="154" class="tube-line-dark"/>
+        <line x1="154" y1="180" x2="474" y2="180" class="tube-line-dark"/>
+        <line x1="114" y1="46" x2="114" y2="196" class="dim-line-blue"/>
+        <line x1="102" y1="46" x2="126" y2="46" class="dim-line-blue"/>
+        <line x1="102" y1="196" x2="126" y2="196" class="dim-line-blue"/>
+        <text x="84" y="108" class="dim-label-blue vertical">Ø aspo</text>
+        <text x="100" y="108" class="dim-value-blue vertical">{fmt(aspo)} mm</text>
+        <line x1="154" y1="226" x2="474" y2="226" class="dim-line-blue"/>
+        <line x1="154" y1="214" x2="154" y2="238" class="dim-line-blue"/>
+        <line x1="474" y1="214" x2="474" y2="238" class="dim-line-blue"/>
+        <text x="314" y="220" class="dim-value-blue">{fmt(spalla)} mm</text>
+        <text x="314" y="244" class="dim-label-blue">{safe_text(labels['width'])}</text>
+        <text x="496" y="110" class="label-title-blue">{safe_text(labels['pitch'])}</text>
+        <text x="496" y="134" class="label-value-blue">{fmt(passo)} mm</text>
     </svg>
     """
 
@@ -1159,54 +1166,44 @@ def make_preset_visual(row, language):
     <style>
     :root {{
         --preview-accent:#C57E5A;
-        --preview-line:rgba(226,232,240,0.82);
-        --preview-muted:rgba(226,232,240,0.62);
         --preview-panel:rgba(18,22,27,0.42);
         --preview-panel-2:rgba(18,22,27,0.25);
         --preview-copper:#C57E5A;
         --preview-copper-light:#E7B18F;
-        --preview-foam:#dfe4ea;
-        --preview-foam-stroke:#7d8794;
-        --preview-draw-bg-top:#f5f7fa;
-        --preview-draw-bg-bottom:#e8edf3;
-        --preview-dark:#111827;
-        --preview-dark-2:#4b5563;
+        --preview-foam:#d7dde5;
+        --preview-foam-stroke:#a7b2bf;
+        --preview-blue-top:#0f2746;
+        --preview-blue-bottom:#081629;
+        --preview-blue-line:#cbe4ff;
+        --preview-blue-muted:#8bb0d8;
+        --preview-blue-text:#edf6ff;
+        --preview-blue-shadow:#07111e;
     }}
-    html, body {{
-        margin:0; padding:0; background:transparent; color:#f8fafc;
-        font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-    }}
+    html, body {{ margin:0; padding:0; background:transparent; color:#f8fafc; font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }}
     .preview-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:0; box-sizing:border-box; }}
     .preview-card {{ border-radius:22px; overflow:hidden; background:linear-gradient(180deg, var(--preview-panel), var(--preview-panel-2)); border:1px solid rgba(226,232,240,0.14); box-shadow:0 12px 26px rgba(0,0,0,0.10); }}
     .preview-head {{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px 18px; border-bottom:1px solid rgba(226,232,240,0.10); }}
     .preview-title {{ font-size:20px; line-height:1.05; font-weight:950; letter-spacing:-0.035em; color:#f8fafc; }}
     .preview-tag {{ flex:0 0 auto; min-height:30px; display:flex; align-items:center; justify-content:center; border-radius:999px; padding:0 12px; background:rgba(197,126,90,0.16); border:1px solid rgba(197,126,90,0.32); color:#f8fafc; font-size:12px; font-weight:900; letter-spacing:0.035em; }}
     .drawing-wrap {{ padding:14px 14px 0 14px; }}
-    .preview-svg {{ width:100%; height:250px; display:block; border-radius:18px; background:linear-gradient(180deg,var(--preview-draw-bg-top),var(--preview-draw-bg-bottom)); border:1px solid rgba(15,23,42,0.10); }}
+    .preview-svg {{ width:100%; height:250px; display:block; border-radius:18px; background:linear-gradient(180deg,var(--preview-blue-top),var(--preview-blue-bottom)); border:1px solid rgba(203,228,255,0.18); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.02); }}
     .foam-shape {{ fill:var(--preview-foam); stroke:var(--preview-foam-stroke); stroke-width:2.2; }}
     .copper-shape {{ fill:var(--preview-copper); stroke:rgba(126,67,36,0.92); stroke-width:1.8; }}
     .copper-highlight {{ fill:var(--preview-copper-light); opacity:0.82; }}
-    .dim-line, .dim-line-dark {{ stroke:var(--preview-dark-2); stroke-width:1.8; stroke-linecap:round; }}
-    .dim-guide, .leader {{ stroke:rgba(75,85,99,0.55); stroke-width:1.1; stroke-dasharray:4 5; fill:none; }}
-    .center-line {{ stroke:rgba(75,85,99,0.34); stroke-width:1.1; stroke-dasharray:5 6; }}
-    .dim-label, .dim-label-dark {{ fill:var(--preview-dark-2); font-size:12px; font-weight:800; text-anchor:middle; letter-spacing:0.03em; }}
-    .dim-value, .dim-value-dark {{ fill:var(--preview-dark); font-size:14px; font-weight:950; text-anchor:middle; }}
+    .dim-line-blue {{ stroke:var(--preview-blue-line); stroke-width:1.8; stroke-linecap:round; }}
+    .dim-guide-blue, .leader-blue {{ stroke:rgba(203,228,255,0.48); stroke-width:1.1; stroke-dasharray:4 5; fill:none; }}
+    .dim-label-blue {{ fill:var(--preview-blue-muted); font-size:12px; font-weight:800; text-anchor:middle; letter-spacing:0.03em; }}
+    .dim-value-blue {{ fill:var(--preview-blue-text); font-size:14px; font-weight:950; text-anchor:middle; }}
     .vertical {{ text-anchor:middle; dominant-baseline:middle; transform:rotate(-90deg); transform-origin:center; }}
-    .label-title {{ fill:#5b6573; font-size:12px; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; }}
-    .label-value {{ fill:#111827; font-size:18px; font-weight:950; }}
-    .label-sub {{ fill:#5b6573; font-size:14px; font-weight:800; }}
-    .label-title-dark {{ fill:#5b6573; font-size:12px; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; }}
-    .label-value-dark {{ fill:#111827; font-size:18px; font-weight:950; }}
-    .coil-body {{ fill:rgba(49,53,60,0.18); stroke:rgba(17,24,39,0.28); stroke-width:1.2; }}
-    .flange {{ fill:rgba(31,35,41,0.58); stroke:rgba(17,24,39,0.38); stroke-width:1.2; }}
-    .coil-stripe {{ fill:none; stroke:rgba(248,250,252,0.38); stroke-width:1.7; stroke-linecap:round; }}
-    .tube-line {{ stroke:url(#tubeGrad); stroke-width:20; stroke-linecap:round; }}
-    .preview-metrics {{ }}
+    .label-title-blue {{ fill:var(--preview-blue-muted); font-size:12px; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; }}
+    .label-value-blue {{ fill:var(--preview-blue-text); font-size:18px; font-weight:950; }}
+    .label-sub-blue {{ fill:#d1e6ff; font-size:14px; font-weight:800; }}
+    .tube-line-dark {{ stroke:url(#tubeGrad); stroke-width:20; stroke-linecap:round; }}
     .metrics {{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:9px; padding:14px; }}
     .preview-metric {{ min-height:54px; border-radius:14px; padding:10px 11px; box-sizing:border-box; background:rgba(226,232,240,0.055); border:1px solid rgba(226,232,240,0.09); }}
     .preview-metric-label {{ display:block; font-size:10px; line-height:1.1; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; color:rgba(226,232,240,0.52); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
     .preview-metric-value {{ display:block; font-size:15px; line-height:1.06; font-weight:950; color:#f8fafc; overflow-wrap:anywhere; }}
-    @media (max-width: 980px) {{ .preview-grid {{ grid-template-columns:1fr; }} .preview-svg {{ height:232px; }} }}
+    @media (max-width: 980px) {{ .preview-grid {{ grid-template-columns:1fr; }} .preview-svg {{ height:240px; }} }}
     </style>
     <div class="preview-grid">
         <section class="preview-card">
@@ -6197,7 +6194,7 @@ with tab_tech_sheet:
             "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
             "A",
         )
-        components.html(make_preset_visual(selected_row, lang), height=590, scrolling=False)
+        components.html(make_preset_visual(selected_row, lang), height=600, scrolling=False)
 
     with machine_sheet_tab:
         render_section_header(
