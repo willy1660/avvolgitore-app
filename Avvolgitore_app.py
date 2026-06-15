@@ -3170,7 +3170,6 @@ def render_premium_card_sweep_effect():
 
 title_placeholder.markdown(f"## {t['title']}")
 render_premium_card_sweep_effect()
-
 # =========================
 # GEOMETRY HELPERS
 # =========================
