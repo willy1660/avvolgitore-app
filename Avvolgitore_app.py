@@ -7298,64 +7298,43 @@ with tab_production:
                 st.markdown("&nbsp;", unsafe_allow_html=True)
                 st.caption(t["packaging_box_desc"])
 
-    render_render_hero(
-        lang,
+    render_elegant_panel_open(
+        "Render 3D" if lang == "IT" else "3D render",
+        "Vista ampia: il render occupa tutto lo spazio disponibile. L’esito rapido resta sotto, senza togliere larghezza alla simulazione." if lang == "IT" else "Wide view: the render uses all available width. The quick result stays below without reducing the simulation area.",
         selected_product,
-        tube_diameter_label,
-        lunghezza,
-        view_mode,
-        packaging_tone,
-        packaging_value_it if lang == "IT" else packaging_value_en,
-        coil_footprint_for_status,
     )
 
-    render_col, decision_col = st.columns([3.35, 1.0], gap="large")
-
-    with render_col:
-        render_elegant_panel_open(
-            "Render 3D" if lang == "IT" else "3D render",
-            "Vista integrata per controllare avvolgimento, packaging e ingombri." if lang == "IT" else "Integrated view to check winding, packaging and footprint.",
-            selected_product,
-        )
-
-        components.html(
-            viewer(
-                diametro_aspo,
-                spalla,
-                d_tubo,
-                660,
-                local_points.tolist(),
-                theta_values.tolist(),
-                radius_values.tolist(),
-                z_values.tolist(),
-                mode_values.tolist(),
-                layer_values.tolist(),
-                length_values.tolist(),
-                guide_offset_x,
-                lang,
-                coil_footprint_mm=visual_metrics["max_xy_span"],
-                initial_scene="packaging" if view_mode == t["scene_packaging"] else "winding",
-                packaging_mode=packaging_mode_selected,
-                container_mode=container_mode_selected,
-                pack_roll_count=pack_roll_count,
-                tube_layout=tube_layout_code,
-                d_tubo_lower=d_tubo_lower,
-                d_tubo_upper=d_tubo_upper,
-                tube_diameter_label=tube_diameter_label,
-            ),
-            height=660,
-        )
-
-        render_elegant_panel_close()
-
-    with decision_col:
-        render_decision_panel(
+    components.html(
+        viewer(
+            diametro_aspo,
+            spalla,
+            d_tubo,
+            720,
+            local_points.tolist(),
+            theta_values.tolist(),
+            radius_values.tolist(),
+            z_values.tolist(),
+            mode_values.tolist(),
+            layer_values.tolist(),
+            length_values.tolist(),
+            guide_offset_x,
             lang,
-            status_items,
-            visual_metrics,
-            coil_footprint_for_status,
-            750.0,
-        )
+            coil_footprint_mm=visual_metrics["max_xy_span"],
+            initial_scene="packaging" if view_mode == t["scene_packaging"] else "winding",
+            packaging_mode=packaging_mode_selected,
+            container_mode=container_mode_selected,
+            pack_roll_count=pack_roll_count,
+            tube_layout=tube_layout_code,
+            d_tubo_lower=d_tubo_lower,
+            d_tubo_upper=d_tubo_upper,
+            tube_diameter_label=tube_diameter_label,
+        ),
+        height=720,
+    )
+
+    render_elegant_panel_close()
+
+    render_status_semaphore(status_items, lang)
 
     st.divider()
 
