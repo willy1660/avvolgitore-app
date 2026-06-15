@@ -3877,6 +3877,7 @@ def viewer(
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
+            preserveDrawingBuffer: true,
             powerPreference: "high-performance"
         }});
 
@@ -4267,7 +4268,11 @@ def viewer(
         }});
 
         function escapeHtmlForPrint(value) {{
-            return String(value ?? "").replace(/[&<>"]/g, ch => ({{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}}[ch]));
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
         }}
 
         function buildSimulationPrintHtml(imageDataUrl) {{
