@@ -2929,15 +2929,19 @@ st.markdown(
 )
 
 
+
 # =========================
-# PREMIUM SWEEP GLOBAL PATCH
+# PREMIUM CARD SWEEP EFFECT
 # =========================
 
-def render_global_premium_sweep():
+def render_premium_card_sweep_effect():
     st.markdown(
         """
         <style>
-        /* vPremium sweep global · late patch */
+        /*
+        vPremium stable · sweep con ::after.
+        No toca ::before, així es conserven els detalls verticals en coure.
+        */
         .preset-hero,
         .preset-status-strip,
         .summary-card,
@@ -2958,23 +2962,12 @@ def render_global_premium_sweep():
         .hud_card,
         .preset-chip,
         .preview-card,
-        .preview-metric,
         .preset-card,
         .machine-card,
         .operator-card,
-        .scheda-preset-hero,
-        .scheda-hero,
-        .csv-hero,
-        .preset-sheet-hero,
-        .preset-sheet-header,
-        .scheda-preset-card,
-        .scheda-card,
-        .csv-card,
-        .technical-sheet-hero,
-        .technical-sheet-card,
-        div[data-testid="stMetric"],
-        div[style*="border-left"],
-        div[style*="border-left:"] {
+        .tech-sheet-preset-card,
+        .premium-sweep-card,
+        div[data-testid="stMetric"] {
             position: relative !important;
             overflow: hidden !important;
             isolation: isolate !important;
@@ -3003,215 +2996,169 @@ def render_global_premium_sweep():
         .preset-card > *,
         .machine-card > *,
         .operator-card > *,
-        .scheda-preset-hero > *,
-        .scheda-hero > *,
-        .csv-hero > *,
-        .preset-sheet-hero > *,
-        .preset-sheet-header > *,
-        .scheda-preset-card > *,
-        .scheda-card > *,
-        .csv-card > *,
-        .technical-sheet-hero > *,
-        .technical-sheet-card > * {
-            position: relative;
-            z-index: 2;
+        .tech-sheet-preset-card > *,
+        .premium-sweep-card > * {
+            position: relative !important;
+            z-index: 2 !important;
         }
 
-        .preset-hero::before,
-        .preset-status-strip::before,
-        .summary-card::before,
-        .preset-param-card::before,
-        .quick-card-v2::before,
-        .semaphore-card::before,
-        .tech-mini-card::before,
-        .machine-card-native::before,
-        .preview-metric::before,
-        .summary-strip::before,
-        .summary-strip-item::before,
-        .section-header::before,
-        .workflow-step::before,
-        .elegant-panel::before,
-        .checklist-hero::before,
-        .pdm-action-bar::before,
-        .pack_stat::before,
-        .hud_card::before,
-        .preset-chip::before,
-        .preview-card::before,
-        .preset-card::before,
-        .machine-card::before,
-        .operator-card::before,
-        .scheda-preset-hero::before,
-        .scheda-hero::before,
-        .csv-hero::before,
-        .preset-sheet-hero::before,
-        .preset-sheet-header::before,
-        .scheda-preset-card::before,
-        .scheda-card::before,
-        .csv-card::before,
-        .technical-sheet-hero::before,
-        .technical-sheet-card::before,
-        div[data-testid="stMetric"]::before,
-        div[style*="border-left"]::before,
-        div[style*="border-left:"]::before {
+        .preset-hero::after,
+        .preset-status-strip::after,
+        .summary-card::after,
+        .preset-param-card::after,
+        .quick-card-v2::after,
+        .semaphore-card::after,
+        .tech-mini-card::after,
+        .machine-card-native::after,
+        .preview-metric::after,
+        .summary-strip::after,
+        .summary-strip-item::after,
+        .section-header::after,
+        .workflow-step::after,
+        .elegant-panel::after,
+        .checklist-hero::after,
+        .pdm-action-bar::after,
+        .pack_stat::after,
+        .hud_card::after,
+        .preset-chip::after,
+        .preview-card::after,
+        .preset-card::after,
+        .machine-card::after,
+        .operator-card::after,
+        .tech-sheet-preset-card::after,
+        .premium-sweep-card::after,
+        div[data-testid="stMetric"]::after {
             content: "" !important;
             position: absolute !important;
-            top: -35% !important;
-            bottom: -35% !important;
-            left: -80% !important;
-            width: 42% !important;
+            top: -42% !important;
+            bottom: -42% !important;
+            left: -78% !important;
+            width: 48% !important;
             pointer-events: none !important;
             border-radius: inherit !important;
             background: linear-gradient(
                 105deg,
                 transparent 0%,
-                rgba(255,255,255,0.00) 26%,
-                rgba(255,255,255,0.28) 48%,
-                rgba(197,126,90,0.24) 56%,
-                rgba(255,255,255,0.10) 64%,
+                rgba(255,255,255,0.00) 25%,
+                rgba(255,255,255,0.32) 48%,
+                rgba(197,126,90,0.26) 56%,
+                rgba(255,255,255,0.14) 64%,
                 transparent 100%
             ) !important;
-            transform: translateX(-40%) skewX(-16deg) !important;
+            transform: skewX(-16deg) !important;
             opacity: 0 !important;
-            z-index: 3 !important;
+            z-index: 4 !important;
             mix-blend-mode: screen !important;
         }
 
-        .preset-hero:hover::before,
-        .preset-status-strip:hover::before,
-        .summary-card:hover::before,
-        .preset-param-card:hover::before,
-        .quick-card-v2:hover::before,
-        .semaphore-card:hover::before,
-        .tech-mini-card:hover::before,
-        .machine-card-native:hover::before,
-        .preview-metric:hover::before,
-        .summary-strip:hover::before,
-        .summary-strip-item:hover::before,
-        .section-header:hover::before,
-        .workflow-step:hover::before,
-        .elegant-panel:hover::before,
-        .checklist-hero:hover::before,
-        .pdm-action-bar:hover::before,
-        .pack_stat:hover::before,
-        .hud_card:hover::before,
-        .preset-chip:hover::before,
-        .preview-card:hover::before,
-        .preset-card:hover::before,
-        .machine-card:hover::before,
-        .operator-card:hover::before,
-        .scheda-preset-hero:hover::before,
-        .scheda-hero:hover::before,
-        .csv-hero:hover::before,
-        .preset-sheet-hero:hover::before,
-        .preset-sheet-header:hover::before,
-        .scheda-preset-card:hover::before,
-        .scheda-card:hover::before,
-        .csv-card:hover::before,
-        .technical-sheet-hero:hover::before,
-        .technical-sheet-card:hover::before,
-        div[data-testid="stMetric"]:hover::before,
-        div[style*="border-left"]:hover::before,
-        div[style*="border-left:"]:hover::before {
+        .preset-hero:hover::after,
+        .preset-status-strip:hover::after,
+        .summary-card:hover::after,
+        .preset-param-card:hover::after,
+        .quick-card-v2:hover::after,
+        .semaphore-card:hover::after,
+        .tech-mini-card:hover::after,
+        .machine-card-native:hover::after,
+        .preview-metric:hover::after,
+        .summary-strip:hover::after,
+        .summary-strip-item:hover::after,
+        .section-header:hover::after,
+        .workflow-step:hover::after,
+        .elegant-panel:hover::after,
+        .checklist-hero:hover::after,
+        .pdm-action-bar:hover::after,
+        .pack_stat:hover::after,
+        .hud_card:hover::after,
+        .preset-chip:hover::after,
+        .preview-card:hover::after,
+        .preset-card:hover::after,
+        .machine-card:hover::after,
+        .operator-card:hover::after,
+        .tech-sheet-preset-card:hover::after,
+        .premium-sweep-card:hover::after,
+        div[data-testid="stMetric"]:hover::after {
             opacity: 1 !important;
-            animation: pdmGlobalSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+            animation: pdmCardSweepAfter 1.05s cubic-bezier(.2,.72,.22,1) both !important;
         }
 
-        .pdm-pulse::before {
+        .pdm-pulse::after {
             opacity: 1 !important;
-            animation: pdmGlobalSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+            animation: pdmCardSweepAfter 1.05s cubic-bezier(.2,.72,.22,1) both !important;
         }
 
-        @keyframes pdmGlobalSweep {
+        @keyframes pdmCardSweepAfter {
             0% {
-                left: -85%;
+                left: -82%;
                 opacity: 0;
             }
             12% {
                 opacity: 1;
             }
             100% {
-                left: 140%;
+                left: 138%;
                 opacity: 0;
             }
         }
 
         @media (hover: none) {
-            .preset-hero:active::before,
-            .preset-status-strip:active::before,
-            .summary-card:active::before,
-            .preset-param-card:active::before,
-            .quick-card-v2:active::before,
-            .semaphore-card:active::before,
-            .tech-mini-card:active::before,
-            .machine-card-native:active::before,
-            .preview-metric:active::before,
-            .summary-strip:active::before,
-            .summary-strip-item:active::before,
-            .section-header:active::before,
-            .workflow-step:active::before,
-            .elegant-panel:active::before,
-            .checklist-hero:active::before,
-            .pdm-action-bar:active::before,
-            .pack_stat:active::before,
-            .hud_card:active::before,
-            .preset-chip:active::before,
-            .preview-card:active::before,
-            .preset-card:active::before,
-            .machine-card:active::before,
-            .operator-card:active::before,
-            .scheda-preset-hero:active::before,
-            .scheda-hero:active::before,
-            .csv-hero:active::before,
-            .preset-sheet-hero:active::before,
-            .preset-sheet-header:active::before,
-            .scheda-preset-card:active::before,
-            .scheda-card:active::before,
-            .csv-card:active::before,
-            .technical-sheet-hero:active::before,
-            .technical-sheet-card:active::before,
-            div[data-testid="stMetric"]:active::before,
-            div[style*="border-left"]:active::before,
-            div[style*="border-left:"]:active::before {
+            .preset-hero:active::after,
+            .preset-status-strip:active::after,
+            .summary-card:active::after,
+            .preset-param-card:active::after,
+            .quick-card-v2:active::after,
+            .semaphore-card:active::after,
+            .tech-mini-card:active::after,
+            .machine-card-native:active::after,
+            .preview-metric:active::after,
+            .summary-strip:active::after,
+            .summary-strip-item:active::after,
+            .section-header:active::after,
+            .workflow-step:active::after,
+            .elegant-panel:active::after,
+            .checklist-hero:active::after,
+            .pdm-action-bar:active::after,
+            .pack_stat:active::after,
+            .hud_card:active::after,
+            .preset-chip:active::after,
+            .preview-card:active::after,
+            .preset-card:active::after,
+            .machine-card:active::after,
+            .operator-card:active::after,
+            .tech-sheet-preset-card:active::after,
+            .premium-sweep-card:active::after,
+            div[data-testid="stMetric"]:active::after {
                 opacity: 1 !important;
-                animation: pdmGlobalSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+                animation: pdmCardSweepAfter 1.05s cubic-bezier(.2,.72,.22,1) both !important;
             }
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .preset-hero::before,
-            .preset-status-strip::before,
-            .summary-card::before,
-            .preset-param-card::before,
-            .quick-card-v2::before,
-            .semaphore-card::before,
-            .tech-mini-card::before,
-            .machine-card-native::before,
-            .preview-metric::before,
-            .summary-strip::before,
-            .summary-strip-item::before,
-            .section-header::before,
-            .workflow-step::before,
-            .elegant-panel::before,
-            .checklist-hero::before,
-            .pdm-action-bar::before,
-            .pack_stat::before,
-            .hud_card::before,
-            .preset-chip::before,
-            .preview-card::before,
-            .preset-card::before,
-            .machine-card::before,
-            .operator-card::before,
-            .scheda-preset-hero::before,
-            .scheda-hero::before,
-            .csv-hero::before,
-            .preset-sheet-hero::before,
-            .preset-sheet-header::before,
-            .scheda-preset-card::before,
-            .scheda-card::before,
-            .csv-card::before,
-            .technical-sheet-hero::before,
-            .technical-sheet-card::before,
-            div[data-testid="stMetric"]::before {
+            .preset-hero::after,
+            .preset-status-strip::after,
+            .summary-card::after,
+            .preset-param-card::after,
+            .quick-card-v2::after,
+            .semaphore-card::after,
+            .tech-mini-card::after,
+            .machine-card-native::after,
+            .preview-metric::after,
+            .summary-strip::after,
+            .summary-strip-item::after,
+            .section-header::after,
+            .workflow-step::after,
+            .elegant-panel::after,
+            .checklist-hero::after,
+            .pdm-action-bar::after,
+            .pack_stat::after,
+            .hud_card::after,
+            .preset-chip::after,
+            .preview-card::after,
+            .preset-card::after,
+            .machine-card::after,
+            .operator-card::after,
+            .tech-sheet-preset-card::after,
+            .premium-sweep-card::after,
+            div[data-testid="stMetric"]::after {
                 animation: none !important;
                 display: none !important;
             }
@@ -3222,53 +3169,7 @@ def render_global_premium_sweep():
     )
 
 title_placeholder.markdown(f"## {t['title']}")
-render_global_premium_sweep()
-
-
-
-st.markdown(
-    """
-    <style>
-    
-/* vPremium hotfix · applica sweep anche alla testata Scheda preset e card custom inline */
-div[style*="border-left"][style*="#C57E5A"],
-div[style*="border-left"][style*="197,126,90"],
-div[style*="border-left"][style*="D18A62"],
-div[style*="border-left"][style*="B96F48"] {
-    position: relative !important;
-    overflow: hidden !important;
-    isolation: isolate !important;
-}
-div[style*="border-left"][style*="#C57E5A"]::after,
-div[style*="border-left"][style*="197,126,90"]::after,
-div[style*="border-left"][style*="D18A62"]::after,
-div[style*="border-left"][style*="B96F48"]::after {
-    content: "" !important;
-    position: absolute !important;
-    inset: -1px !important;
-    pointer-events: none !important;
-    border-radius: inherit !important;
-    background: linear-gradient(115deg, transparent 0%, transparent 34%, rgba(255,255,255,0.22) 46%, rgba(197,126,90,0.16) 52%, transparent 66%, transparent 100%) !important;
-    transform: translateX(-135%) skewX(-8deg) !important;
-    opacity: 0 !important;
-    z-index: 4 !important;
-    mix-blend-mode: screen !important;
-}
-div[style*="border-left"][style*="#C57E5A"]:hover::after,
-div[style*="border-left"][style*="197,126,90"]:hover::after,
-div[style*="border-left"][style*="D18A62"]:hover::after,
-div[style*="border-left"][style*="B96F48"]:hover::after {
-    opacity: 1 !important;
-    animation: pdmCardLightSweepAll 0.95s cubic-bezier(.18,.74,.24,1) both !important;
-}
-
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-
+render_premium_card_sweep_effect()
 
 # =========================
 # GEOMETRY HELPERS
@@ -8922,81 +8823,6 @@ with tab_tech_sheet:
     else:
         selected_product = st.session_state.get("selected_preset_product", preset_names[0])
         selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
-
-        
-        st.markdown(
-            """
-            <style>
-            /* Hotfix · sweep explícit per la card de Scheda tecnica */
-            .premium-sweep-card,
-            .tech-sheet-preset-card {
-                position: relative !important;
-                overflow: hidden !important;
-                isolation: isolate !important;
-            }
-        
-            .premium-sweep-card > *,
-            .tech-sheet-preset-card > * {
-                position: relative !important;
-                z-index: 2 !important;
-            }
-        
-            .premium-sweep-card::after,
-            .tech-sheet-preset-card::after {
-                content: "" !important;
-                position: absolute !important;
-                top: -40% !important;
-                bottom: -40% !important;
-                left: -75% !important;
-                width: 46% !important;
-                pointer-events: none !important;
-                border-radius: inherit !important;
-                background: linear-gradient(
-                    105deg,
-                    transparent 0%,
-                    rgba(255,255,255,0.00) 24%,
-                    rgba(255,255,255,0.30) 48%,
-                    rgba(197,126,90,0.25) 56%,
-                    rgba(255,255,255,0.12) 64%,
-                    transparent 100%
-                ) !important;
-                transform: skewX(-16deg) !important;
-                opacity: 0 !important;
-                z-index: 4 !important;
-                mix-blend-mode: screen !important;
-            }
-        
-            .premium-sweep-card:hover::after,
-            .tech-sheet-preset-card:hover::after {
-                opacity: 1 !important;
-                animation: pdmTechSheetSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
-            }
-        
-            @keyframes pdmTechSheetSweep {
-                0% {
-                    left: -80%;
-                    opacity: 0;
-                }
-                12% {
-                    opacity: 1;
-                }
-                100% {
-                    left: 135%;
-                    opacity: 0;
-                }
-            }
-        
-            @media (hover: none) {
-                .premium-sweep-card:active::after,
-                .tech-sheet-preset-card:active::after {
-                    opacity: 1 !important;
-                    animation: pdmTechSheetSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
-                }
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
         
         st.markdown(
             f"""
