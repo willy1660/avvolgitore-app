@@ -5336,6 +5336,520 @@ def render_active_preset_card(product_name, language, modified=False):
     )
 
 
+
+def render_preset_product_card(selected_product, selected_row, language, modified=False):
+    """Hero card for the selected preset. Keeps the preset visible without duplicating the full technical sheet."""
+    locked = bool(st.session_state.get("params_locked", False))
+
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return format_preset_value(value)
+        return default
+
+    if language == "IT":
+        kicker = "Preset selezionato"
+        subtitle = "Base dati caricata automaticamente nel render · dettagli completi nella Scheda tecnica"
+        original_txt = "Originale"
+        modified_txt = "Modificato"
+        locked_txt = "Bloccato"
+        editable_txt = "Editabile"
+        restore_label = "Ripristina preset"
+        lock_label = "Blocca parametri"
+        chip_defs = [
+            ("Tipo tubo", gv("Tipo tubo")),
+            ("Ø rame", gv("Diametro Rame", "Diametro rame superiore", default="-")),
+            ("Guaina", f"{gv('Spessore Guaina (mm)', 'Spessore guaina superiore', default='-')} mm"),
+            ("Lunghezza", f"{gv('Lunghezza (m)', default='-')} m"),
+            ("Aspo", f"Ø {gv('Diametro aspo (mm)', default='-')} mm"),
+            ("Spalla", f"{gv('Spalla (mm)', default='-')} mm"),
+        ]
+    else:
+        kicker = "Selected preset"
+        subtitle = "Data base automatically loaded into the render · full details in the Technical sheet"
+        original_txt = "Original"
+        modified_txt = "Modified"
+        locked_txt = "Locked"
+        editable_txt = "Editable"
+        restore_label = "Restore preset"
+        lock_label = "Lock parameters"
+        chip_defs = [
+            ("Tube type", gv("Tipo tubo")),
+            ("Copper Ø", gv("Diametro Rame", "Diametro rame superiore", default="-")),
+            ("Foam", f"{gv('Spessore Guaina (mm)', 'Spessore guaina superiore', default='-')} mm"),
+            ("Length", f"{gv('Lunghezza (m)', default='-')} m"),
+            ("Spool", f"Ø {gv('Diametro aspo (mm)', default='-')} mm"),
+            ("Width", f"{gv('Spalla (mm)', default='-')} mm"),
+        ]
+
+    status_txt = modified_txt if modified else original_txt
+    lock_txt = locked_txt if locked else editable_txt
+    status_class = "modified" if modified else "original"
+    lock_class = "locked" if locked else "editable"
+
+    chips_html = "".join(
+        f"""
+        <div class="preset-hero-chip">
+            <span>{html.escape(str(label))}</span>
+            <strong>{html.escape(str(value))}</strong>
+        </div>
+        """
+        for label, value in chip_defs
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .preset-hero {{
+            margin:10px 0 16px 0;
+            border-radius:24px;
+            overflow:hidden;
+            border:1px solid color-mix(in srgb, var(--text-color) 13%, transparent);
+            background:
+                radial-gradient(circle at 6% 0%, rgba(197,126,90,0.18), transparent 30%),
+                linear-gradient(180deg,
+                    color-mix(in srgb, var(--secondary-background-color) 90%, var(--background-color)),
+                    color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+                );
+            box-shadow:0 12px 30px rgba(0,0,0,0.075);
+        }}
+        .preset-hero-top {{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:18px;
+            padding:20px 22px 16px 22px;
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+        }}
+        .preset-hero-kicker {{
+            font-size:11px;
+            line-height:1;
+            font-weight:950;
+            letter-spacing:.08em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 60%, transparent);
+            margin-bottom:8px;
+        }}
+        .preset-hero-title {{
+            font-size:clamp(25px, 2vw, 36px);
+            line-height:1.02;
+            font-weight:950;
+            letter-spacing:-.04em;
+            color:var(--text-color);
+            word-break:break-word;
+        }}
+        .preset-hero-subtitle {{
+            margin-top:8px;
+            font-size:13px;
+            line-height:1.28;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 63%, transparent);
+        }}
+        .preset-hero-badges {{
+            display:flex;
+            flex-wrap:wrap;
+            justify-content:flex-end;
+            gap:8px;
+            min-width:max-content;
+        }}
+        .preset-hero-badge {{
+            border-radius:999px;
+            padding:9px 12px;
+            font-size:11px;
+            line-height:1;
+            font-weight:950;
+            letter-spacing:.055em;
+            text-transform:uppercase;
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            background:color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color));
+            color:var(--text-color);
+        }}
+        .preset-hero-badge.original {{
+            background:#C57E5A;
+            border-color:#C57E5A;
+            color:#fff;
+        }}
+        .preset-hero-badge.modified {{
+            background:#f59e0b;
+            border-color:#f59e0b;
+            color:#fff;
+        }}
+        .preset-hero-badge.locked {{
+            background:#64748b;
+            border-color:#64748b;
+            color:#fff;
+        }}
+        .preset-hero-chips {{
+            display:grid;
+            grid-template-columns:repeat(6, minmax(0, 1fr));
+            gap:10px;
+            padding:14px 18px 18px 18px;
+        }}
+        .preset-hero-chip {{
+            min-height:62px;
+            padding:11px 13px;
+            border-radius:16px;
+            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background:color-mix(in srgb, var(--text-color) 4%, transparent);
+        }}
+        .preset-hero-chip span {{
+            display:block;
+            font-size:10.5px;
+            line-height:1.05;
+            font-weight:950;
+            letter-spacing:.055em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 56%, transparent);
+            margin-bottom:7px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+        }}
+        .preset-hero-chip strong {{
+            display:block;
+            font-size:18px;
+            line-height:1.05;
+            font-weight:950;
+            letter-spacing:-.02em;
+            color:var(--text-color);
+            overflow-wrap:anywhere;
+        }}
+        @media(max-width:1200px) {{
+            .preset-hero-chips {{ grid-template-columns:repeat(3, minmax(0,1fr)); }}
+        }}
+        @media(max-width:760px) {{
+            .preset-hero-top {{ flex-direction:column; }}
+            .preset-hero-badges {{ justify-content:flex-start; }}
+            .preset-hero-chips {{ grid-template-columns:repeat(2, minmax(0,1fr)); }}
+        }}
+        </style>
+        <div class="preset-hero">
+            <div class="preset-hero-top">
+                <div>
+                    <div class="preset-hero-kicker">{html.escape(kicker)}</div>
+                    <div class="preset-hero-title">{html.escape(str(selected_product))}</div>
+                    <div class="preset-hero-subtitle">{html.escape(subtitle)}</div>
+                </div>
+                <div class="preset-hero-badges">
+                    <span class="preset-hero-badge {status_class}">{html.escape(status_txt)}</span>
+                    <span class="preset-hero-badge {lock_class}">{html.escape(lock_txt)}</span>
+                </div>
+            </div>
+            <div class="preset-hero-chips">{chips_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    b1, b2 = st.columns([1, 1], gap="small")
+    with b1:
+        if st.button(restore_label, use_container_width=True):
+            st.session_state["restore_preset_request"] = str(selected_product)
+            st.rerun()
+    with b2:
+        st.toggle(lock_label, key="params_locked")
+
+
+def render_render_hero(language, selected_product, tube_diameter_label, lunghezza, view_mode_label, packaging_tone, packaging_value, coil_footprint_mm):
+    if language == "IT":
+        title = "Simulazione avvolgimento"
+        subtitle = "Il render è il riferimento principale: controlla geometria, ingombro e packaging in tempo reale."
+        chips = [
+            ("Preset", selected_product),
+            ("Ø tubo", tube_diameter_label),
+            ("Lunghezza", f"{lunghezza:.1f} m"),
+            ("Vista", view_mode_label),
+            ("Packaging", packaging_value),
+            ("Ingombro XY", f"{coil_footprint_mm:.1f} mm"),
+        ]
+    else:
+        title = "Winding simulation"
+        subtitle = "The render is the main reference: check geometry, footprint and packaging in real time."
+        chips = [
+            ("Preset", selected_product),
+            ("Tube Ø", tube_diameter_label),
+            ("Length", f"{lunghezza:.1f} m"),
+            ("View", view_mode_label),
+            ("Packaging", packaging_value),
+            ("XY footprint", f"{coil_footprint_mm:.1f} mm"),
+        ]
+
+    chips_html = "".join(
+        f"""
+        <div class="render-hero-pill {html.escape(packaging_tone if label == 'Packaging' else 'neutral')}">
+            <span>{html.escape(str(label))}</span>
+            <strong>{html.escape(str(value))}</strong>
+        </div>
+        """
+        for label, value in chips
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .render-hero {{
+            margin:4px 0 14px 0;
+            padding:18px 20px;
+            border-radius:24px;
+            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            background:
+                radial-gradient(circle at 0% 0%, rgba(197,126,90,0.16), transparent 36%),
+                linear-gradient(180deg,
+                    color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                    color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+                );
+            box-shadow:0 10px 26px rgba(0,0,0,0.07);
+        }}
+        .render-hero-head {{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-end;
+            gap:16px;
+            margin-bottom:13px;
+        }}
+        .render-hero-title {{
+            font-size:clamp(24px, 2vw, 34px);
+            line-height:1.02;
+            font-weight:950;
+            letter-spacing:-.04em;
+            color:var(--text-color);
+        }}
+        .render-hero-subtitle {{
+            margin-top:6px;
+            font-size:13px;
+            line-height:1.28;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 63%, transparent);
+        }}
+        .render-hero-pills {{
+            display:flex;
+            flex-wrap:wrap;
+            gap:9px;
+        }}
+        .render-hero-pill {{
+            display:flex;
+            align-items:center;
+            gap:8px;
+            min-height:38px;
+            padding:8px 12px;
+            border-radius:999px;
+            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            background:color-mix(in srgb, var(--secondary-background-color) 78%, var(--background-color));
+            box-shadow:0 5px 14px rgba(0,0,0,0.045);
+        }}
+        .render-hero-pill span {{
+            font-size:10.5px;
+            font-weight:950;
+            letter-spacing:.055em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+        }}
+        .render-hero-pill strong {{
+            font-size:13px;
+            font-weight:950;
+            color:var(--text-color);
+            max-width:260px;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }}
+        .render-hero-pill.ok {{
+            border-color:rgba(34,197,94,.34);
+            background:color-mix(in srgb, #22c55e 14%, var(--secondary-background-color));
+        }}
+        .render-hero-pill.warn {{
+            border-color:rgba(245,158,11,.40);
+            background:color-mix(in srgb, #f59e0b 15%, var(--secondary-background-color));
+        }}
+        .render-hero-pill.bad {{
+            border-color:rgba(239,68,68,.40);
+            background:color-mix(in srgb, #ef4444 15%, var(--secondary-background-color));
+        }}
+        @media(max-width:900px) {{
+            .render-hero-head {{ align-items:flex-start; flex-direction:column; }}
+            .render-hero-pill strong {{ max-width:180px; }}
+        }}
+        </style>
+        <div class="render-hero">
+            <div class="render-hero-head">
+                <div>
+                    <div class="render-hero-title">{html.escape(title)}</div>
+                    <div class="render-hero-subtitle">{html.escape(subtitle)}</div>
+                </div>
+            </div>
+            <div class="render-hero-pills">{chips_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_decision_panel(language, status_items, visual_metrics, coil_footprint_mm, pallet_size_mm=750.0):
+    # Use the packaging status as the primary operational decision.
+    packaging_item = next((item for item in status_items if str(item.get("label", "")).lower() in {"packaging"}), status_items[0])
+    winding_item = status_items[0] if status_items else {}
+    tone = packaging_item.get("tone", "neutral")
+    value = packaging_item.get("value", "-")
+    note = packaging_item.get("note", "")
+
+    margin = pallet_size_mm - coil_footprint_mm
+    if language == "IT":
+        title = "Esito simulazione"
+        decision_label = "Decisione rapida"
+        metrics = [
+            ("Ingombro XY", f"{coil_footprint_mm:.1f} mm"),
+            ("Margine pallet", f"{margin:.1f} mm" if margin >= 0 else f"+{abs(margin):.1f} mm"),
+            ("Lunghezza", f"{visual_metrics['wound_length_m']:.2f} m"),
+            ("Avvolgimento", winding_item.get("value", "-")),
+        ]
+    else:
+        title = "Simulation result"
+        decision_label = "Quick decision"
+        metrics = [
+            ("XY footprint", f"{coil_footprint_mm:.1f} mm"),
+            ("Pallet margin", f"{margin:.1f} mm" if margin >= 0 else f"+{abs(margin):.1f} mm"),
+            ("Length", f"{visual_metrics['wound_length_m']:.2f} m"),
+            ("Winding", winding_item.get("value", "-")),
+        ]
+
+    metrics_html = "".join(
+        f"""
+        <div class="decision-mini">
+            <span>{html.escape(str(label))}</span>
+            <strong>{html.escape(str(metric_value))}</strong>
+        </div>
+        """
+        for label, metric_value in metrics
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .decision-panel {{
+            height:100%;
+            min-height:660px;
+            border-radius:24px;
+            padding:18px;
+            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            background:linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow:0 10px 26px rgba(0,0,0,0.07);
+            display:flex;
+            flex-direction:column;
+            gap:14px;
+        }}
+        .decision-kicker {{
+            font-size:11px;
+            line-height:1;
+            font-weight:950;
+            letter-spacing:.075em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 60%, transparent);
+        }}
+        .decision-main {{
+            border-radius:22px;
+            padding:18px;
+            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background:color-mix(in srgb, var(--text-color) 4%, transparent);
+        }}
+        .decision-main.ok {{
+            border-color:rgba(34,197,94,.38);
+            background:color-mix(in srgb, #22c55e 13%, var(--secondary-background-color));
+        }}
+        .decision-main.warn {{
+            border-color:rgba(245,158,11,.42);
+            background:color-mix(in srgb, #f59e0b 15%, var(--secondary-background-color));
+        }}
+        .decision-main.bad {{
+            border-color:rgba(239,68,68,.42);
+            background:color-mix(in srgb, #ef4444 15%, var(--secondary-background-color));
+        }}
+        .decision-dot {{
+            width:18px;
+            height:18px;
+            border-radius:999px;
+            background:#94a3b8;
+            margin-bottom:14px;
+            box-shadow:0 0 0 5px rgba(148,163,184,.14);
+        }}
+        .decision-main.ok .decision-dot {{ background:#22c55e; box-shadow:0 0 0 5px rgba(34,197,94,.18); }}
+        .decision-main.warn .decision-dot {{ background:#f59e0b; box-shadow:0 0 0 5px rgba(245,158,11,.18); }}
+        .decision-main.bad .decision-dot {{ background:#ef4444; box-shadow:0 0 0 5px rgba(239,68,68,.18); }}
+        .decision-label {{
+            font-size:11px;
+            font-weight:950;
+            letter-spacing:.07em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            margin-bottom:8px;
+        }}
+        .decision-value {{
+            font-size:clamp(28px, 2.4vw, 40px);
+            line-height:.98;
+            font-weight:950;
+            letter-spacing:-.055em;
+            color:var(--text-color);
+        }}
+        .decision-note {{
+            margin-top:10px;
+            font-size:13px;
+            line-height:1.3;
+            font-weight:700;
+            color:color-mix(in srgb, var(--text-color) 66%, transparent);
+        }}
+        .decision-grid {{
+            display:grid;
+            grid-template-columns:1fr;
+            gap:10px;
+        }}
+        .decision-mini {{
+            min-height:70px;
+            border-radius:16px;
+            padding:12px 13px;
+            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background:color-mix(in srgb, var(--text-color) 4%, transparent);
+        }}
+        .decision-mini span {{
+            display:block;
+            font-size:10.5px;
+            font-weight:950;
+            letter-spacing:.055em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 56%, transparent);
+            margin-bottom:7px;
+        }}
+        .decision-mini strong {{
+            display:block;
+            font-size:21px;
+            line-height:1.05;
+            font-weight:950;
+            letter-spacing:-.025em;
+            color:var(--text-color);
+            overflow-wrap:anywhere;
+        }}
+        @media(max-width:1100px) {{
+            .decision-panel {{ min-height:auto; }}
+            .decision-grid {{ grid-template-columns:repeat(2,minmax(0,1fr)); }}
+        }}
+        </style>
+        <div class="decision-panel">
+            <div class="decision-kicker">{html.escape(title)}</div>
+            <div class="decision-main {html.escape(tone)}">
+                <div class="decision-dot"></div>
+                <div class="decision-label">{html.escape(decision_label)}</div>
+                <div class="decision-value">{html.escape(str(value))}</div>
+                <div class="decision-note">{html.escape(str(note))}</div>
+            </div>
+            <div class="decision-grid">{metrics_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_visuale, incremento_visuale, visual_metrics, coil_footprint_mm, pallet_size_mm=750.0):
     if language == "IT":
         title = "Lettura rapida"
@@ -6554,7 +7068,7 @@ with tab_production:
     preset_modified = bool(st.session_state.get("preset_values_modified", False))
     params_locked = bool(st.session_state.get("params_locked", False))
 
-    render_preset_action_bar(selected_product, selected_row, lang, preset_modified)
+    render_preset_product_card(selected_product, selected_row, lang, preset_modified)
 
     render_section_header(
         "Configurazione" if lang == "IT" else "Configuration",
@@ -6744,19 +7258,9 @@ with tab_production:
         ]
 
     render_section_header(
-        "Verifica rapida" if lang == "IT" else "Quick check",
-        "Prima controlla lo stato generale, poi apri il render per il dettaglio visivo." if lang == "IT" else "Check the overall status first, then open the render for the visual detail.",
-        "3",
-    )
-
-    render_status_semaphore(status_items, lang)
-
-    st.divider()
-
-    render_section_header(
         "Render 3D" if lang == "IT" else "3D render",
-        "Avvolgimento e packaging in una vista unica." if lang == "IT" else "Winding and packaging in one integrated view.",
-        "4",
+        "Il render è l’elemento principale: scegli la vista, poi controlla l’esito a lato." if lang == "IT" else "The render is the main element: choose the view, then check the result on the side.",
+        "3",
     )
 
     view_mode = st.radio(
@@ -6794,48 +7298,71 @@ with tab_production:
                 st.markdown("&nbsp;", unsafe_allow_html=True)
                 st.caption(t["packaging_box_desc"])
 
-    render_elegant_panel_open(
-        "Render 3D" if lang == "IT" else "3D render",
-        "Vista integrata per controllare avvolgimento, packaging e ingombri." if lang == "IT" else "Integrated view to check winding, packaging and footprint.",
+    render_render_hero(
+        lang,
         selected_product,
+        tube_diameter_label,
+        lunghezza,
+        view_mode,
+        packaging_tone,
+        packaging_value_it if lang == "IT" else packaging_value_en,
+        coil_footprint_for_status,
     )
 
-    components.html(
-        viewer(
-            diametro_aspo,
-            spalla,
-            d_tubo,
-            660,
-            local_points.tolist(),
-            theta_values.tolist(),
-            radius_values.tolist(),
-            z_values.tolist(),
-            mode_values.tolist(),
-            layer_values.tolist(),
-            length_values.tolist(),
-            guide_offset_x,
+    render_col, decision_col = st.columns([3.35, 1.0], gap="large")
+
+    with render_col:
+        render_elegant_panel_open(
+            "Render 3D" if lang == "IT" else "3D render",
+            "Vista integrata per controllare avvolgimento, packaging e ingombri." if lang == "IT" else "Integrated view to check winding, packaging and footprint.",
+            selected_product,
+        )
+
+        components.html(
+            viewer(
+                diametro_aspo,
+                spalla,
+                d_tubo,
+                660,
+                local_points.tolist(),
+                theta_values.tolist(),
+                radius_values.tolist(),
+                z_values.tolist(),
+                mode_values.tolist(),
+                layer_values.tolist(),
+                length_values.tolist(),
+                guide_offset_x,
+                lang,
+                coil_footprint_mm=visual_metrics["max_xy_span"],
+                initial_scene="packaging" if view_mode == t["scene_packaging"] else "winding",
+                packaging_mode=packaging_mode_selected,
+                container_mode=container_mode_selected,
+                pack_roll_count=pack_roll_count,
+                tube_layout=tube_layout_code,
+                d_tubo_lower=d_tubo_lower,
+                d_tubo_upper=d_tubo_upper,
+                tube_diameter_label=tube_diameter_label,
+            ),
+            height=660,
+        )
+
+        render_elegant_panel_close()
+
+    with decision_col:
+        render_decision_panel(
             lang,
-            coil_footprint_mm=visual_metrics["max_xy_span"],
-            initial_scene="packaging" if view_mode == t["scene_packaging"] else "winding",
-            packaging_mode=packaging_mode_selected,
-            container_mode=container_mode_selected,
-            pack_roll_count=pack_roll_count,
-            tube_layout=tube_layout_code,
-            d_tubo_lower=d_tubo_lower,
-            d_tubo_upper=d_tubo_upper,
-            tube_diameter_label=tube_diameter_label,
-        ),
-        height=660,
-    )
-
-    render_elegant_panel_close()
+            status_items,
+            visual_metrics,
+            coil_footprint_for_status,
+            750.0,
+        )
 
     st.divider()
 
     render_section_header(
         "Risultati" if lang == "IT" else "Results",
-        "Prima una lettura rapida, poi il dettaglio tecnico se serve." if lang == "IT" else "First a quick reading, then the technical detail if needed.",
-        "5",
+        "Lettura sintetica sotto il render; il dettaglio completo resta espandibile." if lang == "IT" else "Synthetic reading below the render; full detail remains expandable.",
+        "4",
     )
 
     pallet_size_mm = 750.0
