@@ -2928,20 +2928,19 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+title_placeholder.markdown(f"## {t['title']}")
+render_premium_shine_all_cards()
 
 
 # =========================
-# PREMIUM CARD SWEEP EFFECT
+# PREMIUM SHINE PATCH
 # =========================
 
-def render_premium_card_sweep_effect():
+def render_premium_shine_all_cards():
     st.markdown(
         """
         <style>
-        /*
-        vPremium stable · sweep con ::after.
-        No toca ::before, així es conserven els detalls verticals en coure.
-        */
+        /* vPremium · barra di luce applicata a tutte le card/pannelli principali. */
         .preset-hero,
         .preset-status-strip,
         .summary-card,
@@ -2965,41 +2964,10 @@ def render_premium_card_sweep_effect():
         .preset-card,
         .machine-card,
         .operator-card,
-        .tech-sheet-preset-card,
-        .premium-sweep-card,
         div[data-testid="stMetric"] {
             position: relative !important;
             overflow: hidden !important;
             isolation: isolate !important;
-        }
-
-        .preset-hero > *,
-        .preset-status-strip > *,
-        .summary-card > *,
-        .preset-param-card > *,
-        .quick-card-v2 > *,
-        .semaphore-card > *,
-        .tech-mini-card > *,
-        .machine-card-native > *,
-        .preview-metric > *,
-        .summary-strip > *,
-        .summary-strip-item > *,
-        .section-header > *,
-        .workflow-step > *,
-        .elegant-panel > *,
-        .checklist-hero > *,
-        .pdm-action-bar > *,
-        .pack_stat > *,
-        .hud_card > *,
-        .preset-chip > *,
-        .preview-card > *,
-        .preset-card > *,
-        .machine-card > *,
-        .operator-card > *,
-        .tech-sheet-preset-card > *,
-        .premium-sweep-card > * {
-            position: relative !important;
-            z-index: 2 !important;
         }
 
         .preset-hero::after,
@@ -3025,27 +2993,22 @@ def render_premium_card_sweep_effect():
         .preset-card::after,
         .machine-card::after,
         .operator-card::after,
-        .tech-sheet-preset-card::after,
-        .premium-sweep-card::after,
         div[data-testid="stMetric"]::after {
             content: "" !important;
             position: absolute !important;
-            top: -42% !important;
-            bottom: -42% !important;
-            left: -78% !important;
-            width: 48% !important;
+            inset: -1px !important;
             pointer-events: none !important;
             border-radius: inherit !important;
             background: linear-gradient(
-                105deg,
+                115deg,
                 transparent 0%,
-                rgba(255,255,255,0.00) 25%,
-                rgba(255,255,255,0.32) 48%,
-                rgba(197,126,90,0.26) 56%,
-                rgba(255,255,255,0.14) 64%,
+                transparent 34%,
+                rgba(255,255,255,0.22) 46%,
+                rgba(197,126,90,0.16) 52%,
+                transparent 66%,
                 transparent 100%
             ) !important;
-            transform: skewX(-16deg) !important;
+            transform: translateX(-135%) skewX(-8deg) !important;
             opacity: 0 !important;
             z-index: 4 !important;
             mix-blend-mode: screen !important;
@@ -3074,28 +3037,21 @@ def render_premium_card_sweep_effect():
         .preset-card:hover::after,
         .machine-card:hover::after,
         .operator-card:hover::after,
-        .tech-sheet-preset-card:hover::after,
-        .premium-sweep-card:hover::after,
         div[data-testid="stMetric"]:hover::after {
             opacity: 1 !important;
-            animation: pdmCardSweepAfter 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+            animation: pdmCardLightSweepAll 0.95s cubic-bezier(.18,.74,.24,1) both !important;
         }
 
-        .pdm-pulse::after {
-            opacity: 1 !important;
-            animation: pdmCardSweepAfter 1.05s cubic-bezier(.2,.72,.22,1) both !important;
-        }
-
-        @keyframes pdmCardSweepAfter {
+        @keyframes pdmCardLightSweepAll {
             0% {
-                left: -82%;
+                transform: translateX(-135%) skewX(-8deg);
                 opacity: 0;
             }
-            12% {
+            16% {
                 opacity: 1;
             }
             100% {
-                left: 138%;
+                transform: translateX(135%) skewX(-8deg);
                 opacity: 0;
             }
         }
@@ -3124,11 +3080,9 @@ def render_premium_card_sweep_effect():
             .preset-card:active::after,
             .machine-card:active::after,
             .operator-card:active::after,
-            .tech-sheet-preset-card:active::after,
-            .premium-sweep-card:active::after,
             div[data-testid="stMetric"]:active::after {
                 opacity: 1 !important;
-                animation: pdmCardSweepAfter 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+                animation: pdmCardLightSweepAll 0.95s cubic-bezier(.18,.74,.24,1) both !important;
             }
         }
 
@@ -3156,8 +3110,6 @@ def render_premium_card_sweep_effect():
             .preset-card::after,
             .machine-card::after,
             .operator-card::after,
-            .tech-sheet-preset-card::after,
-            .premium-sweep-card::after,
             div[data-testid="stMetric"]::after {
                 animation: none !important;
                 display: none !important;
@@ -3168,8 +3120,6 @@ def render_premium_card_sweep_effect():
         unsafe_allow_html=True,
     )
 
-title_placeholder.markdown(f"## {t['title']}")
-render_premium_card_sweep_effect()
 
 # =========================
 # GEOMETRY HELPERS
@@ -8823,10 +8773,10 @@ with tab_tech_sheet:
     else:
         selected_product = st.session_state.get("selected_preset_product", preset_names[0])
         selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
-        
+
         st.markdown(
             f"""
-            <div class="tech-sheet-preset-card premium-sweep-card" style="
+            <div style="
                 margin-top:12px;
                 margin-bottom:18px;
                 padding:22px 24px;
