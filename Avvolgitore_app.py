@@ -5543,13 +5543,6 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
         unsafe_allow_html=True,
     )
 
-    b1, b2 = st.columns([1, 1], gap="small")
-    with b1:
-        if st.button(restore_label, use_container_width=True):
-            st.session_state["restore_preset_request"] = str(selected_product)
-            st.rerun()
-    with b2:
-        st.toggle(lock_label, key="params_locked")
 
 
 def render_render_hero(language, selected_product, tube_diameter_label, lunghezza, view_mode_label, packaging_tone, packaging_value, coil_footprint_mm):
@@ -7142,7 +7135,20 @@ with tab_production:
         st.markdown("**Ritardi e regolazione**" if lang == "IT" else "Delays and setup")
         rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked)
         rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
-        st.caption("Sempre visibili: sono parametri chiave per la regolazione dell’avvolgimento." if lang == "IT" else "Always visible: these are key winding setup parameters.")
+
+        restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
+        lock_label_inline = "Blocca parametri" if lang == "IT" else "Lock parameters"
+
+        st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
+        action_a, action_b = st.columns([1, 1], gap="small")
+
+        with action_a:
+            if st.button(restore_label_inline, use_container_width=True, key="restore_preset_inline"):
+                st.session_state["restore_preset_request"] = str(selected_product)
+                st.rerun()
+
+        with action_b:
+            st.toggle(lock_label_inline, key="params_locked")
 
 
     z_min_center = None
