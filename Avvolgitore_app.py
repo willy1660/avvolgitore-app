@@ -6431,12 +6431,78 @@ with tab_production:
 
     with colC:
         st.markdown("**Controlli e avanzati**" if lang == "IT" else "Checks and advanced")
-        st.metric("Preset", selected_product)
-        st.metric("Stato" if lang == "IT" else "Status", ("Modificato" if preset_modified else "Originale") if lang == "IT" else ("Modified" if preset_modified else "Original"))
-        with st.expander("Parametri avanzati" if lang == "IT" else "Advanced parameters", expanded=False):
-            rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked)
-            rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
-            st.caption("Usa questi valori solo quando serve una regolazione fine del movimento." if lang == "IT" else "Use these values only when a fine motion adjustment is needed.")
+
+        status_value = ("Modificato" if preset_modified else "Originale") if lang == "IT" else ("Modified" if preset_modified else "Original")
+        st.markdown(
+            f"""
+            <style>
+            .control-state-grid {{
+                display:grid;
+                grid-template-columns:1fr;
+                gap:12px;
+                margin:6px 0 14px 0;
+            }}
+            .control-state-card {{
+                position:relative;
+                overflow:hidden;
+                padding:16px 18px;
+                min-height:112px;
+                border-radius:18px;
+                border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+                background:linear-gradient(180deg,
+                    color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                    color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+                );
+                box-shadow:0 7px 18px rgba(0,0,0,0.055);
+                transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+            }}
+            .control-state-card:hover {{
+                transform:translateY(-2px);
+                box-shadow:0 10px 24px rgba(0,0,0,0.08);
+                border-color:color-mix(in srgb, var(--pdm-accent) 45%, transparent);
+            }}
+            .control-state-card::before {{
+                content:'';
+                position:absolute;
+                top:0; left:0; bottom:0;
+                width:4px;
+                background:var(--pdm-accent);
+                opacity:.92;
+            }}
+            .control-state-label {{
+                font-size:11px;
+                font-weight:900;
+                letter-spacing:.055em;
+                text-transform:uppercase;
+                color:color-mix(in srgb, var(--text-color) 60%, transparent);
+                margin-bottom:10px;
+            }}
+            .control-state-value {{
+                font-size:clamp(22px, 1.8vw, 32px);
+                line-height:1.04;
+                letter-spacing:-.022em;
+                font-weight:950;
+                color:var(--text-color);
+                word-break:break-word;
+            }}
+            </style>
+            <div class="control-state-grid">
+                <div class="control-state-card">
+                    <div class="control-state-label">Preset</div>
+                    <div class="control-state-value">{html.escape(str(selected_product))}</div>
+                </div>
+                <div class="control-state-card">
+                    <div class="control-state-label">{html.escape('Stato' if lang == 'IT' else 'Status')}</div>
+                    <div class="control-state-value">{html.escape(status_value)}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked)
+        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
+        st.caption("Mantieni i ritardi sempre visibili: sono parametri chiave della regolazione." if lang == "IT" else "Keep delays always visible: they are key setup parameters.")
 
     z_min_center = None
     z_max_center = None
