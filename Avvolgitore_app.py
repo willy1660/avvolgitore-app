@@ -7673,78 +7673,13 @@ def render_startup_checklist(language):
 
 
 def render_elegant_panel_open(title=None, subtitle=None, tag=None):
-    title_html = f'<div class="elegant-panel-title">{html.escape(str(title))}</div>' if title else ""
-    subtitle_html = f'<div class="elegant-panel-subtitle">{html.escape(str(subtitle))}</div>' if subtitle else ""
-    tag_html = f'<div class="elegant-panel-tag">{html.escape(str(tag))}</div>' if tag else ""
-
-    st.markdown(
-        f"""
-        <style>
-        .elegant-panel {{
-            margin:8px 0 18px 0;
-            border-radius:24px;
-            overflow:hidden;
-            border:1px solid color-mix(in srgb, var(--text-color) 11%, transparent);
-            background:linear-gradient(180deg,
-                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
-                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-            );
-            box-shadow:0 10px 26px rgba(0,0,0,0.07);
-        }}
-        .elegant-panel-head {{
-            display:flex;
-            align-items:flex-start;
-            justify-content:space-between;
-            gap:16px;
-            padding:15px 18px 13px 18px;
-            border-bottom:1px solid color-mix(in srgb, var(--text-color) 8%, transparent);
-            background:linear-gradient(90deg, rgba(197,126,90,0.08), transparent 58%);
-        }}
-        .elegant-panel-title {{
-            font-size:15px;
-            line-height:1.15;
-            font-weight:950;
-            letter-spacing:0.055em;
-            text-transform:uppercase;
-            color:var(--text-color);
-        }}
-        .elegant-panel-subtitle {{
-            margin-top:4px;
-            font-size:12px;
-            line-height:1.25;
-            font-weight:650;
-            color:color-mix(in srgb, var(--text-color) 62%, transparent);
-        }}
-        .elegant-panel-tag {{
-            flex:0 0 auto;
-            border-radius:999px;
-            padding:6px 10px;
-            font-size:11px;
-            line-height:1;
-            font-weight:900;
-            letter-spacing:0.065em;
-            text-transform:uppercase;
-            border:1px solid rgba(197,126,90,0.20);
-            background:rgba(197,126,90,0.08);
-            color:color-mix(in srgb, var(--text-color) 75%, transparent);
-        }}
-        .elegant-panel-body {{
-            padding:14px;
-        }}
-        </style>
-        <div class="elegant-panel pdm-fade-up">
-            <div class="elegant-panel-head">
-                <div>{title_html}{subtitle_html}</div>
-                {tag_html}
-            </div>
-            <div class="elegant-panel-body">
-        """,
-        unsafe_allow_html=True,
-    )
+    # Deprecated raw-HTML wrapper removed. Streamlit can render closing </div> text
+    # when open/close tags are split across different st.markdown calls.
+    return
 
 
 def render_elegant_panel_close():
-    # No-op: closing raw HTML panels can be rendered as visible text by Streamlit in some layouts.
+    # Deprecated raw-HTML wrapper removed.
     return
 
 # =========================
@@ -8025,10 +7960,18 @@ with tab_production:
             },
         ]
 
-    render_section_header(
-        "Render 3D" if lang == "IT" else "3D render",
-        None,
-        "3",
+    st.markdown(
+        f"""
+        <div class="section-header pdm-fade-up">
+            <div class="section-header-row">
+                <div class="section-badge">3</div>
+                <div class="section-header-copy">
+                    <div class="section-title">{"Render 3D" if lang == "IT" else "3D render"}</div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     view_mode = st.radio(
