@@ -134,6 +134,8 @@ TEXTS = {
         "capture_render": "Salva immagine render",
         "print_sheet": "Scheda stampabile",
         "print_sheet_help": "Scarica una scheda HTML pronta da stampare.",
+        "print_simulation": "Stampa simulazione",
+        "print_preset_csv": "Stampa preset CSV",
     },
     "EN": {
         "title": "Coiling",
@@ -248,6 +250,8 @@ TEXTS = {
         "capture_render": "Save render image",
         "print_sheet": "Printable sheet",
         "print_sheet_help": "Download a print-ready HTML sheet.",
+        "print_simulation": "Print simulation",
+        "print_preset_csv": "Print CSV preset",
     },
 }
 
@@ -1713,6 +1717,98 @@ td{{font-weight:800;padding:8px;border-bottom:1px solid #e5e7eb;}}
 </html>"""
 
 
+
+def make_csv_preset_print_html(product_name, selected_row, language):
+    title = "Scheda preset CSV" if language == "IT" else "CSV preset sheet"
+    subtitle = "Preset originale · valori letti direttamente dal CSV" if language == "IT" else "Original preset · values read directly from CSV"
+    print_label = "Stampa scheda" if language == "IT" else "Print sheet"
+    source_rows = []
+    for col in selected_row.index:
+        val = safe_value(selected_row, col)
+        if val != "-":
+            label = param_label(col, language)
+            source_rows.append(f"<tr><th>{html.escape(str(label))}</th><td>{html.escape(str(val))}</td></tr>")
+
+    return f"""<!doctype html>
+<html lang="{html.escape(language.lower())}">
+<head>
+<meta charset="utf-8">
+<title>{html.escape(str(product_name))} · {html.escape(title)}</title>
+<style>
+body{{font-family:Inter,Arial,sans-serif;margin:32px;color:#111827;background:#f8fafc;}}
+.print-actions{{display:flex;justify-content:flex-end;margin:0 0 18px 0;}}
+.print-btn{{border:none;border-radius:999px;padding:11px 18px;background:#C57E5A;color:white;font-weight:950;cursor:pointer;box-shadow:0 10px 22px rgba(197,126,90,.24);}}
+.header{{border-left:6px solid #C57E5A;padding:18px 22px;background:white;border-radius:18px;box-shadow:0 8px 20px rgba(0,0,0,.06);}}
+h1{{margin:0;font-size:28px;}}
+.subtitle{{margin-top:8px;color:#64748b;font-weight:750;}}
+.badge{{display:inline-block;margin-top:12px;padding:7px 11px;border-radius:999px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-weight:900;font-size:12px;}}
+.card{{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin-top:22px;box-shadow:0 6px 16px rgba(0,0,0,.045);}}
+h2{{margin:0 0 14px 0;font-size:18px;}}
+table{{width:100%;border-collapse:collapse;font-size:13px;}}
+th{{text-align:left;color:#64748b;width:44%;padding:8px;border-bottom:1px solid #e5e7eb;}}
+td{{font-weight:850;padding:8px;border-bottom:1px solid #e5e7eb;}}
+@media print{{body{{background:white;margin:18px}}.card,.header{{box-shadow:none}}.print-actions{{display:none}}}}
+</style>
+</head>
+<body>
+<div class="print-actions"><button class="print-btn" onclick="window.print()">{html.escape(print_label)}</button></div>
+<div class="header">
+<h1>{html.escape(str(product_name))}</h1>
+<div class="subtitle">{html.escape(subtitle)}</div>
+<span class="badge">{html.escape(title)}</span>
+</div>
+<div class="card"><h2>{html.escape(title)}</h2><table>{"".join(source_rows)}</table></div>
+</body>
+</html>"""
+
+
+def build_simulation_print_payload(product_name, language, tube_diameter_label, lunghezza, diametro_aspo, spalla, passo_visuale, incremento_visuale, rit_b, rit_t, visual_metrics, status_items):
+    if language == "IT":
+        title = "Scheda simulazione"
+        subtitle = "Proposta di simulazione · valori attuali del calcolatore"
+        labels = {
+            "product": "Prodotto", "tube": "Ø tubo", "length": "Lunghezza", "spool": "Ø aspo", "width": "Spalla",
+            "pitch": "Passo", "increment": "Incremento strato", "delay_base": "Ritardo base", "delay_shoulder": "Ritardo spalla",
+            "radial": "Diametro radiale max", "footprint": "Ingombro XY", "wound": "Lunghezza avvolta"
+        }
+        print_label = "Stampa scheda"
+        capture_label = "Cattura render"
+    else:
+        title = "Simulation sheet"
+        subtitle = "Simulation proposal · current calculator values"
+        labels = {
+            "product": "Product", "tube": "Tube Ø", "length": "Length", "spool": "Spool Ø", "width": "Width",
+            "pitch": "Pitch", "increment": "Layer increment", "delay_base": "Base delay", "delay_shoulder": "Shoulder delay",
+            "radial": "Max radial diameter", "footprint": "XY footprint", "wound": "Wound length"
+        }
+        print_label = "Print sheet"
+        capture_label = "Render capture"
+
+    rows = [
+        [labels["product"], str(product_name)],
+        [labels["tube"], str(tube_diameter_label)],
+        [labels["length"], f"{float(lunghezza):.2f} m"],
+        [labels["spool"], f"{float(diametro_aspo):.2f} mm"],
+        [labels["width"], f"{float(spalla):.2f} mm"],
+        [labels["pitch"], f"{float(passo_visuale):.2f} mm"],
+        [labels["increment"], f"{float(incremento_visuale):.2f} mm"],
+        [labels["delay_base"], f"{float(rit_b):.2f}°"],
+        [labels["delay_shoulder"], f"{float(rit_t):.2f}°"],
+        [labels["radial"], f"{float(visual_metrics.get('diam_radiale', 0)):.1f} mm"],
+        [labels["footprint"], f"{float(visual_metrics.get('max_xy_span', 0)):.1f} mm"],
+        [labels["wound"], f"{float(visual_metrics.get('wound_length_m', 0)):.3f} m"],
+    ]
+
+    return {
+        "title": title,
+        "subtitle": subtitle,
+        "product": str(product_name),
+        "print_label": print_label,
+        "capture_label": capture_label,
+        "rows": rows,
+        "status_items": status_items or [],
+    }
+
 def render_preset_action_bar(selected_product, selected_row, language, modified, status_items=None):
     locked = bool(st.session_state.get("params_locked", False))
     field_list = modified_field_labels(language)
@@ -2972,6 +3068,7 @@ def viewer(
     d_tubo_lower=None,
     d_tubo_upper=None,
     tube_diameter_label=None,
+    simulation_print_payload=None,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -2981,6 +3078,7 @@ def viewer(
     final_layers_json = json.dumps(final_layers)
     final_lengths_json = json.dumps(final_lengths)
     labels_json = json.dumps(TEXTS[language])
+    simulation_print_payload_json = json.dumps(simulation_print_payload or {})
     tube_layout = "double" if str(tube_layout).lower() in {"double", "doppio"} else "single"
     d_tubo_lower = float(d_tubo if d_tubo_lower is None else d_tubo_lower)
     d_tubo_upper = float(d_tubo if d_tubo_upper is None else d_tubo_upper)
@@ -3034,6 +3132,7 @@ def viewer(
             <button id="reset_view_btn" class="viewer_btn viewer_icon_btn">↺</button>
             <button id="fullscreen_btn" class="viewer_btn viewer_icon_btn">⛶</button>
             <button id="capture_render_btn" class="viewer_btn viewer_icon_btn">📷</button>
+            <button id="print_simulation_btn" class="viewer_btn viewer_print_btn">Stampa</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
         </div>
@@ -3294,6 +3393,19 @@ def viewer(
             justify-content:center;
             font-size:18px;
             line-height:1;
+        }}
+
+        .viewer_print_btn {{
+            height:34px;
+            min-width:118px;
+            padding:0 16px;
+            border-radius:999px;
+            background:#C57E5A !important;
+            color:#ffffff !important;
+            font-size:12px;
+            letter-spacing:0.02em;
+            text-transform:uppercase;
+            box-shadow:0 8px 18px rgba(197,126,90,0.28);
         }}
 
         html.pseudo_fullscreen_doc,
@@ -3657,6 +3769,7 @@ def viewer(
     <script>
     (() => {{
         const T = {labels_json};
+        const SIM_PRINT = {simulation_print_payload_json};
 
         const host = document.getElementById("viewer_root");
         const loadingOverlay = document.getElementById("viewer_loading_overlay");
@@ -3664,6 +3777,7 @@ def viewer(
         const resetViewBtn = document.getElementById("reset_view_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
         const captureRenderBtn = document.getElementById("capture_render_btn");
+        const printSimulationBtn = document.getElementById("print_simulation_btn");
         const progressSlider = document.getElementById("progress_slider");
         const animationCheck = document.getElementById("animation_check");
 
@@ -3728,6 +3842,10 @@ def viewer(
         resetViewBtn.title = T.reset_view;
         fullscreenBtn.title = T.fullscreen;
         captureRenderBtn.title = T.capture_render || "Save render image";
+        if (printSimulationBtn) {{
+            printSimulationBtn.textContent = T.print_simulation || "Print simulation";
+            printSimulationBtn.title = T.print_simulation || "Print simulation";
+        }}
 
         function updateSidepanelToggle() {{
             const collapsed = sidepanel.classList.contains("collapsed");
@@ -4147,6 +4265,66 @@ def viewer(
                 console.warn("Render capture failed", err);
             }}
         }});
+
+        function escapeHtmlForPrint(value) {{
+            return String(value ?? "").replace(/[&<>"]/g, ch => ({{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}}[ch]));
+        }}
+
+        function buildSimulationPrintHtml(imageDataUrl) {{
+            const rows = (SIM_PRINT.rows || []).map(row => `
+                <tr><th>${{escapeHtmlForPrint(row[0])}}</th><td>${{escapeHtmlForPrint(row[1])}}</td></tr>
+            `).join("");
+            const status = (SIM_PRINT.status_items || []).map(item => `
+                <div class="status ${{escapeHtmlForPrint(item.tone || "")}}">
+                    <b>${{escapeHtmlForPrint(item.label || "")}}</b>
+                    <span>${{escapeHtmlForPrint(item.value || "")}}</span>
+                    <small>${{escapeHtmlForPrint(item.note || "")}}</small>
+                </div>
+            `).join("");
+            return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${{escapeHtmlForPrint(SIM_PRINT.product || "Avvolgimento")}} · ${{escapeHtmlForPrint(SIM_PRINT.title || "Simulation")}}</title>
+<style>
+body{{font-family:Inter,Arial,sans-serif;margin:32px;color:#111827;background:#f8fafc;}}
+.print-actions{{display:flex;justify-content:flex-end;margin:0 0 18px 0;}}
+.print-btn{{border:none;border-radius:999px;padding:11px 18px;background:#C57E5A;color:white;font-weight:950;cursor:pointer;box-shadow:0 10px 22px rgba(197,126,90,.24);}}
+.header{{border-left:6px solid #C57E5A;padding:18px 22px;background:white;border-radius:18px;box-shadow:0 8px 20px rgba(0,0,0,.06);}}
+h1{{margin:0;font-size:28px;}}.subtitle{{margin-top:8px;color:#64748b;font-weight:750;}}
+.badge{{display:inline-block;margin-top:12px;padding:7px 11px;border-radius:999px;background:#C57E5A;color:white;font-weight:900;font-size:12px;}}
+.grid{{display:grid;grid-template-columns:1.25fr .75fr;gap:18px;margin-top:22px;}}.card{{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 6px 16px rgba(0,0,0,.045);}}
+h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collapse;font-size:13px;}}th{{text-align:left;color:#64748b;width:44%;padding:8px;border-bottom:1px solid #e5e7eb;}}td{{font-weight:850;padding:8px;border-bottom:1px solid #e5e7eb;}}
+.render-img{{width:100%;border-radius:14px;border:1px solid #e5e7eb;background:#111827;display:block;}}
+.statusgrid{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px;}}.status{{background:white;border:1px solid #e5e7eb;border-radius:14px;padding:14px;}}.status b{{display:block;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.06em;}}.status span{{display:block;font-size:20px;font-weight:950;margin-top:6px;}}.status small{{display:block;color:#64748b;margin-top:6px;line-height:1.25;}}.status.ok{{border-color:#86efac}}.status.warn{{border-color:#fbbf24}}.status.bad{{border-color:#fca5a5}}
+@media print{{body{{background:white;margin:18px}}.card,.header,.status{{box-shadow:none}}.print-actions{{display:none}}.grid{{grid-template-columns:1fr .85fr}}}}
+</style>
+</head>
+<body>
+<div class="print-actions"><button class="print-btn" onclick="window.print()">${{escapeHtmlForPrint(SIM_PRINT.print_label || "Print")}}</button></div>
+<div class="header"><h1>${{escapeHtmlForPrint(SIM_PRINT.product || "")}}</h1><div class="subtitle">${{escapeHtmlForPrint(SIM_PRINT.subtitle || "")}}</div><span class="badge">${{escapeHtmlForPrint(SIM_PRINT.title || "")}}</span></div>
+<div class="statusgrid">${{status}}</div>
+<div class="grid"><div class="card"><h2>${{escapeHtmlForPrint(SIM_PRINT.capture_label || "Render")}}</h2><img class="render-img" src="${{imageDataUrl}}" /></div><div class="card"><h2>${{escapeHtmlForPrint(SIM_PRINT.title || "Simulation")}}</h2><table>${{rows}}</table></div></div>
+</body>
+</html>`;
+        }}
+
+        if (printSimulationBtn) {{
+            printSimulationBtn.addEventListener("click", () => {{
+                try {{
+                    renderer.render(scene, camera);
+                    const imageDataUrl = renderer.domElement.toDataURL("image/png");
+                    const printWindow = window.open("", "_blank");
+                    if (!printWindow) return;
+                    printWindow.document.open();
+                    printWindow.document.write(buildSimulationPrintHtml(imageDataUrl));
+                    printWindow.document.close();
+                    printWindow.focus();
+                }} catch (err) {{
+                    console.warn("Simulation print failed", err);
+                }}
+            }});
+        }}
 
         document.addEventListener("fullscreenchange", () => {{
             if (!document.fullscreenElement) {{
@@ -7814,7 +7992,7 @@ with tab_production:
 
     render_section_header(
         "Render 3D" if lang == "IT" else "3D render",
-        "Il render è l’elemento principale: scegli la vista, poi controlla l’esito a lato." if lang == "IT" else "The render is the main element: choose the view, then check the result on the side.",
+        None,
         "3",
     )
 
@@ -7853,6 +8031,21 @@ with tab_production:
                 st.markdown("&nbsp;", unsafe_allow_html=True)
                 st.caption(t["packaging_box_desc"])
 
+    simulation_print_payload = build_simulation_print_payload(
+        selected_product,
+        lang,
+        tube_diameter_label,
+        lunghezza,
+        diametro_aspo,
+        spalla,
+        passo_visuale,
+        incremento_visuale,
+        rit_b,
+        rit_t,
+        visual_metrics,
+        status_items,
+    )
+
     render_elegant_panel_open(
         "Render 3D" if lang == "IT" else "3D render",
         None,
@@ -7883,6 +8076,7 @@ with tab_production:
             d_tubo_lower=d_tubo_lower,
             d_tubo_upper=d_tubo_upper,
             tube_diameter_label=tube_diameter_label,
+            simulation_print_payload=simulation_print_payload,
         ),
         height=720,
     )
@@ -7892,18 +8086,48 @@ with tab_production:
     render_status_semaphore(status_items, lang)
 
     safe_product_filename = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(selected_product)).strip("_") or "preset"
-    printable_html = make_preset_export_html(selected_product, selected_row, lang, status_items=status_items)
-    dl_col1, dl_col2 = st.columns([0.25, 0.75], gap="small")
-    with dl_col1:
+    csv_print_html = make_csv_preset_print_html(selected_product, selected_row, lang)
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stDownloadButton"] > button {
+            border-radius:999px !important;
+            min-height:46px !important;
+            background:#C57E5A !important;
+            color:#ffffff !important;
+            border:1px solid #C57E5A !important;
+            font-weight:950 !important;
+            letter-spacing:0.01em !important;
+            box-shadow:0 9px 20px rgba(197,126,90,0.24) !important;
+        }
+        div[data-testid="stDownloadButton"] > button:hover {
+            filter:brightness(1.06) !important;
+            transform:translateY(-1px) !important;
+            box-shadow:0 12px 24px rgba(197,126,90,0.30) !important;
+        }
+        .print-helper-note {
+            font-size:12px;
+            line-height:1.25;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            padding-top:8px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    print_col1, print_col2 = st.columns([0.22, 0.78], gap="small")
+    with print_col1:
         st.download_button(
-            t["print_sheet"],
-            data=printable_html.encode("utf-8"),
-            file_name=f"scheda_{safe_product_filename}.html",
+            t["print_preset_csv"],
+            data=csv_print_html.encode("utf-8"),
+            file_name=f"preset_csv_{safe_product_filename}.html",
             mime="text/html",
             use_container_width=True,
         )
-    with dl_col2:
-        st.caption(t["print_sheet_help"])
+    with print_col2:
+        note = "La stampa della simulazione, con cattura del render, è nel pulsante in rame dentro il viewer." if lang == "IT" else "Simulation print, with render capture, is available from the copper button inside the viewer."
+        st.markdown(f'<div class="print-helper-note">{html.escape(note)}</div>', unsafe_allow_html=True)
 
     st.divider()
 
