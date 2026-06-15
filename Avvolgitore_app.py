@@ -1722,12 +1722,25 @@ def make_csv_preset_print_html(product_name, selected_row, language):
     title = "Scheda preset CSV" if language == "IT" else "CSV preset sheet"
     subtitle = "Preset originale · valori letti direttamente dal CSV" if language == "IT" else "Original preset · values read directly from CSV"
     print_label = "Stampa scheda" if language == "IT" else "Print sheet"
+    section_title = "Parametri CSV" if language == "IT" else "CSV parameters"
     source_rows = []
     for col in selected_row.index:
         val = safe_value(selected_row, col)
         if val != "-":
             label = param_label(col, language)
-            source_rows.append(f"<tr><th>{html.escape(str(label))}</th><td>{html.escape(str(val))}</td></tr>")
+            source_rows.append((str(label), str(val)))
+
+    midpoint = (len(source_rows) + 1) // 2
+    columns = [source_rows[:midpoint], source_rows[midpoint:]]
+
+    def table_for(rows):
+        row_html = "".join(
+            f"<tr><th>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>"
+            for label, value in rows
+        )
+        return f"<table>{row_html}</table>"
+
+    tables_html = "".join(f"<div class='param-col'>{table_for(rows)}</div>" for rows in columns if rows)
 
     return f"""<!doctype html>
 <html lang="{html.escape(language.lower())}">
@@ -1735,32 +1748,56 @@ def make_csv_preset_print_html(product_name, selected_row, language):
 <meta charset="utf-8">
 <title>{html.escape(str(product_name))} · {html.escape(title)}</title>
 <style>
-body{{font-family:Inter,Arial,sans-serif;margin:32px;color:#111827;background:#f8fafc;}}
-.print-actions{{display:flex;justify-content:flex-end;margin:0 0 18px 0;}}
-.print-btn{{border:none;border-radius:999px;padding:11px 18px;background:#C57E5A;color:white;font-weight:950;cursor:pointer;box-shadow:0 10px 22px rgba(197,126,90,.24);}}
-.header{{border-left:6px solid #C57E5A;padding:18px 22px;background:white;border-radius:18px;box-shadow:0 8px 20px rgba(0,0,0,.06);}}
-h1{{margin:0;font-size:28px;}}
-.subtitle{{margin-top:8px;color:#64748b;font-weight:750;}}
-.badge{{display:inline-block;margin-top:12px;padding:7px 11px;border-radius:999px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-weight:900;font-size:12px;}}
-.card{{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin-top:22px;box-shadow:0 6px 16px rgba(0,0,0,.045);}}
-h2{{margin:0 0 14px 0;font-size:18px;}}
-table{{width:100%;border-collapse:collapse;font-size:13px;}}
-th{{text-align:left;color:#64748b;width:44%;padding:8px;border-bottom:1px solid #e5e7eb;}}
-td{{font-weight:850;padding:8px;border-bottom:1px solid #e5e7eb;}}
-@media print{{body{{background:white;margin:18px}}.card,.header{{box-shadow:none}}.print-actions{{display:none}}}}
+@page{{size:A4 portrait;margin:9mm;}}
+*{{box-sizing:border-box;}}
+body{{font-family:Inter,Arial,sans-serif;margin:20px;color:#111827;background:#f8fafc;}}
+.print-actions{{display:flex;justify-content:flex-end;margin:0 0 12px 0;}}
+.print-btn{{border:none;border-radius:999px;padding:10px 17px;background:#C57E5A;color:white;font-weight:950;cursor:pointer;box-shadow:0 10px 22px rgba(197,126,90,.24);}}
+.sheet{{background:white;border:1px solid #e5e7eb;border-radius:18px;padding:18px;box-shadow:0 8px 20px rgba(0,0,0,.055);}}
+.header{{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;border-left:6px solid #C57E5A;padding:10px 0 10px 16px;margin-bottom:14px;}}
+h1{{margin:0;font-size:25px;line-height:1.05;letter-spacing:-.025em;}}
+.subtitle{{margin-top:6px;color:#64748b;font-weight:750;font-size:12.5px;line-height:1.25;}}
+.badge{{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:999px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-weight:900;font-size:11px;white-space:nowrap;}}
+h2{{margin:0 0 9px 0;font-size:15px;line-height:1.1;}}
+.params-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px;}}
+.param-col{{border:1px solid #e5e7eb;border-radius:13px;overflow:hidden;background:#ffffff;}}
+table{{width:100%;border-collapse:collapse;font-size:10.7px;line-height:1.12;}}
+th{{text-align:left;color:#64748b;width:56%;padding:5px 7px;border-bottom:1px solid #e5e7eb;background:#f8fafc;font-weight:800;}}
+td{{font-weight:850;padding:5px 7px;border-bottom:1px solid #e5e7eb;word-break:break-word;}}
+tr:last-child th,tr:last-child td{{border-bottom:none;}}
+.footer{{margin-top:10px;font-size:10px;color:#94a3b8;font-weight:700;}}
+@media print{{
+    body{{background:white;margin:0;}}
+    .print-actions{{display:none;}}
+    .sheet{{border:none;box-shadow:none;border-radius:0;padding:0;}}
+    .header{{margin-bottom:10px;padding:8px 0 8px 13px;}}
+    h1{{font-size:22px;}}
+    .subtitle{{font-size:11.5px;margin-top:4px;}}
+    .badge{{font-size:10px;padding:5px 9px;}}
+    h2{{font-size:13px;margin-bottom:7px;}}
+    .params-grid{{gap:8px;}}
+    table{{font-size:9.4px;line-height:1.04;}}
+    th,td{{padding:3.6px 5px;}}
+    .footer{{font-size:9px;margin-top:7px;}}
+}}
 </style>
 </head>
 <body>
 <div class="print-actions"><button class="print-btn" onclick="window.print()">{html.escape(print_label)}</button></div>
-<div class="header">
-<h1>{html.escape(str(product_name))}</h1>
-<div class="subtitle">{html.escape(subtitle)}</div>
-<span class="badge">{html.escape(title)}</span>
-</div>
-<div class="card"><h2>{html.escape(title)}</h2><table>{"".join(source_rows)}</table></div>
+<main class="sheet">
+    <div class="header">
+        <div>
+            <h1>{html.escape(str(product_name))}</h1>
+            <div class="subtitle">{html.escape(subtitle)}</div>
+        </div>
+        <span class="badge">{html.escape(title)}</span>
+    </div>
+    <h2>{html.escape(section_title)}</h2>
+    <div class="params-grid">{tables_html}</div>
+    <div class="footer">Preset originale da Presets.csv · nessuna cattura render inclusa</div>
+</main>
 </body>
 </html>"""
-
 
 def build_simulation_print_payload(product_name, language, tube_diameter_label, lunghezza, diametro_aspo, spalla, passo_visuale, incremento_visuale, rit_b, rit_t, visual_metrics, status_items):
     if language == "IT":
@@ -8090,50 +8127,6 @@ with tab_production:
 
     render_status_semaphore(status_items, lang)
 
-    safe_product_filename = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(selected_product)).strip("_") or "preset"
-    csv_print_html = make_csv_preset_print_html(selected_product, selected_row, lang)
-    st.markdown(
-        """
-        <style>
-        div[data-testid="stDownloadButton"] > button {
-            border-radius:999px !important;
-            min-height:46px !important;
-            background:#C57E5A !important;
-            color:#ffffff !important;
-            border:1px solid #C57E5A !important;
-            font-weight:950 !important;
-            letter-spacing:0.01em !important;
-            box-shadow:0 9px 20px rgba(197,126,90,0.24) !important;
-        }
-        div[data-testid="stDownloadButton"] > button:hover {
-            filter:brightness(1.06) !important;
-            transform:translateY(-1px) !important;
-            box-shadow:0 12px 24px rgba(197,126,90,0.30) !important;
-        }
-        .print-helper-note {
-            font-size:12px;
-            line-height:1.25;
-            font-weight:650;
-            color:color-mix(in srgb, var(--text-color) 62%, transparent);
-            padding-top:8px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    print_col1, print_col2 = st.columns([0.22, 0.78], gap="small")
-    with print_col1:
-        st.download_button(
-            t["print_preset_csv"],
-            data=csv_print_html.encode("utf-8"),
-            file_name=f"preset_csv_{safe_product_filename}.html",
-            mime="text/html",
-            use_container_width=True,
-        )
-    with print_col2:
-        note = "La stampa della simulazione, con cattura del render, è nel pulsante in rame dentro il viewer." if lang == "IT" else "Simulation print, with render capture, is available from the copper button inside the viewer."
-        st.markdown(f'<div class="print-helper-note">{html.escape(note)}</div>', unsafe_allow_html=True)
-
     st.divider()
 
     render_section_header(
@@ -8214,6 +8207,63 @@ with tab_tech_sheet:
         """,
         unsafe_allow_html=True,
     )
+
+    safe_product_filename = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(selected_product)).strip("_") or "preset"
+    csv_print_html = make_csv_preset_print_html(selected_product, selected_row, lang)
+
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stDownloadButton"] > button {
+            border-radius:999px !important;
+            min-height:42px !important;
+            background:#C57E5A !important;
+            color:#ffffff !important;
+            border:1px solid #C57E5A !important;
+            font-weight:950 !important;
+            letter-spacing:0.01em !important;
+            box-shadow:0 9px 20px rgba(197,126,90,0.24) !important;
+            padding-left:18px !important;
+            padding-right:18px !important;
+        }
+        div[data-testid="stDownloadButton"] > button:hover {
+            filter:brightness(1.06) !important;
+            transform:translateY(-1px) !important;
+            box-shadow:0 12px 24px rgba(197,126,90,0.30) !important;
+        }
+        .csv-print-row {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            margin:-4px 0 16px 0;
+            padding:12px 14px;
+            border-radius:16px;
+            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background:color-mix(in srgb, var(--secondary-background-color) 72%, transparent);
+        }
+        .csv-print-copy {
+            font-size:12px;
+            line-height:1.25;
+            font-weight:700;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    csv_copy = "Stampa del preset originale CSV, senza cattura render." if lang == "IT" else "Print the original CSV preset, without render capture."
+    csv_note_col, csv_button_col = st.columns([0.78, 0.22], gap="small")
+    with csv_note_col:
+        st.markdown(f'<div class="csv-print-copy">{html.escape(csv_copy)}</div>', unsafe_allow_html=True)
+    with csv_button_col:
+        st.download_button(
+            t["print_preset_csv"],
+            data=csv_print_html.encode("utf-8"),
+            file_name=f"preset_csv_{safe_product_filename}.html",
+            mime="text/html",
+            use_container_width=True,
+        )
 
     render_tech_snapshot_cards(selected_row, lang)
 
