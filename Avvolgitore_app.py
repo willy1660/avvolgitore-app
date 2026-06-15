@@ -1964,7 +1964,7 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-top1, top2 = st.columns([1.0, 5.0])
+top1, top2, top3 = st.columns([1.0, 4.6, 1.15])
 
 with top1:
     if logo_path:
@@ -1984,15 +1984,19 @@ with top1:
 
 with top2:
     title_placeholder = st.empty()
+
+with top3:
     current_lang = st.session_state.lang
-    lang_option = st.selectbox(
+    lang_choice = st.radio(
         TEXTS[current_lang]["language"],
-        ["Italiano", "English (US)"],
+        ["IT", "EN"],
         index=0 if current_lang == "IT" else 1,
-        key="lang_selector_top",
+        key="lang_radio_top",
+        horizontal=True,
+        label_visibility="collapsed",
     )
 
-st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
+st.session_state.lang = lang_choice
 lang = st.session_state.lang
 t = TEXTS[lang]
 
@@ -2257,6 +2261,36 @@ st.markdown(
     }
 
     /* Better tablet spacing and readability */
+
+    /* v165 · selector compatti e touch-friendly: niente tastiera su iPad */
+    div[data-testid="stRadio"]:has(input[value="IT"]),
+    div[data-testid="stRadio"]:has(input[value="EN"]) {
+        max-width: 180px;
+        margin-left: auto;
+    }
+
+    div[data-testid="stRadio"]:has(input[value="IT"]) div[role="radiogroup"],
+    div[data-testid="stRadio"]:has(input[value="EN"]) div[role="radiogroup"] {
+        justify-content: flex-end;
+        gap: 6px !important;
+    }
+
+    div[data-testid="stRadio"]:has(input[value="IT"]) div[role="radiogroup"] label,
+    div[data-testid="stRadio"]:has(input[value="EN"]) div[role="radiogroup"] label {
+        min-width: 58px !important;
+        min-height: 42px !important;
+        padding: 0.52rem 0.78rem !important;
+    }
+
+    /* Pills dei preset: più compatti e con wrap elegante */
+    div[role="radiogroup"] {
+        row-gap: 8px !important;
+    }
+
+    div[role="radiogroup"] label {
+        cursor: pointer;
+    }
+
     @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
@@ -2483,8 +2517,8 @@ st.markdown(
 
     /* v160 · premium motion: subtil, industriale, no invadente */
     @keyframes pdmFadeUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; transform: translateY(16px); filter: blur(2px); }
+        to { opacity: 1; transform: translateY(0); filter: blur(0); }
     }
 
     @keyframes pdmPresetPulse {
@@ -2493,7 +2527,7 @@ st.markdown(
             border-color: color-mix(in srgb, var(--text-color) 13%, transparent);
         }
         42% {
-            box-shadow: 0 0 0 5px rgba(197,126,90,0.16), 0 16px 34px rgba(0,0,0,0.11);
+            box-shadow: 0 0 0 7px rgba(197,126,90,0.24), 0 16px 34px rgba(0,0,0,0.11);
             border-color: rgba(197,126,90,0.66);
         }
         100% {
@@ -2515,11 +2549,11 @@ st.markdown(
     .pdm-fade-up,
     .preset-hero,
     .elegant-panel {
-        animation: pdmFadeUp 0.34s cubic-bezier(.2,.8,.2,1) both;
+        animation: pdmFadeUp 0.52s cubic-bezier(.16,1,.3,1) both;
     }
 
     .pdm-pulse {
-        animation: pdmPresetPulse 0.72s cubic-bezier(.2,.8,.2,1) both !important;
+        animation: pdmPresetPulse 1.05s cubic-bezier(.16,1,.3,1) both !important;
     }
 
     .pdm-status-animated {
@@ -2550,12 +2584,42 @@ st.markdown(
         z-index: 0;
         pointer-events: none;
         background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.16) 46%, transparent 72%);
-        animation: pdmPillShine 0.58s ease-out both;
+        animation: pdmPillShine 0.82s ease-out both;
     }
 
     div[role="radiogroup"] label p {
         position: relative;
         z-index: 1;
+    }
+
+
+    /* v165 · selector compatti e touch-friendly: niente tastiera su iPad */
+    div[data-testid="stRadio"]:has(input[value="IT"]),
+    div[data-testid="stRadio"]:has(input[value="EN"]) {
+        max-width: 180px;
+        margin-left: auto;
+    }
+
+    div[data-testid="stRadio"]:has(input[value="IT"]) div[role="radiogroup"],
+    div[data-testid="stRadio"]:has(input[value="EN"]) div[role="radiogroup"] {
+        justify-content: flex-end;
+        gap: 6px !important;
+    }
+
+    div[data-testid="stRadio"]:has(input[value="IT"]) div[role="radiogroup"] label,
+    div[data-testid="stRadio"]:has(input[value="EN"]) div[role="radiogroup"] label {
+        min-width: 58px !important;
+        min-height: 42px !important;
+        padding: 0.52rem 0.78rem !important;
+    }
+
+    /* Pills dei preset: più compatti e con wrap elegante */
+    div[role="radiogroup"] {
+        row-gap: 8px !important;
+    }
+
+    div[role="radiogroup"] label {
+        cursor: pointer;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -3124,7 +3188,7 @@ def viewer(
         }}
 
         #viewer_root {{
-            animation: viewerFadeUp 0.34s cubic-bezier(.2,.8,.2,1) both;
+            animation: viewerFadeUp 0.58s cubic-bezier(.16,1,.3,1) both;
         }}
 
         .viewer_loading_overlay {{
@@ -3134,9 +3198,9 @@ def viewer(
             display:flex;
             align-items:center;
             justify-content:center;
-            background:linear-gradient(180deg, rgba(16,18,22,0.88), rgba(16,18,22,0.72));
-            backdrop-filter:blur(7px);
-            transition:opacity 0.30s ease, visibility 0.30s ease;
+            background:radial-gradient(circle at 50% 44%, rgba(197,126,90,0.16), transparent 38%), linear-gradient(180deg, rgba(16,18,22,0.94), rgba(16,18,22,0.78));
+            backdrop-filter:blur(9px);
+            transition:opacity 0.46s ease, visibility 0.46s ease;
         }}
 
         .viewer_loading_overlay.is-hidden {{
@@ -3146,8 +3210,8 @@ def viewer(
         }}
 
         .viewer_loading_card {{
-            width:min(380px, calc(100% - 44px));
-            padding:22px 24px;
+            width:min(430px, calc(100% - 44px));
+            padding:25px 27px;
             border-radius:22px;
             border:1px solid rgba(255,255,255,0.13);
             background:rgba(18,22,27,0.78);
@@ -3176,7 +3240,7 @@ def viewer(
         .viewer_loading_bar {{
             position:relative;
             overflow:hidden;
-            height:4px;
+            height:5px;
             border-radius:999px;
             background:rgba(255,255,255,0.12);
         }}
@@ -5464,7 +5528,7 @@ def viewer(
             renderer.render(scene, camera);
 
             if (loadingOverlay && !loadingOverlay.classList.contains("is-hidden")) {{
-                window.setTimeout(() => loadingOverlay.classList.add("is-hidden"), 360);
+                window.setTimeout(() => loadingOverlay.classList.add("is-hidden"), 1050);
             }}
         }}
 
@@ -5484,6 +5548,60 @@ def viewer(
     }})();
     </script>
     """
+
+
+def render_touch_preset_selector(label, options, key):
+    """Compact non-keyboard selector for tablets.
+
+    It uses Streamlit pills when available and falls back to a horizontal radio.
+    Both options avoid the searchable selectbox input that opens the iPad keyboard.
+    """
+    if not options:
+        return None
+
+    current = st.session_state.get(key, options[0])
+    if current not in options:
+        current = options[0]
+        st.session_state[key] = current
+
+    selected = current
+
+    if hasattr(st, "pills"):
+        try:
+            value = st.pills(
+                label,
+                options,
+                selection_mode="single",
+                default=current,
+                key=f"{key}_pills",
+            )
+            if isinstance(value, (list, tuple)):
+                selected = value[0] if value else current
+            elif value is not None:
+                selected = value
+        except TypeError:
+            # Compatibility with Streamlit versions whose pills signature differs.
+            selected = st.radio(
+                label,
+                options,
+                index=options.index(current),
+                horizontal=True,
+                key=f"{key}_radio",
+            )
+    else:
+        selected = st.radio(
+            label,
+            options,
+            index=options.index(current),
+            horizontal=True,
+            key=f"{key}_radio",
+        )
+
+    if selected not in options:
+        selected = current
+
+    st.session_state[key] = selected
+    return selected
 
 
 def render_workflow_bar(language):
@@ -6325,7 +6443,7 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
             position:absolute;
             left:0;
             top:0;
-            height:4px;
+            height:5px;
             width:100%;
             background:color-mix(in srgb, var(--text-color) 18%, transparent);
         }}
@@ -7432,11 +7550,13 @@ with tab_production:
         "1",
     )
 
-    selected_product = st.selectbox(
-        t["select_product"],
-        preset_names,
-        key="selected_preset_product",
-    )
+    preset_selector_col, preset_selector_spacer = st.columns([1.25, 2.75], gap="large")
+    with preset_selector_col:
+        selected_product = render_touch_preset_selector(
+            t["select_product"],
+            preset_names,
+            "selected_preset_product",
+        )
 
     selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
