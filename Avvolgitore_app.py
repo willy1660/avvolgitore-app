@@ -988,6 +988,8 @@ def make_preset_visual(row, language):
             "pitch": "Passo",
             "rollers": "Rulli",
             "tail": "Paletta",
+            "viewer": "Viewer statico",
+            "layout": "Vista fissa",
         },
         "EN": {
             "section_title": "Tube section",
@@ -1008,96 +1010,33 @@ def make_preset_visual(row, language):
             "pitch": "Pitch",
             "rollers": "Rollers",
             "tail": "Tail stop",
+            "viewer": "Static viewer",
+            "layout": "Fixed view",
         },
     }[language]
 
+    # Doppio data for static tube viewer.
+    rame_inf = str(raw_value("Diametro rame inferiore", "Diametro Rame inferiore", default="3/8")).strip()
+    rame_sup = str(raw_value("Diametro rame superiore", "Diametro Rame superiore", default="1/4")).strip()
+    spessore_inf = number("Spessore guaina inferiore", "Spessore Guaina inferiore (mm)", default=0.0)
+    spessore_sup = number("Spessore guaina superiore", "Spessore Guaina superiore (mm)", default=0.0)
+    d_rame_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0))
+    d_rame_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0))
+    d_inf = d_rame_inf + 2.0 * spessore_inf
+    d_sup = d_rame_sup + 2.0 * spessore_sup
+
     if is_doppio:
-        rame_inf = str(raw_value("Diametro rame inferiore", "Diametro Rame inferiore", default="3/8")).strip()
-        rame_sup = str(raw_value("Diametro rame superiore", "Diametro Rame superiore", default="1/4")).strip()
-        spessore_inf = number("Spessore guaina inferiore", "Spessore Guaina inferiore (mm)", default=0.0)
-        spessore_sup = number("Spessore guaina superiore", "Spessore Guaina superiore (mm)", default=0.0)
-        d_rame_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0))
-        d_rame_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0))
-        d_inf = d_rame_inf + 2.0 * spessore_inf
-        d_sup = d_rame_sup + 2.0 * spessore_sup
-        d_pair = d_inf + d_sup
-        r_inf = 48.0
-        r_sup = max(26.0, min(40.0, r_inf * d_sup / max(d_inf, 1e-9)))
-        cx = 160.0
-        cy_inf = 154.0
-        cy_sup = cy_inf - r_inf - r_sup
-        copper_inf = max(12.0, r_inf * d_rame_inf / max(d_inf, 1e-9) / 2.0)
-        copper_sup = max(9.0, r_sup * d_rame_sup / max(d_sup, 1e-9) / 2.0)
-        tube_svg = f"""
-        <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Double tube section">
-            <defs>
-                <pattern id="gridSec" width="18" height="18" patternUnits="userSpaceOnUse">
-                    <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-                </pattern>
-            </defs>
-            <rect x="0" y="0" width="560" height="250" fill="url(#gridSec)"/>
-            <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{r_inf:.1f}" class="foam-shape"/>
-            <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{copper_inf:.1f}" class="copper-shape"/>
-            <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{max(6, copper_inf * 0.52):.1f}" class="copper-highlight"/>
-            <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{r_sup:.1f}" class="foam-shape"/>
-            <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{copper_sup:.1f}" class="copper-shape"/>
-            <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{max(5, copper_sup * 0.52):.1f}" class="copper-highlight"/>
-            <line x1="258" y1="{cy_sup-r_sup:.1f}" x2="258" y2="{cy_inf+r_inf:.1f}" class="dim-line-blue"/>
-            <line x1="{cx+r_sup:.1f}" y1="{cy_sup-r_sup:.1f}" x2="268" y2="{cy_sup-r_sup:.1f}" class="dim-guide-blue"/>
-            <line x1="{cx+r_inf:.1f}" y1="{cy_inf+r_inf:.1f}" x2="268" y2="{cy_inf+r_inf:.1f}" class="dim-guide-blue"/>
-            <text x="286" y="{(cy_sup+cy_inf)/2:.1f}" class="dim-value-blue vertical">{fmt(d_pair)} mm</text>
-            <line x1="248" y1="{cy_sup:.1f}" x2="334" y2="84" class="leader-blue"/>
-            <line x1="248" y1="{cy_inf:.1f}" x2="334" y2="166" class="leader-blue"/>
-            <text x="350" y="80" class="label-title-blue">{safe_text(labels['upper'])}</text>
-            <text x="350" y="104" class="label-value-blue">{safe_text(rame_sup)}</text>
-            <text x="350" y="124" class="label-sub-blue">{fmt(d_sup)} mm</text>
-            <text x="350" y="162" class="label-title-blue">{safe_text(labels['lower'])}</text>
-            <text x="350" y="186" class="label-value-blue">{safe_text(rame_inf)}</text>
-            <text x="350" y="206" class="label-sub-blue">{fmt(d_inf)} mm</text>
-        </svg>
-        """
+        section_tag = labels["double"]
         tube_metrics = "".join([
             metric(labels["double"], f"{rame_sup}/{rame_inf}"),
             metric(labels["upper"], d_sup, " mm"),
             metric(labels["lower"], d_inf, " mm"),
-            metric(labels["outer"], d_pair, " mm"),
+            metric(labels["outer"], d_inf + d_sup, " mm"),
             metric(labels["line_speed"], velocita_linea, " m/min"),
             metric(labels["air"], value_with_mm(soffiatori)),
         ])
-        section_tag = labels["double"]
     else:
-        foam_r = 76.0
-        copper_r = max(18.0, min(38.0, foam_r * d_rame / max(d_tubo, 1e-9)))
-        cx = 180.0
-        cy = 126.0
-        tube_svg = f"""
-        <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Tube section">
-            <defs>
-                <pattern id="gridSecS" width="18" height="18" patternUnits="userSpaceOnUse">
-                    <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-                </pattern>
-            </defs>
-            <rect x="0" y="0" width="560" height="250" fill="url(#gridSecS)"/>
-            <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{foam_r:.1f}" class="foam-shape"/>
-            <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{copper_r:.1f}" class="copper-shape"/>
-            <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{max(8, copper_r * 0.52):.1f}" class="copper-highlight"/>
-            <line x1="{cx-foam_r:.1f}" y1="216" x2="{cx+foam_r:.1f}" y2="216" class="dim-line-blue"/>
-            <line x1="{cx-foam_r:.1f}" y1="202" x2="{cx-foam_r:.1f}" y2="230" class="dim-line-blue"/>
-            <line x1="{cx+foam_r:.1f}" y1="202" x2="{cx+foam_r:.1f}" y2="230" class="dim-line-blue"/>
-            <text x="{cx:.1f}" y="210" class="dim-value-blue">{fmt(d_tubo)} mm</text>
-            <text x="{cx:.1f}" y="238" class="dim-label-blue">{safe_text(labels['outer'])}</text>
-            <line x1="{cx+copper_r:.1f}" y1="{cy:.1f}" x2="{cx+foam_r:.1f}" y2="{cy:.1f}" class="dim-line-blue"/>
-            <text x="{cx+(copper_r+foam_r)/2:.1f}" y="{cy-14:.1f}" class="dim-label-blue">{fmt(spessore)} mm</text>
-            <line x1="{cx+copper_r:.1f}" y1="{cy-6:.1f}" x2="352" y2="82" class="leader-blue"/>
-            <line x1="{cx+foam_r:.1f}" y1="{cy:.1f}" x2="352" y2="162" class="leader-blue"/>
-            <text x="368" y="80" class="label-title-blue">{safe_text(labels['copper'])}</text>
-            <text x="368" y="104" class="label-value-blue">{safe_text(rame)}</text>
-            <text x="368" y="160" class="label-title-blue">{safe_text(labels['foam_thickness'])}</text>
-            <text x="368" y="184" class="label-value-blue">{fmt(spessore)} mm</text>
-            <text x="368" y="212" class="label-title-blue">{safe_text(labels['outer'])}</text>
-            <text x="368" y="236" class="label-value-blue">{fmt(d_tubo)} mm</text>
-        </svg>
-        """
+        section_tag = labels["single"]
         tube_metrics = "".join([
             metric(labels["copper"], rame),
             metric(labels["foam"], spessore, " mm"),
@@ -1106,67 +1045,6 @@ def make_preset_visual(row, language):
             metric(labels["line_speed"], velocita_linea, " m/min"),
             metric(labels["air"], value_with_mm(soffiatori)),
         ])
-        section_tag = labels["single"]
-
-    coil_svg = f"""
-    <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Coiling layout">
-        <defs>
-            <pattern id="gridCoil" width="18" height="18" patternUnits="userSpaceOnUse">
-                <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-            </pattern>
-            <linearGradient id="tubeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#ffffff"/>
-                <stop offset="18%" stop-color="#f5f7fa"/>
-                <stop offset="48%" stop-color="#d8dee6"/>
-                <stop offset="78%" stop-color="#fbfcfd"/>
-                <stop offset="100%" stop-color="#cfd6df"/>
-            </linearGradient>
-            <linearGradient id="topDisc" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#39414c"/>
-                <stop offset="100%" stop-color="#070b10"/>
-            </linearGradient>
-            <linearGradient id="bottomDisc" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#d4d7dd"/>
-                <stop offset="100%" stop-color="#8a9099"/>
-            </linearGradient>
-        </defs>
-        <rect x="0" y="0" width="560" height="250" fill="url(#gridCoil)"/>
-
-        <!-- incoming tube -->
-        <line x1="4" y1="138" x2="122" y2="138" class="tube-shadow"/>
-        <line x1="4" y1="138" x2="122" y2="138" class="tube-line-dark"/>
-
-        <!-- spool discs -->
-        <ellipse cx="314" cy="46" rx="190" ry="13" fill="url(#topDisc)" stroke="#02050a" stroke-width="1.3"/>
-        <ellipse cx="314" cy="196" rx="190" ry="14" fill="url(#bottomDisc)" stroke="#7b848f" stroke-width="1.1"/>
-
-        <!-- wound coil -->
-        <line x1="154" y1="76" x2="474" y2="76" class="tube-shadow"/>
-        <line x1="154" y1="76" x2="474" y2="76" class="tube-line-dark"/>
-        <line x1="150" y1="102" x2="478" y2="102" class="tube-shadow"/>
-        <line x1="150" y1="102" x2="478" y2="102" class="tube-line-dark"/>
-        <line x1="148" y1="128" x2="480" y2="128" class="tube-shadow"/>
-        <line x1="148" y1="128" x2="480" y2="128" class="tube-line-dark"/>
-        <line x1="150" y1="154" x2="478" y2="154" class="tube-shadow"/>
-        <line x1="150" y1="154" x2="478" y2="154" class="tube-line-dark"/>
-        <line x1="154" y1="180" x2="474" y2="180" class="tube-shadow"/>
-        <line x1="154" y1="180" x2="474" y2="180" class="tube-line-dark"/>
-
-        <!-- dimensions -->
-        <line x1="114" y1="46" x2="114" y2="196" class="dim-line-blue"/>
-        <line x1="102" y1="46" x2="126" y2="46" class="dim-line-blue"/>
-        <line x1="102" y1="196" x2="126" y2="196" class="dim-line-blue"/>
-        <text x="84" y="108" class="dim-label-blue vertical">Ø aspo</text>
-        <text x="100" y="108" class="dim-value-blue vertical">{fmt(aspo)} mm</text>
-        <line x1="154" y1="226" x2="474" y2="226" class="dim-line-blue"/>
-        <line x1="154" y1="214" x2="154" y2="238" class="dim-line-blue"/>
-        <line x1="474" y1="214" x2="474" y2="238" class="dim-line-blue"/>
-        <text x="314" y="220" class="dim-value-blue">{fmt(spalla)} mm</text>
-        <text x="314" y="244" class="dim-label-blue">{safe_text(labels['width'])}</text>
-        <text x="496" y="110" class="label-title-blue">{safe_text(labels['pitch'])}</text>
-        <text x="496" y="134" class="label-value-blue">{fmt(passo)} mm</text>
-    </svg>
-    """
 
     coil_metrics = "".join([
         metric(labels["spool"], aspo, " mm"),
@@ -1177,62 +1055,420 @@ def make_preset_visual(row, language):
         metric(labels["tail"], value_with_mm(paletta)),
     ])
 
+    # Normalized values for the JS viewers.
+    js_bool_double = "true" if is_doppio else "false"
+    copper_ratio = max(0.18, min(0.52, d_rame / max(d_tubo, 1e-9)))
+    copper_ratio_inf = max(0.18, min(0.52, d_rame_inf / max(d_inf, 1e-9))) if d_inf > 0 else 0.32
+    copper_ratio_sup = max(0.18, min(0.52, d_rame_sup / max(d_sup, 1e-9))) if d_sup > 0 else 0.32
+    sup_scale = max(0.58, min(0.92, d_sup / max(d_inf, 1e-9))) if d_inf > 0 else 0.72
+
     return f"""
     <style>
     :root {{
         --preview-accent:#C57E5A;
         --preview-panel:rgba(18,22,27,0.42);
         --preview-panel-2:rgba(18,22,27,0.25);
-        --preview-copper:#C57E5A;
-        --preview-copper-light:#E7B18F;
-        --preview-foam:#d7dde5;
-        --preview-foam-stroke:#a7b2bf;
-        --preview-blue-top:#0b1016;
-        --preview-blue-bottom:#151d27;
-        --preview-blue-line:#e4ebf5;
-        --preview-blue-muted:#b1bfd1;
-        --preview-blue-text:#f8fafc;
-        --preview-blue-shadow:#07111e;
     }}
-    html, body {{ margin:0; padding:0; background:transparent; color:#f8fafc; font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }}
-    .preview-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:0; box-sizing:border-box; }}
-    .preview-card {{ border-radius:22px; overflow:hidden; background:linear-gradient(180deg, var(--preview-panel), var(--preview-panel-2)); border:1px solid rgba(226,232,240,0.14); box-shadow:0 12px 26px rgba(0,0,0,0.10); }}
-    .preview-head {{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px 18px; border-bottom:1px solid rgba(226,232,240,0.10); }}
-    .preview-title {{ font-size:20px; line-height:1.05; font-weight:950; letter-spacing:-0.035em; color:#f8fafc; }}
-    .preview-tag {{ flex:0 0 auto; min-height:30px; display:flex; align-items:center; justify-content:center; border-radius:999px; padding:0 12px; background:rgba(197,126,90,0.16); border:1px solid rgba(197,126,90,0.32); color:#f8fafc; font-size:12px; font-weight:900; letter-spacing:0.035em; }}
-    .drawing-wrap {{ padding:14px 14px 0 14px; }}
-    .preview-svg {{ width:100%; height:250px; display:block; border-radius:18px; background:linear-gradient(180deg,var(--preview-blue-top),var(--preview-blue-bottom)); border:1px solid rgba(203,228,255,0.18); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.02); }}
-    .foam-shape {{ fill:var(--preview-foam); stroke:var(--preview-foam-stroke); stroke-width:2.2; }}
-    .copper-shape {{ fill:var(--preview-copper); stroke:rgba(126,67,36,0.92); stroke-width:1.8; }}
-    .copper-highlight {{ fill:var(--preview-copper-light); opacity:0.82; }}
-    .dim-line-blue {{ stroke:var(--preview-blue-line); stroke-width:1.8; stroke-linecap:round; }}
-    .dim-guide-blue, .leader-blue {{ stroke:rgba(203,228,255,0.48); stroke-width:1.1; stroke-dasharray:4 5; fill:none; }}
-    .dim-label-blue {{ fill:var(--preview-blue-muted); font-size:12px; font-weight:800; text-anchor:middle; letter-spacing:0.03em; }}
-    .dim-value-blue {{ fill:var(--preview-blue-text); font-size:14px; font-weight:950; text-anchor:middle; }}
-    .vertical {{ text-anchor:middle; dominant-baseline:middle; transform:rotate(-90deg); transform-origin:center; }}
-    .label-title-blue {{ fill:var(--preview-blue-muted); font-size:12px; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; }}
-    .label-value-blue {{ fill:var(--preview-blue-text); font-size:18px; font-weight:950; }}
-    .label-sub-blue {{ fill:#d1e6ff; font-size:14px; font-weight:800; }}
-    .tube-shadow {{ stroke:rgba(0,0,0,0.30); stroke-width:28; stroke-linecap:round; }}
-    .tube-line-dark {{ stroke:url(#tubeGrad); stroke-width:22; stroke-linecap:round; }}
-    .metrics {{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:9px; padding:14px; }}
-    .preview-metric {{ min-height:54px; border-radius:14px; padding:10px 11px; box-sizing:border-box; background:rgba(226,232,240,0.055); border:1px solid rgba(226,232,240,0.09); }}
-    .preview-metric-label {{ display:block; font-size:10px; line-height:1.1; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; color:rgba(226,232,240,0.52); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
-    .preview-metric-value {{ display:block; font-size:15px; line-height:1.06; font-weight:950; color:#f8fafc; overflow-wrap:anywhere; }}
-    @media (max-width: 980px) {{ .preview-grid {{ grid-template-columns:1fr; }} .preview-svg {{ height:240px; }} }}
+    html, body {{
+        margin:0;
+        padding:0;
+        background:transparent;
+        color:#f8fafc;
+        font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }}
+    .preview-grid {{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:18px;
+        padding:0;
+        box-sizing:border-box;
+    }}
+    .preview-card {{
+        border-radius:22px;
+        overflow:hidden;
+        background:linear-gradient(180deg, var(--preview-panel), var(--preview-panel-2));
+        border:1px solid rgba(226,232,240,0.14);
+        box-shadow:0 12px 26px rgba(0,0,0,0.10);
+    }}
+    .preview-head {{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:15px 18px;
+        border-bottom:1px solid rgba(226,232,240,0.10);
+    }}
+    .preview-title {{
+        font-size:20px;
+        line-height:1.05;
+        font-weight:950;
+        letter-spacing:-0.035em;
+        color:#f8fafc;
+    }}
+    .preview-tag {{
+        flex:0 0 auto;
+        min-height:30px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:999px;
+        padding:0 12px;
+        background:rgba(197,126,90,0.16);
+        border:1px solid rgba(197,126,90,0.32);
+        color:#f8fafc;
+        font-size:12px;
+        font-weight:900;
+        letter-spacing:0.035em;
+    }}
+    .viewer-shell {{
+        position:relative;
+        height:292px;
+        margin:14px 14px 0 14px;
+        border-radius:18px;
+        overflow:hidden;
+        background:
+            radial-gradient(circle at 50% 42%, rgba(197,126,90,0.10), transparent 54%),
+            linear-gradient(180deg, #0b1016, #151d27);
+        border:1px solid rgba(226,232,240,0.10);
+    }}
+    .viewer-shell canvas {{
+        width:100% !important;
+        height:100% !important;
+        display:block;
+    }}
+    .viewer-badge {{
+        position:absolute;
+        left:14px;
+        top:12px;
+        z-index:5;
+        display:flex;
+        align-items:center;
+        gap:8px;
+        pointer-events:none;
+    }}
+    .viewer-badge span {{
+        border-radius:999px;
+        padding:6px 10px;
+        background:rgba(15,23,42,0.66);
+        border:1px solid rgba(226,232,240,0.12);
+        color:rgba(248,250,252,0.88);
+        font-size:11px;
+        font-weight:900;
+        letter-spacing:0.05em;
+        text-transform:uppercase;
+        backdrop-filter:blur(8px);
+    }}
+    .viewer-dim {{
+        position:absolute;
+        right:14px;
+        bottom:12px;
+        z-index:5;
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        justify-content:flex-end;
+        pointer-events:none;
+    }}
+    .viewer-dim span {{
+        border-radius:12px;
+        padding:7px 9px;
+        background:rgba(15,23,42,0.66);
+        border:1px solid rgba(226,232,240,0.12);
+        color:#f8fafc;
+        font-size:12px;
+        font-weight:900;
+        backdrop-filter:blur(8px);
+    }}
+    .metrics {{
+        display:grid;
+        grid-template-columns:repeat(3, minmax(0,1fr));
+        gap:9px;
+        padding:14px;
+    }}
+    .preview-metric {{
+        min-height:54px;
+        border-radius:14px;
+        padding:10px 11px;
+        box-sizing:border-box;
+        background:rgba(226,232,240,0.055);
+        border:1px solid rgba(226,232,240,0.09);
+    }}
+    .preview-metric-label {{
+        display:block;
+        font-size:10px;
+        line-height:1.1;
+        font-weight:900;
+        letter-spacing:0.055em;
+        text-transform:uppercase;
+        color:rgba(226,232,240,0.52);
+        margin-bottom:6px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }}
+    .preview-metric-value {{
+        display:block;
+        font-size:15px;
+        line-height:1.06;
+        font-weight:950;
+        color:#f8fafc;
+        overflow-wrap:anywhere;
+    }}
+    @media (max-width: 980px) {{
+        .preview-grid {{ grid-template-columns:1fr; }}
+        .viewer-shell {{ height:280px; }}
+    }}
     </style>
+
     <div class="preview-grid">
         <section class="preview-card">
-            <div class="preview-head"><div class="preview-title">{safe_text(labels['section_title'])}</div><div class="preview-tag">{safe_text(section_tag)}</div></div>
-            <div class="drawing-wrap">{tube_svg}</div>
+            <div class="preview-head">
+                <div class="preview-title">{safe_text(labels['section_title'])}</div>
+                <div class="preview-tag">{safe_text(section_tag)}</div>
+            </div>
+            <div class="viewer-shell" id="tube_static_viewer">
+                <div class="viewer-badge"><span>{safe_text(labels['viewer'])}</span><span>{safe_text(section_tag)}</span></div>
+                <div class="viewer-dim"><span>{safe_text(labels['outer'])}: {fmt(d_inf + d_sup if is_doppio else d_tubo)} mm</span></div>
+            </div>
             <div class="metrics">{tube_metrics}</div>
         </section>
+
         <section class="preview-card">
-            <div class="preview-head"><div class="preview-title">{safe_text(labels['coil_title'])}</div><div class="preview-tag">{fmt(lunghezza)} m</div></div>
-            <div class="drawing-wrap">{coil_svg}</div>
+            <div class="preview-head">
+                <div class="preview-title">{safe_text(labels['coil_title'])}</div>
+                <div class="preview-tag">{fmt(lunghezza)} m</div>
+            </div>
+            <div class="viewer-shell" id="coil_static_viewer">
+                <div class="viewer-badge"><span>{safe_text(labels['viewer'])}</span><span>{safe_text(labels['layout'])}</span></div>
+                <div class="viewer-dim"><span>Ø {fmt(aspo)} mm</span><span>{safe_text(labels['width'])}: {fmt(spalla)} mm</span><span>{safe_text(labels['pitch'])}: {fmt(passo)} mm</span></div>
+            </div>
             <div class="metrics">{coil_metrics}</div>
         </section>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (() => {{
+        const tubeData = {{
+            isDouble: {js_bool_double},
+            copperRatio: {copper_ratio:.6f},
+            copperRatioInf: {copper_ratio_inf:.6f},
+            copperRatioSup: {copper_ratio_sup:.6f},
+            supScale: {sup_scale:.6f}
+        }};
+
+        function createStaticRenderer(containerId, cameraPosition, target) {{
+            const container = document.getElementById(containerId);
+            if (!container || !window.THREE) return null;
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b1016);
+
+            const w = Math.max(320, container.clientWidth);
+            const h = Math.max(240, container.clientHeight);
+
+            const camera = new THREE.PerspectiveCamera(28, w / h, 0.1, 100);
+            camera.position.set(cameraPosition[0], cameraPosition[1], cameraPosition[2]);
+            camera.lookAt(new THREE.Vector3(target[0], target[1], target[2]));
+
+            const renderer = new THREE.WebGLRenderer({{ antialias:true, alpha:false }});
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const hemi = new THREE.HemisphereLight(0xffffff, 0x172033, 1.05);
+            scene.add(hemi);
+
+            const key = new THREE.DirectionalLight(0xffffff, 1.35);
+            key.position.set(3.8, -4.5, 5.2);
+            key.castShadow = true;
+            scene.add(key);
+
+            const rim = new THREE.DirectionalLight(0x7fb4ff, 0.55);
+            rim.position.set(-4, 3, 3);
+            scene.add(rim);
+
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(18, 10),
+                new THREE.ShadowMaterial({{ color:0x000000, opacity:0.18 }})
+            );
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = 1.55;
+            ground.position.z = -1.05;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            function resize() {{
+                const nw = Math.max(320, container.clientWidth);
+                const nh = Math.max(240, container.clientHeight);
+                camera.aspect = nw / nh;
+                camera.updateProjectionMatrix();
+                renderer.setSize(nw, nh);
+                renderer.render(scene, camera);
+            }}
+            window.addEventListener("resize", resize);
+
+            return {{ scene, camera, renderer, resize }};
+        }}
+
+        function addTubeSegment(group, outerR, copperR, y, z, length) {{
+            const foamMat = new THREE.MeshStandardMaterial({{
+                color:0xe7ecf2,
+                roughness:0.62,
+                metalness:0.02,
+                transparent:true,
+                opacity:0.82
+            }});
+            const copperMat = new THREE.MeshStandardMaterial({{
+                color:0xc57e5a,
+                roughness:0.35,
+                metalness:0.45
+            }});
+            const darkMat = new THREE.MeshStandardMaterial({{
+                color:0x121821,
+                roughness:0.70,
+                metalness:0.02
+            }});
+
+            const outer = new THREE.Mesh(new THREE.CylinderGeometry(outerR, outerR, length, 72, 1, false), foamMat);
+            outer.rotation.z = Math.PI / 2;
+            outer.position.set(0, y, z);
+            outer.castShadow = true;
+            outer.receiveShadow = true;
+            group.add(outer);
+
+            const copper = new THREE.Mesh(new THREE.CylinderGeometry(copperR, copperR, length + 0.025, 72, 1, false), copperMat);
+            copper.rotation.z = Math.PI / 2;
+            copper.position.set(0, y, z);
+            copper.castShadow = true;
+            group.add(copper);
+
+            const faceX = -length / 2 - 0.018;
+            const faceFoam = new THREE.Mesh(new THREE.CircleGeometry(outerR * 0.995, 96), foamMat);
+            faceFoam.rotation.y = Math.PI / 2;
+            faceFoam.position.set(faceX, y, z);
+            group.add(faceFoam);
+
+            const faceHole = new THREE.Mesh(new THREE.CircleGeometry(copperR * 1.05, 96), darkMat);
+            faceHole.rotation.y = Math.PI / 2;
+            faceHole.position.set(faceX - 0.004, y, z);
+            group.add(faceHole);
+
+            const faceCopper = new THREE.Mesh(new THREE.CircleGeometry(copperR * 0.78, 96), copperMat);
+            faceCopper.rotation.y = Math.PI / 2;
+            faceCopper.position.set(faceX - 0.008, y, z);
+            group.add(faceCopper);
+        }}
+
+        function renderTubeViewer() {{
+            const ctx = createStaticRenderer("tube_static_viewer", [3.8, -4.6, 2.4], [0, 0, 0]);
+            if (!ctx) return;
+
+            const group = new THREE.Group();
+            ctx.scene.add(group);
+
+            if (tubeData.isDouble) {{
+                const lowerR = 0.56;
+                const upperR = 0.56 * tubeData.supScale;
+                addTubeSegment(group, lowerR, lowerR * tubeData.copperRatioInf, 0, -0.42, 3.0);
+                addTubeSegment(group, upperR, upperR * tubeData.copperRatioSup, 0, -0.42 + lowerR + upperR, 3.0);
+                group.position.z = -0.35;
+            }} else {{
+                addTubeSegment(group, 0.72, 0.72 * tubeData.copperRatio, 0, 0, 3.25);
+            }}
+
+            group.rotation.z = -0.03;
+            ctx.renderer.render(ctx.scene, ctx.camera);
+        }}
+
+        function addCylinderX(group, radius, length, x, y, z, material) {{
+            const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 64, 1, false), material);
+            mesh.rotation.z = Math.PI / 2;
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            group.add(mesh);
+            return mesh;
+        }}
+
+        function renderCoilViewer() {{
+            const ctx = createStaticRenderer("coil_static_viewer", [0.4, -6.0, 2.15], [0, 0, 0.08]);
+            if (!ctx) return;
+
+            const group = new THREE.Group();
+            ctx.scene.add(group);
+
+            const tubeMat = new THREE.MeshStandardMaterial({{
+                color:0xf3f5f8,
+                roughness:0.54,
+                metalness:0.02
+            }});
+            const tubeMatDark = new THREE.MeshStandardMaterial({{
+                color:0xdfe5ec,
+                roughness:0.58,
+                metalness:0.02
+            }});
+            const flangeTopMat = new THREE.MeshStandardMaterial({{
+                color:0x111821,
+                roughness:0.68,
+                metalness:0.10
+            }});
+            const flangeBottomMat = new THREE.MeshStandardMaterial({{
+                color:0x9aa3ad,
+                roughness:0.60,
+                metalness:0.06
+            }});
+            const axleMat = new THREE.MeshStandardMaterial({{
+                color:0x2b3440,
+                roughness:0.58,
+                metalness:0.18
+            }});
+
+            const topDisc = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 18), flangeTopMat);
+            topDisc.scale.set(2.75, 0.15, 0.10);
+            topDisc.position.set(0.25, 0.0, 0.94);
+            topDisc.castShadow = true;
+            group.add(topDisc);
+
+            const bottomDisc = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 18), flangeBottomMat);
+            bottomDisc.scale.set(2.75, 0.15, 0.10);
+            bottomDisc.position.set(0.25, 0.0, -0.92);
+            bottomDisc.castShadow = true;
+            bottomDisc.receiveShadow = true;
+            group.add(bottomDisc);
+
+            const tubeR = 0.135;
+            const length = 4.35;
+            const zLevels = [-0.54, -0.27, 0.00, 0.27, 0.54];
+            zLevels.forEach((z, i) => {{
+                const mat = i % 2 === 0 ? tubeMat : tubeMatDark;
+                addCylinderX(group, tubeR, length - Math.abs(z) * 0.22, 0.25, 0, z, mat);
+            }});
+
+            addCylinderX(group, tubeR * 0.92, 1.25, -2.65, 0, 0.02, tubeMatDark);
+
+            const axle = addCylinderX(group, 0.16, 4.75, 0.22, 0, 0.0, axleMat);
+            axle.scale.z = 0.65;
+
+            group.rotation.x = -0.02;
+            group.rotation.z = 0.01;
+            ctx.renderer.render(ctx.scene, ctx.camera);
+        }}
+
+        function boot() {{
+            renderTubeViewer();
+            renderCoilViewer();
+        }}
+
+        if (window.THREE) {{
+            boot();
+        }} else {{
+            setTimeout(boot, 250);
+        }}
+    }})();
+    </script>
     """
 
 def current_calculator_snapshot():
@@ -6210,7 +6446,7 @@ with tab_tech_sheet:
             "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
             "A",
         )
-        components.html(make_preset_visual(selected_row, lang), height=600, scrolling=False)
+        components.html(make_preset_visual(selected_row, lang), height=650, scrolling=False)
 
     with machine_sheet_tab:
         render_section_header(
