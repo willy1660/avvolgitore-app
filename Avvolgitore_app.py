@@ -1546,56 +1546,143 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
     if not details:
         details = "Nessuna modifica manuale" if language == "IT" else "No manual changes"
 
-    info_items = [
-        ("Preset", selected_product),
-        ("Tubo" if language == "IT" else "Tube", str(tipo)),
+    chips = [
+        ("Tubo" if language == "IT" else "Tube", tipo),
         ("Lunghezza" if language == "IT" else "Length", f"{lunghezza} m" if lunghezza != "-" else "-"),
         ("Aspo", f"Ø {aspo} mm" if aspo != "-" else "-"),
         ("Spalla", f"{spalla} mm" if spalla != "-" else "-"),
     ]
+    chips_html = "".join(
+        f"""
+        <div class="preset-chip">
+            <span>{html.escape(str(label))}</span>
+            <strong>{html.escape(str(value))}</strong>
+        </div>
+        """
+        for label, value in chips
+    )
 
     st.markdown(
         f"""
         <style>
-        .pdm-action-bar {{
-            margin:12px 0 18px 0;
-            padding:14px 16px;
+        .preset-status-strip {{
+            margin:12px 0 16px 0;
+            padding:16px 18px;
             border-radius:18px;
+            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
             background:linear-gradient(180deg,
                 color-mix(in srgb, var(--secondary-background-color) 90%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
-            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            box-shadow:0 7px 18px rgba(0,0,0,0.055);
         }}
-        .pdm-action-top {{
-            display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;
+        .preset-status-top {{
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:16px;
+            flex-wrap:wrap;
         }}
-        .pdm-action-title {{ font-size:14px; font-weight:900; color:var(--text-color); }}
-        .pdm-action-sub {{ font-size:12px; font-weight:650; color:color-mix(in srgb, var(--text-color) 62%, transparent); margin-top:4px; }}
-        .pdm-badges {{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }}
-        .pdm-badge {{ border-radius:999px; padding:7px 10px; font-size:11px; line-height:1; font-weight:900; letter-spacing:0.045em; text-transform:uppercase; border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent); background:color-mix(in srgb, var(--secondary-background-color) 80%, var(--background-color)); }}
-        .pdm-badge.mod {{ background:{'#f59e0b' if modified else '#C57E5A'}; border-color:{'#f59e0b' if modified else '#C57E5A'}; color:white; }}
-        .pdm-badge.lock {{ background:{'#64748b' if locked else 'color-mix(in srgb, var(--secondary-background-color) 80%, var(--background-color))'}; color:{'white' if locked else 'var(--text-color)'}; }}
-        .pdm-action-grid {{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-top:14px; }}
-        .pdm-action-item {{ padding:10px 12px; border-radius:14px; border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent); background:linear-gradient(180deg, color-mix(in srgb, var(--text-color) 3%, transparent), color-mix(in srgb, var(--text-color) 7%, transparent)); min-height:72px; }}
-        .pdm-action-item-label {{ font-size:11px; font-weight:850; text-transform:uppercase; letter-spacing:0.04em; color:color-mix(in srgb, var(--text-color) 66%, transparent); margin-bottom:8px; }}
-        .pdm-action-item-value {{ font-size:24px; line-height:1.05; font-weight:950; color:var(--text-color); word-break:break-word; }}
-        @media (max-width: 1000px) {{ .pdm-action-grid {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} }}
+        .preset-status-kicker {{
+            font-size:11px;
+            font-weight:900;
+            letter-spacing:.06em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            margin-bottom:5px;
+        }}
+        .preset-status-title {{
+            font-size:24px;
+            line-height:1.06;
+            font-weight:950;
+            letter-spacing:-.025em;
+            color:var(--text-color);
+            word-break:break-word;
+        }}
+        .preset-status-sub {{
+            margin-top:6px;
+            font-size:12px;
+            line-height:1.25;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+        }}
+        .preset-badges {{
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            align-items:center;
+            justify-content:flex-end;
+        }}
+        .preset-badge {{
+            border-radius:999px;
+            padding:8px 11px;
+            font-size:11px;
+            line-height:1;
+            font-weight:900;
+            letter-spacing:.045em;
+            text-transform:uppercase;
+            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+            background:color-mix(in srgb, var(--secondary-background-color) 82%, var(--background-color));
+        }}
+        .preset-badge.mod {{
+            background:{'#f59e0b' if modified else '#C57E5A'};
+            border-color:{'#f59e0b' if modified else '#C57E5A'};
+            color:white;
+        }}
+        .preset-badge.lock {{
+            background:{'#64748b' if locked else 'color-mix(in srgb, var(--secondary-background-color) 82%, var(--background-color))'};
+            color:{'white' if locked else 'var(--text-color)'};
+        }}
+        .preset-chip-row {{
+            display:grid;
+            grid-template-columns:repeat(4,minmax(0,1fr));
+            gap:10px;
+            margin-top:14px;
+        }}
+        .preset-chip {{
+            padding:10px 12px;
+            border-radius:14px;
+            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background:color-mix(in srgb, var(--text-color) 4%, transparent);
+            min-height:58px;
+        }}
+        .preset-chip span {{
+            display:block;
+            font-size:10.5px;
+            line-height:1.05;
+            font-weight:900;
+            letter-spacing:.05em;
+            text-transform:uppercase;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            margin-bottom:7px;
+        }}
+        .preset-chip strong {{
+            display:block;
+            font-size:18px;
+            line-height:1.06;
+            font-weight:950;
+            letter-spacing:-.018em;
+            color:var(--text-color);
+            word-break:break-word;
+        }}
+        @media(max-width:1000px){{
+            .preset-chip-row {{ grid-template-columns:repeat(2,minmax(0,1fr)); }}
+            .preset-status-title {{ font-size:21px; }}
+        }}
         </style>
-        <div class="pdm-action-bar">
-            <div class="pdm-action-top">
+        <div class="preset-status-strip">
+            <div class="preset-status-top">
                 <div>
-                    <div class="pdm-action-title">{html.escape(str(selected_product))}</div>
-                    <div class="pdm-action-sub">{html.escape(details)}</div>
+                    <div class="preset-status-kicker">Preset attivo</div>
+                    <div class="preset-status-title">{html.escape(str(selected_product))}</div>
+                    <div class="preset-status-sub">{html.escape(details)}</div>
                 </div>
-                <div class="pdm-badges">
-                    <span class="pdm-badge mod">{html.escape(status_badge)}</span>
-                    <span class="pdm-badge lock">{html.escape(lock_badge)}</span>
+                <div class="preset-badges">
+                    <span class="preset-badge mod">{html.escape(status_badge)}</span>
+                    <span class="preset-badge lock">{html.escape(lock_badge)}</span>
                 </div>
             </div>
-            <div class="pdm-action-grid">
-                {''.join([f'<div class="pdm-action-item"><div class="pdm-action-item-label">{html.escape(str(lbl))}</div><div class="pdm-action-item-value">{html.escape(str(val))}</div></div>' for lbl,val in info_items])}
-            </div>
+            <div class="preset-chip-row">{chips_html}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -6430,79 +6517,10 @@ with tab_production:
         incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale", disabled=params_locked)
 
     with colC:
-        st.markdown("**Controlli e avanzati**" if lang == "IT" else "Checks and advanced")
-
-        status_value = ("Modificato" if preset_modified else "Originale") if lang == "IT" else ("Modified" if preset_modified else "Original")
-        st.markdown(
-            f"""
-            <style>
-            .control-state-grid {{
-                display:grid;
-                grid-template-columns:1fr;
-                gap:12px;
-                margin:6px 0 14px 0;
-            }}
-            .control-state-card {{
-                position:relative;
-                overflow:hidden;
-                padding:16px 18px;
-                min-height:112px;
-                border-radius:18px;
-                border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
-                background:linear-gradient(180deg,
-                    color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
-                    color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-                );
-                box-shadow:0 7px 18px rgba(0,0,0,0.055);
-                transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-            }}
-            .control-state-card:hover {{
-                transform:translateY(-2px);
-                box-shadow:0 10px 24px rgba(0,0,0,0.08);
-                border-color:color-mix(in srgb, var(--pdm-accent) 45%, transparent);
-            }}
-            .control-state-card::before {{
-                content:'';
-                position:absolute;
-                top:0; left:0; bottom:0;
-                width:4px;
-                background:var(--pdm-accent);
-                opacity:.92;
-            }}
-            .control-state-label {{
-                font-size:11px;
-                font-weight:900;
-                letter-spacing:.055em;
-                text-transform:uppercase;
-                color:color-mix(in srgb, var(--text-color) 60%, transparent);
-                margin-bottom:10px;
-            }}
-            .control-state-value {{
-                font-size:clamp(22px, 1.8vw, 32px);
-                line-height:1.04;
-                letter-spacing:-.022em;
-                font-weight:950;
-                color:var(--text-color);
-                word-break:break-word;
-            }}
-            </style>
-            <div class="control-state-grid">
-                <div class="control-state-card">
-                    <div class="control-state-label">Preset</div>
-                    <div class="control-state-value">{html.escape(str(selected_product))}</div>
-                </div>
-                <div class="control-state-card">
-                    <div class="control-state-label">{html.escape('Stato' if lang == 'IT' else 'Status')}</div>
-                    <div class="control-state-value">{html.escape(status_value)}</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+        st.markdown("**Ritardi e regolazione**" if lang == "IT" else "Delays and setup")
         rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked)
         rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
-        st.caption("Mantieni i ritardi sempre visibili: sono parametri chiave della regolazione." if lang == "IT" else "Keep delays always visible: they are key setup parameters.")
+        st.caption("Sempre visibili: sono parametri chiave per la regolazione dell’avvolgimento." if lang == "IT" else "Always visible: these are key winding setup parameters.")
 
     z_min_center = None
     z_max_center = None
