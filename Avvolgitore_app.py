@@ -6258,7 +6258,7 @@ with tab_tech_sheet:
             "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
             "A",
         )
-        components.html(make_preset_visual(selected_row, lang), height=520, scrolling=False)
+        components.html(make_preset_visual(selected_row, lang), height=660, scrolling=False)
 
     with machine_sheet_tab:
         render_section_header(
