@@ -1449,43 +1449,132 @@ def modified_field_labels(language):
 
 
 def make_preset_export_html(product_name, selected_row, language, status_items=None):
-    # Export dedicato alla stampa/PDF: usa SOLO i parametri del preset CSV.
-    # Non include valori temporanei del calcolatore né risultati della simulazione.
-    title = "Scheda parametri preset" if language == "IT" else "Preset parameter sheet"
-    print_hint = "Ottimizzata per stampa/PDF A4 verticale · tutti i parametri del preset" if language == "IT" else "Optimized for vertical A4 print/PDF · all preset parameters"
+    # Export della proposta compilata nel simulatore.
+    # I valori vengono presi dai campi attuali del programma, non dal CSV.
+    snapshot = current_calculator_snapshot()
+    title = "Proposta nuovo preset avvolgitore" if language == "IT" else "New winding preset proposal"
+    subtitle = "Valori compilati nel simulatore" if language == "IT" else "Values filled in the simulator"
+    print_hint = "A4 verticale · proposta generata dal simulatore avvolgitore" if language == "IT" else "Vertical A4 · proposal generated from the winding simulator"
 
-    # Mantiene l'ordine originale delle colonne del CSV e include tutti i parametri con valore.
-    preset_pairs = []
-    for col in selected_row.index:
-        val = safe_value(selected_row, col)
-        if str(val).strip() == "" or str(val).strip() == "-":
+    field_labels = FIELD_LABELS_IT if language == "IT" else FIELD_LABELS_EN
+    ordered_keys = [
+        "calc_tube_layout",
+        "calc_rame",
+        "calc_spessore",
+        "calc_rame_inf",
+        "calc_spessore_inf",
+        "calc_rame_sup",
+        "calc_spessore_sup",
+        "calc_lunghezza",
+        "calc_diametro_aspo",
+        "calc_spalla",
+        "calc_passo_visuale",
+        "calc_incremento_visuale",
+        "calc_rit_b",
+        "calc_rit_t",
+    ]
+
+    param_pairs = []
+    for key in ordered_keys:
+        if key not in snapshot:
             continue
-        preset_pairs.append((str(col), str(val)))
+        value = snapshot.get(key, "-")
+        # In singolo, non serve stampare anche i campi superiore/inferiore.
+        if snapshot.get("calc_tube_layout") == "Singolo" and key in {
+            "calc_rame_inf", "calc_spessore_inf", "calc_rame_sup", "calc_spessore_sup"
+        }:
+            continue
+        param_pairs.append((field_labels.get(key, key), format_preset_value(value)))
 
-    total_params = len(preset_pairs)
+    total_params = len(param_pairs)
 
-    # Tabella compatta: 3 coppie parametro/valore per riga per sfruttare tutta l'altezza A4 senza simulazione.
-    table_rows = []
-    for i in range(0, len(preset_pairs), 3):
-        chunk = preset_pairs[i:i + 3]
-        cells = []
-        for label, value in chunk:
-            cells.append(
-                f"<td class='param'><div class='label'>{html.escape(label)}</div>"
-                f"<div class='value'>{html.escape(value)}</div></td>"
-            )
+    def param_cell(label, value):
+        return (
+            f"<td class='param'>"
+            f"<div class='label'>{html.escape(str(label))}</div>"
+            f"<div class='value'>{html.escape(str(value))}</div>"
+            f"</td>"
+        )
+
+    param_rows = []
+    for i in range(0, len(param_pairs), 3):
+        chunk = param_pairs[i:i + 3]
+        cells = [param_cell(label, value) for label, value in chunk]
         while len(cells) < 3:
             cells.append("<td class='param empty'></td>")
-        table_rows.append("<tr>" + "".join(cells) + "</tr>")
+        param_rows.append("<tr>" + "".join(cells) + "</tr>")
 
-    table_html = "".join(table_rows)
+    if language == "IT":
+        notes_title = "Validazione e note"
+        params_title = "Parametri compilati nel simulatore"
+        test_fields = [
+            "Data prova",
+            "Operatore",
+            "Prodotto / misura",
+            "Macchina",
+            "Esito reale avvolgimento",
+            "Esito reale packaging",
+            "Problemi osservati",
+            "Correzioni proposte",
+            "Firma operatore",
+            "Revisione tecnica",
+        ]
+        header_badge = "Proposta"
+        sim_title = "Risultato simulazione"
+    else:
+        notes_title = "Validation and notes"
+        params_title = "Parameters filled in the simulator"
+        test_fields = [
+            "Test date",
+            "Operator",
+            "Product / size",
+            "Machine",
+            "Real winding result",
+            "Real packaging result",
+            "Observed issues",
+            "Suggested corrections",
+            "Operator signature",
+            "Technical review",
+        ]
+        header_badge = "Proposal"
+        sim_title = "Simulation result"
+
+    test_rows = []
+    for i in range(0, len(test_fields), 2):
+        left = test_fields[i]
+        right = test_fields[i + 1] if i + 1 < len(test_fields) else ""
+        test_rows.append(
+            "<tr>"
+            f"<td class='test-label'>{html.escape(left)}</td><td class='test-blank'></td>"
+            f"<td class='test-label'>{html.escape(right)}</td><td class='test-blank'></td>"
+            "</tr>"
+        )
+
+    sim_cards = []
+    if status_items:
+        for item in status_items:
+            sim_cards.append(
+                f"<div class='sim-card'>"
+                f"<div class='sim-label'>{html.escape(str(item.get('label', '')))}</div>"
+                f"<div class='sim-value'>{html.escape(str(item.get('value', '')))}</div>"
+                f"<div class='sim-note'>{html.escape(str(item.get('note', '')))}</div>"
+                f"</div>"
+            )
+    sim_html = ""
+    if sim_cards:
+        sim_html = f"""
+        <div class="block sim-block">
+            <div class="block-title">{html.escape(sim_title)}</div>
+            <div class="sim-grid">{"".join(sim_cards)}</div>
+        </div>
+        """
 
     return f"""<!doctype html>
 <html lang="{html.escape(language.lower())}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(str(product_name))} · {html.escape(title)}</title>
+<title>{html.escape(title)} · {html.escape(str(product_name))}</title>
 <style>
 @page{{size:A4 portrait;margin:7mm;}}
 *{{box-sizing:border-box;}}
@@ -1494,8 +1583,8 @@ body{{
   font-family:Inter,Arial,sans-serif;
   color:#111827;
   background:#ffffff;
-  font-size:9.2px;
-  line-height:1.16;
+  font-size:8.8px;
+  line-height:1.12;
 }}
 .sheet{{
   width:100%;
@@ -1506,128 +1595,80 @@ body{{
   flex-direction:column;
 }}
 .no-print{{
-  margin:0 0 6px 0;
-  padding:6px 8px;
+  margin:0 0 5px 0;
+  padding:5px 8px;
   border-radius:9px;
   background:#fff7ed;
   border:1px solid #fed7aa;
   color:#9a3412;
   font-weight:850;
-  font-size:8.5px;
+  font-size:8px;
 }}
 .header{{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
   gap:10px;
-  padding:9px 11px;
+  padding:8px 10px;
   border-radius:12px;
   border:1px solid #e5e7eb;
   border-left:5px solid #C57E5A;
   background:#fff;
   flex:0 0 auto;
 }}
-h1{{
-  margin:0;
-  font-size:20px;
-  line-height:1.02;
-  letter-spacing:-0.025em;
-}}
-.subtitle{{
-  margin-top:4px;
-  color:#64748b;
-  font-size:9px;
-  font-weight:850;
-}}
-.badges{{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-}}
+h1{{margin:0;font-size:18px;line-height:1.02;letter-spacing:-0.025em;}}
+.subtitle{{margin-top:3px;color:#64748b;font-size:8.6px;font-weight:850;}}
+.badges{{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;}}
 .badge{{
-  display:inline-flex;
-  align-items:center;
-  min-height:22px;
-  padding:0 9px;
-  border-radius:999px;
-  background:#C57E5A;
-  color:white;
-  font-weight:950;
-  font-size:8.4px;
-  letter-spacing:.045em;
-  text-transform:uppercase;
-  white-space:nowrap;
+  display:inline-flex;align-items:center;min-height:20px;padding:0 8px;border-radius:999px;
+  background:#C57E5A;color:white;font-weight:950;font-size:7.8px;letter-spacing:.045em;text-transform:uppercase;white-space:nowrap;
 }}
-.badge.light{{
-  background:#f1f5f9;
-  color:#334155;
-  border:1px solid #e2e8f0;
+.badge.light{{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}}
+.block{{margin-top:5px;border:1px solid #e5e7eb;border-radius:11px;overflow:hidden;flex:0 0 auto;}}
+.block-title{{
+  padding:5px 8px;background:#f8fafc;border-bottom:1px solid #e5e7eb;color:#334155;
+  font-size:8.2px;font-weight:950;letter-spacing:.055em;text-transform:uppercase;
 }}
-.content{{
-  margin-top:7px;
-  flex:1 1 auto;
-  display:flex;
-  flex-direction:column;
+.test-table{{width:100%;border-collapse:collapse;table-layout:fixed;}}
+.test-label{{
+  width:19%;padding:5px 6px;color:#64748b;font-size:7.6px;font-weight:900;text-transform:uppercase;
+  letter-spacing:.035em;border-bottom:1px solid #e5e7eb;background:#fff;
 }}
-.params-table{{
-  width:100%;
-  height:100%;
-  border-collapse:separate;
-  border-spacing:5px;
-  table-layout:fixed;
-}}
+.test-blank{{width:31%;height:23px;border-bottom:1px solid #cbd5e1;background:#fff;}}
+.sim-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}}
+.sim-card{{padding:7px 8px;border-right:1px solid #e5e7eb;min-height:45px;}}
+.sim-card:last-child{{border-right:0;}}
+.sim-label{{color:#64748b;font-size:7.4px;font-weight:950;text-transform:uppercase;letter-spacing:.04em;}}
+.sim-value{{margin-top:4px;font-size:14px;font-weight:950;}}
+.sim-note{{margin-top:3px;color:#64748b;font-size:7.7px;font-weight:750;}}
+.content{{margin-top:5px;flex:1 1 auto;display:flex;flex-direction:column;min-height:0;}}
+.params-table{{width:100%;height:100%;border-collapse:separate;border-spacing:4px;table-layout:fixed;}}
 .param{{
-  vertical-align:top;
-  border:1px solid #e5e7eb;
-  border-radius:9px;
-  background:#fff;
-  padding:6px 7px;
-  height:37px;
-  overflow:hidden;
+  vertical-align:top;border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:5px 6px;
+  height:34px;overflow:hidden;
 }}
-.param.empty{{
-  border:0;
-  background:transparent;
-}}
+.param.empty{{border:0;background:transparent;}}
 .label{{
-  color:#64748b;
-  font-size:7.6px;
-  line-height:1.05;
-  font-weight:900;
-  letter-spacing:.04em;
-  text-transform:uppercase;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  color:#64748b;font-size:7.15px;line-height:1.02;font-weight:900;letter-spacing:.035em;
+  text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }}
-.value{{
-  margin-top:4px;
-  color:#111827;
-  font-size:10.2px;
-  line-height:1.08;
-  font-weight:950;
-  overflow-wrap:anywhere;
-}}
+.value{{margin-top:4px;color:#111827;font-size:10.6px;line-height:1.08;font-weight:950;overflow-wrap:anywhere;}}
+.notes{{margin-top:5px;border:1px solid #e5e7eb;border-radius:11px;overflow:hidden;flex:0 0 auto;}}
+.notes-grid{{display:grid;grid-template-columns:1fr 1fr;gap:0;}}
+.note-box{{min-height:38px;border-right:1px solid #e5e7eb;padding:6px 8px;}}
+.note-box:last-child{{border-right:0;}}
+.note-label{{color:#64748b;font-size:7.4px;font-weight:950;letter-spacing:.04em;text-transform:uppercase;}}
+.note-lines{{margin-top:5px;height:22px;border-bottom:1px solid #cbd5e1;}}
 .footer{{
-  margin-top:6px;
-  padding-top:5px;
-  border-top:1px solid #e5e7eb;
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  color:#64748b;
-  font-size:8px;
-  font-weight:800;
-  flex:0 0 auto;
+  margin-top:5px;padding-top:4px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;
+  gap:10px;color:#64748b;font-size:7.4px;font-weight:800;flex:0 0 auto;
 }}
 @media print{{
   body{{background:white;}}
   .no-print{{display:none!important;}}
   .sheet{{max-width:none;min-height:auto;}}
-  .header,.param{{box-shadow:none;}}
-  .params-table{{break-inside:auto;page-break-inside:auto;}}
-  tr,.param{{break-inside:avoid;page-break-inside:avoid;}}
+  .header,.param,.block,.notes{{box-shadow:none;}}
+  tr,.param,.block,.notes{{break-inside:avoid;page-break-inside:avoid;}}
 }}
 </style>
 </head>
@@ -1638,18 +1679,33 @@ h1{{
   <div class="header">
     <div>
       <h1>{html.escape(str(product_name))}</h1>
-      <div class="subtitle">{html.escape(title)}</div>
+      <div class="subtitle">{html.escape(title)} · {html.escape(subtitle)}</div>
     </div>
     <div class="badges">
-      <span class="badge">{html.escape(str(total_params))} parametri</span>
-      <span class="badge light">A4 verticale</span>
+      <span class="badge">{html.escape(header_badge)}</span>
+      <span class="badge light">{html.escape(str(total_params))} parametri</span>
+      <span class="badge light">A4</span>
     </div>
   </div>
 
+  {sim_html}
+
   <div class="content">
-    <table class="params-table">
-      {table_html}
-    </table>
+    <div class="block-title" style="border:1px solid #e5e7eb;border-radius:10px 10px 0 0;">{html.escape(params_title)}</div>
+    <table class="params-table">{"".join(param_rows)}</table>
+  </div>
+
+  <div class="block">
+    <div class="block-title">Dati prova</div>
+    <table class="test-table">{"".join(test_rows)}</table>
+  </div>
+
+  <div class="notes">
+    <div class="block-title">{html.escape(notes_title)}</div>
+    <div class="notes-grid">
+      <div class="note-box"><div class="note-label">Note operatore</div><div class="note-lines"></div></div>
+      <div class="note-box"><div class="note-label">Revisione tecnica</div><div class="note-lines"></div></div>
+    </div>
   </div>
 
   <div class="footer">
@@ -1784,13 +1840,40 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
     with b3:
         export_html = make_preset_export_html(selected_product, selected_row, language, status_items=status_items)
         st.download_button(
-            "Scarica parametri preset" if language == "IT" else "Download preset parameters",
+            "Scarica proposta compilata" if language == "IT" else "Download filled proposal",
             data=export_html,
-            file_name=f"scheda_preset_{str(selected_product).replace(' ', '_').replace('/', '-')}.html",
+            file_name=f"proposta_compilata_{str(selected_product).replace(' ', '_').replace('/', '-')}.html",
             mime="text/html",
             use_container_width=True,
         )
 
+
+
+def apply_blank_proposal_to_calculator():
+    # Preset "vuoto" però usable: valors inicials segurs perquè la simulació pugui arrencar.
+    st.session_state["new_preset_mode"] = True
+    st.session_state.setdefault("new_preset_name", "Nuovo preset")
+
+    st.session_state["calc_tube_layout"] = "Singolo"
+    st.session_state["calc_rame"] = "1/4"
+    st.session_state["calc_spessore"] = 7.0
+    st.session_state["calc_lunghezza"] = 50.0
+    st.session_state["calc_diametro_aspo"] = 450.0
+    st.session_state["calc_spalla"] = 95.0
+    st.session_state["calc_passo_visuale"] = 20.0
+    st.session_state["calc_incremento_visuale"] = 20.0
+    st.session_state["calc_rit_b"] = 360.0
+    st.session_state["calc_rit_t"] = 360.0
+    st.session_state["calc_rame_inf"] = "3/8"
+    st.session_state["calc_spessore_inf"] = 7.0
+    st.session_state["calc_rame_sup"] = "1/4"
+    st.session_state["calc_spessore_sup"] = 7.0
+
+    st.session_state["loaded_preset_name"] = st.session_state.get("new_preset_name", "Nuovo preset")
+    st.session_state["loaded_preset_values"] = current_calculator_snapshot()
+    st.session_state["preset_values_modified"] = False
+    st.session_state["modified_preset_fields"] = []
+    st.session_state["show_preset_loaded_success"] = False
 
 def init_calculator_state():
     defaults = {
@@ -6248,31 +6331,62 @@ with tab_production:
             key="selected_preset_product",
         )
 
+        c_new, c_base = st.columns([1, 1], gap="small")
+        with c_new:
+            if st.button("Nuovo preset vuoto" if lang == "IT" else "New blank preset", use_container_width=True):
+                st.session_state["new_preset_request"] = True
+                st.rerun()
+        with c_base:
+            if st.session_state.get("new_preset_mode", False):
+                if st.button("Torna ai preset CSV" if lang == "IT" else "Back to CSV presets", use_container_width=True):
+                    st.session_state["new_preset_mode"] = False
+                    st.session_state["last_auto_loaded_preset"] = None
+                    st.rerun()
+
+        if st.session_state.get("new_preset_mode", False):
+            st.text_input(
+                "Nome proposta" if lang == "IT" else "Proposal name",
+                key="new_preset_name",
+                placeholder="Es. 1/4 - prova nuovo aspo",
+            )
+
     selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
+    # Blank proposal must be applied before any calc_* widget is instantiated.
+    if st.session_state.pop("new_preset_request", False):
+        apply_blank_proposal_to_calculator()
+
+    proposal_mode = bool(st.session_state.get("new_preset_mode", False))
+    active_product_name = st.session_state.get("new_preset_name", "Nuovo preset") if proposal_mode else selected_product
+
     # Pending restore request must be applied before any calc_* widget is instantiated.
-    if st.session_state.get("restore_preset_request") == selected_product:
+    if st.session_state.get("restore_preset_request") == active_product_name:
         st.session_state.pop("restore_preset_request", None)
-        apply_preset_to_calculator(selected_row)
+        if proposal_mode:
+            apply_blank_proposal_to_calculator()
+        else:
+            apply_preset_to_calculator(selected_row)
 
     # Auto-load preset when product changes. This removes the old "select + load + switch tab" flow.
     last_auto_loaded = st.session_state.get("last_auto_loaded_preset")
-    if last_auto_loaded != selected_product:
+    if not proposal_mode and last_auto_loaded != selected_product:
         apply_preset_to_calculator(selected_row)
         st.session_state["last_auto_loaded_preset"] = selected_product
         st.session_state["loaded_preset_name"] = selected_product
         st.session_state["show_preset_loaded_success"] = False
 
     # If the user changes any calculator value manually, keep the preset as base and mark it as modified.
+    if proposal_mode:
+        st.session_state["loaded_preset_name"] = active_product_name
     sync_active_preset_state()
     preset_modified = bool(st.session_state.get("preset_values_modified", False))
     params_locked = bool(st.session_state.get("params_locked", False))
 
     with top_right:
         st.markdown("&nbsp;", unsafe_allow_html=True)
-        render_active_preset_card(selected_product, lang, modified=preset_modified)
+        render_active_preset_card(active_product_name, lang, modified=preset_modified)
 
-    render_preset_summary_strip(selected_product, selected_row, lang, modified=preset_modified)
+    render_preset_summary_strip(active_product_name, selected_row, lang, modified=preset_modified)
 
     render_section_header(
         "Parametri principali" if lang == "IT" else "Main parameters",
@@ -6468,7 +6582,7 @@ with tab_production:
 
     render_status_semaphore(status_items, lang)
 
-    render_preset_action_bar(selected_product, selected_row, lang, preset_modified, status_items=status_items)
+    render_preset_action_bar(active_product_name, selected_row, lang, preset_modified, status_items=status_items)
 
     st.divider()
 
