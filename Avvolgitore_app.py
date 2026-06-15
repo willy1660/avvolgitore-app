@@ -6558,7 +6558,7 @@ with tab_production:
 
     render_section_header(
         "Configurazione" if lang == "IT" else "Configuration",
-        "Imposta i valori principali, poi verifica rapidamente risultato e packaging." if lang == "IT" else "Set the main values, then quickly verify winding and packaging.",
+        "Imposta solo i valori collegati al render: la scheda tecnica resta il riferimento completo per l’operatore." if lang == "IT" else "Set only the values linked to the render: the technical sheet remains the complete operator reference.",
         "2",
     )
 
@@ -6630,13 +6630,6 @@ with tab_production:
         rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
         st.caption("Sempre visibili: sono parametri chiave per la regolazione dell’avvolgimento." if lang == "IT" else "Always visible: these are key winding setup parameters.")
 
-    render_section_header(
-        "Parametri operatore" if lang == "IT" else "Operator parameters",
-        "Tutti i valori del preset sono visibili e raggruppati per uso reale in macchina." if lang == "IT" else "All preset values are visible and grouped by real machine use.",
-        "2B",
-    )
-    current_operator_row = build_operator_row_from_current_values(selected_row)
-    render_machine_parameter_groups(current_operator_row, lang, key_suffix="_production")
 
     z_min_center = None
     z_max_center = None
