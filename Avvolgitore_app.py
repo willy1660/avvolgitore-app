@@ -1964,7 +1964,7 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-top1, top2, top3 = st.columns([1.0, 4.6, 1.15])
+top1, top2, top3 = st.columns([1.0, 4.85, 0.90])
 
 with top1:
     if logo_path:
@@ -1987,16 +1987,15 @@ with top2:
 
 with top3:
     current_lang = st.session_state.lang
-    lang_choice = st.radio(
+    lang_option = st.selectbox(
         TEXTS[current_lang]["language"],
-        ["IT", "EN"],
+        ["Italiano", "English (US)"],
         index=0 if current_lang == "IT" else 1,
-        key="lang_radio_top",
-        horizontal=True,
+        key="lang_selector_top",
         label_visibility="collapsed",
     )
 
-st.session_state.lang = lang_choice
+st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
 
@@ -7550,13 +7549,15 @@ with tab_production:
         "1",
     )
 
-    preset_selector_col, preset_selector_spacer = st.columns([1.25, 2.75], gap="large")
+    preset_selector_col, preset_selector_spacer = st.columns([1.05, 2.95], gap="large")
     with preset_selector_col:
-        selected_product = render_touch_preset_selector(
+        selected_product = st.selectbox(
             t["select_product"],
             preset_names,
-            "selected_preset_product",
+            index=preset_names.index(st.session_state["selected_preset_product"]),
+            key="selected_preset_product_selectbox",
         )
+        st.session_state["selected_preset_product"] = selected_product
 
     selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
