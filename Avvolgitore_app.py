@@ -8923,9 +8923,84 @@ with tab_tech_sheet:
         selected_product = st.session_state.get("selected_preset_product", preset_names[0])
         selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
 
+        
+        st.markdown(
+            """
+            <style>
+            /* Hotfix · sweep explícit per la card de Scheda tecnica */
+            .premium-sweep-card,
+            .tech-sheet-preset-card {
+                position: relative !important;
+                overflow: hidden !important;
+                isolation: isolate !important;
+            }
+        
+            .premium-sweep-card > *,
+            .tech-sheet-preset-card > * {
+                position: relative !important;
+                z-index: 2 !important;
+            }
+        
+            .premium-sweep-card::after,
+            .tech-sheet-preset-card::after {
+                content: "" !important;
+                position: absolute !important;
+                top: -40% !important;
+                bottom: -40% !important;
+                left: -75% !important;
+                width: 46% !important;
+                pointer-events: none !important;
+                border-radius: inherit !important;
+                background: linear-gradient(
+                    105deg,
+                    transparent 0%,
+                    rgba(255,255,255,0.00) 24%,
+                    rgba(255,255,255,0.30) 48%,
+                    rgba(197,126,90,0.25) 56%,
+                    rgba(255,255,255,0.12) 64%,
+                    transparent 100%
+                ) !important;
+                transform: skewX(-16deg) !important;
+                opacity: 0 !important;
+                z-index: 4 !important;
+                mix-blend-mode: screen !important;
+            }
+        
+            .premium-sweep-card:hover::after,
+            .tech-sheet-preset-card:hover::after {
+                opacity: 1 !important;
+                animation: pdmTechSheetSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+            }
+        
+            @keyframes pdmTechSheetSweep {
+                0% {
+                    left: -80%;
+                    opacity: 0;
+                }
+                12% {
+                    opacity: 1;
+                }
+                100% {
+                    left: 135%;
+                    opacity: 0;
+                }
+            }
+        
+            @media (hover: none) {
+                .premium-sweep-card:active::after,
+                .tech-sheet-preset-card:active::after {
+                    opacity: 1 !important;
+                    animation: pdmTechSheetSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+                }
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        
         st.markdown(
             f"""
-            <div style="
+            <div class="tech-sheet-preset-card premium-sweep-card" style="
                 margin-top:12px;
                 margin-bottom:18px;
                 padding:22px 24px;
