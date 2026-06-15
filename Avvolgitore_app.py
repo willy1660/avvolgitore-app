@@ -1737,6 +1737,11 @@ def make_csv_preset_print_html(product_name, selected_row, language):
         for label, value in source_rows
     )
 
+    # Print layout: stretch the CSV sheet vertically so the table uses the full A4 height.
+    # The row height is calculated dynamically from the number of visible CSV fields.
+    row_count = max(1, len(source_rows))
+    row_height_mm = max(5.8, min(8.6, 238.0 / row_count))
+
     return f"""<!doctype html>
 <html lang="{html.escape(language.lower())}">
 <head>
@@ -1745,32 +1750,37 @@ def make_csv_preset_print_html(product_name, selected_row, language):
 <style>
 @page{{size:A4 portrait;margin:8mm;}}
 *{{box-sizing:border-box;}}
+:root{{--csv-row-height:{row_height_mm:.3f}mm;}}
+html,body{{min-height:100%;}}
 body{{font-family:Inter,Arial,sans-serif;margin:18px;color:#111827;background:#f8fafc;}}
 .print-actions{{display:flex;justify-content:flex-end;margin:0 0 10px 0;}}
 .print-btn{{border:none;border-radius:999px;padding:10px 17px;background:#C57E5A;color:white;font-weight:950;cursor:pointer;box-shadow:0 10px 22px rgba(197,126,90,.24);}}
-.sheet{{background:white;border:1px solid #e5e7eb;border-radius:18px;padding:17px 18px;box-shadow:0 8px 20px rgba(0,0,0,.055);}}
-.header{{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-left:6px solid #C57E5A;padding:8px 0 8px 15px;margin-bottom:12px;}}
+.sheet{{min-height:calc(100vh - 46px);display:flex;flex-direction:column;background:white;border:1px solid #e5e7eb;border-radius:18px;padding:17px 18px;box-shadow:0 8px 20px rgba(0,0,0,.055);}}
+.header{{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-left:6px solid #C57E5A;padding:8px 0 8px 15px;margin-bottom:12px;flex:0 0 auto;}}
 h1{{margin:0;font-size:24px;line-height:1.02;letter-spacing:-.025em;}}
 .subtitle{{margin-top:5px;color:#64748b;font-weight:750;font-size:12px;line-height:1.2;}}
 .badge{{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:999px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-weight:900;font-size:11px;white-space:nowrap;}}
-h2{{margin:0 0 8px 0;font-size:14px;line-height:1.1;}}
-.param-table{{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e5e7eb;border-radius:13px;overflow:hidden;background:#ffffff;font-size:10px;line-height:1.08;}}
-th{{text-align:left;color:#475569;width:46%;padding:4.7px 7px;border-bottom:1px solid #e5e7eb;background:#f8fafc;font-weight:850;}}
-td{{font-weight:900;padding:4.7px 7px;border-bottom:1px solid #e5e7eb;word-break:break-word;color:#0f172a;}}
+h2{{margin:0 0 8px 0;font-size:14px;line-height:1.1;flex:0 0 auto;}}
+.param-table{{width:100%;height:100%;border-collapse:separate;border-spacing:0;border:1px solid #e5e7eb;border-radius:13px;overflow:hidden;background:#ffffff;font-size:10px;line-height:1.08;table-layout:fixed;flex:1 1 auto;}}
+.param-table tr{{height:var(--csv-row-height);}}
+th{{text-align:left;color:#475569;width:46%;padding:4.7px 7px;border-bottom:1px solid #e5e7eb;background:#f8fafc;font-weight:850;vertical-align:middle;}}
+td{{font-weight:900;padding:4.7px 7px;border-bottom:1px solid #e5e7eb;word-break:break-word;color:#0f172a;vertical-align:middle;}}
 tr:last-child th,tr:last-child td{{border-bottom:none;}}
-.footer{{margin-top:8px;font-size:9.5px;color:#94a3b8;font-weight:750;}}
+.footer{{margin-top:8px;font-size:9.5px;color:#94a3b8;font-weight:750;flex:0 0 auto;}}
 @media print{{
+    html,body{{height:100%;}}
     body{{background:white;margin:0;}}
     .print-actions{{display:none;}}
-    .sheet{{border:none;box-shadow:none;border-radius:0;padding:0;}}
-    .header{{margin-bottom:8px;padding:6px 0 6px 12px;}}
-    h1{{font-size:20px;}}
+    .sheet{{height:calc(297mm - 16mm);min-height:calc(297mm - 16mm);border:none;box-shadow:none;border-radius:0;padding:0;}}
+    .header{{margin-bottom:7mm;padding:3mm 0 3mm 4mm;}}
+    h1{{font-size:21px;}}
     .subtitle{{font-size:10.5px;margin-top:3px;}}
     .badge{{font-size:9.5px;padding:4px 8px;}}
-    h2{{font-size:12px;margin-bottom:5px;}}
-    .param-table{{font-size:8.6px;line-height:1.00;}}
-    th,td{{padding:2.65px 4.5px;}}
-    .footer{{font-size:8.4px;margin-top:5px;}}
+    h2{{font-size:12px;margin-bottom:2.2mm;}}
+    .param-table{{font-size:9px;line-height:1.04;}}
+    .param-table tr{{height:var(--csv-row-height);}}
+    th,td{{padding:1.2mm 2mm;}}
+    .footer{{font-size:8.4px;margin-top:2mm;}}
 }}
 </style>
 </head>
