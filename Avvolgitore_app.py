@@ -4960,36 +4960,28 @@ def render_machine_parameter_groups(selected_row, language):
     group_defs = [
         (
             "Tubo e prodotto" if language == "IT" else "Tube and product",
-            [
-                "Tipo tubo", "Diametro Rame", "Spessore Guaina (mm)", "Diametro esterno Guaina (mm)",
-                "Diametro rame inferiore", "Spessore guaina inferiore", "Diametro rame superiore", "Spessore guaina superiore",
-                "Lunghezza (m)"
-            ],
+            ["Tipo tubo", "Diametro Rame", "Spessore Guaina (mm)", "Diametro esterno Guaina (mm)",
+             "Diametro rame inferiore", "Spessore guaina inferiore", "Diametro rame superiore", "Spessore guaina superiore",
+             "Lunghezza (m)"],
         ),
         (
             "Avvolgimento" if language == "IT" else "Winding",
-            [
-                "Diametro aspo (mm)", "Spalla (mm)", "Nº Spire", "Passo (mm)", "Incremento strato (mm)",
-                "Ritardo invers min (º)", "Ritardo invers max (º)", "Quota massima (mm)", "Quota minima (mm)",
-                "Quota start pinza (mm)", "Quota coda tubo (mm)", "Quota chiusura morsa coda (mm)",
-                "Interasse regetta (mm)"
-            ],
+            ["Diametro aspo (mm)", "Spalla (mm)", "Nº Spire", "Passo (mm)", "Incremento strato (mm)",
+             "Ritardo invers min (º)", "Ritardo invers max (º)", "Quota massima (mm)", "Quota minima (mm)",
+             "Quota start pinza (mm)", "Quota coda tubo (mm)", "Quota chiusura morsa coda (mm)",
+             "Interasse regetta (mm)"],
         ),
         (
             "Attrezzaggio linea" if language == "IT" else "Line setup",
-            [
-                "Boccole rulliera adrizzatubo", "Boccola uscita rulliera", "Rulliera adrizzatubo",
-                "Boccola uscita traino", "Rulli convogliatore (mm)", "Rulli estrusore(mm)",
-                "Ruote godronatore", "Soffiatori aria (mm)", "Rulli avvolgitore (mm)",
-                "Paleta ferma coda (mm)", "Guidatubo (mm)"
-            ],
+            ["Boccole rulliera adrizzatubo", "Boccola uscita rulliera", "Rulliera adrizzatubo",
+             "Boccola uscita traino", "Rulli convogliatore (mm)", "Rulli estrusore(mm)",
+             "Ruote godronatore", "Soffiatori aria (mm)", "Rulli avvolgitore (mm)",
+             "Paleta ferma coda (mm)", "Guidatubo (mm)"],
         ),
         (
             "Velocità e coppie" if language == "IT" else "Speed and torque",
-            [
-                "Velocita linea (m/min)", "Velocita recupero (m/min)", "Coppia lavoro (%)",
-                "Riduzione coppia (%)", "Coppia recupero (%)"
-            ],
+            ["Velocita linea (m/min)", "Velocita recupero (m/min)", "Coppia lavoro (%)",
+             "Riduzione coppia (%)", "Coppia recupero (%)"],
         ),
     ]
 
@@ -5048,16 +5040,42 @@ def render_machine_parameter_groups(selected_row, language):
         st.info("Nessun parametro trovato." if language == "IT" else "No parameter found.")
         return
 
-    st.markdown(
+    group_blocks_html = ""
+    for group_title, pairs in groups:
+        cards_html = "".join(
+            f"""
+            <div class="machine-card-native">
+                <div class="machine-card-label-native">{html.escape(str(label))}</div>
+                <div class="machine-card-value-native">{html.escape(str(value))}</div>
+            </div>
+            """
+            for label, value in pairs
+        )
+
+        group_blocks_html += f"""
+        <div class="machine-group-block">
+            <div class="machine-group-head-native">
+                <div class="machine-group-title-native">{html.escape(str(group_title))}</div>
+                <div class="machine-group-count-native">{len(pairs)}</div>
+            </div>
+            <div class="machine-group-body-native">
+                <div class="machine-card-grid-native">
+                    {cards_html}
+                </div>
+            </div>
+        </div>
         """
+
+    st.markdown(
+        f"""
         <style>
-        .machine-groups-shell{
+        .machine-groups-shell{{
             margin-top:6px;
-        }
-        .machine-group-block{
+        }}
+        .machine-group-block{{
             margin:0 0 24px 0;
-        }
-        .machine-group-head-native{
+        }}
+        .machine-group-head-native{{
             display:flex;
             align-items:center;
             justify-content:space-between;
@@ -5068,15 +5086,15 @@ def render_machine_parameter_groups(selected_row, language):
             background:linear-gradient(90deg, rgba(197,126,90,0.18), transparent);
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
             border-bottom:none;
-        }
-        .machine-group-title-native{
+        }}
+        .machine-group-title-native{{
             font-size:15px;
             font-weight:950;
             letter-spacing:0.065em;
             text-transform:uppercase;
             color:var(--text-color);
-        }
-        .machine-group-count-native{
+        }}
+        .machine-group-count-native{{
             min-width:30px;
             height:30px;
             padding:0 10px;
@@ -5089,8 +5107,8 @@ def render_machine_parameter_groups(selected_row, language):
             font-size:12px;
             font-weight:950;
             line-height:1;
-        }
-        .machine-group-body-native{
+        }}
+        .machine-group-body-native{{
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
             border-radius:0 0 20px 20px;
             padding:16px 16px 18px 16px;
@@ -5099,14 +5117,14 @@ def render_machine_parameter_groups(selected_row, language):
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
             box-shadow:0 8px 20px rgba(0,0,0,0.05);
-        }
-        .machine-card-grid-native{
+        }}
+        .machine-card-grid-native{{
             display:grid;
             grid-template-columns:repeat(4, minmax(0, 1fr));
             gap:14px;
             align-items:stretch;
-        }
-        .machine-card-native{
+        }}
+        .machine-card-native{{
             min-height:108px;
             padding:14px 16px;
             border-radius:16px;
@@ -5120,8 +5138,8 @@ def render_machine_parameter_groups(selected_row, language):
             justify-content:space-between;
             gap:12px;
             box-sizing:border-box;
-        }
-        .machine-card-label-native{
+        }}
+        .machine-card-label-native{{
             font-size:11px;
             line-height:1.22;
             text-transform:uppercase;
@@ -5131,8 +5149,8 @@ def render_machine_parameter_groups(selected_row, language):
             min-height:30px;
             display:flex;
             align-items:flex-start;
-        }
-        .machine-card-value-native{
+        }}
+        .machine-card-value-native{{
             font-size:26px;
             line-height:1.02;
             font-weight:950;
@@ -5142,64 +5160,35 @@ def render_machine_parameter_groups(selected_row, language):
             display:flex;
             align-items:flex-end;
             min-height:28px;
-        }
-        @media (max-width: 1200px){
-            .machine-card-grid-native{
+        }}
+        @media (max-width: 1200px){{
+            .machine-card-grid-native{{
                 grid-template-columns:repeat(3, minmax(0, 1fr));
-            }
-        }
-        @media (max-width: 900px){
-            .machine-card-grid-native{
+            }}
+        }}
+        @media (max-width: 900px){{
+            .machine-card-grid-native{{
                 grid-template-columns:repeat(2, minmax(0, 1fr));
-            }
-            .machine-card-native{
+            }}
+            .machine-card-native{{
                 min-height:94px;
-            }
-            .machine-card-value-native{
+            }}
+            .machine-card-value-native{{
                 font-size:22px;
-            }
-        }
-        @media (max-width: 640px){
-            .machine-card-grid-native{
+            }}
+        }}
+        @media (max-width: 640px){{
+            .machine-card-grid-native{{
                 grid-template-columns:1fr;
-            }
-        }
+            }}
+        }}
         </style>
+        <div class="machine-groups-shell">
+            {group_blocks_html}
+        </div>
         """,
         unsafe_allow_html=True,
     )
-
-    st.markdown('<div class="machine-groups-shell">', unsafe_allow_html=True)
-
-    for group_title, pairs in groups:
-        cards_html = "".join(
-            f"""
-            <div class="machine-card-native">
-                <div class="machine-card-label-native">{html.escape(str(label))}</div>
-                <div class="machine-card-value-native">{html.escape(str(value))}</div>
-            </div>
-            """
-            for label, value in pairs
-        )
-
-        st.markdown(
-            f"""
-            <div class="machine-group-block">
-                <div class="machine-group-head-native">
-                    <div class="machine-group-title-native">{html.escape(str(group_title))}</div>
-                    <div class="machine-group-count-native">{len(pairs)}</div>
-                </div>
-                <div class="machine-group-body-native">
-                    <div class="machine-card-grid-native">
-                        {cards_html}
-                    </div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_preset_summary_strip(product_name, selected_row, language, modified=False):
