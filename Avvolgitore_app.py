@@ -3871,9 +3871,11 @@ def viewer(
             const coilRadius = coilFootprint / 2.0;
             const innerRadius = Math.max(18, coilRadius * 0.56);
 
-            // In packaging i rotoli devono appoggiarsi realmente uno sull'altro:
-            // nessun gap visivo e nessuna riduzione fittizia dell'altezza.
-            const rollVisualHeight = Hs;
+            // Il calcolo resta basato sulla spalla reale (Hs), ma visivamente
+            // aggiungiamo una piccola sovrapposizione controllata per evitare
+            // i falsi "spazi d'aria" dovuti alla geometria del tubo renderizzato.
+            const visualContactOverlap = Math.min(10, Math.max(4, Hs * 0.07));
+            const rollVisualHeight = Hs + visualContactOverlap;
 
             const baseRoll = createRollRealistic(coilRadius, innerRadius, rollVisualHeight, tubeMode);
 
