@@ -1723,6 +1723,8 @@ def make_csv_preset_print_html(product_name, selected_row, language):
     subtitle = "Preset originale · valori letti direttamente dal CSV" if language == "IT" else "Original preset · values read directly from CSV"
     print_label = "Stampa scheda" if language == "IT" else "Print sheet"
     section_title = "Parametri CSV" if language == "IT" else "CSV parameters"
+    footer = "Preset originale da Presets.csv · nessuna cattura render inclusa" if language == "IT" else "Original preset from Presets.csv · no render capture included"
+
     source_rows = []
     for col in selected_row.index:
         val = safe_value(selected_row, col)
@@ -1730,17 +1732,10 @@ def make_csv_preset_print_html(product_name, selected_row, language):
             label = param_label(col, language)
             source_rows.append((str(label), str(val)))
 
-    midpoint = (len(source_rows) + 1) // 2
-    columns = [source_rows[:midpoint], source_rows[midpoint:]]
-
-    def table_for(rows):
-        row_html = "".join(
-            f"<tr><th>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>"
-            for label, value in rows
-        )
-        return f"<table>{row_html}</table>"
-
-    tables_html = "".join(f"<div class='param-col'>{table_for(rows)}</div>" for rows in columns if rows)
+    rows_html = "".join(
+        f"<tr><th>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>"
+        for label, value in source_rows
+    )
 
     return f"""<!doctype html>
 <html lang="{html.escape(language.lower())}">
@@ -1748,37 +1743,34 @@ def make_csv_preset_print_html(product_name, selected_row, language):
 <meta charset="utf-8">
 <title>{html.escape(str(product_name))} · {html.escape(title)}</title>
 <style>
-@page{{size:A4 portrait;margin:9mm;}}
+@page{{size:A4 portrait;margin:8mm;}}
 *{{box-sizing:border-box;}}
-body{{font-family:Inter,Arial,sans-serif;margin:20px;color:#111827;background:#f8fafc;}}
-.print-actions{{display:flex;justify-content:flex-end;margin:0 0 12px 0;}}
+body{{font-family:Inter,Arial,sans-serif;margin:18px;color:#111827;background:#f8fafc;}}
+.print-actions{{display:flex;justify-content:flex-end;margin:0 0 10px 0;}}
 .print-btn{{border:none;border-radius:999px;padding:10px 17px;background:#C57E5A;color:white;font-weight:950;cursor:pointer;box-shadow:0 10px 22px rgba(197,126,90,.24);}}
-.sheet{{background:white;border:1px solid #e5e7eb;border-radius:18px;padding:18px;box-shadow:0 8px 20px rgba(0,0,0,.055);}}
-.header{{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;border-left:6px solid #C57E5A;padding:10px 0 10px 16px;margin-bottom:14px;}}
-h1{{margin:0;font-size:25px;line-height:1.05;letter-spacing:-.025em;}}
-.subtitle{{margin-top:6px;color:#64748b;font-weight:750;font-size:12.5px;line-height:1.25;}}
+.sheet{{background:white;border:1px solid #e5e7eb;border-radius:18px;padding:17px 18px;box-shadow:0 8px 20px rgba(0,0,0,.055);}}
+.header{{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;border-left:6px solid #C57E5A;padding:8px 0 8px 15px;margin-bottom:12px;}}
+h1{{margin:0;font-size:24px;line-height:1.02;letter-spacing:-.025em;}}
+.subtitle{{margin-top:5px;color:#64748b;font-weight:750;font-size:12px;line-height:1.2;}}
 .badge{{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:999px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;font-weight:900;font-size:11px;white-space:nowrap;}}
-h2{{margin:0 0 9px 0;font-size:15px;line-height:1.1;}}
-.params-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px;}}
-.param-col{{border:1px solid #e5e7eb;border-radius:13px;overflow:hidden;background:#ffffff;}}
-table{{width:100%;border-collapse:collapse;font-size:10.7px;line-height:1.12;}}
-th{{text-align:left;color:#64748b;width:56%;padding:5px 7px;border-bottom:1px solid #e5e7eb;background:#f8fafc;font-weight:800;}}
-td{{font-weight:850;padding:5px 7px;border-bottom:1px solid #e5e7eb;word-break:break-word;}}
+h2{{margin:0 0 8px 0;font-size:14px;line-height:1.1;}}
+.param-table{{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e5e7eb;border-radius:13px;overflow:hidden;background:#ffffff;font-size:10px;line-height:1.08;}}
+th{{text-align:left;color:#475569;width:46%;padding:4.7px 7px;border-bottom:1px solid #e5e7eb;background:#f8fafc;font-weight:850;}}
+td{{font-weight:900;padding:4.7px 7px;border-bottom:1px solid #e5e7eb;word-break:break-word;color:#0f172a;}}
 tr:last-child th,tr:last-child td{{border-bottom:none;}}
-.footer{{margin-top:10px;font-size:10px;color:#94a3b8;font-weight:700;}}
+.footer{{margin-top:8px;font-size:9.5px;color:#94a3b8;font-weight:750;}}
 @media print{{
     body{{background:white;margin:0;}}
     .print-actions{{display:none;}}
     .sheet{{border:none;box-shadow:none;border-radius:0;padding:0;}}
-    .header{{margin-bottom:10px;padding:8px 0 8px 13px;}}
-    h1{{font-size:22px;}}
-    .subtitle{{font-size:11.5px;margin-top:4px;}}
-    .badge{{font-size:10px;padding:5px 9px;}}
-    h2{{font-size:13px;margin-bottom:7px;}}
-    .params-grid{{gap:8px;}}
-    table{{font-size:9.4px;line-height:1.04;}}
-    th,td{{padding:3.6px 5px;}}
-    .footer{{font-size:9px;margin-top:7px;}}
+    .header{{margin-bottom:8px;padding:6px 0 6px 12px;}}
+    h1{{font-size:20px;}}
+    .subtitle{{font-size:10.5px;margin-top:3px;}}
+    .badge{{font-size:9.5px;padding:4px 8px;}}
+    h2{{font-size:12px;margin-bottom:5px;}}
+    .param-table{{font-size:8.6px;line-height:1.00;}}
+    th,td{{padding:2.65px 4.5px;}}
+    .footer{{font-size:8.4px;margin-top:5px;}}
 }}
 </style>
 </head>
@@ -1793,8 +1785,8 @@ tr:last-child th,tr:last-child td{{border-bottom:none;}}
         <span class="badge">{html.escape(title)}</span>
     </div>
     <h2>{html.escape(section_title)}</h2>
-    <div class="params-grid">{tables_html}</div>
-    <div class="footer">Preset originale da Presets.csv · nessuna cattura render inclusa</div>
+    <table class="param-table">{rows_html}</table>
+    <div class="footer">{html.escape(footer)}</div>
 </main>
 </body>
 </html>"""
@@ -8088,12 +8080,6 @@ with tab_production:
         status_items,
     )
 
-    render_elegant_panel_open(
-        "Render 3D" if lang == "IT" else "3D render",
-        None,
-        selected_product,
-    )
-
     components.html(
         viewer(
             diametro_aspo,
@@ -8122,8 +8108,6 @@ with tab_production:
         ),
         height=720,
     )
-
-    render_elegant_panel_close()
 
     render_status_semaphore(status_items, lang)
 
