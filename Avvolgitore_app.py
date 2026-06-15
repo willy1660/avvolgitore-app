@@ -1621,18 +1621,18 @@ st.markdown(
     }
 
     [data-testid="stTabs"] [role="tablist"] {
-        gap: 24px;
+        gap: 28px;
         padding: 0 8px;
         background: transparent;
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-        margin-bottom: 20px;
+        margin-bottom: 22px;
         align-items: center;
     }
 
     [data-testid="stTabs"] button {
         font-weight: 780;
-        min-height: 48px;
-        padding: 0.45rem 0.15rem 0.60rem 0.15rem;
+        min-height: 50px;
+        padding: 0.50rem 0.18rem 0.64rem 0.18rem;
         border-radius: 0 !important;
         background: transparent !important;
         box-shadow: none !important;
@@ -1719,7 +1719,7 @@ st.markdown(
     }
 
     div[role="radiogroup"] {
-        gap: 0.85rem;
+        gap: 0.90rem;
         flex-wrap: wrap;
         align-items: stretch;
     }
@@ -1728,12 +1728,13 @@ st.markdown(
         background: var(--secondary-background-color);
         border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
         border-radius: 999px;
-        padding: 0.62rem 1.15rem;
-        min-height: 48px;
+        padding: 0.64rem 1.22rem;
+        min-height: 50px;
+        min-width: 108px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.075);
         transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
         box-sizing: border-box;
         position: relative;
@@ -1762,8 +1763,10 @@ st.markdown(
     div[role="radiogroup"] label p {
         width:100%;
         margin:0 !important;
+        padding:0 !important;
         display:block !important;
         text-align:center !important;
+        transform: translateY(0px);
     }
 
     /* Hide the default radio dot so the options look like real buttons */
@@ -1773,14 +1776,14 @@ st.markdown(
 
     div[role="radiogroup"] label:hover {
         transform: translateY(-1px);
-        border-color: color-mix(in srgb, var(--text-color) 34%, transparent);
-        box-shadow: 0 10px 18px rgba(0,0,0,0.10);
+        border-color: color-mix(in srgb, var(--text-color) 30%, transparent);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.10);
     }
 
     div[role="radiogroup"] label:has(input:checked) {
         background: #C57E5A;
         border-color: #C57E5A;
-        box-shadow: 0 0 0 2px rgba(197,126,90,0.34), 0 10px 20px rgba(0,0,0,0.18);
+        box-shadow: 0 0 0 2px rgba(197,126,90,0.30), 0 9px 19px rgba(0,0,0,0.16);
     }
 
     div[role="radiogroup"] label p {
@@ -1808,8 +1811,9 @@ st.markdown(
         }
 
         div[role="radiogroup"] label {
-            min-height: 48px;
-            padding: 0.62rem 1rem;
+            min-height: 50px;
+            min-width: 112px;
+            padding: 0.64rem 1.08rem;
         }
 
         div[role="radiogroup"] label p {
@@ -2414,18 +2418,18 @@ def viewer(
 
         .viewer_btn_small {{
             border:none;
-            border-radius:10px;
-            padding:7px 8px;
+            border-radius:11px;
+            padding:8px 9px;
             background:rgba(235,235,235,0.95);
             color:#111;
-            font-weight:800;
+            font-weight:850;
             font-size:12px;
             cursor:pointer;
             text-align:center;
             white-space:normal;
             overflow-wrap:anywhere;
             line-height:1.12;
-            min-height:38px;
+            min-height:42px;
             width:100%;
             box-sizing:border-box;
             display:flex;
@@ -2517,13 +2521,13 @@ def viewer(
         .btn_grid_2 {{
             display:grid;
             grid-template-columns:repeat(2, minmax(0, 1fr));
-            gap:6px;
+            gap:8px;
         }}
 
         .btn_grid_3 {{
             display:grid;
             grid-template-columns:repeat(3, minmax(0, 1fr));
-            gap:7px;
+            gap:8px;
         }}
 
         #viewer_sidepanel::-webkit-scrollbar {{
@@ -2552,15 +2556,18 @@ def viewer(
         }}
 
         .pack_roll_btn {{
-            min-height:40px !important;
+            min-height:42px !important;
             font-size:20px !important;
             line-height:1 !important;
             padding:0 !important;
+            display:flex !important;
+            align-items:center !important;
+            justify-content:center !important;
         }}
 
         #pack_roll_count {{
             width:100%;
-            min-height:40px;
+            min-height:42px;
             box-sizing:border-box;
             border:none;
             border-radius:10px;
@@ -5111,8 +5118,8 @@ def render_machine_parameter_groups(selected_row, language):
             font-weight:950;
         }
         .machine-card-native{
-            min-height:104px;
-            padding:14px 16px;
+            min-height:106px;
+            padding:15px 16px;
             border-radius:16px;
             border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
             background:linear-gradient(180deg,
