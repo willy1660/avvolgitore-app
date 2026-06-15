@@ -1100,40 +1100,49 @@ def make_preset_visual(row, language):
 
     coil_svg = f"""
     <svg viewBox="0 0 560 250" class="preview-svg" role="img" aria-label="Coiling layout">
-        <!-- Front view: spool seen from the front with the coil around it -->
-        <circle cx="190" cy="126" r="82" class="coil-outer"/>
-        <circle cx="190" cy="126" r="58" class="coil-inner"/>
-        <circle cx="190" cy="126" r="8" class="axis-dot"/>
+        <defs>
+            <linearGradient id="tubeGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#3e434b"/>
+                <stop offset="50%" stop-color="#1f2329"/>
+                <stop offset="100%" stop-color="#4a5059"/>
+            </linearGradient>
+            <linearGradient id="discGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#2d3138"/>
+                <stop offset="100%" stop-color="#0e1218"/>
+            </linearGradient>
+        </defs>
 
-        <!-- soft winding hints -->
-        <circle cx="190" cy="126" r="76" class="coil-ring-detail"/>
-        <circle cx="190" cy="126" r="70" class="coil-ring-detail"/>
-        <circle cx="190" cy="126" r="64" class="coil-ring-detail"/>
+        <!-- incoming tube -->
+        <line x1="18" y1="138" x2="118" y2="138" class="tube-line"/>
 
-        <!-- spool diameter -->
-        <line x1="132" y1="126" x2="248" y2="126" class="dim-line"/>
-        <line x1="132" y1="114" x2="132" y2="138" class="dim-line"/>
-        <line x1="248" y1="114" x2="248" y2="138" class="dim-line"/>
-        <text x="190" y="118" class="dim-label">Ø aspo</text>
-        <text x="190" y="144" class="dim-value">{fmt(aspo)} mm</text>
+        <!-- top and bottom spool discs -->
+        <ellipse cx="312" cy="48" rx="190" ry="14" fill="url(#discGrad)" stroke="#1b2027" stroke-width="1.4"/>
+        <ellipse cx="312" cy="194" rx="190" ry="14" fill="#8c9198" opacity="0.55" stroke="#50565e" stroke-width="1.2"/>
 
-        <!-- callout to pitch -->
-        <line x1="248" y1="86" x2="338" y2="70" class="leader"/>
-        <text x="356" y="68" class="label-title">{safe_text(labels['pitch'])}</text>
-        <text x="356" y="94" class="label-value">{fmt(passo)} mm</text>
+        <!-- wound tube turns -->
+        <line x1="154" y1="74" x2="470" y2="74" class="tube-line"/>
+        <line x1="150" y1="98" x2="474" y2="98" class="tube-line"/>
+        <line x1="148" y1="122" x2="476" y2="122" class="tube-line"/>
+        <line x1="150" y1="146" x2="474" y2="146" class="tube-line"/>
+        <line x1="154" y1="170" x2="470" y2="170" class="tube-line"/>
 
-        <!-- simple width / side schematic -->
-        <rect x="330" y="126" width="132" height="38" rx="18" class="coil-body"/>
-        <rect x="320" y="118" width="8" height="54" rx="4" class="flange"/>
-        <rect x="464" y="118" width="8" height="54" rx="4" class="flange"/>
-        <path d="M 340 138 C 368 134, 394 134, 422 138 S 446 142, 456 138" class="coil-stripe"/>
-        <path d="M 340 152 C 368 148, 394 148, 422 152 S 446 156, 456 152" class="coil-stripe"/>
+        <!-- dimension: spool diameter -->
+        <line x1="112" y1="48" x2="112" y2="194" class="dim-line-dark"/>
+        <line x1="100" y1="48" x2="124" y2="48" class="dim-line-dark"/>
+        <line x1="100" y1="194" x2="124" y2="194" class="dim-line-dark"/>
+        <text x="82" y="112" class="dim-label-dark vertical">Ø aspo</text>
+        <text x="98" y="112" class="dim-value-dark vertical">{fmt(aspo)} mm</text>
 
-        <line x1="320" y1="198" x2="472" y2="198" class="dim-line"/>
-        <line x1="320" y1="186" x2="320" y2="210" class="dim-line"/>
-        <line x1="472" y1="186" x2="472" y2="210" class="dim-line"/>
-        <text x="396" y="192" class="dim-value">{fmt(spalla)} mm</text>
-        <text x="396" y="220" class="dim-label">{safe_text(labels['width'])}</text>
+        <!-- dimension: width -->
+        <line x1="154" y1="226" x2="470" y2="226" class="dim-line-dark"/>
+        <line x1="154" y1="214" x2="154" y2="238" class="dim-line-dark"/>
+        <line x1="470" y1="214" x2="470" y2="238" class="dim-line-dark"/>
+        <text x="312" y="220" class="dim-value-dark">{fmt(spalla)} mm</text>
+        <text x="312" y="244" class="dim-label-dark">{safe_text(labels['width'])}</text>
+
+        <!-- pitch label -->
+        <text x="500" y="108" class="label-title-dark">{safe_text(labels['pitch'])}</text>
+        <text x="500" y="132" class="label-value-dark">{fmt(passo)} mm</text>
     </svg>
     """
 
@@ -1156,8 +1165,12 @@ def make_preset_visual(row, language):
         --preview-panel-2:rgba(18,22,27,0.25);
         --preview-copper:#C57E5A;
         --preview-copper-light:#E7B18F;
-        --preview-foam:rgba(226,232,240,0.16);
-        --preview-foam-stroke:rgba(226,232,240,0.74);
+        --preview-foam:#dfe4ea;
+        --preview-foam-stroke:#7d8794;
+        --preview-draw-bg-top:#f5f7fa;
+        --preview-draw-bg-bottom:#e8edf3;
+        --preview-dark:#111827;
+        --preview-dark-2:#4b5563;
     }}
     html, body {{
         margin:0; padding:0; background:transparent; color:#f8fafc;
@@ -1169,26 +1182,26 @@ def make_preset_visual(row, language):
     .preview-title {{ font-size:20px; line-height:1.05; font-weight:950; letter-spacing:-0.035em; color:#f8fafc; }}
     .preview-tag {{ flex:0 0 auto; min-height:30px; display:flex; align-items:center; justify-content:center; border-radius:999px; padding:0 12px; background:rgba(197,126,90,0.16); border:1px solid rgba(197,126,90,0.32); color:#f8fafc; font-size:12px; font-weight:900; letter-spacing:0.035em; }}
     .drawing-wrap {{ padding:14px 14px 0 14px; }}
-    .preview-svg {{ width:100%; height:248px; display:block; border-radius:18px; background:radial-gradient(circle at 50% 48%, rgba(197,126,90,0.05), transparent 58%); border:1px solid rgba(226,232,240,0.09); }}
+    .preview-svg {{ width:100%; height:250px; display:block; border-radius:18px; background:linear-gradient(180deg,var(--preview-draw-bg-top),var(--preview-draw-bg-bottom)); border:1px solid rgba(15,23,42,0.10); }}
     .foam-shape {{ fill:var(--preview-foam); stroke:var(--preview-foam-stroke); stroke-width:2.2; }}
     .copper-shape {{ fill:var(--preview-copper); stroke:rgba(126,67,36,0.92); stroke-width:1.8; }}
     .copper-highlight {{ fill:var(--preview-copper-light); opacity:0.82; }}
-    .dim-line {{ stroke:var(--preview-line); stroke-width:1.8; stroke-linecap:round; }}
-    .dim-guide, .leader {{ stroke:rgba(226,232,240,0.40); stroke-width:1.1; stroke-dasharray:4 5; fill:none; }}
-    .center-line {{ stroke:rgba(226,232,240,0.24); stroke-width:1.1; stroke-dasharray:5 6; }}
-    .dim-label {{ fill:var(--preview-muted); font-size:12px; font-weight:800; text-anchor:middle; letter-spacing:0.03em; }}
-    .dim-value {{ fill:#f8fafc; font-size:14px; font-weight:950; text-anchor:middle; }}
-    .dim-label-left {{ fill:var(--preview-muted); font-size:12px; font-weight:800; text-anchor:start; }}
-    .dim-value-left {{ fill:#f8fafc; font-size:14px; font-weight:950; text-anchor:start; }}
+    .dim-line, .dim-line-dark {{ stroke:var(--preview-dark-2); stroke-width:1.8; stroke-linecap:round; }}
+    .dim-guide, .leader {{ stroke:rgba(75,85,99,0.55); stroke-width:1.1; stroke-dasharray:4 5; fill:none; }}
+    .center-line {{ stroke:rgba(75,85,99,0.34); stroke-width:1.1; stroke-dasharray:5 6; }}
+    .dim-label, .dim-label-dark {{ fill:var(--preview-dark-2); font-size:12px; font-weight:800; text-anchor:middle; letter-spacing:0.03em; }}
+    .dim-value, .dim-value-dark {{ fill:var(--preview-dark); font-size:14px; font-weight:950; text-anchor:middle; }}
     .vertical {{ text-anchor:middle; dominant-baseline:middle; transform:rotate(-90deg); transform-origin:center; }}
-    .label-title {{ fill:rgba(226,232,240,0.60); font-size:12px; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; }}
-    .label-value {{ fill:#f8fafc; font-size:18px; font-weight:950; }}
-    .label-sub {{ fill:rgba(226,232,240,0.72); font-size:14px; font-weight:800; }}
-    .coil-body {{ fill:rgba(197,126,90,0.12); stroke:rgba(226,232,240,0.34); stroke-width:1.6; }}
-    .flange {{ fill:rgba(226,232,240,0.13); stroke:rgba(226,232,240,0.34); stroke-width:1.2; }}
-    .coil-stripe {{ fill:none; stroke:rgba(248,250,252,0.42); stroke-width:2; stroke-linecap:round; }}
-    .hub-ring {{ fill:rgba(15,23,42,0.62); stroke:rgba(226,232,240,0.45); stroke-width:2; }}
-    .axis-dot {{ fill:rgba(226,232,240,0.82); }}
+    .label-title {{ fill:#5b6573; font-size:12px; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; }}
+    .label-value {{ fill:#111827; font-size:18px; font-weight:950; }}
+    .label-sub {{ fill:#5b6573; font-size:14px; font-weight:800; }}
+    .label-title-dark {{ fill:#5b6573; font-size:12px; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; }}
+    .label-value-dark {{ fill:#111827; font-size:18px; font-weight:950; }}
+    .coil-body {{ fill:rgba(49,53,60,0.18); stroke:rgba(17,24,39,0.28); stroke-width:1.2; }}
+    .flange {{ fill:rgba(31,35,41,0.58); stroke:rgba(17,24,39,0.38); stroke-width:1.2; }}
+    .coil-stripe {{ fill:none; stroke:rgba(248,250,252,0.38); stroke-width:1.7; stroke-linecap:round; }}
+    .tube-line {{ stroke:url(#tubeGrad); stroke-width:20; stroke-linecap:round; }}
+    .preview-metrics {{ }}
     .metrics {{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:9px; padding:14px; }}
     .preview-metric {{ min-height:54px; border-radius:14px; padding:10px 11px; box-sizing:border-box; background:rgba(226,232,240,0.055); border:1px solid rgba(226,232,240,0.09); }}
     .preview-metric-label {{ display:block; font-size:10px; line-height:1.1; font-weight:900; letter-spacing:0.055em; text-transform:uppercase; color:rgba(226,232,240,0.52); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
@@ -6184,7 +6197,7 @@ with tab_tech_sheet:
             "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
             "A",
         )
-        components.html(make_preset_visual(selected_row, lang), height=560, scrolling=False)
+        components.html(make_preset_visual(selected_row, lang), height=590, scrolling=False)
 
     with machine_sheet_tab:
         render_section_header(
