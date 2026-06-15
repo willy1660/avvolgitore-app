@@ -1718,6 +1718,56 @@ st.markdown(
         border-radius: 18px !important;
     }
 
+    /* v110 · micro-interazioni eleganti */
+    .summary-strip,
+    .quick-card-v2,
+    .semaphore-card,
+    .tech-mini-card,
+    .machine-card-native,
+    .checklist-hero,
+    .elegant-panel {
+        transition:
+            transform 0.16s ease,
+            box-shadow 0.16s ease,
+            border-color 0.16s ease,
+            background 0.16s ease;
+    }
+
+    .summary-strip:hover,
+    .quick-card-v2:hover,
+    .semaphore-card:hover,
+    .tech-mini-card:hover,
+    .machine-card-native:hover,
+    .elegant-panel:hover {
+        transform: translateY(-1px);
+        border-color: color-mix(in srgb, var(--pdm-accent) 28%, var(--text-color) 10%);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+    }
+
+    .machine-card-native:hover,
+    .tech-mini-card:hover {
+        background: linear-gradient(180deg,
+            color-mix(in srgb, var(--secondary-background-color) 86%, var(--pdm-accent) 5%),
+            color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+        );
+    }
+
+    .quick-card-v2:hover .quick-topline {
+        opacity: 1;
+    }
+
+    [data-testid="stTabs"] button {
+        transition:
+            border-color 0.16s ease,
+            color 0.16s ease,
+            opacity 0.16s ease;
+    }
+
+    [data-testid="stTabs"] button:hover {
+        opacity: 0.86;
+        border-bottom-color: color-mix(in srgb, var(--pdm-accent) 45%, transparent) !important;
+    }
+
     div[role="radiogroup"] {
         gap: 0.90rem;
         flex-wrap: wrap;
@@ -1735,7 +1785,7 @@ st.markdown(
         align-items: center;
         justify-content: center;
         box-shadow: 0 6px 16px rgba(0,0,0,0.075);
-        transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+        transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, filter 0.16s ease;
         box-sizing: border-box;
         position: relative;
     }
@@ -1776,14 +1826,20 @@ st.markdown(
 
     div[role="radiogroup"] label:hover {
         transform: translateY(-1px);
-        border-color: color-mix(in srgb, var(--text-color) 30%, transparent);
-        box-shadow: 0 8px 18px rgba(0,0,0,0.10);
+        border-color: color-mix(in srgb, var(--pdm-accent) 45%, var(--text-color) 12%);
+        box-shadow: 0 9px 19px rgba(0,0,0,0.11);
+        filter: brightness(1.035);
     }
 
     div[role="radiogroup"] label:has(input:checked) {
         background: #C57E5A;
         border-color: #C57E5A;
         box-shadow: 0 0 0 2px rgba(197,126,90,0.30), 0 9px 19px rgba(0,0,0,0.16);
+    }
+
+    div[role="radiogroup"] label:has(input:checked):hover {
+        filter: brightness(1.08);
+        box-shadow: 0 0 0 2px rgba(197,126,90,0.38), 0 11px 22px rgba(0,0,0,0.18);
     }
 
     div[role="radiogroup"] label p {
@@ -1798,6 +1854,15 @@ st.markdown(
     }
 
     /* Better tablet spacing and readability */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            transition: none !important;
+            animation: none !important;
+        }
+    }
+
     @media (max-width: 1280px) {
         .main .block-container {
             max-width: 100%;
@@ -2490,9 +2555,16 @@ def viewer(
             border-radius:999px;
         }}
 
+        .viewer_btn_small,
+        .viewer_btn {{
+            transition: transform 0.14s ease, background 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+        }}
+
         .viewer_btn_small:hover,
         .viewer_btn:hover {{
             background:#ffffff;
+            transform:translateY(-1px);
+            box-shadow:0 8px 16px rgba(0,0,0,0.16);
         }}
 
         .active_speed,
@@ -2501,6 +2573,12 @@ def viewer(
             background:#C57E5A !important;
             color:#ffffff !important;
             box-shadow:0 0 0 2px rgba(197,126,90,0.35), 0 8px 18px rgba(0,0,0,0.18);
+        }}
+
+        .active_speed:hover,
+        .active_opt:hover {{
+            filter:brightness(1.08);
+            box-shadow:0 0 0 2px rgba(197,126,90,0.42), 0 10px 20px rgba(0,0,0,0.20);
         }}
 
         .panel_label {{
@@ -5660,6 +5738,15 @@ def render_startup_checklist(language):
             letter-spacing:0.06em;
             text-transform:uppercase;
             color:color-mix(in srgb, var(--text-color) 72%, transparent);
+        }}
+        div[data-testid="stCheckbox"] label {{
+            transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+            border-radius:12px;
+            padding:4px 6px;
+        }}
+        div[data-testid="stCheckbox"] label:hover {{
+            background:color-mix(in srgb, var(--pdm-accent) 8%, transparent);
+            transform:translateX(1px);
         }}
         </style>
         <div class="checklist-hero">
