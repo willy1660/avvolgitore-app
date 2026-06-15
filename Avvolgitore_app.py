@@ -372,8 +372,8 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
             );
             border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent);
             border-radius: 18px;
-            padding: 18px 20px;
-            min-height: 128px;
+            padding: 16px 18px;
+            min-height: 126px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -525,8 +525,8 @@ def render_summary_cards(title, items, cards_per_row=4):
             );
             border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent);
             border-radius: 18px;
-            padding: 18px 20px;
-            min-height: 128px;
+            padding: 16px 18px;
+            min-height: 126px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -2028,7 +2028,195 @@ st.markdown(
         div[data-baseweb="select"] > div {
             min-height: 46px;
         }
+
     }
+
+    /* v135 · harmonia visual final: grids, cards, microtipografia */
+    .summary-card,
+    .preset-param-card,
+    .quick-card-v2,
+    .semaphore-card,
+    .tech-mini-card,
+    .machine-card-native,
+    .preview-metric {
+        border-radius: 18px !important;
+        border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent) !important;
+        background: linear-gradient(180deg,
+            color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+            color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+        ) !important;
+        box-shadow: 0 7px 18px rgba(0,0,0,0.055) !important;
+    }
+
+    .summary-card,
+    .preset-param-card,
+    .quick-card-v2,
+    .semaphore-card,
+    .tech-mini-card,
+    .machine-card-native {
+        min-height: 126px !important;
+        padding: 16px 18px !important;
+    }
+
+    .tech-mini-card,
+    .machine-card-native {
+        min-height: 104px !important;
+    }
+
+    .summary-label,
+    .preset-param-label,
+    .quick-label-v2,
+    .semaphore-label,
+    .tech-mini-label,
+    .machine-card-label-native,
+    .preview-metric-label {
+        font-size: 11px !important;
+        line-height: 1.08 !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.055em !important;
+        text-transform: uppercase !important;
+        color: color-mix(in srgb, var(--text-color) 60%, transparent) !important;
+        margin-bottom: 7px !important;
+    }
+
+    .summary-value,
+    .preset-param-value,
+    .quick-value-v2,
+    .semaphore-value,
+    .tech-mini-value,
+    .machine-card-value-native,
+    .preview-metric-value {
+        font-weight: 950 !important;
+        line-height: 1.04 !important;
+        letter-spacing: -0.022em !important;
+        color: var(--text-color) !important;
+    }
+
+    .summary-value,
+    .preset-param-value {
+        font-size: clamp(22px, 1.75vw, 30px) !important;
+    }
+
+    .quick-value-v2,
+    .semaphore-value,
+    .tech-mini-value,
+    .machine-card-value-native {
+        font-size: clamp(19px, 1.32vw, 24px) !important;
+    }
+
+    .summary-note,
+    .quick-note-v2,
+    .semaphore-note {
+        margin-top: 7px !important;
+        font-size: 12px !important;
+        line-height: 1.24 !important;
+        font-weight: 650 !important;
+        color: color-mix(in srgb, var(--text-color) 62%, transparent) !important;
+    }
+
+    .summary-card::before,
+    .preset-param-card::before {
+        width: 4px !important;
+        background: var(--pdm-accent) !important;
+        opacity: 0.88 !important;
+    }
+
+    .quick-grid-v2,
+    .semaphore-grid,
+    .tech-mini-grid {
+        gap: 12px !important;
+    }
+
+    .pdm-action-bar,
+    .summary-strip,
+    .section-header,
+    .workflow-step,
+    .elegant-panel,
+    .checklist-hero {
+        border-radius: 18px !important;
+        border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent) !important;
+        background: linear-gradient(180deg,
+            color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+            color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+        ) !important;
+        box-shadow: 0 7px 18px rgba(0,0,0,0.055) !important;
+    }
+
+    .pdm-action-bar,
+    .summary-strip {
+        padding: 16px 18px !important;
+        margin: 12px 0 18px 0 !important;
+    }
+
+    .workflow-bar {
+        gap: 12px !important;
+        margin: 12px 0 20px 0 !important;
+    }
+
+    .workflow-step {
+        min-height: 74px !important;
+    }
+
+    .workflow-title,
+    .pdm-action-title,
+    .section-title {
+        letter-spacing: -0.018em !important;
+    }
+
+    .workflow-subtitle,
+    .pdm-action-sub,
+    .section-subtitle {
+        font-size: 12.5px !important;
+        line-height: 1.25 !important;
+    }
+
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="select"] > div {
+        border-radius: 14px !important;
+        min-height: 46px !important;
+        border-color: color-mix(in srgb, var(--text-color) 16%, transparent) !important;
+        background: color-mix(in srgb, var(--secondary-background-color) 92%, var(--background-color)) !important;
+    }
+
+    div[data-baseweb="input"] input {
+        font-weight: 800 !important;
+    }
+
+    div[data-testid="stSelectbox"] > label,
+    div[data-testid="stNumberInput"] > label,
+    div[data-testid="stRadio"] > label {
+        font-size: 12px !important;
+        line-height: 1.15 !important;
+        font-weight: 850 !important;
+        color: color-mix(in srgb, var(--text-color) 68%, transparent) !important;
+        letter-spacing: 0.01em !important;
+    }
+
+    .stButton > button {
+        border-radius: 999px !important;
+        min-height: 46px !important;
+        font-weight: 900 !important;
+    }
+
+    .section-badge,
+    .workflow-num {
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+        font-size: 14px !important;
+        box-shadow: 0 5px 13px rgba(197,126,90,0.24) !important;
+    }
+
+    [data-testid="stTabs"] [role="tablist"] {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    iframe {
+        border-radius: 18px !important;
+        border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent) !important;
+    }
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -5141,7 +5329,7 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
             overflow:hidden;
             border-radius:20px;
             padding:18px 20px 16px 20px;
-            min-height:128px;
+            min-height:126px;
             background:linear-gradient(180deg,
                 color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
