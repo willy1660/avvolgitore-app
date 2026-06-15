@@ -1449,140 +1449,213 @@ def modified_field_labels(language):
 
 
 def make_preset_export_html(product_name, selected_row, language, status_items=None):
-    snapshot = current_calculator_snapshot()
-    modified = bool(st.session_state.get("preset_values_modified", False))
-    field_labels = FIELD_LABELS_IT if language == "IT" else FIELD_LABELS_EN
+    # Export dedicato alla stampa/PDF: usa SOLO i parametri del preset CSV.
+    # Non include valori temporanei del calcolatore né risultati della simulazione.
+    title = "Scheda parametri preset" if language == "IT" else "Preset parameter sheet"
+    print_hint = "Ottimizzata per stampa/PDF A4 verticale · tutti i parametri del preset" if language == "IT" else "Optimized for vertical A4 print/PDF · all preset parameters"
 
-    title = "Scheda preset avvolgimento" if language == "IT" else "Winding preset sheet"
-    modified_label = "Sì" if modified and language == "IT" else ("Yes" if modified else ("No" if language != "IT" else "No"))
-    print_hint = "Ottimizzata per stampa/PDF A4 · 1 pagina" if language == "IT" else "Optimized for A4 print/PDF · 1 page"
-
-    key_order = [
-        "calc_tube_layout",
-        "calc_rame",
-        "calc_spessore",
-        "calc_rame_sup",
-        "calc_spessore_sup",
-        "calc_rame_inf",
-        "calc_spessore_inf",
-        "calc_lunghezza",
-        "calc_diametro_aspo",
-        "calc_spalla",
-        "calc_passo_visuale",
-        "calc_incremento_visuale",
-        "calc_rit_b",
-        "calc_rit_t",
-    ]
-
-    rows = []
-    for key in key_order:
-        label = field_labels.get(key, key)
-        value = snapshot.get(key, "-")
-        # Hide double-only fields when the current preset is single, and vice versa.
-        if str(snapshot.get("calc_tube_layout", "Singolo")).lower() == "singolo" and key in {
-            "calc_rame_sup", "calc_spessore_sup", "calc_rame_inf", "calc_spessore_inf"
-        }:
+    # Mantiene l'ordine originale delle colonne del CSV e include tutti i parametri con valore.
+    preset_pairs = []
+    for col in selected_row.index:
+        val = safe_value(selected_row, col)
+        if str(val).strip() == "" or str(val).strip() == "-":
             continue
-        if str(snapshot.get("calc_tube_layout", "Singolo")).lower() == "doppio" and key in {"calc_rame", "calc_spessore"}:
-            continue
-        rows.append(f"<tr><th>{html.escape(str(label))}</th><td>{html.escape(format_preset_value(value))}</td></tr>")
+        preset_pairs.append((str(col), str(val)))
 
-    csv_priority = [
-        "Prodotto",
-        "Tipo tubo",
-        "Diametro Rame",
-        "Spessore Guaina (mm)",
-        "Diametro esterno Guaina (mm)",
-        "Diametro rame superiore",
-        "Spessore guaina superiore",
-        "Diametro rame inferiore",
-        "Spessore guaina inferiore",
-        "Lunghezza (m)",
-        "Diametro aspo (mm)",
-        "Spalla (mm)",
-        "Passo (mm)",
-        "Incremento strato (mm)",
-        "Rulli avvolgitore (mm)",
-        "Paleta ferma coda (mm)",
-        "Soffiatori aria (mm)",
-    ]
-    source_rows = []
-    for col in csv_priority:
-        if col in selected_row.index:
-            val = safe_value(selected_row, col)
-            if val != "-":
-                source_rows.append(f"<tr><th>{html.escape(str(col))}</th><td>{html.escape(str(val))}</td></tr>")
+    total_params = len(preset_pairs)
 
-    status_html = ""
-    if status_items:
-        cards = []
-        for item in status_items[:3]:
-            cards.append(
-                f"<div class='status'><b>{html.escape(str(item.get('label','')))}</b>"
-                f"<span>{html.escape(str(item.get('value','')))}</span>"
-                f"<small>{html.escape(str(item.get('note','')))}</small></div>"
+    # Tabella compatta: 3 coppie parametro/valore per riga per sfruttare tutta l'altezza A4 senza simulazione.
+    table_rows = []
+    for i in range(0, len(preset_pairs), 3):
+        chunk = preset_pairs[i:i + 3]
+        cells = []
+        for label, value in chunk:
+            cells.append(
+                f"<td class='param'><div class='label'>{html.escape(label)}</div>"
+                f"<div class='value'>{html.escape(value)}</div></td>"
             )
-        status_html = "<div class='statusgrid'>" + "".join(cards) + "</div>"
+        while len(cells) < 3:
+            cells.append("<td class='param empty'></td>")
+        table_rows.append("<tr>" + "".join(cells) + "</tr>")
+
+    table_html = "".join(table_rows)
 
     return f"""<!doctype html>
-<html lang=\"{html.escape(language.lower())}\">
+<html lang="{html.escape(language.lower())}">
 <head>
-<meta charset=\"utf-8\">
-<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(str(product_name))} · {html.escape(title)}</title>
 <style>
-@page{{size:A4 portrait;margin:8mm;}}
+@page{{size:A4 portrait;margin:7mm;}}
 *{{box-sizing:border-box;}}
 html,body{{margin:0;padding:0;}}
-body{{font-family:Inter,Arial,sans-serif;color:#111827;background:#ffffff;font-size:10.5px;line-height:1.22;}}
-.sheet{{width:100%;max-width:194mm;margin:0 auto;}}
-.header{{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-left:5px solid #C57E5A;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-left-width:5px;border-radius:12px;}}
-h1{{margin:0;font-size:21px;line-height:1.05;letter-spacing:-0.02em;}}
-.subtitle{{margin-top:4px;color:#64748b;font-weight:800;font-size:10.5px;}}
-.badges{{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}}
-.badge{{display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;background:#C57E5A;color:white;font-weight:900;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;}}
-.badge.light{{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}}
-.statusgrid{{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px;}}
-.status{{border:1px solid #e5e7eb;border-radius:10px;padding:8px 9px;background:#fff;min-height:58px;}}
-.status b{{display:block;color:#64748b;font-size:8.5px;text-transform:uppercase;letter-spacing:.06em;}}
-.status span{{display:block;font-size:15px;font-weight:950;margin-top:3px;}}
-.status small{{display:block;color:#64748b;margin-top:3px;font-size:8.5px;line-height:1.15;}}
-.grid{{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}}
-.card{{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px;}}
-h2{{margin:0 0 6px 0;font-size:13px;line-height:1.1;}}
-table{{width:100%;border-collapse:collapse;table-layout:fixed;}}
-th{{text-align:left;color:#64748b;width:48%;padding:4.5px 5px;border-bottom:1px solid #eef2f7;font-size:9.3px;font-weight:800;}}
-td{{font-weight:900;padding:4.5px 5px;border-bottom:1px solid #eef2f7;font-size:10.2px;word-break:break-word;}}
-.footer{{display:flex;justify-content:space-between;margin-top:8px;color:#64748b;font-size:8.5px;font-weight:700;}}
-.no-print{{margin:10px 0 12px 0;padding:8px 10px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-weight:800;}}
+body{{
+  font-family:Inter,Arial,sans-serif;
+  color:#111827;
+  background:#ffffff;
+  font-size:9.2px;
+  line-height:1.16;
+}}
+.sheet{{
+  width:100%;
+  max-width:196mm;
+  min-height:283mm;
+  margin:0 auto;
+  display:flex;
+  flex-direction:column;
+}}
+.no-print{{
+  margin:0 0 6px 0;
+  padding:6px 8px;
+  border-radius:9px;
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  color:#9a3412;
+  font-weight:850;
+  font-size:8.5px;
+}}
+.header{{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px 11px;
+  border-radius:12px;
+  border:1px solid #e5e7eb;
+  border-left:5px solid #C57E5A;
+  background:#fff;
+  flex:0 0 auto;
+}}
+h1{{
+  margin:0;
+  font-size:20px;
+  line-height:1.02;
+  letter-spacing:-0.025em;
+}}
+.subtitle{{
+  margin-top:4px;
+  color:#64748b;
+  font-size:9px;
+  font-weight:850;
+}}
+.badges{{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}}
+.badge{{
+  display:inline-flex;
+  align-items:center;
+  min-height:22px;
+  padding:0 9px;
+  border-radius:999px;
+  background:#C57E5A;
+  color:white;
+  font-weight:950;
+  font-size:8.4px;
+  letter-spacing:.045em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}}
+.badge.light{{
+  background:#f1f5f9;
+  color:#334155;
+  border:1px solid #e2e8f0;
+}}
+.content{{
+  margin-top:7px;
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+}}
+.params-table{{
+  width:100%;
+  height:100%;
+  border-collapse:separate;
+  border-spacing:5px;
+  table-layout:fixed;
+}}
+.param{{
+  vertical-align:top;
+  border:1px solid #e5e7eb;
+  border-radius:9px;
+  background:#fff;
+  padding:6px 7px;
+  height:37px;
+  overflow:hidden;
+}}
+.param.empty{{
+  border:0;
+  background:transparent;
+}}
+.label{{
+  color:#64748b;
+  font-size:7.6px;
+  line-height:1.05;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}}
+.value{{
+  margin-top:4px;
+  color:#111827;
+  font-size:10.2px;
+  line-height:1.08;
+  font-weight:950;
+  overflow-wrap:anywhere;
+}}
+.footer{{
+  margin-top:6px;
+  padding-top:5px;
+  border-top:1px solid #e5e7eb;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  color:#64748b;
+  font-size:8px;
+  font-weight:800;
+  flex:0 0 auto;
+}}
 @media print{{
   body{{background:white;}}
   .no-print{{display:none!important;}}
-  .sheet{{max-width:none;}}
-  .header,.card,.status{{box-shadow:none;}}
-  .grid,.statusgrid{{break-inside:avoid;page-break-inside:avoid;}}
+  .sheet{{max-width:none;min-height:auto;}}
+  .header,.param{{box-shadow:none;}}
+  .params-table{{break-inside:auto;page-break-inside:auto;}}
+  tr,.param{{break-inside:avoid;page-break-inside:avoid;}}
 }}
 </style>
 </head>
 <body>
-<div class=\"sheet\">
-<div class=\"no-print\">{html.escape(print_hint)} — dal browser usa Stampa / Salva come PDF.</div>
-<div class=\"header\">
-  <div>
-    <h1>{html.escape(str(product_name))}</h1>
-    <div class=\"subtitle\">{html.escape(title)}</div>
+<div class="sheet">
+  <div class="no-print">{html.escape(print_hint)} — dal browser usa Stampa / Salva come PDF.</div>
+
+  <div class="header">
+    <div>
+      <h1>{html.escape(str(product_name))}</h1>
+      <div class="subtitle">{html.escape(title)}</div>
+    </div>
+    <div class="badges">
+      <span class="badge">{html.escape(str(total_params))} parametri</span>
+      <span class="badge light">A4 verticale</span>
+    </div>
   </div>
-  <div class=\"badges\">
-    <span class=\"badge\">Modificato: {html.escape(modified_label)}</span>
-    <span class=\"badge light\">A4 · 1 pagina</span>
+
+  <div class="content">
+    <table class="params-table">
+      {table_html}
+    </table>
   </div>
-</div>
-{status_html}
-<div class=\"grid\">
-  <div class=\"card\"><h2>Valori calcolatore</h2><table>{''.join(rows)}</table></div>
-  <div class=\"card\"><h2>Valori preset CSV</h2><table>{''.join(source_rows)}</table></div>
-</div>
-<div class=\"footer\"><span>{html.escape(str(product_name))}</span><span>{html.escape(print_hint)}</span></div>
+
+  <div class="footer">
+    <span>{html.escape(str(product_name))}</span>
+    <span>{html.escape(print_hint)}</span>
+  </div>
 </div>
 </body>
 </html>"""
@@ -1711,7 +1784,7 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
     with b3:
         export_html = make_preset_export_html(selected_product, selected_row, language, status_items=status_items)
         st.download_button(
-            "Scarica scheda stampa/PDF" if language == "IT" else "Download print/PDF sheet",
+            "Scarica parametri preset" if language == "IT" else "Download preset parameters",
             data=export_html,
             file_name=f"scheda_preset_{str(selected_product).replace(' ', '_').replace('/', '-')}.html",
             mime="text/html",
