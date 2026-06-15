@@ -917,470 +917,553 @@ def tube_outer_diameter(rame, spessore):
 
 
 def make_preset_visual(row, language):
-    rame = safe_value(row, "Diametro Rame")
-    d_rame = COPPER_SIZES_MM.get(str(rame), parse_float_value(row.get("Diametro Rame", 0.0), 0.0))
-    spessore = parse_float_value(row.get("Spessore Guaina (mm)", 0.0), 0.0)
-    d_tubo = parse_float_value(row.get("Diametro esterno Guaina (mm)", d_rame + 2.0 * spessore), d_rame + 2.0 * spessore)
-    lunghezza = parse_float_value(row.get("Lunghezza (m)", 0.0), 0.0)
-    aspo = parse_float_value(row.get("Diametro aspo (mm)", 0.0), 0.0)
-    spalla = parse_float_value(row.get("Spalla (mm)", 0.0), 0.0)
-    passo = parse_float_value(row.get("Passo (mm)", 0.0), 0.0)
-    incremento = parse_float_value(row.get("Incremento strato (mm)", 0.0), 0.0)
-    velocita_linea = parse_float_value(row.get("Velocita linea (m/min)", 0.0), 0.0)
-    soffiatori = safe_value(row, "Soffiatori aria (mm)")
-    rulli = safe_value(row, "Rulli avvolgitore (mm)")
+    def raw_value(*names, default="-"):
+        for name in names:
+            if name in row.index:
+                value = safe_value(row, name)
+                if value != "-":
+                    return value
+        return default
+
+    def number(*names, default=0.0):
+        value = raw_value(*names, default=default)
+        return parse_float_value(value, default)
+
+    def fmt(value):
+        return html.escape(format_preset_value(value))
+
+    def safe_text(value):
+        return html.escape(str(value))
+
+    tipo_tubo = str(raw_value("Tipo tubo", default="Singolo")).strip().lower()
+    is_doppio = tipo_tubo == "doppio"
+
+    rame = raw_value("Diametro Rame")
+    d_rame = COPPER_SIZES_MM.get(str(rame), parse_float_value(rame, 0.0))
+    spessore = number("Spessore Guaina (mm)", default=0.0)
+    d_tubo = number("Diametro esterno Guaina (mm)", default=d_rame + 2.0 * spessore)
+
+    lunghezza = number("Lunghezza (m)", default=0.0)
+    aspo = number("Diametro aspo (mm)", default=0.0)
+    spalla = number("Spalla (mm)", default=0.0)
+    passo = number("Passo (mm)", default=0.0)
+    velocita_linea = number("Velocita linea (m/min)", default=0.0)
+    soffiatori = raw_value("Soffiatori aria (mm)")
+    rulli = raw_value("Rulli avvolgitore (mm)")
     if rulli == "-":
-        rulli = safe_value(row, "Rulli convogliatore (mm)")
-    paletta = safe_value(row, "Paleta ferma coda (mm)")
+        rulli = raw_value("Rulli convogliatore (mm)")
+    paletta = raw_value("Paleta ferma coda (mm)")
 
     labels = {
         "IT": {
-            "tube_section": "Anteprima tecnica · Sezione tubo",
-            "coil": "Anteprima tecnica · Schema avvolgimento",
+            "section_title": "Sezione tubo",
+            "section_kicker": "Anteprima tecnica",
+            "coil_title": "Schema avvolgimento",
+            "coil_kicker": "Vista tecnica",
+            "single": "Singolo",
+            "double": "Doppio",
+            "upper": "Superiore",
+            "lower": "Inferiore",
             "copper": "Rame",
             "foam": "Guaina",
             "outer": "Ø esterno",
+            "foam_thickness": "Spessore guaina",
             "length": "Lunghezza",
             "line_speed": "Velocità linea",
-            "air": "Soffiatori aria",
+            "air": "Soffiatori",
             "spool": "Ø aspo",
             "width": "Spalla",
             "pitch": "Passo",
-            "layer": "Incremento strato",
             "rollers": "Rulli",
-            "tail": "Paletta ferma coda",
-            "tube_note": "Sezione 2D semplificata del tubo isolato",
-            "coil_note": "Vista laterale 2D del rotolo avvolto",
-            "outer_dim": "Diametro esterno",
-            "insulation": "Spessore guaina",
+            "tail": "Paletta",
+            "front": "Vista frontale",
+            "side": "Vista laterale",
+            "double_note": "Doppio verticale · tubo grande sotto",
         },
         "EN": {
-            "tube_section": "Technical preview · Tube section",
-            "coil": "Technical preview · Coiling layout",
+            "section_title": "Tube section",
+            "section_kicker": "Technical preview",
+            "coil_title": "Coiling layout",
+            "coil_kicker": "Technical view",
+            "single": "Single",
+            "double": "Double",
+            "upper": "Upper",
+            "lower": "Lower",
             "copper": "Copper",
             "foam": "Foam",
             "outer": "Outer Ø",
+            "foam_thickness": "Foam thickness",
             "length": "Length",
             "line_speed": "Line speed",
             "air": "Air blowers",
             "spool": "Spool Ø",
             "width": "Width",
             "pitch": "Pitch",
-            "layer": "Layer increment",
             "rollers": "Rollers",
-            "tail": "Tail stop paddle",
-            "tube_note": "Simplified 2D section of the insulated tube",
-            "coil_note": "2D side view of the wound coil",
-            "outer_dim": "Outer diameter",
-            "insulation": "Foam thickness",
+            "tail": "Tail stop",
+            "front": "Front view",
+            "side": "Side view",
+            "double_note": "Vertical double · large tube below",
         },
     }[language]
 
-    extra_labels = {
-        "IT": {
-            "upper": "Superiore",
-            "lower": "Inferiore",
-            "double_note": "Doppio verticale · grande sotto, piccolo sopra",
-            "type": "Tipo tubo",
-            "double": "Doppio",
-        },
-        "EN": {
-            "upper": "Upper",
-            "lower": "Lower",
-            "double_note": "Vertical double · large below, small above",
-            "type": "Tube type",
-            "double": "Double",
-        },
-    }[language]
-
-    def v(value):
-        return html.escape(format_preset_value(value))
-
-    def metric_html(label, value, suffix=""):
-        formatted = format_preset_value(value).strip() if value is not None else "-"
-        if formatted in {"", "-"}:
+    def metric(label, value, suffix=""):
+        value_text = format_preset_value(value).strip() if value is not None else "-"
+        if value_text in {"", "-"}:
             return ""
-        return f'<div class="metric"><span class="label">{html.escape(str(label))}</span><span class="value">{html.escape(formatted + suffix)}</span></div>'
-
-    copper_label = html.escape(str(rame))
-    line_speed_label = f"{v(velocita_linea)} m/min"
-    soffiatori_label = html.escape(str(soffiatori))
-    if soffiatori_label != "-" and "mm" not in soffiatori_label.lower():
-        soffiatori_label += " mm"
-    rulli_label = html.escape(str(rulli))
-    if rulli_label != "-" and "mm" not in rulli_label.lower():
-        rulli_label += " mm"
-    paletta_label = html.escape(str(paletta))
-    if paletta_label != "-" and "mm" not in paletta_label.lower():
-        paletta_label += " mm"
-
-
-    tipo_tubo = str(row.get("Tipo tubo", "Singolo")).strip().lower()
-    is_doppio_preview = tipo_tubo == "doppio"
-
-    if is_doppio_preview:
-        rame_inf = str(first_existing_value(row, ["Diametro rame inferiore", "Diametro Rame inferiore"], "3/8")).strip()
-        rame_sup = str(first_existing_value(row, ["Diametro rame superiore", "Diametro Rame superiore"], "1/4")).strip()
-
-        spessore_inf = parse_float_value(first_existing_value(row, ["Spessore guaina inferiore", "Spessore Guaina inferiore (mm)"], 0.0), 0.0)
-        spessore_sup = parse_float_value(first_existing_value(row, ["Spessore guaina superiore", "Spessore Guaina superiore (mm)"], 0.0), 0.0)
-
-        d_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0)) + 2.0 * spessore_inf
-        d_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0)) + 2.0 * spessore_sup
-        d_coppia = d_inf + d_sup
-
-        # SVG scale: keep the preview readable independently from real dimensions.
-        r_inf_svg = 50.0
-        r_sup_svg = max(22.0, min(46.0, r_inf_svg * (d_sup / max(d_inf, 1e-9))))
-        cy_inf = 135.0
-        cy_sup = cy_inf - r_inf_svg - r_sup_svg
-        cx_pair = 122.0
-
-        tube_section_html = f"""
-            <div class="drawing">
-                <svg viewBox="0 0 340 260" role="img" aria-label="Double tube section preview">
-                    <line x1="32" y1="{cy_sup:.1f}" x2="200" y2="{cy_sup:.1f}" class="d-center"/>
-                    <line x1="32" y1="{cy_inf:.1f}" x2="200" y2="{cy_inf:.1f}" class="d-center"/>
-                    <line x1="{cx_pair:.1f}" y1="20" x2="{cx_pair:.1f}" y2="206" class="d-center"/>
-
-                    <circle cx="{cx_pair}" cy="{cy_inf}" r="{r_inf_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
-                    <circle cx="{cx_pair}" cy="{cy_inf}" r="{max(16, r_inf_svg * 0.36):.1f}" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.4"/>
-                    <circle cx="{cx_pair}" cy="{cy_inf}" r="{max(10, r_inf_svg * 0.24):.1f}" fill="var(--copper-light)" opacity="0.95"/>
-
-                    <circle cx="{cx_pair}" cy="{cy_sup}" r="{r_sup_svg}" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
-                    <circle cx="{cx_pair}" cy="{cy_sup}" r="{max(13, r_sup_svg * 0.36):.1f}" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.4"/>
-                    <circle cx="{cx_pair}" cy="{cy_sup}" r="{max(8, r_sup_svg * 0.24):.1f}" fill="var(--copper-light)" opacity="0.95"/>
-
-                    <line x1="197" y1="{cy_sup-r_sup_svg:.1f}" x2="197" y2="{cy_inf+r_inf_svg:.1f}" class="d-line"/>
-                    <line x1="{cx_pair+r_sup_svg:.1f}" y1="{cy_sup-r_sup_svg:.1f}" x2="197" y2="{cy_sup-r_sup_svg:.1f}" class="d-guide"/>
-                    <line x1="{cx_pair+r_inf_svg:.1f}" y1="{cy_inf+r_inf_svg:.1f}" x2="197" y2="{cy_inf+r_inf_svg:.1f}" class="d-guide"/>
-                    <text x="207" y="{(cy_sup + cy_inf) / 2:.1f}" transform="rotate(90 207 {(cy_sup + cy_inf) / 2:.1f})" text-anchor="middle" class="d-value">{format_preset_value(d_coppia)} mm</text>
-
-                    <rect x="222" y="42" width="102" height="44" class="callout-box"/>
-                    <text x="273" y="60" text-anchor="middle" class="d-label">{html.escape(extra_labels['upper'])}</text>
-                    <text x="273" y="79" text-anchor="middle" class="d-value">{html.escape(str(rame_sup))} · {format_preset_value(d_sup)} mm</text>
-
-                    <rect x="222" y="144" width="102" height="44" class="callout-box"/>
-                    <text x="273" y="162" text-anchor="middle" class="d-label">{html.escape(extra_labels['lower'])}</text>
-                    <text x="273" y="181" text-anchor="middle" class="d-value">{html.escape(str(rame_inf))} · {format_preset_value(d_inf)} mm</text>
-
-                    <text x="122" y="248" text-anchor="middle" class="d-caption">{html.escape(extra_labels['double_note'])}</text>
-                </svg>
-            </div>
+        return f"""
+        <div class="preview-metric">
+            <div class="preview-metric-label">{html.escape(str(label))}</div>
+            <div class="preview-metric-value">{html.escape(value_text + suffix)}</div>
+        </div>
         """
 
-        tube_metrics_rows = "".join([
-            metric_html("Tipo tubo", "Doppio"),
-            metric_html("Inferiore", f"{rame_inf} · {format_preset_value(d_inf)} mm"),
-            metric_html("Superiore", f"{rame_sup} · {format_preset_value(d_sup)} mm"),
-            metric_html("Altezza coppia", d_coppia, " mm"),
-            metric_html(labels['length'], lunghezza, " m"),
-            metric_html(labels['line_speed'], velocita_linea, " m/min"),
+    def value_with_mm(value):
+        text_value = str(value).strip()
+        if text_value in {"", "-"}:
+            return "-"
+        if "mm" not in text_value.lower():
+            text_value += " mm"
+        return text_value
+
+    # ---------- Tube section SVG ----------
+    if is_doppio:
+        rame_inf = str(raw_value("Diametro rame inferiore", "Diametro Rame inferiore", default="3/8")).strip()
+        rame_sup = str(raw_value("Diametro rame superiore", "Diametro Rame superiore", default="1/4")).strip()
+        spessore_inf = number("Spessore guaina inferiore", "Spessore Guaina inferiore (mm)", default=0.0)
+        spessore_sup = number("Spessore guaina superiore", "Spessore Guaina superiore (mm)", default=0.0)
+
+        d_rame_inf = COPPER_SIZES_MM.get(str(rame_inf), parse_float_value(rame_inf, 0.0))
+        d_rame_sup = COPPER_SIZES_MM.get(str(rame_sup), parse_float_value(rame_sup, 0.0))
+        d_inf = d_rame_inf + 2.0 * spessore_inf
+        d_sup = d_rame_sup + 2.0 * spessore_sup
+        d_pair = d_inf + d_sup
+
+        r_inf = 46.0
+        r_sup = max(24.0, min(42.0, r_inf * d_sup / max(d_inf, 1e-9)))
+        cx = 128.0
+        cy_inf = 154.0
+        cy_sup = cy_inf - r_inf - r_sup
+
+        copper_inf = max(12.0, r_inf * d_rame_inf / max(d_inf, 1e-9) / 2.0)
+        copper_sup = max(10.0, r_sup * d_rame_sup / max(d_sup, 1e-9) / 2.0)
+
+        tube_svg = f"""
+        <svg viewBox="0 0 420 270" class="preview-svg" role="img" aria-label="Double tube section">
+            <line x1="48" y1="{cy_sup:.1f}" x2="210" y2="{cy_sup:.1f}" class="center-line"/>
+            <line x1="48" y1="{cy_inf:.1f}" x2="210" y2="{cy_inf:.1f}" class="center-line"/>
+            <line x1="{cx:.1f}" y1="30" x2="{cx:.1f}" y2="222" class="center-line"/>
+
+            <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{r_inf:.1f}" class="foam-shape"/>
+            <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{copper_inf:.1f}" class="copper-shape"/>
+            <circle cx="{cx:.1f}" cy="{cy_inf:.1f}" r="{max(6, copper_inf * 0.55):.1f}" class="copper-highlight"/>
+
+            <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{r_sup:.1f}" class="foam-shape"/>
+            <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{copper_sup:.1f}" class="copper-shape"/>
+            <circle cx="{cx:.1f}" cy="{cy_sup:.1f}" r="{max(5, copper_sup * 0.55):.1f}" class="copper-highlight"/>
+
+            <line x1="210" y1="{cy_sup-r_sup:.1f}" x2="210" y2="{cy_inf+r_inf:.1f}" class="dim-line"/>
+            <line x1="{cx+r_sup:.1f}" y1="{cy_sup-r_sup:.1f}" x2="220" y2="{cy_sup-r_sup:.1f}" class="dim-guide"/>
+            <line x1="{cx+r_inf:.1f}" y1="{cy_inf+r_inf:.1f}" x2="220" y2="{cy_inf+r_inf:.1f}" class="dim-guide"/>
+            <text x="230" y="{(cy_sup+cy_inf)/2:.1f}" class="dim-value" transform="rotate(90 230 {(cy_sup+cy_inf)/2:.1f})">{fmt(d_pair)} mm</text>
+
+            <rect x="260" y="44" width="122" height="52" rx="14" class="callout"/>
+            <text x="321" y="64" class="callout-label">{safe_text(labels['upper'])}</text>
+            <text x="321" y="84" class="callout-value">{safe_text(rame_sup)} · {fmt(d_sup)} mm</text>
+
+            <rect x="260" y="154" width="122" height="52" rx="14" class="callout"/>
+            <text x="321" y="174" class="callout-label">{safe_text(labels['lower'])}</text>
+            <text x="321" y="194" class="callout-value">{safe_text(rame_inf)} · {fmt(d_inf)} mm</text>
+
+            <text x="128" y="248" class="drawing-caption">{safe_text(labels['double_note'])}</text>
+        </svg>
+        """
+
+        tube_metrics = "".join([
+            metric(labels["double"], f"{rame_sup}/{rame_inf}"),
+            metric(labels["upper"], d_sup, " mm"),
+            metric(labels["lower"], d_inf, " mm"),
+            metric(labels["outer"], d_pair, " mm"),
+            metric(labels["length"], lunghezza, " m"),
+            metric(labels["line_speed"], velocita_linea, " m/min"),
         ])
-
-        tube_metrics_html = f"""
-            <div class="metrics">
-                {tube_metrics_rows}
-            </div>
-        """
     else:
-        tube_section_html = f"""
-            <div class="drawing">
-                <svg viewBox="0 0 340 248" role="img" aria-label="Tube section preview">
-                    <line x1="28" y1="110" x2="210" y2="110" class="d-center"/>
-                    <line x1="119" y1="20" x2="119" y2="200" class="d-center"/>
+        foam_r = 64.0
+        copper_r = max(16.0, min(35.0, foam_r * d_rame / max(d_tubo, 1e-9)))
+        cx = 130.0
+        cy = 124.0
 
-                    <circle cx="119" cy="110" r="78" fill="var(--foam)" stroke="var(--foam-stroke)" stroke-width="2.8"/>
-                    <circle cx="119" cy="110" r="33" fill="var(--copper)" stroke="#8f4a1f" stroke-width="2.4"/>
-                    <circle cx="119" cy="110" r="24" fill="var(--copper-light)" opacity="0.95"/>
+        tube_svg = f"""
+        <svg viewBox="0 0 420 270" class="preview-svg" role="img" aria-label="Tube section">
+            <line x1="42" y1="{cy:.1f}" x2="218" y2="{cy:.1f}" class="center-line"/>
+            <line x1="{cx:.1f}" y1="36" x2="{cx:.1f}" y2="214" class="center-line"/>
 
-                    <line x1="41" y1="214" x2="197" y2="214" class="d-line"/>
-                    <line x1="41" y1="199" x2="41" y2="229" class="d-line"/>
-                    <line x1="197" y1="199" x2="197" y2="229" class="d-line"/>
-                    <text x="119" y="207" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
-                    <text x="119" y="232" text-anchor="middle" class="d-label">Ø esterno</text>
+            <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{foam_r:.1f}" class="foam-shape"/>
+            <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{copper_r:.1f}" class="copper-shape"/>
+            <circle cx="{cx:.1f}" cy="{cy:.1f}" r="{max(8, copper_r * 0.55):.1f}" class="copper-highlight"/>
 
-                    <line x1="152" y1="110" x2="197" y2="110" class="d-thin"/>
-                    <polygon points="152,110 160,106 160,114" fill="var(--white-line)"/>
-                    <polygon points="197,110 189,106 189,114" fill="var(--white-line)"/>
-                    <text x="174" y="102" text-anchor="middle" class="d-label">{v(spessore)} mm</text>
+            <line x1="{cx-foam_r:.1f}" y1="220" x2="{cx+foam_r:.1f}" y2="220" class="dim-line"/>
+            <line x1="{cx-foam_r:.1f}" y1="207" x2="{cx-foam_r:.1f}" y2="233" class="dim-line"/>
+            <line x1="{cx+foam_r:.1f}" y1="207" x2="{cx+foam_r:.1f}" y2="233" class="dim-line"/>
+            <text x="{cx:.1f}" y="213" class="dim-value">{fmt(d_tubo)} mm</text>
+            <text x="{cx:.1f}" y="241" class="dim-label">{safe_text(labels['outer'])}</text>
 
-                    <rect x="218" y="44" width="104" height="42" class="callout-box"/>
-                    <text x="270" y="62" text-anchor="middle" class="d-label">{html.escape(labels['outer_dim'])}</text>
-                    <text x="270" y="80" text-anchor="middle" class="d-value">{v(d_tubo)} mm</text>
+            <line x1="{cx+copper_r:.1f}" y1="{cy:.1f}" x2="{cx+foam_r:.1f}" y2="{cy:.1f}" class="dim-line"/>
+            <text x="{cx+(copper_r+foam_r)/2:.1f}" y="{cy-10:.1f}" class="dim-label">{fmt(spessore)} mm</text>
 
-                    <rect x="218" y="103" width="104" height="42" class="callout-box"/>
-                    <text x="270" y="121" text-anchor="middle" class="d-label">{html.escape(labels['insulation'])}</text>
-                    <text x="270" y="139" text-anchor="middle" class="d-value">{v(spessore)} mm</text>
+            <rect x="258" y="46" width="122" height="48" rx="14" class="callout"/>
+            <text x="319" y="66" class="callout-label">{safe_text(labels['copper'])}</text>
+            <text x="319" y="85" class="callout-value">{safe_text(rame)}</text>
 
-                    <rect x="218" y="162" width="104" height="42" class="callout-box"/>
-                    <text x="270" y="180" text-anchor="middle" class="d-label">{html.escape(labels['copper'])}</text>
-                    <text x="270" y="198" text-anchor="middle" class="d-value">{copper_label}</text>
-                </svg>
-            </div>
+            <rect x="258" y="112" width="122" height="48" rx="14" class="callout"/>
+            <text x="319" y="132" class="callout-label">{safe_text(labels['foam_thickness'])}</text>
+            <text x="319" y="151" class="callout-value">{fmt(spessore)} mm</text>
+
+            <rect x="258" y="178" width="122" height="48" rx="14" class="callout"/>
+            <text x="319" y="198" class="callout-label">{safe_text(labels['outer'])}</text>
+            <text x="319" y="217" class="callout-value">{fmt(d_tubo)} mm</text>
+        </svg>
         """
 
-        tube_metrics_rows = "".join([
-            metric_html(labels['copper'], rame),
-            metric_html(labels['foam'], spessore, " mm"),
-            metric_html(labels['outer'], d_tubo, " mm"),
-            metric_html(labels['length'], lunghezza, " m"),
-            metric_html(labels['line_speed'], velocita_linea, " m/min"),
-            metric_html(labels['air'], soffiatori_label),
+        tube_metrics = "".join([
+            metric(labels["copper"], rame),
+            metric(labels["foam"], spessore, " mm"),
+            metric(labels["outer"], d_tubo, " mm"),
+            metric(labels["length"], lunghezza, " m"),
+            metric(labels["line_speed"], velocita_linea, " m/min"),
+            metric(labels["air"], value_with_mm(soffiatori)),
         ])
 
-        tube_metrics_html = f"""
-            <div class="metrics">
-                {tube_metrics_rows}
-            </div>
-        """
+    # ---------- Coiling SVG ----------
+    front_r = 54
+    inner_r = 28
+    coil_svg = f"""
+    <svg viewBox="0 0 520 270" class="preview-svg" role="img" aria-label="Coiling layout">
+        <text x="132" y="30" class="drawing-subtitle">{safe_text(labels['front'])}</text>
+        <text x="382" y="30" class="drawing-subtitle">{safe_text(labels['side'])}</text>
 
-    coil_preview_html = f"""
-            <div class="drawing">
-                <svg viewBox="0 0 420 230" role="img" aria-label="Coiling layout preview">
-                    <defs>
-                        <linearGradient id="coilBand" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stop-color="var(--coil-top)"/>
-                            <stop offset="55%" stop-color="var(--coil-mid)"/>
-                            <stop offset="100%" stop-color="var(--coil-dark)"/>
-                        </linearGradient>
-                        <linearGradient id="coreBody" x1="0" x2="1" y1="0" y2="0">
-                            <stop offset="0%" stop-color="#4b5563"/>
-                            <stop offset="50%" stop-color="#1f2937"/>
-                            <stop offset="100%" stop-color="#111827"/>
-                        </linearGradient>
-                    </defs>
+        <circle cx="132" cy="126" r="76" class="outer-coil"/>
+        <circle cx="132" cy="126" r="{front_r}" class="tube-ring"/>
+        <circle cx="132" cy="126" r="{inner_r}" class="hub-ring"/>
+        <circle cx="132" cy="126" r="9" class="axis-dot"/>
 
-                    <line x1="38" y1="114" x2="382" y2="114" class="d-center"/>
+        <path d="M 80 126 C 92 86, 172 86, 184 126 C 172 166, 92 166, 80 126" class="coil-flow"/>
+        <path d="M 92 126 C 102 101, 162 101, 172 126 C 162 151, 102 151, 92 126" class="coil-flow thin"/>
 
-                    <rect x="118" y="82" width="164" height="64" rx="18" fill="url(#coreBody)" stroke="rgba(255,255,255,0.12)" stroke-width="1.2"/>
-                    <rect x="106" y="72" width="12" height="84" rx="4" fill="#2f3743" stroke="rgba(255,255,255,0.18)" stroke-width="1.1"/>
-                    <rect x="282" y="72" width="12" height="84" rx="4" fill="#2f3743" stroke="rgba(255,255,255,0.18)" stroke-width="1.1"/>
+        <line x1="56" y1="220" x2="208" y2="220" class="dim-line"/>
+        <line x1="56" y1="207" x2="56" y2="233" class="dim-line"/>
+        <line x1="208" y1="207" x2="208" y2="233" class="dim-line"/>
+        <text x="132" y="213" class="dim-value">{fmt(aspo)} mm</text>
+        <text x="132" y="242" class="dim-label">{safe_text(labels['spool'])}</text>
 
-                    <rect x="98" y="70" width="204" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.20)" stroke-width="1"/>
-                    <rect x="96" y="82" width="208" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
-                    <rect x="94" y="94" width="212" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
-                    <rect x="92" y="106" width="216" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
-                    <rect x="94" y="118" width="212" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
-                    <rect x="96" y="130" width="208" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
-                    <rect x="98" y="142" width="204" height="16" rx="8" fill="url(#coilBand)" stroke="rgba(255,255,255,0.20)" stroke-width="1"/>
+        <rect x="300" y="74" width="164" height="104" rx="18" class="side-body"/>
+        <rect x="282" y="64" width="18" height="124" rx="6" class="flange"/>
+        <rect x="464" y="64" width="18" height="124" rx="6" class="flange"/>
+        <line x1="300" y1="126" x2="464" y2="126" class="center-line"/>
+        <line x1="312" y1="94" x2="452" y2="94" class="coil-stripe"/>
+        <line x1="312" y1="112" x2="452" y2="112" class="coil-stripe"/>
+        <line x1="312" y1="140" x2="452" y2="140" class="coil-stripe"/>
+        <line x1="312" y1="158" x2="452" y2="158" class="coil-stripe"/>
 
-                    <line x1="106" y1="44" x2="294" y2="44" class="d-line"/>
-                    <line x1="106" y1="32" x2="106" y2="56" class="d-line"/>
-                    <line x1="294" y1="32" x2="294" y2="56" class="d-line"/>
-                    <text x="200" y="38" text-anchor="middle" class="d-value">{v(aspo)} mm</text>
-                    <text x="200" y="58" text-anchor="middle" class="d-label">{html.escape(labels['spool'])}</text>
-
-                    <line x1="52" y1="82" x2="52" y2="146" class="d-line"/>
-                    <line x1="40" y1="82" x2="64" y2="82" class="d-line"/>
-                    <line x1="40" y1="146" x2="64" y2="146" class="d-line"/>
-                    <text x="69" y="116" transform="rotate(90 69 116)" text-anchor="middle" class="d-value">{v(spalla)} mm</text>
-                    <text x="52" y="116" transform="rotate(90 52 116)" text-anchor="middle" class="d-label">{html.escape(labels['width'])}</text>
-
-                    <line x1="324" y1="82" x2="354" y2="82" class="d-guide"/>
-                    <line x1="324" y1="94" x2="354" y2="94" class="d-guide"/>
-                    <line x1="354" y1="82" x2="354" y2="94" class="d-line"/>
-                    <polygon points="350,82 354,78 358,82" fill="var(--white-line)"/>
-                    <polygon points="350,94 354,98 358,94" fill="var(--white-line)"/>
-                    <text x="364" y="90" class="d-label">{html.escape(labels['pitch'])}</text>
-                    <text x="364" y="104" class="d-value">{v(passo)} mm</text>
-
-                </svg>
-            </div>
+        <line x1="282" y1="215" x2="482" y2="215" class="dim-line"/>
+        <line x1="282" y1="202" x2="282" y2="228" class="dim-line"/>
+        <line x1="482" y1="202" x2="482" y2="228" class="dim-line"/>
+        <text x="382" y="208" class="dim-value">{fmt(spalla)} mm</text>
+        <text x="382" y="237" class="dim-label">{safe_text(labels['width'])}</text>
+    </svg>
     """
 
-    return f'''
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
+    coil_metrics = "".join([
+        metric(labels["spool"], aspo, " mm"),
+        metric(labels["width"], spalla, " mm"),
+        metric(labels["pitch"], passo, " mm"),
+        metric(labels["length"], lunghezza, " m"),
+        metric(labels["rollers"], value_with_mm(rulli)),
+        metric(labels["tail"], value_with_mm(paletta)),
+    ])
+
+    section_tag = labels["double"] if is_doppio else labels["single"]
+
+    return f"""
+    <style>
     :root {{
-        --bg: transparent;
-        --card-bg: rgba(255,255,255,0.78);
-        --card-border: rgba(15,23,42,0.12);
-        --text: #0f172a;
-        --muted: rgba(15,23,42,0.64);
-        --line: rgba(15,23,42,0.18);
-        --shadow: 0 16px 38px rgba(15,23,42,0.12);
-        --accent: #C57E5A;
-        --accent-soft: rgba(255,75,75,0.075);
-        --drawing-bg: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(241,245,249,0.76));
-        --copper: #b8602b;
-        --copper-light: #e4a56f;
-        --foam: #e7e2d8;
-        --foam-stroke: #7e8691;
-        --coil-top: #f3f5f7;
-        --coil-mid: #d7dbe0;
-        --coil-dark: #b9c0c8;
-        --white-line: #f8fafc;
-    }}
-    html[data-theme="dark"] {{
-        --card-bg: rgba(17,24,39,0.82);
-        --card-border: rgba(255,255,255,0.10);
-        --text: #f8fafc;
-        --muted: rgba(248,250,252,0.70);
-        --line: rgba(255,255,255,0.16);
-        --shadow: 0 20px 42px rgba(0,0,0,0.32);
-        --accent-soft: rgba(197,126,90,0.10);
-        --drawing-bg: linear-gradient(180deg, rgba(30,41,59,0.72), rgba(15,23,42,0.58));
-        --foam: #d9d3c7;
-        --foam-stroke: #8d96a0;
-        --coil-top: #f1f3f5;
-        --coil-mid: #cfd5dc;
-        --coil-dark: #aeb6bf;
-        --white-line: #f8fafc;
+        --preview-accent:#C57E5A;
+        --preview-accent-soft:rgba(197,126,90,0.18);
+        --preview-line:rgba(226,232,240,0.80);
+        --preview-muted:rgba(226,232,240,0.58);
+        --preview-soft:rgba(226,232,240,0.13);
+        --preview-panel:rgba(18,22,27,0.44);
+        --preview-panel-2:rgba(18,22,27,0.28);
+        --preview-copper:#C57E5A;
+        --preview-copper-light:#E7B18F;
+        --preview-foam:rgba(226,232,240,0.17);
+        --preview-foam-stroke:rgba(226,232,240,0.70);
     }}
     html, body {{
         margin:0;
         padding:0;
-        background:var(--bg);
-        font-family: Arial, Helvetica, sans-serif;
-        color:var(--text);
+        background:transparent;
+        color:#f8fafc;
+        font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }}
-    .preset-preview {{
+    .preview-grid {{
         display:grid;
         grid-template-columns:1fr 1fr;
-        gap:18px;
-        padding:4px;
-    }}
-    .card {{
-        position:relative;
-        overflow:hidden;
-        background:linear-gradient(180deg, var(--card-bg), rgba(255,255,255,0.58));
-        border:1px solid var(--card-border);
-        border-left:4px solid var(--accent);
-        box-shadow:var(--shadow);
-        backdrop-filter: blur(10px);
-        border-radius:20px;
-        padding:20px;
-        min-height:365px;
+        gap:16px;
+        padding:0;
         box-sizing:border-box;
     }}
-    html[data-theme="dark"] .card {{
-        background:linear-gradient(180deg, rgba(17,24,39,0.88), rgba(15,23,42,0.74));
+    .preview-card {{
+        min-height:448px;
+        border-radius:24px;
+        overflow:hidden;
+        background:linear-gradient(180deg, var(--preview-panel), var(--preview-panel-2));
+        border:1px solid rgba(226,232,240,0.14);
+        box-shadow:0 12px 28px rgba(0,0,0,0.12);
     }}
-    .card::before {{
-        content:"";
-        position:absolute;
-        right:-90px;
-        top:-90px;
-        width:190px;
-        height:190px;
-        border-radius:999px;
-        background:var(--accent-soft);
-        pointer-events:none;
-    }}
-    .title {{
-        font-size:14px;
-        font-weight:900;
-        letter-spacing:0.075em;
-        text-transform:uppercase;
-        color:var(--text);
-        margin-bottom:6px;
-    }}
-    .subtitle {{
-        font-size:12px;
-        color:var(--muted);
-        margin-bottom:16px;
-        font-weight:650;
-    }}
-    .layout {{
-        display:grid;
-        grid-template-columns: 1.08fr 0.92fr;
-        gap:18px;
-        align-items:start;
-    }}
-    .drawing {{
-        background:
-            repeating-linear-gradient(0deg, rgba(148,163,184,0.08) 0 1px, transparent 1px 28px),
-            repeating-linear-gradient(90deg, rgba(148,163,184,0.08) 0 1px, transparent 1px 28px),
-            var(--drawing-bg);
-        border:1px solid var(--line);
-        border-radius:18px;
-        padding:12px;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
-    }}
-    svg {{ display:block; width:100%; height:auto; }}
-    .metrics {{ display:grid; gap:8px; }}
-    .metric {{
+    .preview-head {{
         display:flex;
+        align-items:center;
         justify-content:space-between;
         gap:12px;
-        align-items:baseline;
-        padding:10px 0;
-        border-bottom:1px solid var(--line);
-        position:relative;
+        padding:16px 18px 14px 18px;
+        background:linear-gradient(90deg, rgba(197,126,90,0.20), transparent 72%);
+        border-bottom:1px solid rgba(226,232,240,0.10);
     }}
-    .metric:last-child {{ border-bottom:none; }}
-    .label {{ font-size:12px; color:var(--muted); font-weight:700; }}
-    .value {{ font-size:18px; color:var(--text); font-weight:900; text-align:right; white-space:nowrap; }}
-    .callout-box {{ fill:var(--card-bg); stroke:rgba(255,75,75,0.28); stroke-width:1.25; rx:10; }}
-    .d-label {{ fill:var(--muted); font-size:11px; font-weight:800; letter-spacing:0.02em; }}
-    .d-value {{ fill:var(--text); font-size:15px; font-weight:900; }}
-    .d-line {{ stroke:var(--white-line); stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round; }}
-    .d-guide {{ stroke:var(--white-line); stroke-width:2.1; stroke-linecap:round; stroke-dasharray:6 6; }}
-    @media (max-width: 920px) {{
-        .preset-preview {{ grid-template-columns:1fr; }}
-        .layout {{ grid-template-columns:1fr; }}
+    .preview-kicker {{
+        font-size:11px;
+        line-height:1;
+        font-weight:900;
+        letter-spacing:0.08em;
+        text-transform:uppercase;
+        color:rgba(248,250,252,0.58);
+        margin-bottom:7px;
     }}
-</style>
-</head>
-<body>
-<div class="preset-preview">
-    <div class="card">
-        <div class="title">{html.escape(labels['tube_section'])}</div>
-        <div class="subtitle">{html.escape(labels['tube_note'])}</div>
-        <div class="layout">
-            {tube_section_html}
-            {tube_metrics_html}
-        </div>
-    </div>
+    .preview-title {{
+        font-size:17px;
+        line-height:1.1;
+        font-weight:950;
+        letter-spacing:-0.02em;
+        color:#f8fafc;
+    }}
+    .preview-tag {{
+        flex:0 0 auto;
+        min-height:30px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:999px;
+        padding:0 11px;
+        background:rgba(197,126,90,0.15);
+        border:1px solid rgba(197,126,90,0.30);
+        color:#f8fafc;
+        font-size:11px;
+        font-weight:900;
+        letter-spacing:0.055em;
+        text-transform:uppercase;
+    }}
+    .drawing-wrap {{
+        padding:14px 14px 0 14px;
+    }}
+    .preview-svg {{
+        width:100%;
+        height:250px;
+        display:block;
+        border-radius:18px;
+        background:
+            linear-gradient(rgba(226,232,240,0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(226,232,240,0.035) 1px, transparent 1px),
+            radial-gradient(circle at 50% 48%, rgba(197,126,90,0.08), transparent 55%);
+        background-size:22px 22px, 22px 22px, 100% 100%;
+        border:1px solid rgba(226,232,240,0.10);
+    }}
+    .foam-shape {{
+        fill:var(--preview-foam);
+        stroke:var(--preview-foam-stroke);
+        stroke-width:2.2;
+    }}
+    .copper-shape {{
+        fill:var(--preview-copper);
+        stroke:rgba(126,67,36,0.92);
+        stroke-width:2;
+    }}
+    .copper-highlight {{
+        fill:var(--preview-copper-light);
+        opacity:0.80;
+    }}
+    .center-line {{
+        stroke:rgba(226,232,240,0.25);
+        stroke-width:1.2;
+        stroke-dasharray:5 6;
+    }}
+    .dim-line {{
+        stroke:var(--preview-line);
+        stroke-width:1.7;
+        stroke-linecap:round;
+    }}
+    .dim-guide {{
+        stroke:rgba(226,232,240,0.40);
+        stroke-width:1.1;
+        stroke-dasharray:4 5;
+    }}
+    .dim-label {{
+        fill:var(--preview-muted);
+        font-size:12px;
+        font-weight:800;
+        text-anchor:middle;
+        letter-spacing:0.03em;
+    }}
+    .dim-value {{
+        fill:#f8fafc;
+        font-size:13px;
+        font-weight:950;
+        text-anchor:middle;
+    }}
+    .callout {{
+        fill:rgba(15,23,42,0.54);
+        stroke:rgba(226,232,240,0.13);
+        stroke-width:1;
+    }}
+    .callout-label {{
+        fill:rgba(226,232,240,0.60);
+        font-size:11px;
+        font-weight:850;
+        text-anchor:middle;
+        text-transform:uppercase;
+    }}
+    .callout-value {{
+        fill:#f8fafc;
+        font-size:13px;
+        font-weight:950;
+        text-anchor:middle;
+    }}
+    .drawing-caption {{
+        fill:rgba(226,232,240,0.62);
+        font-size:12px;
+        font-weight:800;
+        text-anchor:middle;
+    }}
+    .drawing-subtitle {{
+        fill:rgba(226,232,240,0.58);
+        font-size:12px;
+        font-weight:900;
+        text-anchor:middle;
+        letter-spacing:0.05em;
+        text-transform:uppercase;
+    }}
+    .outer-coil {{
+        fill:rgba(226,232,240,0.07);
+        stroke:rgba(226,232,240,0.42);
+        stroke-width:2;
+    }}
+    .tube-ring {{
+        fill:none;
+        stroke:var(--preview-accent);
+        stroke-width:13;
+        opacity:0.92;
+    }}
+    .hub-ring {{
+        fill:rgba(15,23,42,0.68);
+        stroke:rgba(226,232,240,0.46);
+        stroke-width:2;
+    }}
+    .axis-dot {{
+        fill:rgba(226,232,240,0.78);
+    }}
+    .coil-flow {{
+        fill:none;
+        stroke:rgba(248,250,252,0.50);
+        stroke-width:2;
+        stroke-linecap:round;
+    }}
+    .coil-flow.thin {{
+        stroke:rgba(248,250,252,0.28);
+        stroke-width:1.4;
+    }}
+    .side-body {{
+        fill:rgba(197,126,90,0.17);
+        stroke:rgba(226,232,240,0.32);
+        stroke-width:1.5;
+    }}
+    .flange {{
+        fill:rgba(226,232,240,0.13);
+        stroke:rgba(226,232,240,0.32);
+        stroke-width:1.2;
+    }}
+    .coil-stripe {{
+        stroke:rgba(248,250,252,0.36);
+        stroke-width:2;
+        stroke-linecap:round;
+    }}
+    .metrics {{
+        display:grid;
+        grid-template-columns:repeat(3, minmax(0,1fr));
+        gap:10px;
+        padding:14px;
+    }}
+    .preview-metric {{
+        min-height:58px;
+        border-radius:16px;
+        padding:11px 12px;
+        box-sizing:border-box;
+        background:rgba(226,232,240,0.055);
+        border:1px solid rgba(226,232,240,0.09);
+    }}
+    .preview-metric-label {{
+        font-size:10px;
+        line-height:1.1;
+        font-weight:900;
+        letter-spacing:0.065em;
+        text-transform:uppercase;
+        color:rgba(226,232,240,0.52);
+        margin-bottom:7px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }}
+    .preview-metric-value {{
+        font-size:15px;
+        line-height:1.06;
+        font-weight:950;
+        color:#f8fafc;
+        overflow-wrap:anywhere;
+    }}
+    @media (max-width: 980px) {{
+        .preview-grid {{
+            grid-template-columns:1fr;
+        }}
+        .preview-card {{
+            min-height:auto;
+        }}
+    }}
+    </style>
 
-    <div class="card">
-        <div class="title">{html.escape(labels['coil'])}</div>
-        <div class="subtitle">{html.escape(labels['coil_note'])}</div>
-        <div class="layout">
-{coil_preview_html}
-            <div class="metrics">
-                {''.join([
-                    metric_html(labels['spool'], aspo, " mm"),
-                    metric_html(labels['width'], spalla, " mm"),
-                    metric_html(labels['pitch'], passo, " mm"),
-                    metric_html(labels['layer'], incremento, " mm"),
-                    metric_html(labels['rollers'], rulli_label),
-                    metric_html(labels['tail'], paletta_label),
-                ])}
+    <div class="preview-grid">
+        <section class="preview-card">
+            <div class="preview-head">
+                <div>
+                    <div class="preview-kicker">{safe_text(labels['section_kicker'])}</div>
+                    <div class="preview-title">{safe_text(labels['section_title'])}</div>
+                </div>
+                <div class="preview-tag">{safe_text(section_tag)}</div>
             </div>
-        </div>
+            <div class="drawing-wrap">{tube_svg}</div>
+            <div class="metrics">{tube_metrics}</div>
+        </section>
+
+        <section class="preview-card">
+            <div class="preview-head">
+                <div>
+                    <div class="preview-kicker">{safe_text(labels['coil_kicker'])}</div>
+                    <div class="preview-title">{safe_text(labels['coil_title'])}</div>
+                </div>
+                <div class="preview-tag">{fmt(lunghezza)} m</div>
+            </div>
+            <div class="drawing-wrap">{coil_svg}</div>
+            <div class="metrics">{coil_metrics}</div>
+        </section>
     </div>
-</div>
-<script>
-(function() {{
-    let dark = false;
-    try {{
-        const parentDoc = window.parent.document;
-        const probe = parentDoc.querySelector('[data-testid="stAppViewContainer"]') || parentDoc.body;
-        const bg = window.getComputedStyle(probe).backgroundColor;
-        const nums = (bg || '').match(/\d+/g);
-        if (nums && nums.length >= 3) {{
-            const r = parseInt(nums[0], 10), g = parseInt(nums[1], 10), b = parseInt(nums[2], 10);
-            const luminance = (0.2126*r + 0.7152*g + 0.0722*b) / 255;
-            dark = luminance < 0.55;
-        }} else if (window.matchMedia) {{
-            dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }}
-    }} catch (e) {{
-        if (window.matchMedia) {{
-            dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }}
-    }}
-    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-}})();
-</script>
-</body>
-</html>
-'''
+    """
 
 def current_calculator_snapshot():
     return {
