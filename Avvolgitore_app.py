@@ -2,10 +2,30 @@ import os
 import glob
 import json
 import html
+from io import BytesIO
 import numpy as np
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+except Exception:
+    colors = None
+    A4 = None
+    mm = None
+    ParagraphStyle = None
+    getSampleStyleSheet = None
+    SimpleDocTemplate = None
+    Paragraph = None
+    Spacer = None
+    Table = None
+    TableStyle = None
+
 
 st.set_page_config(page_title="Avvolgimento", layout="wide")
 
@@ -134,8 +154,8 @@ TEXTS = {
         "capture_render": "Salva immagine render",
         "print_sheet": "Scheda stampabile",
         "print_sheet_help": "Scarica una scheda HTML pronta da stampare.",
-        "print_simulation": "Stampa simulazione",
-        "print_preset_csv": "Stampa preset CSV",
+        "print_simulation": "PDF simulazione",
+        "print_preset_csv": "PDF scheda CSV",
     },
     "EN": {
         "title": "Coiling",
@@ -250,8 +270,8 @@ TEXTS = {
         "capture_render": "Save render image",
         "print_sheet": "Printable sheet",
         "print_sheet_help": "Download a print-ready HTML sheet.",
-        "print_simulation": "Print simulation",
-        "print_preset_csv": "Print CSV preset",
+        "print_simulation": "Simulation PDF",
+        "print_preset_csv": "CSV sheet PDF",
     },
 }
 
@@ -1800,6 +1820,95 @@ tr:last-child th,tr:last-child td{{border-bottom:none;}}
 </main>
 </body>
 </html>"""
+
+
+def make_csv_preset_pdf_bytes(product_name, selected_row, language):
+    """Build a one-page portrait PDF for the original CSV preset."""
+    if SimpleDocTemplate is None:
+        return None
+
+    title = "Scheda preset CSV" if language == "IT" else "CSV preset sheet"
+    subtitle = "Preset originale - valori letti direttamente dal CSV" if language == "IT" else "Original preset - values read directly from CSV"
+    section_title = "Parametri CSV" if language == "IT" else "CSV parameters"
+    footer = "Preset originale da Presets.csv - nessuna cattura render inclusa" if language == "IT" else "Original preset from Presets.csv - no render capture included"
+
+    source_rows = []
+    for col in selected_row.index:
+        val = safe_value(selected_row, col)
+        if val != "-":
+            label = param_label(col, language)
+            source_rows.append((str(label), str(val)))
+
+    buffer = BytesIO()
+    page_w, page_h = A4
+    margin = 8 * mm
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=margin,
+        rightMargin=margin,
+        topMargin=margin,
+        bottomMargin=margin,
+        title=f"{product_name} - {title}",
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("PDMTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=19, leading=21, textColor=colors.HexColor("#111827"), spaceAfter=2)
+    section_style = ParagraphStyle("PDMSection", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=10.5, leading=12, textColor=colors.HexColor("#111827"), spaceAfter=4)
+    label_style = ParagraphStyle("PDMLabel", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.4, leading=8.2, textColor=colors.HexColor("#475569"))
+    value_style = ParagraphStyle("PDMValue", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=8.4, textColor=colors.HexColor("#0F172A"))
+    footer_style = ParagraphStyle("PDMFooter", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.2, leading=8, textColor=colors.HexColor("#94A3B8"))
+
+    story = []
+    header_table = Table(
+        [[
+            Paragraph(f"<b>{html.escape(str(product_name))}</b><br/><font size='8' color='#64748B'>{html.escape(subtitle)}</font>", title_style),
+            Paragraph(f"<b>{html.escape(title)}</b>", value_style),
+        ]],
+        colWidths=[(page_w - 2 * margin) * 0.72, (page_w - 2 * margin) * 0.28],
+    )
+    header_table.setStyle(TableStyle([
+        ("LINEBEFORE", (0, 0), (0, 0), 4, colors.HexColor("#C57E5A")),
+        ("LEFTPADDING", (0, 0), (0, 0), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 5))
+    story.append(Paragraph(section_title, section_style))
+
+    data = [[Paragraph(label, label_style), Paragraph(value, value_style)] for label, value in source_rows]
+    usable_h = page_h - 2 * margin
+    header_h = 35 * mm
+    footer_h = 7 * mm
+    table_h = max(150 * mm, usable_h - header_h - footer_h)
+    row_h = table_h / max(1, len(data))
+
+    table = Table(
+        data,
+        colWidths=[(page_w - 2 * margin) * 0.46, (page_w - 2 * margin) * 0.54],
+        rowHeights=[row_h] * len(data),
+        repeatRows=0,
+    )
+    table.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#E5E7EB")),
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(footer, footer_style))
+
+    doc.build(story)
+    return buffer.getvalue()
 
 def build_simulation_print_payload(product_name, language, tube_diameter_label, lunghezza, diametro_aspo, spalla, passo_visuale, incremento_visuale, rit_b, rit_t, visual_metrics, status_items):
     if language == "IT":
@@ -3804,6 +3913,7 @@ def viewer(
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/TrackballControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script>
     (() => {{
@@ -4353,19 +4463,120 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 </html>`;
         }}
 
+
+
+        function downloadSimulationPdf(imageDataUrl) {{
+            if (!window.jspdf || !window.jspdf.jsPDF) {{
+                const printWindow = window.open("", "_blank");
+                if (!printWindow) return;
+                printWindow.document.open();
+                printWindow.document.write(buildSimulationPrintHtml(imageDataUrl));
+                printWindow.document.close();
+                printWindow.focus();
+                return;
+            }}
+
+            const {{ jsPDF }} = window.jspdf;
+            const doc = new jsPDF({{ orientation: "landscape", unit: "mm", format: "a4" }});
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
+            const accent = [197, 126, 90];
+            const ink = [17, 24, 39];
+            const muted = [100, 116, 139];
+            const line = [229, 231, 235];
+            const soft = [248, 250, 252];
+
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, pageW, pageH, "F");
+            doc.setFillColor(accent[0], accent[1], accent[2]);
+            doc.roundedRect(12, 12, 3, 24, 1.2, 1.2, "F");
+            doc.setTextColor(ink[0], ink[1], ink[2]);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(19);
+            doc.text(String(SIM_PRINT.product || ""), 20, 22);
+            doc.setFontSize(9);
+            doc.setTextColor(muted[0], muted[1], muted[2]);
+            doc.text(String(SIM_PRINT.subtitle || ""), 20, 29);
+            doc.setFillColor(accent[0], accent[1], accent[2]);
+            doc.roundedRect(pageW - 62, 14, 47, 10, 5, 5, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.text(String(SIM_PRINT.title || "Simulation"), pageW - 38.5, 20.5, {{ align: "center" }});
+
+            const statuses = SIM_PRINT.status_items || [];
+            const statusY = 42;
+            const statusW = (pageW - 30 - Math.max(0, statuses.length - 1) * 5) / Math.max(1, statuses.length || 1);
+            statuses.slice(0, 3).forEach((item, idx) => {{
+                const x = 15 + idx * (statusW + 5);
+                doc.setFillColor(soft[0], soft[1], soft[2]);
+                doc.setDrawColor(line[0], line[1], line[2]);
+                doc.roundedRect(x, statusY, statusW, 24, 3, 3, "FD");
+                doc.setTextColor(muted[0], muted[1], muted[2]);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(7);
+                doc.text(String(item.label || "").toUpperCase(), x + 4, statusY + 7);
+                doc.setTextColor(ink[0], ink[1], ink[2]);
+                doc.setFontSize(13);
+                doc.text(String(item.value || ""), x + 4, statusY + 15);
+                doc.setTextColor(muted[0], muted[1], muted[2]);
+                doc.setFontSize(7);
+                const note = doc.splitTextToSize(String(item.note || ""), statusW - 8);
+                doc.text(note.slice(0, 1), x + 4, statusY + 21);
+            }});
+
+            const imageX = 15, imageY = 76, imageW = 174, imageH = 104;
+            doc.setDrawColor(line[0], line[1], line[2]);
+            doc.roundedRect(imageX, imageY, imageW, imageH, 3, 3, "S");
+            doc.addImage(imageDataUrl, "PNG", imageX + 2, imageY + 2, imageW - 4, imageH - 4, undefined, "FAST");
+
+            const tableX = 198, tableY = 76, tableW = pageW - tableX - 15;
+            doc.setFillColor(soft[0], soft[1], soft[2]);
+            doc.setDrawColor(line[0], line[1], line[2]);
+            doc.roundedRect(tableX, tableY, tableW, imageH, 3, 3, "FD");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(11);
+            doc.setTextColor(ink[0], ink[1], ink[2]);
+            doc.text(String(SIM_PRINT.title || "Simulation"), tableX + 5, tableY + 9);
+
+            const rows = SIM_PRINT.rows || [];
+            const rowY0 = tableY + 16;
+            const rowH = Math.min(7.2, (imageH - 21) / Math.max(1, rows.length));
+            rows.forEach((row, i) => {{
+                const y = rowY0 + i * rowH;
+                if (i % 2 === 0) {{
+                    doc.setFillColor(255, 255, 255);
+                    doc.rect(tableX + 2, y - 4.6, tableW - 4, rowH, "F");
+                }}
+                doc.setDrawColor(line[0], line[1], line[2]);
+                doc.line(tableX + 2, y + rowH - 4.6, tableX + tableW - 2, y + rowH - 4.6);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(muted[0], muted[1], muted[2]);
+                doc.setFontSize(7.5);
+                doc.text(String(row[0] || ""), tableX + 5, y);
+                doc.setTextColor(ink[0], ink[1], ink[2]);
+                doc.setFontSize(8.2);
+                const val = doc.splitTextToSize(String(row[1] || ""), tableW * 0.46);
+                doc.text(val.slice(0, 1), tableX + tableW * 0.56, y);
+            }});
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(7.2);
+            doc.setTextColor(148, 163, 184);
+            doc.text("PDF generato dalla simulazione - include cattura render", 15, pageH - 8);
+
+            const cleanName = String(SIM_PRINT.product || "simulazione").replace(/[^a-z0-9_-]+/gi, "_").replace(/^_+|_+$/g, "") || "simulazione";
+            doc.save(`simulazione_${{cleanName}}.pdf`);
+        }}
+
+
         if (printSimulationBtn) {{
             printSimulationBtn.addEventListener("click", () => {{
                 try {{
                     renderer.render(scene, camera);
                     const imageDataUrl = renderer.domElement.toDataURL("image/png");
-                    const printWindow = window.open("", "_blank");
-                    if (!printWindow) return;
-                    printWindow.document.open();
-                    printWindow.document.write(buildSimulationPrintHtml(imageDataUrl));
-                    printWindow.document.close();
-                    printWindow.focus();
+                    downloadSimulationPdf(imageDataUrl);
                 }} catch (err) {{
-                    console.warn("Simulation print failed", err);
+                    console.warn("Simulation PDF failed", err);
                 }}
             }});
         }}
@@ -8195,7 +8406,7 @@ with tab_tech_sheet:
     )
 
     safe_product_filename = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(selected_product)).strip("_") or "preset"
-    csv_print_html = make_csv_preset_print_html(selected_product, selected_row, lang)
+    csv_print_pdf = make_csv_preset_pdf_bytes(selected_product, selected_row, lang)
 
     st.markdown(
         """
@@ -8238,18 +8449,21 @@ with tab_tech_sheet:
         """,
         unsafe_allow_html=True,
     )
-    csv_copy = "Stampa del preset originale CSV, senza cattura render." if lang == "IT" else "Print the original CSV preset, without render capture."
+    csv_copy = "Scarica il PDF del preset originale CSV, senza cattura render." if lang == "IT" else "Download the original CSV preset PDF, without render capture."
     csv_note_col, csv_button_col = st.columns([0.78, 0.22], gap="small")
     with csv_note_col:
         st.markdown(f'<div class="csv-print-copy">{html.escape(csv_copy)}</div>', unsafe_allow_html=True)
     with csv_button_col:
-        st.download_button(
-            t["print_preset_csv"],
-            data=csv_print_html.encode("utf-8"),
-            file_name=f"preset_csv_{safe_product_filename}.html",
-            mime="text/html",
-            use_container_width=True,
-        )
+        if csv_print_pdf is not None:
+            st.download_button(
+                t["print_preset_csv"],
+                data=csv_print_pdf,
+                file_name=f"preset_csv_{safe_product_filename}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        else:
+            st.warning("Per scaricare il PDF aggiungi `reportlab` a requirements.txt." if lang == "IT" else "To download the PDF, add `reportlab` to requirements.txt.")
 
     render_tech_snapshot_cards(selected_row, lang)
 
