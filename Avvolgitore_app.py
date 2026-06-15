@@ -3870,8 +3870,10 @@ def viewer(
 
             const coilRadius = coilFootprint / 2.0;
             const innerRadius = Math.max(18, coilRadius * 0.56);
-            const visualGap = Math.min(10, Math.max(4, Hs * 0.07));
-            const rollVisualHeight = Math.max(Hs - visualGap, Hs * 0.90);
+
+            // In packaging i rotoli devono appoggiarsi realmente uno sull'altro:
+            // nessun gap visivo e nessuna riduzione fittizia dell'altezza.
+            const rollVisualHeight = Hs;
 
             const baseRoll = createRollRealistic(coilRadius, innerRadius, rollVisualHeight, tubeMode);
 
@@ -3880,9 +3882,6 @@ def viewer(
                 const roll = i === 0 ? baseRoll : baseRoll.clone(true);
                 roll.position.set(0, 0, zc);
                 packagingGroup.add(roll);
-
-                // Separatore visuale rimosso: i rotoli restano impilati senza disco bianco intermedio.
-                // Il piccolo gap è solo grafico e non entra nel calcolo dell'altezza.
             }}
 
             const lineColor = limitColor;
