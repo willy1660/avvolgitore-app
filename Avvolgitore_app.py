@@ -1736,6 +1736,16 @@ st.markdown(
         box-shadow: 0 6px 16px rgba(0,0,0,0.08);
         transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
         box-sizing: border-box;
+        position: relative;
+    }
+
+    div[role="radiogroup"] label input[type="radio"] {
+        position: absolute !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        pointer-events: none !important;
     }
 
     div[role="radiogroup"] label > div {
@@ -1745,6 +1755,15 @@ st.markdown(
         width:100%;
         height:100%;
         text-align:center;
+        margin:0 !important;
+        padding:0 !important;
+    }
+
+    div[role="radiogroup"] label p {
+        width:100%;
+        margin:0 !important;
+        display:block !important;
+        text-align:center !important;
     }
 
     /* Hide the default radio dot so the options look like real buttons */
