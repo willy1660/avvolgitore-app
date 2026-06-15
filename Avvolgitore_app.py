@@ -2481,6 +2481,95 @@ st.markdown(
         border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent) !important;
     }
 
+    /* v160 · premium motion: subtil, industriale, no invadente */
+    @keyframes pdmFadeUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pdmPresetPulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(197,126,90,0.00), 0 12px 30px rgba(0,0,0,0.075);
+            border-color: color-mix(in srgb, var(--text-color) 13%, transparent);
+        }
+        42% {
+            box-shadow: 0 0 0 5px rgba(197,126,90,0.16), 0 16px 34px rgba(0,0,0,0.11);
+            border-color: rgba(197,126,90,0.66);
+        }
+        100% {
+            box-shadow: 0 12px 30px rgba(0,0,0,0.075);
+            border-color: color-mix(in srgb, var(--text-color) 13%, transparent);
+        }
+    }
+
+    @keyframes pdmStatusIn {
+        from { opacity: 0; transform: scale(0.986); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes pdmPillShine {
+        from { transform: translateX(-125%); }
+        to { transform: translateX(125%); }
+    }
+
+    .pdm-fade-up,
+    .preset-hero,
+    .elegant-panel {
+        animation: pdmFadeUp 0.34s cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .pdm-pulse {
+        animation: pdmPresetPulse 0.72s cubic-bezier(.2,.8,.2,1) both !important;
+    }
+
+    .pdm-status-animated {
+        animation: pdmStatusIn 0.25s cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .preset-hero-chip,
+    .summary-card,
+    .preset-param-card,
+    .quick-card-v2,
+    .semaphore-card,
+    .tech-mini-card,
+    .machine-card-native,
+    .preview-metric,
+    .elegant-panel {
+        will-change: transform, box-shadow, border-color;
+    }
+
+    div[role="radiogroup"] label {
+        overflow: hidden;
+        isolation: isolate;
+    }
+
+    div[role="radiogroup"] label:has(input:checked)::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.16) 46%, transparent 72%);
+        animation: pdmPillShine 0.58s ease-out both;
+    }
+
+    div[role="radiogroup"] label p {
+        position: relative;
+        z-index: 1;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .pdm-fade-up,
+        .pdm-pulse,
+        .pdm-status-animated,
+        .preset-hero,
+        .elegant-panel,
+        div[role="radiogroup"] label:has(input:checked)::after {
+            animation: none !important;
+        }
+    }
+
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -2839,6 +2928,14 @@ def viewer(
         box-shadow:0 18px 42px rgba(0,0,0,0.28);
         position:relative;
     ">
+        <div id="viewer_loading_overlay" class="viewer_loading_overlay">
+            <div class="viewer_loading_card">
+                <div class="viewer_loading_kicker">PDM</div>
+                <div class="viewer_loading_title">Preparazione simulazione…</div>
+                <div class="viewer_loading_bar"></div>
+            </div>
+        </div>
+
         <div id="viewer_topbar" style="
             position:absolute;
             top:14px;
@@ -3016,6 +3113,91 @@ def viewer(
     </div>
 
     <style>
+        @keyframes viewerFadeUp {{
+            from {{ opacity:0; transform:translateY(10px); }}
+            to {{ opacity:1; transform:translateY(0); }}
+        }}
+
+        @keyframes viewerLoadingSweep {{
+            from {{ transform:translateX(-125%); }}
+            to {{ transform:translateX(260%); }}
+        }}
+
+        #viewer_root {{
+            animation: viewerFadeUp 0.34s cubic-bezier(.2,.8,.2,1) both;
+        }}
+
+        .viewer_loading_overlay {{
+            position:absolute;
+            inset:0;
+            z-index:60;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:linear-gradient(180deg, rgba(16,18,22,0.88), rgba(16,18,22,0.72));
+            backdrop-filter:blur(7px);
+            transition:opacity 0.30s ease, visibility 0.30s ease;
+        }}
+
+        .viewer_loading_overlay.is-hidden {{
+            opacity:0;
+            visibility:hidden;
+            pointer-events:none;
+        }}
+
+        .viewer_loading_card {{
+            width:min(380px, calc(100% - 44px));
+            padding:22px 24px;
+            border-radius:22px;
+            border:1px solid rgba(255,255,255,0.13);
+            background:rgba(18,22,27,0.78);
+            box-shadow:0 18px 42px rgba(0,0,0,0.30);
+            color:#f8fafc;
+            font-family:Arial, sans-serif;
+        }}
+
+        .viewer_loading_kicker {{
+            font-size:11px;
+            line-height:1;
+            font-weight:900;
+            letter-spacing:0.12em;
+            text-transform:uppercase;
+            color:#C57E5A;
+            margin-bottom:9px;
+        }}
+
+        .viewer_loading_title {{
+            font-size:18px;
+            line-height:1.15;
+            font-weight:900;
+            margin-bottom:16px;
+        }}
+
+        .viewer_loading_bar {{
+            position:relative;
+            overflow:hidden;
+            height:4px;
+            border-radius:999px;
+            background:rgba(255,255,255,0.12);
+        }}
+
+        .viewer_loading_bar::after {{
+            content:"";
+            position:absolute;
+            inset:0;
+            width:42%;
+            border-radius:inherit;
+            background:linear-gradient(90deg, transparent, #C57E5A, transparent);
+            animation:viewerLoadingSweep 1.12s ease-in-out infinite;
+        }}
+
+        @media (prefers-reduced-motion: reduce) {{
+            #viewer_root,
+            .viewer_loading_bar::after {{
+                animation:none !important;
+            }}
+        }}
+
         .viewer_btn {{
             border:none;
             border-radius:9px;
@@ -3401,6 +3583,7 @@ def viewer(
         const T = {labels_json};
 
         const host = document.getElementById("viewer_root");
+        const loadingOverlay = document.getElementById("viewer_loading_overlay");
         const playPauseBtn = document.getElementById("play_pause_btn");
         const resetViewBtn = document.getElementById("reset_view_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
@@ -4092,7 +4275,7 @@ def viewer(
             roughness: 0.40,
             metalness: 0.02,
             emissive: 0x2a1800,
-            emissiveIntensity: 0.14
+            emissiveIntensity: 0.42
         }});
 
         // ==========================================
@@ -5050,6 +5233,7 @@ def viewer(
         let activeCoilMesh = null;
         let startMarker = null;
         let endMarker = null;
+        let endMarkerGlow = null;
 
         let drawPos = 1.0;
         let lastRebuiltCompleted = -1;
@@ -5094,6 +5278,11 @@ def viewer(
             if (endMarker) {{
                 disposeObj(endMarker, overlayGroup);
                 endMarker = null;
+            }}
+
+            if (endMarkerGlow) {{
+                disposeObj(endMarkerGlow, overlayGroup);
+                endMarkerGlow = null;
             }}
         }}
 
@@ -5191,7 +5380,20 @@ def viewer(
                 0.82
             );
 
+            const glowRadius = Math.max(14.0, Rt * 1.35);
+            endMarkerGlow = new THREE.Mesh(
+                new THREE.SphereGeometry(glowRadius, 28, 14),
+                new THREE.MeshBasicMaterial({{
+                    color: 0xffb020,
+                    transparent: true,
+                    opacity: tubeMode === "gelblack" ? 0.11 : 0.16,
+                    depthWrite: false
+                }})
+            );
+            endMarkerGlow.position.copy(endWorld);
+
             overlayGroup.add(startMarker);
+            overlayGroup.add(endMarkerGlow);
             overlayGroup.add(endMarker);
 
             if (animationEnabled) {{
@@ -5254,8 +5456,16 @@ def viewer(
                 );
             }}
 
+            if (ghostLine && ghostLine.material && typeof ghostLine.material.dashOffset === "number") {{
+                ghostLine.material.dashOffset -= 0.35 * Math.max(0.5, speed);
+            }}
+
             controls.update();
             renderer.render(scene, camera);
+
+            if (loadingOverlay && !loadingOverlay.classList.contains("is-hidden")) {{
+                window.setTimeout(() => loadingOverlay.classList.add("is-hidden"), 360);
+            }}
         }}
 
         if (!animationEnabled) {{
@@ -5524,6 +5734,9 @@ def render_active_preset_card(product_name, language, modified=False):
 def render_preset_product_card(selected_product, selected_row, language, modified=False):
     """Hero card for the selected preset. Keeps the preset visible without duplicating the full technical sheet."""
     locked = bool(st.session_state.get("params_locked", False))
+    pulse_class = " pdm-pulse" if bool(st.session_state.get("changed_values_pulse", False)) else ""
+    if pulse_class:
+        st.session_state["changed_values_pulse"] = False
 
     def gv(*names, default="-"):
         for name in names:
@@ -5709,7 +5922,7 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             .preset-hero-chips {{ grid-template-columns:repeat(2, minmax(0,1fr)); }}
         }}
         </style>
-        <div class="preset-hero">
+        <div class="preset-hero{pulse_class}">
             <div class="preset-hero-top">
                 <div>
                     <div class="preset-hero-kicker">{html.escape(kicker)}</div>
@@ -6693,7 +6906,7 @@ def render_status_semaphore(items, language):
         note = item.get("note", "")
         tone = item.get("tone", "neutral")
         cards_html += f"""
-        <div class="semaphore-card {html.escape(tone)}">
+        <div class="semaphore-card pdm-status-animated {html.escape(tone)}">
             <div class="semaphore-dot"></div>
             <div>
                 <div class="semaphore-label">{html.escape(str(label))}</div>
@@ -7159,7 +7372,7 @@ def render_elegant_panel_open(title=None, subtitle=None, tag=None):
             padding:14px;
         }}
         </style>
-        <div class="elegant-panel">
+        <div class="elegant-panel pdm-fade-up">
             <div class="elegant-panel-head">
                 <div>{title_html}{subtitle_html}</div>
                 {tag_html}
