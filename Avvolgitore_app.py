@@ -5552,42 +5552,85 @@ def render_tech_snapshot_cards(selected_row, language):
 
 
 
-def render_machine_parameter_groups(selected_row, language):
+
+def build_operator_row_from_current_values(selected_row):
+    """Return a preset row where the render-linked fields mirror the current calculator values."""
+    row = selected_row.copy()
+
+    def set_if_present(column, value):
+        if column in row.index:
+            row[column] = value
+
+    tube_layout = str(st.session_state.get("calc_tube_layout", "Singolo"))
+    set_if_present("Tipo tubo", tube_layout)
+    set_if_present("Lunghezza (m)", st.session_state.get("calc_lunghezza", "-"))
+    set_if_present("Diametro aspo (mm)", st.session_state.get("calc_diametro_aspo", "-"))
+    set_if_present("Spalla (mm)", st.session_state.get("calc_spalla", "-"))
+    set_if_present("Passo (mm)", st.session_state.get("calc_passo_visuale", "-"))
+    set_if_present("Incremento strato (mm)", st.session_state.get("calc_incremento_visuale", "-"))
+    set_if_present("Ritardo invers min (º)", st.session_state.get("calc_rit_b", "-"))
+    set_if_present("Ritardo invers max (º)", st.session_state.get("calc_rit_t", "-"))
+
+    if tube_layout == "Doppio":
+        set_if_present("Diametro rame inferiore", st.session_state.get("calc_rame_inf", "-"))
+        set_if_present("Spessore guaina inferiore", st.session_state.get("calc_spessore_inf", "-"))
+        set_if_present("Diametro rame superiore", st.session_state.get("calc_rame_sup", "-"))
+        set_if_present("Spessore guaina superiore", st.session_state.get("calc_spessore_sup", "-"))
+    else:
+        set_if_present("Diametro Rame", st.session_state.get("calc_rame", "-"))
+        set_if_present("Spessore Guaina (mm)", st.session_state.get("calc_spessore", "-"))
+        rame = str(st.session_state.get("calc_rame", "1/4"))
+        spessore = parse_float_value(st.session_state.get("calc_spessore", 0), 0)
+        d_tubo = COPPER_SIZES_MM.get(rame, parse_float_value(rame, 0.0)) + 2.0 * spessore
+        set_if_present("Diametro esterno Guaina (mm)", d_tubo)
+
+    return row
+
+
+def render_machine_parameter_groups(selected_row, language, key_suffix=""):
+    """Operator-facing parameter board: all values visible, grouped by real machine use."""
     group_defs = [
         (
-            "Tubo e prodotto" if language == "IT" else "Tube and product",
-            ["Tipo tubo", "Diametro Rame", "Spessore Guaina (mm)", "Diametro esterno Guaina (mm)",
+            "Prodotto" if language == "IT" else "Product",
+            "Identificazione rapida del prodotto da produrre." if language == "IT" else "Quick identification of the product to manufacture.",
+            "primary",
+            ["Prodotto", "Tipo tubo", "Diametro Rame", "Spessore Guaina (mm)", "Diametro esterno Guaina (mm)",
              "Diametro rame inferiore", "Spessore guaina inferiore", "Diametro rame superiore", "Spessore guaina superiore",
-             "Lunghezza (m)"],
+             "Lunghezza (m)", "Velocita linea (m/min)"],
         ),
         (
-            "Avvolgimento" if language == "IT" else "Winding",
-            ["Diametro aspo (mm)", "Spalla (mm)", "Nº Spire", "Passo (mm)", "Incremento strato (mm)",
-             "Ritardo invers min (º)", "Ritardo invers max (º)", "Quota massima (mm)", "Quota minima (mm)",
-             "Quota start pinza (mm)", "Quota coda tubo (mm)", "Quota chiusura morsa coda (mm)",
-             "Interasse regetta (mm)"],
-        ),
-        (
-            "Attrezzaggio linea" if language == "IT" else "Line setup",
+            "Macchina / Preparazione" if language == "IT" else "Machine / Preparation",
+            "Attrezzaggio fisico della linea prima della produzione." if language == "IT" else "Physical line setup before production.",
+            "compact",
             ["Boccole rulliera adrizzatubo", "Boccola uscita rulliera", "Rulliera adrizzatubo",
              "Boccola uscita traino", "Rulli convogliatore (mm)", "Rulli estrusore(mm)",
              "Ruote godronatore", "Soffiatori aria (mm)", "Rulli avvolgitore (mm)",
              "Paleta ferma coda (mm)", "Guidatubo (mm)"],
         ),
         (
-            "Velocità e coppie" if language == "IT" else "Speed and torque",
-            ["Velocita linea (m/min)", "Velocita recupero (m/min)", "Coppia lavoro (%)",
-             "Riduzione coppia (%)", "Coppia recupero (%)"],
+            "Avvolgitore" if language == "IT" else "Coiler",
+            "Parametri che guidano direttamente forma, spire e cambio strato." if language == "IT" else "Parameters directly driving coil shape, turns and layer change.",
+            "primary",
+            ["Spalla (mm)", "Diametro aspo (mm)", "Nº Spire", "Interasse regetta (mm)",
+             "Velocita recupero (m/min)", "Quota start pinza (mm)", "Quota coda tubo (mm)",
+             "Quota chiusura morsa coda (mm)", "Quota minima (mm)", "Quota massima (mm)",
+             "Passo (mm)", "Incremento strato (mm)", "Ritardo invers min (º)", "Ritardo invers max (º)"],
+        ),
+        (
+            "Coppie" if language == "IT" else "Torques",
+            "Valori di coppia separati dalla geometria per lettura più rapida." if language == "IT" else "Torque values separated from geometry for faster reading.",
+            "compact",
+            ["Coppia lavoro (%)", "Riduzione coppia (%)", "Coppia recupero (%)"],
         ),
     ]
 
     search_label = "Cerca parametro" if language == "IT" else "Search parameter"
-    search_placeholder = "Es. passo, quota, soffiatori, boccola..." if language == "IT" else "E.g. pitch, quota, blowers, bushing..."
+    search_placeholder = "Es. passo, quota, soffiatori, boccola..." if language == "IT" else "E.g. pitch, position, blowers, bushing..."
     query = st.text_input(
         search_label,
         value="",
         placeholder=search_placeholder,
-        key="machine_param_search",
+        key=f"machine_param_search{key_suffix}",
     ).strip().lower()
 
     def visible_value(col):
@@ -5601,6 +5644,23 @@ def render_machine_parameter_groups(selected_row, language):
             return None
         return formatted
 
+    def value_with_unit(col, value):
+        label_lower = str(col).lower()
+        text = str(value)
+        if text == "-":
+            return text
+        if "(mm)" in label_lower and "mm" not in text.lower():
+            return f"{text} mm"
+        if "(m/min)" in label_lower and "m/min" not in text.lower():
+            return f"{text} m/min"
+        if "(%)" in label_lower and "%" not in text:
+            return f"{text} %"
+        if "(º)" in label_lower or "(°)" in label_lower:
+            return f"{text}°" if "°" not in text and "º" not in text else text
+        if "lunghezza (m)" == label_lower and "m" not in text.lower():
+            return f"{text} m"
+        return text
+
     def matches_query(label, value):
         if not query:
             return True
@@ -5610,32 +5670,39 @@ def render_machine_parameter_groups(selected_row, language):
     groups = []
     used = set()
 
-    for group_title, cols in group_defs:
+    for group_title, group_subtitle, density, cols in group_defs:
         pairs = []
         for col in cols:
             value = visible_value(col)
             if value is None:
                 continue
             label = param_label(col, language)
+            formatted_value = value_with_unit(col, value)
             used.add(col)
-            if matches_query(label, value):
-                pairs.append((label, value))
+            if matches_query(label, formatted_value):
+                pairs.append((label, formatted_value))
         if pairs:
-            groups.append((group_title, pairs))
+            groups.append((group_title, group_subtitle, density, pairs))
 
     extra_pairs = []
     for col in selected_row.index:
-        if col in used or str(col).startswith("Unnamed") or col in {"Note", "Prodotto"}:
+        if col in used or str(col).startswith("Unnamed") or col in {"Note"}:
             continue
         value = visible_value(col)
         if value is None:
             continue
         label = param_label(col, language)
-        if matches_query(label, value):
-            extra_pairs.append((label, value))
+        formatted_value = value_with_unit(col, value)
+        if matches_query(label, formatted_value):
+            extra_pairs.append((label, formatted_value))
 
     if extra_pairs:
-        groups.append(("Altri parametri" if language == "IT" else "Other parameters", extra_pairs))
+        groups.append((
+            "Altri parametri" if language == "IT" else "Other parameters",
+            "Valori presenti nel CSV non classificati nei gruppi principali." if language == "IT" else "Values present in the CSV not classified in the main groups.",
+            "compact",
+            extra_pairs,
+        ))
 
     if not groups:
         st.info("Nessun parametro trovato." if language == "IT" else "No parameter found.")
@@ -5644,15 +5711,26 @@ def render_machine_parameter_groups(selected_row, language):
     st.markdown(
         """
         <style>
+        .operator-board-note{
+            margin:4px 0 12px 0;
+            padding:12px 14px;
+            border-radius:16px;
+            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background:color-mix(in srgb, var(--secondary-background-color) 82%, var(--background-color));
+            font-size:12.5px;
+            line-height:1.32;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 68%, transparent);
+        }
         .machine-group-head-native{
             display:flex;
-            align-items:center;
+            align-items:flex-start;
             justify-content:space-between;
             gap:14px;
-            margin:16px 0 10px 0;
-            padding:14px 18px;
+            margin:18px 0 0 0;
+            padding:15px 18px;
             border-radius:18px 18px 0 0;
-            background:linear-gradient(90deg, rgba(197,126,90,0.18), transparent);
+            background:linear-gradient(90deg, rgba(197,126,90,0.18), transparent 70%);
             border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
             border-bottom:none;
         }
@@ -5662,6 +5740,15 @@ def render_machine_parameter_groups(selected_row, language):
             letter-spacing:0.065em;
             text-transform:uppercase;
             color:var(--text-color);
+        }
+        .machine-group-subtitle-native{
+            margin-top:4px;
+            font-size:12px;
+            line-height:1.25;
+            font-weight:650;
+            color:color-mix(in srgb, var(--text-color) 62%, transparent);
+            letter-spacing:0;
+            text-transform:none;
         }
         .machine-group-count-native{
             min-width:30px;
@@ -5675,6 +5762,7 @@ def render_machine_parameter_groups(selected_row, language):
             justify-content:center;
             font-size:13px;
             font-weight:950;
+            box-shadow:0 6px 14px rgba(197,126,90,0.22);
         }
         .machine-card-native{
             min-height:106px;
@@ -5691,15 +5779,23 @@ def render_machine_parameter_groups(selected_row, language):
             gap:12px;
             box-sizing:border-box;
         }
+        .machine-card-native.primary{
+            min-height:118px;
+            border-left:4px solid #C57E5A;
+        }
+        .machine-card-native.compact{
+            min-height:88px;
+            padding:13px 14px;
+        }
         .machine-card-label-native{
             font-size:11px;
             line-height:1.22;
-            font-weight:820;
+            font-weight:860;
             text-transform:uppercase;
-            letter-spacing:0.04em;
+            letter-spacing:0.045em;
             color:color-mix(in srgb, var(--text-color) 68%, transparent);
             word-break:break-word;
-            min-height:30px;
+            min-height:28px;
             display:flex;
             align-items:flex-start;
         }
@@ -5714,9 +5810,13 @@ def render_machine_parameter_groups(selected_row, language):
             display:flex;
             align-items:flex-end;
         }
+        .machine-card-native.compact .machine-card-value-native{
+            font-size:22px;
+        }
         @media (max-width: 900px){
-            .machine-card-native{
-                min-height:80px;
+            .machine-card-native,
+            .machine-card-native.primary{
+                min-height:86px;
             }
             .machine-card-value-native{
                 font-size:22px;
@@ -5727,11 +5827,21 @@ def render_machine_parameter_groups(selected_row, language):
         unsafe_allow_html=True,
     )
 
-    for group_title, pairs in groups:
+    note = (
+        "Tutti i parametri restano visibili per l'operatore; la ricerca serve solo a filtrare temporaneamente la vista."
+        if language == "IT"
+        else "All parameters remain visible for the operator; search only filters the view temporarily."
+    )
+    st.markdown(f'<div class="operator-board-note">{html.escape(note)}</div>', unsafe_allow_html=True)
+
+    for group_title, group_subtitle, density, pairs in groups:
         st.markdown(
             f"""
             <div class="machine-group-head-native">
-                <div class="machine-group-title-native">{html.escape(str(group_title))}</div>
+                <div>
+                    <div class="machine-group-title-native">{html.escape(str(group_title))}</div>
+                    <div class="machine-group-subtitle-native">{html.escape(str(group_subtitle))}</div>
+                </div>
                 <div class="machine-group-count-native">{len(pairs)}</div>
             </div>
             """,
@@ -5739,7 +5849,7 @@ def render_machine_parameter_groups(selected_row, language):
         )
 
         with st.container(border=True):
-            cols_per_row = 4
+            cols_per_row = 4 if density == "primary" else 5
 
             for i in range(0, len(pairs), cols_per_row):
                 row_pairs = pairs[i:i + cols_per_row]
@@ -5749,15 +5859,13 @@ def render_machine_parameter_groups(selected_row, language):
                     with col_ui:
                         st.markdown(
                             f"""
-                            <div class="machine-card-native">
+                            <div class="machine-card-native {html.escape(density)}">
                                 <div class="machine-card-label-native">{html.escape(str(label))}</div>
                                 <div class="machine-card-value-native">{html.escape(str(value))}</div>
                             </div>
                             """,
                             unsafe_allow_html=True,
                         )
-                # leave remaining columns empty if row_pairs shorter
-
 
 def render_preset_summary_strip(product_name, selected_row, language, modified=False):
     def gv(*names, default="-"):
@@ -6522,6 +6630,14 @@ with tab_production:
         rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
         st.caption("Sempre visibili: sono parametri chiave per la regolazione dell’avvolgimento." if lang == "IT" else "Always visible: these are key winding setup parameters.")
 
+    render_section_header(
+        "Parametri operatore" if lang == "IT" else "Operator parameters",
+        "Tutti i valori del preset sono visibili e raggruppati per uso reale in macchina." if lang == "IT" else "All preset values are visible and grouped by real machine use.",
+        "2B",
+    )
+    current_operator_row = build_operator_row_from_current_values(selected_row)
+    render_machine_parameter_groups(current_operator_row, lang, key_suffix="_production")
+
     z_min_center = None
     z_max_center = None
 
@@ -6845,7 +6961,7 @@ with tab_tech_sheet:
             "B",
         )
 
-        render_machine_parameter_groups(selected_row, lang)
+        render_machine_parameter_groups(selected_row, lang, key_suffix="_tech")
 
 with tab_checklist:
     render_startup_checklist(lang)
