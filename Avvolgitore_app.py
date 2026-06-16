@@ -3576,6 +3576,55 @@ def render_force_visible_premium_sweep_patch():
         unsafe_allow_html=True,
     )
 
+# =========================
+# SCHEDA PRESET REAL SWEEP CSS
+# =========================
+
+def render_scheda_preset_real_sweep_css():
+    st.markdown(
+        """
+        <style>
+        .tech-sheet-preset-card {
+            position:relative !important;
+            overflow:hidden !important;
+            isolation:isolate !important;
+        }
+        .tech-sheet-preset-card > * {
+            position:relative !important;
+            z-index:3 !important;
+        }
+        .tech-sheet-preset-card .premium-sweep-layer {
+            position:absolute !important;
+            top:-45% !important;
+            bottom:-45% !important;
+            left:-72% !important;
+            width:36% !important;
+            pointer-events:none !important;
+            border-radius:inherit !important;
+            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.46) 46%, rgba(197,126,90,0.36) 56%, rgba(255,255,255,0.22) 66%, transparent 100%) !important;
+            transform:skewX(-17deg) !important;
+            opacity:0 !important;
+            z-index:12 !important;
+            mix-blend-mode:screen !important;
+            filter:brightness(1.35) !important;
+            animation:pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) 0.25s both !important;
+        }
+        .tech-sheet-preset-card:hover .premium-sweep-layer,
+        .tech-sheet-preset-card:active .premium-sweep-layer {
+            animation:pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) both !important;
+        }
+        @keyframes pdmRealSweepLayerScheda {
+            0% { left:-72%; opacity:0; }
+            10% { opacity:1; }
+            52% { opacity:1; }
+            100% { left:135%; opacity:0; }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 title_placeholder.markdown(f"## {t['title']}")
 render_scheda_preset_real_sweep_css()
 render_force_visible_premium_sweep_patch()
@@ -3770,54 +3819,6 @@ def render_anteprima_corner_cleanup_patch():
         unsafe_allow_html=True,
     )
 
-
-# =========================
-# SCHEDA PRESET REAL SWEEP CSS
-# =========================
-
-def render_scheda_preset_real_sweep_css():
-    st.markdown(
-        """
-        <style>
-        .tech-sheet-preset-card {
-            position:relative !important;
-            overflow:hidden !important;
-            isolation:isolate !important;
-        }
-        .tech-sheet-preset-card > * {
-            position:relative !important;
-            z-index:3 !important;
-        }
-        .tech-sheet-preset-card .premium-sweep-layer {
-            position:absolute !important;
-            top:-45% !important;
-            bottom:-45% !important;
-            left:-72% !important;
-            width:36% !important;
-            pointer-events:none !important;
-            border-radius:inherit !important;
-            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.46) 46%, rgba(197,126,90,0.36) 56%, rgba(255,255,255,0.22) 66%, transparent 100%) !important;
-            transform:skewX(-17deg) !important;
-            opacity:0 !important;
-            z-index:12 !important;
-            mix-blend-mode:screen !important;
-            filter:brightness(1.35) !important;
-            animation:pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) 0.25s both !important;
-        }
-        .tech-sheet-preset-card:hover .premium-sweep-layer,
-        .tech-sheet-preset-card:active .premium-sweep-layer {
-            animation:pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) both !important;
-        }
-        @keyframes pdmRealSweepLayerScheda {
-            0% { left:-72%; opacity:0; }
-            10% { opacity:1; }
-            52% { opacity:1; }
-            100% { left:135%; opacity:0; }
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
 # =========================
 # GEOMETRY HELPERS
