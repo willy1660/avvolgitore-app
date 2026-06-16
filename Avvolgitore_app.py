@@ -1300,7 +1300,11 @@ def make_preset_visual(row, language):
     html, body {{
         margin:0;
         padding:0;
-        background:var(--component-bg);
+        width:100%;
+        min-height:0 !important;
+        height:auto !important;
+        overflow:hidden;
+        background:transparent !important;
         color:var(--component-text);
         font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }}
@@ -1344,7 +1348,7 @@ def make_preset_visual(row, language):
         letter-spacing:0.035em;
     }}
     .drawing-wrap {{
-        margin:14px;
+        margin:12px;
         border-radius:18px;
         overflow:hidden;
         background:var(--component-drawing-bg);
@@ -1422,12 +1426,12 @@ def make_preset_visual(row, language):
         display:grid;
         grid-template-columns:repeat(3, minmax(0,1fr));
         gap:9px;
-        padding:0 14px 14px 14px;
+        padding:0 12px 12px 12px;
     }}
     .preview-metric {{
-        min-height:54px;
+        min-height:50px;
         border-radius:14px;
-        padding:10px 11px;
+        padding:9px 10px;
         box-sizing:border-box;
         background:var(--component-surface-solid);
         border:1px solid var(--component-border-soft);
@@ -9218,7 +9222,7 @@ with tab_tech_sheet:
                 "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
                 "A",
             )
-            components.html(make_preset_visual(selected_row, lang), height=660, scrolling=False)
+            components.html(make_preset_visual(selected_row, lang), height=545, scrolling=False)
 
         with machine_sheet_tab:
             render_section_header(
