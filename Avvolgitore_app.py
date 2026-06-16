@@ -7208,6 +7208,219 @@ def render_section_header(title, subtitle=None, icon=""):
     )
 
 
+
+
+def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
+    """Momentary premium reveal when a preset/prototype is loaded into the render."""
+    if language == "IT":
+        kicker = "Preset caricato" if source_mode != "prototype" else "Prototipo attivo"
+        line_1 = "Sincronizzazione render"
+        line_2 = "parametri macchina"
+        line_3 = "scheda CSV" if source_mode != "prototype" else "configurazione manuale"
+        badge = "CSV VERIFIED" if source_mode != "prototype" else "PROTOTYPE MODE"
+    else:
+        kicker = "Preset loaded" if source_mode != "prototype" else "Active prototype"
+        line_1 = "Render synchronization"
+        line_2 = "machine parameters"
+        line_3 = "CSV sheet" if source_mode != "prototype" else "manual configuration"
+        badge = "CSV VERIFIED" if source_mode != "prototype" else "PROTOTYPE MODE"
+
+    st.markdown(
+        f"""
+        <style>
+        .pdm-reveal-overlay {{
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                radial-gradient(circle at 50% 46%, rgba(197,126,90,0.16), transparent 34%),
+                linear-gradient(180deg, rgba(3,7,18,0.50), rgba(3,7,18,0.22));
+            backdrop-filter: blur(6px);
+            animation: pdmRevealOverlayOut 1.75s cubic-bezier(.2,.72,.22,1) both;
+        }}
+
+        .pdm-reveal-card {{
+            position: relative;
+            width: min(720px, calc(100vw - 44px));
+            border-radius: 28px;
+            overflow: hidden;
+            padding: 26px 30px 25px 34px;
+            border: 1px solid rgba(197,126,90,0.38);
+            background:
+                radial-gradient(circle at 10% 0%, rgba(197,126,90,0.22), transparent 34%),
+                linear-gradient(180deg, rgba(15,23,42,0.94), rgba(2,6,23,0.92));
+            box-shadow:
+                0 28px 88px rgba(0,0,0,0.48),
+                inset 6px 0 0 #C57E5A;
+            color: #fff;
+            transform-origin: center;
+            animation: pdmRevealCardIn 1.35s cubic-bezier(.16,1,.3,1) both;
+        }}
+
+        .pdm-reveal-card::before {{
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 6px;
+            background: linear-gradient(180deg, #D18A62, #B96F48);
+            box-shadow: 0 0 32px rgba(197,126,90,0.54);
+        }}
+
+        .pdm-reveal-card::after {{
+            content: "";
+            position: absolute;
+            top: -48%;
+            bottom: -48%;
+            left: -72%;
+            width: 38%;
+            background: linear-gradient(
+                105deg,
+                transparent 0%,
+                rgba(197,126,90,0.00) 18%,
+                rgba(197,126,90,0.30) 42%,
+                rgba(255,255,255,0.50) 50%,
+                rgba(197,126,90,0.50) 59%,
+                rgba(197,126,90,0.22) 70%,
+                transparent 100%
+            );
+            transform: skewX(-17deg);
+            mix-blend-mode: screen;
+            animation: pdmRevealSweep 1.22s cubic-bezier(.18,.72,.22,1) 0.18s both;
+        }}
+
+        .pdm-reveal-scanline {{
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 52%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(197,126,90,0.95), rgba(255,255,255,0.72), transparent);
+            box-shadow: 0 0 22px rgba(197,126,90,0.50);
+            opacity: 0;
+            animation: pdmRevealScan 1.28s cubic-bezier(.2,.72,.22,1) 0.14s both;
+        }}
+
+        .pdm-reveal-kicker {{
+            position: relative;
+            z-index: 2;
+            font-size: 12px;
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: .095em;
+            text-transform: uppercase;
+            color: rgba(226,232,240,0.74);
+            margin-bottom: 10px;
+        }}
+
+        .pdm-reveal-title {{
+            position: relative;
+            z-index: 2;
+            font-size: clamp(34px, 5vw, 58px);
+            line-height: .92;
+            font-weight: 950;
+            letter-spacing: -.055em;
+            color: #ffffff;
+            text-shadow: 0 10px 34px rgba(0,0,0,0.38);
+            margin-bottom: 15px;
+        }}
+
+        .pdm-reveal-meta {{
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px 10px;
+            font-size: 13px;
+            line-height: 1.2;
+            font-weight: 760;
+            color: rgba(226,232,240,0.76);
+        }}
+
+        .pdm-reveal-dot {{
+            width: 5px;
+            height: 5px;
+            border-radius: 999px;
+            background: #C57E5A;
+            box-shadow: 0 0 12px rgba(197,126,90,0.56);
+        }}
+
+        .pdm-reveal-badge {{
+            position: absolute;
+            z-index: 2;
+            right: 22px;
+            top: 22px;
+            border-radius: 999px;
+            padding: 8px 11px;
+            background: rgba(197,126,90,0.18);
+            border: 1px solid rgba(197,126,90,0.46);
+            color: #fff;
+            font-size: 10.5px;
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: .075em;
+            text-transform: uppercase;
+        }}
+
+        @keyframes pdmRevealOverlayOut {{
+            0% {{ opacity: 0; }}
+            8% {{ opacity: 1; }}
+            76% {{ opacity: 1; }}
+            100% {{ opacity: 0; visibility: hidden; }}
+        }}
+
+        @keyframes pdmRevealCardIn {{
+            0% {{ opacity: 0; transform: translateY(18px) scale(.975); filter: blur(3px); }}
+            16% {{ opacity: 1; }}
+            62% {{ opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }}
+            100% {{ opacity: 0; transform: translateY(-7px) scale(.992); filter: blur(1px); }}
+        }}
+
+        @keyframes pdmRevealSweep {{
+            0% {{ left: -72%; opacity: 0; }}
+            10% {{ opacity: 1; }}
+            54% {{ opacity: 1; }}
+            100% {{ left: 135%; opacity: 0; }}
+        }}
+
+        @keyframes pdmRevealScan {{
+            0% {{ transform: translateY(-92px); opacity: 0; }}
+            12% {{ opacity: 1; }}
+            72% {{ opacity: .9; }}
+            100% {{ transform: translateY(98px); opacity: 0; }}
+        }}
+
+        @media (prefers-reduced-motion: reduce) {{
+            .pdm-reveal-overlay {{
+                display: none !important;
+            }}
+        }}
+        </style>
+
+        <div class="pdm-reveal-overlay">
+            <div class="pdm-reveal-card">
+                <div class="pdm-reveal-scanline"></div>
+                <div class="pdm-reveal-badge">{html.escape(badge)}</div>
+                <div class="pdm-reveal-kicker">{html.escape(kicker)}</div>
+                <div class="pdm-reveal-title">{html.escape(str(product_name))}</div>
+                <div class="pdm-reveal-meta">
+                    <span>{html.escape(line_1)}</span>
+                    <span class="pdm-reveal-dot"></span>
+                    <span>{html.escape(line_2)}</span>
+                    <span class="pdm-reveal-dot"></span>
+                    <span>{html.escape(line_3)}</span>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_active_preset_card(product_name, language, modified=False):
     if modified:
         title = "Parametri modificati" if language == "IT" else "Modified parameters"
@@ -7481,6 +7694,30 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             border-color:#64748b;
             color:#fff;
         }}
+        .preset-hero-badge.verified {{
+            background:rgba(197,126,90,0.16);
+            border-color:rgba(197,126,90,0.48);
+            color:var(--text-color);
+            padding-left:24px;
+        }}
+        .preset-hero-badge.verified::before {{
+            content:"";
+            position:absolute;
+            left:10px;
+            top:50%;
+            width:7px;
+            height:7px;
+            border-radius:999px;
+            background:#C57E5A;
+            box-shadow:0 0 0 0 rgba(197,126,90,0.44);
+            transform:translateY(-50%);
+            animation:pdmCsvVerifiedPulse 1.8s ease-in-out infinite;
+        }}
+        @keyframes pdmCsvVerifiedPulse {{
+            0% {{ box-shadow:0 0 0 0 rgba(197,126,90,0.42); }}
+            70% {{ box-shadow:0 0 0 7px rgba(197,126,90,0.00); }}
+            100% {{ box-shadow:0 0 0 0 rgba(197,126,90,0.00); }}
+        }}
         .preset-hero-chips {{
             position:relative;
             z-index:2;
@@ -7567,6 +7804,7 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
                 </div>
                 <div class="preset-hero-badges">
                     <span class="preset-hero-badge {status_class}">{html.escape(status_txt)}</span>
+                    <span class="preset-hero-badge verified">CSV VERIFIED</span>
                     <span class="preset-hero-badge {lock_class}">{html.escape(lock_txt)}</span>
                 </div>
             </div>
@@ -7643,6 +7881,7 @@ def render_tech_sheet_preset_card(selected_product, selected_row, language):
                 </div>
                 <div class="preset-hero-badges">
                     <span class="preset-hero-badge {status_class}">{html.escape(status_txt)}</span>
+                    <span class="preset-hero-badge verified">CSV VERIFIED</span>
                     <span class="preset-hero-badge {lock_class}">{html.escape(lock_txt)}</span>
                 </div>
             </div>
@@ -9371,12 +9610,19 @@ with tab_production:
             st.session_state["last_auto_loaded_preset"] = selected_product
             st.session_state["loaded_preset_name"] = selected_product
             st.session_state["show_preset_loaded_success"] = False
+            st.session_state["preset_reveal_product"] = selected_product
+            st.session_state["preset_reveal_source_mode"] = "preset"
 
         # If the user changes any calculator value manually, keep the preset as base and mark it as modified.
         sync_active_preset_state()
         preset_modified = bool(st.session_state.get("preset_values_modified", False))
 
     params_locked = bool(st.session_state.get("params_locked", False))
+
+    reveal_product = st.session_state.pop("preset_reveal_product", None)
+    reveal_source_mode = st.session_state.pop("preset_reveal_source_mode", "preset")
+    if reveal_product:
+        render_preset_reveal_overlay(reveal_product, lang, reveal_source_mode)
 
     if is_prototype:
         render_prototype_product_card(selected_product, lang)
