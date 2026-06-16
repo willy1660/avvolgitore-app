@@ -9771,7 +9771,14 @@ with tab_production:
 
     reveal_source_mode = "prototype" if is_prototype else "preset"
     reveal_key = f"{reveal_source_mode}::{selected_product}"
-    if st.session_state.get("last_revealed_product_key") != reveal_key:
+
+    # First app load: mark current preset as already seen, without opening the pop-up.
+    if "last_revealed_product_key" not in st.session_state:
+        st.session_state["last_revealed_product_key"] = reveal_key
+        st.session_state.pop("pending_reveal_key", None)
+        st.session_state.pop("pending_reveal_product", None)
+        st.session_state.pop("pending_reveal_source_mode", None)
+    elif st.session_state.get("last_revealed_product_key") != reveal_key:
         st.session_state["pending_reveal_key"] = reveal_key
         st.session_state["pending_reveal_product"] = selected_product
         st.session_state["pending_reveal_source_mode"] = reveal_source_mode
