@@ -7245,10 +7245,27 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
             f"""
             <style>
             div[data-testid="stDialog"] {{
+                position: fixed !important;
+                inset: 0 !important;
                 z-index: 999999 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 24px !important;
+                background: rgba(2, 6, 23, 0.78) !important;
+                backdrop-filter: blur(8px) !important;
+            }}
+
+            div[data-testid="stDialog"] > div {{
+                width: 100% !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }}
 
             div[data-testid="stDialog"] [role="dialog"] {{
+                width: min(720px, calc(100vw - 44px)) !important;
+                margin: 0 auto !important;
                 border-radius: 30px !important;
                 border: 1px solid rgba(197,126,90,0.36) !important;
                 background:
@@ -7259,7 +7276,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                         color-mix(in srgb, var(--background-color) 94%, #020617 6%)
                     ) !important;
                 box-shadow:
-                    0 28px 88px rgba(0,0,0,0.34),
+                    0 28px 88px rgba(0,0,0,0.48),
                     inset 6px 0 0 #C57E5A !important;
                 overflow: hidden !important;
             }}
@@ -7289,6 +7306,9 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 padding: 6px 2px 4px 8px;
                 color: var(--text-color);
                 min-height: 210px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
             }}
 
             .pdm-reveal-card::after {{
