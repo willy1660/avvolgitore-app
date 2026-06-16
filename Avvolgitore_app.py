@@ -8022,7 +8022,7 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
         }}
         .quick-grid-v2 {{
             display:grid;
-            grid-template-columns:repeat(3, minmax(0, 1fr));
+            grid-template-columns:repeat(2, minmax(0, 1fr));
             gap:12px;
             margin:8px 0 16px 0;
         }}
@@ -9688,12 +9688,12 @@ with tab_tech_sheet:
             f"""
             <style>
             .tech-sheet-preset-card {{
-            .tech-sheet-preset-card {
+            .tech-sheet-preset-card {{
                 border:0 !important;
                 border-left:6px solid #C57E5A !important;
                 outline:0 !important;
                 box-shadow:0 8px 22px rgba(0,0,0,0.08), inset 6px 0 0 #C57E5A !important;
-            }
+            }}
 
                 position:relative !important;
                 overflow:hidden !important;
