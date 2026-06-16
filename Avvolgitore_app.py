@@ -7705,41 +7705,6 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
 
     board_height = max(520, min(2600, 170 + 162 * total_cards // 4 + 104 * len(groups)))
 
-    streamlit_theme_base = str(st.get_option("theme.base") or "light").lower()
-    is_dark_theme = streamlit_theme_base == "dark"
-
-    board_theme_css = (
-        """
-        :root {
-            color-scheme: dark;
-            --pdm-accent:#C57E5A;
-            --bg: transparent;
-            --text:#f8fafc;
-            --muted:rgba(248,250,252,0.66);
-            --line:rgba(248,250,252,0.10);
-            --card-bg:transparent;
-            --header-bg:linear-gradient(90deg, rgba(197,126,90,0.18), transparent 70%);
-            --hover-bg:rgba(197,126,90,0.055);
-            --shadow:0 7px 18px rgba(0,0,0,0.14);
-        }
-        """
-        if is_dark_theme
-        else
-        """
-        :root {
-            color-scheme: light;
-            --pdm-accent:#C57E5A;
-            --bg: transparent;
-            --text:#0f172a;
-            --muted:#475569;
-            --line:rgba(15,23,42,0.11);
-            --card-bg:transparent;
-            --header-bg:linear-gradient(90deg, rgba(197,126,90,0.10), transparent 72%);
-            --hover-bg:rgba(197,126,90,0.045);
-            --shadow:0 7px 18px rgba(15,23,42,0.045);
-        }
-        """
-    )
 
     board_html = f"""
     <!doctype html>
@@ -7748,25 +7713,26 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     <meta charset="utf-8">
     <style>
     :root {{
-        color-scheme: light dark;
+        color-scheme: light;
         --pdm-accent:#C57E5A;
         --bg: transparent;
         --text:#0f172a;
         --muted:#475569;
-        --line:rgba(15,23,42,0.10);
-        --surface:transparent;
-        --surface2:transparent;
-        --shadow:0 7px 18px rgba(0,0,0,0.055);
+        --line:rgba(15,23,42,0.11);
+        --card-bg:transparent;
+        --header-bg:linear-gradient(90deg, rgba(197,126,90,0.10), transparent 72%);
+        --hover-bg:rgba(197,126,90,0.045);
+        --shadow:0 7px 18px rgba(15,23,42,0.045);
     }}
-    @media (prefers-color-scheme: dark) {{
-        :root {{
-            --text:#f8fafc;
-            --muted:rgba(248,250,252,0.66);
-            --line:rgba(248,250,252,0.10);
-            --surface:transparent;
-            --surface2:transparent;
-            --shadow:0 7px 18px rgba(0,0,0,0.14);
-        }}
+    body.dark-theme {{
+        color-scheme: dark;
+        --text:#f8fafc;
+        --muted:rgba(248,250,252,0.68);
+        --line:rgba(248,250,252,0.12);
+        --card-bg:transparent;
+        --header-bg:linear-gradient(90deg, rgba(197,126,90,0.18), transparent 70%);
+        --hover-bg:rgba(197,126,90,0.055);
+        --shadow:0 7px 18px rgba(0,0,0,0.14);
     }}
     html, body {{
         margin:0;
@@ -7932,6 +7898,56 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     </style>
     </head>
     <body>
+        <script>
+        (function () {{
+            function parseRgb(value) {{
+                if (!value) return null;
+                value = String(value).trim();
+                if (value.startsWith("#")) {{
+                    let hex = value.slice(1);
+                    if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+                    const n = parseInt(hex, 16);
+                    if (Number.isNaN(n)) return null;
+                    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+                }}
+                const match = value.match(/rgba?\(([^)]+)\)/i);
+                if (!match) return null;
+                const parts = match[1].split(",").map(x => parseFloat(x.trim()));
+                if (parts.length < 3) return null;
+                return [parts[0], parts[1], parts[2]];
+            }}
+
+            function luminance(rgb) {{
+                const mapped = rgb.map(v => {{
+                    v = Math.max(0, Math.min(255, v)) / 255;
+                    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+                }});
+                return 0.2126 * mapped[0] + 0.7152 * mapped[1] + 0.0722 * mapped[2];
+            }}
+
+            function detectDark() {{
+                try {{
+                    const parentDoc = window.parent && window.parent.document;
+                    if (parentDoc) {{
+                        const rootStyle = window.parent.getComputedStyle(parentDoc.documentElement);
+                        const bodyStyle = window.parent.getComputedStyle(parentDoc.body);
+                        const candidates = [
+                            rootStyle.getPropertyValue("--background-color"),
+                            rootStyle.getPropertyValue("--secondary-background-color"),
+                            bodyStyle.backgroundColor
+                        ];
+                        for (const candidate of candidates) {{
+                            const rgb = parseRgb(candidate);
+                            if (rgb) return luminance(rgb) < 0.35;
+                        }}
+                    }}
+                }} catch (err) {{}}
+                return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            }}
+
+            document.body.classList.toggle("dark-theme", detectDark());
+        }})();
+        </script>
         <div class="operator-board-note">{html.escape(note)}</div>
         {''.join(groups_html)}
     </body>
