@@ -3691,8 +3691,11 @@ title_placeholder.markdown(
     .top-brand-title {{
         margin: 0;
         padding: 0;
+        min-height: 142px;
+        display: flex;
+        align-items: center;
         font-size: 88px;
-        line-height: 0.92;
+        line-height: 1.0;
         font-weight: 520;
         letter-spacing: -0.052em;
         color: var(--text-color);
@@ -3707,6 +3710,7 @@ title_placeholder.markdown(
             height: 118px;
         }}
         .top-brand-title {{
+            min-height: 118px;
             font-size: 72px;
             font-weight: 520;
         }}
@@ -3721,6 +3725,7 @@ title_placeholder.markdown(
             height: 88px;
         }}
         .top-brand-title {{
+            min-height: 88px;
             font-size: 48px;
             font-weight: 540;
         }}
