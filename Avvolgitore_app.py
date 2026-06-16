@@ -1308,7 +1308,7 @@ def make_preset_visual(row, language):
     .preview-title {{
         font-size:20px;
         line-height:1.05;
-        font-weight:950;
+        font-weight:780;
         letter-spacing:-0.035em;
         color:var(--component-text);
     }}
@@ -2352,7 +2352,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: -10px;
+        margin-top: -34px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -2360,7 +2360,7 @@ st.markdown(
         padding: 0;
         background: transparent;
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-        margin: 0 0 24px 0;
+        margin: 0 0 18px 0;
         align-items: center;
     }
 
@@ -3647,14 +3647,14 @@ title_placeholder.markdown(
     .top-brand-title-wrap {{
         display:flex;
         align-items:center;
-        min-height:132px;
+        min-height:108px;
         margin:0;
         padding:0 0 2px 0;
     }}
     .top-brand-title {{
         margin:0;
         padding:0;
-        font-size:64px;
+        font-size:78px;
         line-height:0.94;
         font-weight:950;
         letter-spacing:-0.05em;
@@ -3662,18 +3662,18 @@ title_placeholder.markdown(
     }}
     @media (max-width: 1280px) {{
         .top-brand-title-wrap {{
-            min-height:110px;
+            min-height:92px;
         }}
         .top-brand-title {{
-            font-size:52px;
+            font-size:64px;
         }}
     }}
     @media (max-width: 820px) {{
         .top-brand-title-wrap {{
-            min-height:86px;
+            min-height:74px;
         }}
         .top-brand-title {{
-            font-size:40px;
+            font-size:50px;
         }}
     }}
     </style>
