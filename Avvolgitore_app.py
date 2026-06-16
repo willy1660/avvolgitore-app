@@ -1250,6 +1250,7 @@ def make_preset_visual(row, language):
         --copper-fill: #C57E5A;
         --copper-stroke: #7a4124;
         --copper-highlight: #E7B18F;
+        --component-page-bg: #f8fafc;
     }}
 
     html[data-theme="dark"] {{
@@ -1267,6 +1268,7 @@ def make_preset_visual(row, language):
         --dim-line: rgba(235,241,248,0.92);
         --dim-guide: rgba(193,204,219,0.56);
         --dim-label: rgba(203,214,228,0.88);
+        --component-page-bg: #020817;
     }}
 
     html, body {{
@@ -1276,7 +1278,7 @@ def make_preset_visual(row, language):
         height:auto !important;
         min-height:0 !important;
         overflow:hidden;
-        background:transparent !important;
+        background:var(--component-page-bg) !important;
         color:var(--component-text);
         font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }}
@@ -1287,7 +1289,7 @@ def make_preset_visual(row, language):
         border:0 !important;
         outline:0 !important;
         box-shadow:none !important;
-        background:transparent !important;
+        background:var(--component-page-bg) !important;
         border-radius:0 !important;
         overflow:visible !important;
     }}
@@ -1559,13 +1561,14 @@ def make_preset_visual(row, language):
                     const bodyStyle = window.parent.getComputedStyle(parentDoc.body);
                     const candidates = [
                         rootStyle.getPropertyValue("--background-color"),
-                        rootStyle.getPropertyValue("--secondary-background-color"),
-                        bodyStyle.backgroundColor
+                        bodyStyle.backgroundColor,
+                        rootStyle.getPropertyValue("--secondary-background-color")
                     ];
                     for (const candidate of candidates) {{
                         const rgb = parseRgb(candidate);
                         if (rgb) {{
                             document.documentElement.dataset.theme = luminance(rgb) < 0.35 ? "dark" : "light";
+                            document.documentElement.style.setProperty("--component-page-bg", candidate.trim());
                             return;
                         }}
                     }}
