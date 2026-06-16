@@ -9236,7 +9236,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
 
             function rgbaFrom(rgb, alpha) {{
                 if (!rgb) return "";
-                return `rgba(${Math.round(rgb[0])}, ${Math.round(rgb[1])}, ${Math.round(rgb[2])}, ${alpha})`;
+                return "rgba(" + Math.round(rgb[0]) + ", " + Math.round(rgb[1]) + ", " + Math.round(rgb[2]) + ", " + alpha + ")";
             }}
 
             function getThemeInfo() {{
