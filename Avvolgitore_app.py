@@ -9688,62 +9688,79 @@ with tab_tech_sheet:
             f"""
             <style>
             .tech-sheet-preset-card {{
-            .tech-sheet-preset-card {{
-                border:0 !important;
-                border-left:6px solid #C57E5A !important;
-                outline:0 !important;
-                box-shadow:0 8px 22px rgba(0,0,0,0.08), inset 6px 0 0 #C57E5A !important;
-            }}
-
-                position:relative !important;
-                overflow:hidden !important;
-                isolation:isolate !important;
-            }}
-            .tech-sheet-preset-card > * {{
-                position:relative !important;
-                z-index:3 !important;
-            }}
-            .tech-sheet-preset-card .premium-sweep-layer {{
-                position:absolute !important;
-                top:-45% !important;
-                bottom:-45% !important;
-                left:-72% !important;
-                width:36% !important;
-                pointer-events:none !important;
-                border-radius:inherit !important;
-                background:linear-gradient(105deg, transparent 0%, rgba(197,126,90,0.00) 18%, rgba(197,126,90,0.28) 42%, rgba(197,126,90,0.62) 56%, rgba(197,126,90,0.30) 70%, transparent 100%) !important;
-                transform:skewX(-17deg) !important;
-                opacity:0 !important;
-                z-index:12 !important;
-                mix-blend-mode:screen !important;
-                filter:brightness(1.35) !important;
-                animation:pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) 0.25s both !important;
-            }}
-            .tech-sheet-preset-card:hover .premium-sweep-layer,
-            .tech-sheet-preset-card:active .premium-sweep-layer {{
-                animation:pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) both !important;
-            }}
-            @keyframes pdmRealSweepLayerScheda {{
-                0% {{ left:-72%; opacity:0; }}
-                10% {{ opacity:1; }}
-                52% {{ opacity:1; }}
-                100% {{ left:135%; opacity:0; }}
-            }}
-            </style>
-<div class="tech-sheet-preset-card premium-sweep-card pdm-pulse" style="
-                margin-top:12px;
-                margin-bottom:18px;
-                padding:22px 24px;
-                border-radius:18px;
-                background:linear-gradient(180deg,
+                position: relative;
+                overflow: hidden;
+                isolation: isolate;
+                margin-top: 12px;
+                margin-bottom: 18px;
+                padding: 22px 24px 22px 28px;
+                border-radius: 18px;
+                background: linear-gradient(
+                    180deg,
                     color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
                     color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
                 );
-                border:0 !important;
-                border-left:6px solid #C57E5A !important;
-                box-shadow:0 8px 22px rgba(0,0,0,0.08), inset 6px 0 0 #C57E5A;
-                outline:0 !important;
-            ">
+                border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+                box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+            }}
+
+            .tech-sheet-preset-card::before {{
+                content: "";
+                position: absolute;
+                left: 14px;
+                top: 18px;
+                bottom: 18px;
+                width: 4px;
+                border-radius: 999px;
+                background: linear-gradient(180deg, #D18A62 0%, #B96F48 100%);
+                box-shadow: 0 0 18px rgba(197,126,90,0.22);
+                z-index: 2;
+            }}
+
+            .tech-sheet-preset-card > * {{
+                position: relative;
+                z-index: 3;
+            }}
+
+            .tech-sheet-preset-card .premium-sweep-layer {{
+                position: absolute;
+                top: -45%;
+                bottom: -45%;
+                left: -72%;
+                width: 36%;
+                pointer-events: none;
+                border-radius: inherit;
+                background: linear-gradient(
+                    105deg,
+                    transparent 0%,
+                    rgba(197,126,90,0.00) 18%,
+                    rgba(197,126,90,0.28) 42%,
+                    rgba(197,126,90,0.62) 56%,
+                    rgba(197,126,90,0.30) 70%,
+                    transparent 100%
+                );
+                transform: skewX(-17deg);
+                opacity: 0;
+                z-index: 2;
+                mix-blend-mode: screen;
+                filter: brightness(1.35);
+                animation: pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) 0.25s both;
+            }}
+
+            .tech-sheet-preset-card:hover .premium-sweep-layer,
+            .tech-sheet-preset-card:active .premium-sweep-layer {{
+                animation: pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) both;
+            }}
+
+            @keyframes pdmRealSweepLayerScheda {{
+                0% {{ left: -72%; opacity: 0; }}
+                10% {{ opacity: 1; }}
+                52% {{ opacity: 1; }}
+                100% {{ left: 135%; opacity: 0; }}
+            }}
+            </style>
+
+            <div class="tech-sheet-preset-card premium-sweep-card pdm-pulse">
                 <div class="premium-sweep-layer"></div>
                 <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
                     {t["preset_sheet"]}
