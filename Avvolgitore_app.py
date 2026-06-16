@@ -7597,193 +7597,240 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         st.info("Nessun parametro trovato." if language == "IT" else "No parameter found.")
         return
 
-    st.markdown(
-        """
-        <style>
-        .operator-board-note{
-            margin:4px 0 12px 0;
-            padding:12px 14px;
-            border-radius:16px;
-            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-            background:color-mix(in srgb, var(--secondary-background-color) 82%, var(--background-color));
-            font-size:12.5px;
-            line-height:1.32;
-            font-weight:650;
-            color:color-mix(in srgb, var(--text-color) 68%, transparent);
-        }
-        .machine-group-head-native{
-            display:flex;
-            align-items:flex-start;
-            justify-content:space-between;
-            gap:14px;
-            margin:18px 0 0 0;
-            padding:15px 18px;
-            border-radius:18px 18px 0 0;
-            background:linear-gradient(90deg, rgba(197,126,90,0.18), transparent 70%);
-            border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-            border-bottom:none;
-        }
-        .machine-group-title-native{
-            font-size:15px;
-            font-weight:950;
-            letter-spacing:0.065em;
-            text-transform:uppercase;
-            color:var(--text-color);
-        }
-        .machine-group-subtitle-native{
-            margin-top:4px;
-            font-size:12px;
-            line-height:1.25;
-            font-weight:650;
-            color:color-mix(in srgb, var(--text-color) 62%, transparent);
-            letter-spacing:0;
-            text-transform:none;
-        }
-        .machine-group-count-native{
-            min-width:30px;
-            height:30px;
-            padding:0 10px;
-            border-radius:999px;
-            background:#C57E5A;
-            color:#fff;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:13px;
-            font-weight:950;
-            box-shadow:0 6px 14px rgba(197,126,90,0.22);
-        }
-        .machine-grid-native{
-            display:grid;
-            grid-template-columns:repeat(4, minmax(0, 1fr));
-            gap:0;
-            width:100%;
-            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
-            border-radius:0 0 18px 18px;
-            overflow:hidden;
-            background:linear-gradient(180deg,
-                color-mix(in srgb, var(--secondary-background-color) 90%, var(--background-color)),
-                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-            );
-            box-shadow:0 7px 18px rgba(0,0,0,0.045);
-            margin:0 0 18px 0;
-        }
-        .machine-card-native{
-            min-height:112px;
-            padding:18px 20px;
-            border-radius:0;
-            border:0;
-            border-right:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
-            border-bottom:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
-            background:transparent;
-            display:flex;
-            flex-direction:column;
-            justify-content:center;
-            gap:14px;
-            box-sizing:border-box;
-            min-width:0;
-        }
-        .machine-card-native:nth-child(4n){
-            border-right:0;
-        }
-        .machine-card-native.primary,
-        .machine-card-native.compact{
-            min-height:112px;
-            padding:18px 20px;
-        }
-        .machine-card-label-native{
-            font-size:11px;
-            line-height:1.12;
-            font-weight:950;
-            text-transform:uppercase;
-            letter-spacing:0.07em;
-            color:color-mix(in srgb, var(--text-color) 64%, transparent);
-            word-break:break-word;
-            min-height:24px;
-            display:flex;
-            align-items:flex-start;
-        }
-        .machine-card-value-native{
-            font-size:clamp(20px, 1.32vw, 26px);
-            line-height:1.05;
-            font-weight:950;
-            color:var(--text-color);
-            letter-spacing:-0.025em;
-            word-break:break-word;
-            min-height:32px;
-            display:flex;
-            align-items:flex-end;
-        }
-        .machine-card-native.compact .machine-card-value-native{
-            font-size:clamp(20px, 1.32vw, 26px);
-        }
-        .machine-card-native:hover{
-            background:color-mix(in srgb, var(--pdm-accent) 4%, transparent);
-        }
-        @media (max-width: 1180px){
-            .machine-grid-native{
-                grid-template-columns:repeat(2, minmax(0, 1fr));
-            }
-            .machine-card-native:nth-child(4n){
-                border-right:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
-            }
-            .machine-card-native:nth-child(2n){
-                border-right:0;
-            }
-        }
-        @media (max-width: 720px){
-            .machine-grid-native{
-                grid-template-columns:1fr;
-            }
-            .machine-card-native,
-            .machine-card-native:nth-child(2n),
-            .machine-card-native:nth-child(4n){
-                border-right:0;
-            }
-            .machine-card-native{
-                min-height:88px;
-            }
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
     note = (
         "Tutti i parametri restano visibili per l'operatore; la ricerca serve solo a filtrare temporaneamente la vista."
         if language == "IT"
         else "All parameters remain visible for the operator; search only filters the view temporarily."
     )
-    st.markdown(f'<div class="operator-board-note">{html.escape(note)}</div>', unsafe_allow_html=True)
 
+    groups_html = []
+    total_cards = 0
     for group_title, group_subtitle, density, pairs in groups:
-        st.markdown(
-            f"""
-            <div class="machine-group-head-native">
-                <div>
-                    <div class="machine-group-title-native">{html.escape(str(group_title))}</div>
-                    <div class="machine-group-subtitle-native">{html.escape(str(group_subtitle))}</div>
-                </div>
-                <div class="machine-group-count-native">{len(pairs)}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+        total_cards += len(pairs)
         cards_html = "".join(
             f"""
-            <div class="machine-card-native {html.escape(density)}">
+            <div class="machine-card-native {html.escape(str(density))}">
                 <div class="machine-card-label-native">{html.escape(str(label))}</div>
                 <div class="machine-card-value-native">{html.escape(str(value))}</div>
             </div>
             """
             for label, value in pairs
         )
-
-        st.markdown(
-            f'<div class="machine-grid-native">{cards_html}</div>',
-            unsafe_allow_html=True,
+        groups_html.append(
+            f"""
+            <section class="machine-section-native">
+                <div class="machine-group-head-native">
+                    <div>
+                        <div class="machine-group-title-native">{html.escape(str(group_title))}</div>
+                        <div class="machine-group-subtitle-native">{html.escape(str(group_subtitle))}</div>
+                    </div>
+                    <div class="machine-group-count-native">{len(pairs)}</div>
+                </div>
+                <div class="machine-grid-native">{cards_html}</div>
+            </section>
+            """
         )
+
+    board_height = max(520, min(2400, 150 + 150 * total_cards // 4 + 96 * len(groups)))
+
+    board_html = f"""
+    <!doctype html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <style>
+    :root {{
+        color-scheme: light dark;
+        --pdm-accent:#C57E5A;
+        --bg: transparent;
+        --text:#0f172a;
+        --muted:#475569;
+        --line:rgba(15,23,42,0.12);
+        --surface:rgba(248,250,252,0.86);
+        --surface2:rgba(241,245,249,0.92);
+        --shadow:0 7px 18px rgba(0,0,0,0.055);
+    }}
+    @media (prefers-color-scheme: dark) {{
+        :root {{
+            --text:#f8fafc;
+            --muted:rgba(248,250,252,0.66);
+            --line:rgba(248,250,252,0.12);
+            --surface:rgba(17,24,39,0.86);
+            --surface2:rgba(15,23,42,0.92);
+            --shadow:0 7px 18px rgba(0,0,0,0.14);
+        }}
+    }}
+    html, body {{
+        margin:0;
+        padding:0;
+        background:var(--bg);
+        color:var(--text);
+        font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }}
+    .operator-board-note {{
+        margin:4px 0 12px 0;
+        padding:12px 14px;
+        border-radius:16px;
+        border:1px solid var(--line);
+        background:var(--surface);
+        font-size:12.5px;
+        line-height:1.32;
+        font-weight:650;
+        color:var(--muted);
+    }}
+    .machine-section-native {{
+        margin:18px 0 0 0;
+    }}
+    .machine-group-head-native {{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:14px;
+        padding:15px 18px;
+        border-radius:18px 18px 0 0;
+        background:linear-gradient(90deg, rgba(197,126,90,0.18), transparent 70%);
+        border:1px solid var(--line);
+        border-bottom:none;
+        box-sizing:border-box;
+    }}
+    .machine-group-title-native {{
+        font-size:15px;
+        font-weight:950;
+        letter-spacing:0.065em;
+        text-transform:uppercase;
+        color:var(--text);
+    }}
+    .machine-group-subtitle-native {{
+        margin-top:4px;
+        font-size:12px;
+        line-height:1.25;
+        font-weight:650;
+        color:var(--muted);
+        letter-spacing:0;
+        text-transform:none;
+    }}
+    .machine-group-count-native {{
+        min-width:30px;
+        height:30px;
+        padding:0 10px;
+        border-radius:999px;
+        background:var(--pdm-accent);
+        color:#fff;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:13px;
+        font-weight:950;
+        box-shadow:0 6px 14px rgba(197,126,90,0.22);
+        box-sizing:border-box;
+    }}
+    .machine-grid-native {{
+        display:grid;
+        grid-template-columns:repeat(4, minmax(0, 1fr));
+        gap:0;
+        width:100%;
+        border:1px solid var(--line);
+        border-radius:0 0 18px 18px;
+        overflow:hidden;
+        background:linear-gradient(180deg, var(--surface), var(--surface2));
+        box-shadow:var(--shadow);
+        box-sizing:border-box;
+    }}
+    .machine-card-native {{
+        min-height:112px;
+        padding:18px 20px;
+        border-right:1px solid var(--line);
+        border-bottom:1px solid var(--line);
+        background:transparent;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        gap:14px;
+        box-sizing:border-box;
+        min-width:0;
+        position:relative;
+        overflow:hidden;
+        isolation:isolate;
+    }}
+    .machine-card-native:nth-child(4n) {{
+        border-right:0;
+    }}
+    .machine-card-label-native {{
+        font-size:11px;
+        line-height:1.12;
+        font-weight:950;
+        text-transform:uppercase;
+        letter-spacing:0.07em;
+        color:var(--muted);
+        word-break:break-word;
+        min-height:24px;
+        display:flex;
+        align-items:flex-start;
+        position:relative;
+        z-index:2;
+    }}
+    .machine-card-value-native {{
+        font-size:clamp(20px, 1.32vw, 26px);
+        line-height:1.05;
+        font-weight:950;
+        color:var(--text);
+        letter-spacing:-0.025em;
+        word-break:break-word;
+        min-height:32px;
+        display:flex;
+        align-items:flex-end;
+        position:relative;
+        z-index:2;
+    }}
+    .machine-card-native::after {{
+        content:"";
+        position:absolute;
+        top:-42%;
+        bottom:-42%;
+        left:-78%;
+        width:48%;
+        pointer-events:none;
+        border-radius:inherit;
+        background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 25%, rgba(255,255,255,0.32) 48%, rgba(197,126,90,0.26) 56%, rgba(255,255,255,0.14) 64%, transparent 100%);
+        transform:skewX(-16deg);
+        opacity:0;
+        z-index:4;
+        mix-blend-mode:screen;
+    }}
+    .machine-card-native:hover {{
+        background:rgba(197,126,90,0.04);
+    }}
+    .machine-card-native:hover::after {{
+        opacity:1;
+        animation:pdmCardSweepAfter 1.05s cubic-bezier(.2,.72,.22,1) both;
+    }}
+    @keyframes pdmCardSweepAfter {{
+        0% {{ left:-82%; opacity:0; }}
+        12% {{ opacity:1; }}
+        100% {{ left:138%; opacity:0; }}
+    }}
+    @media (max-width:1180px) {{
+        .machine-grid-native {{ grid-template-columns:repeat(2, minmax(0, 1fr)); }}
+        .machine-card-native:nth-child(4n) {{ border-right:1px solid var(--line); }}
+        .machine-card-native:nth-child(2n) {{ border-right:0; }}
+    }}
+    @media (max-width:720px) {{
+        .machine-grid-native {{ grid-template-columns:1fr; }}
+        .machine-card-native,
+        .machine-card-native:nth-child(2n),
+        .machine-card-native:nth-child(4n) {{ border-right:0; }}
+        .machine-card-native {{ min-height:88px; }}
+    }}
+    </style>
+    </head>
+    <body>
+        <div class="operator-board-note">{html.escape(note)}</div>
+        {''.join(groups_html)}
+    </body>
+    </html>
+    """
+
+    components.html(board_html, height=board_height, scrolling=True)
 
 def render_preset_summary_strip(product_name, selected_row, language, modified=False):
     def gv(*names, default="-"):
