@@ -3698,21 +3698,24 @@ title_placeholder.markdown(
         color: var(--pdm-popup-text);
     }}
 
-    @media (max-width: 1280px) {{
+    /* iPad / tablet: improve logo-title alignment */
+    @media (max-width: 1180px) and (min-width: 821px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 128px;
+            min-height: 122px;
+            align-items: center;
         }}
         .top-brand-title-wrap {{
-            align-items: flex-end;
-            padding-bottom: 6px;
+            padding: 0 0 0 4px;
         }}
         .top-brand-logo-img {{
-            height: 118px;
+            height: 108px;
         }}
         .top-brand-title {{
-            font-size: 72px;
-            font-weight: 520;
+            font-size: 66px;
+            line-height: 0.96;
+            font-weight: 500;
+            letter-spacing: -0.048em;
         }}
     }}
 
@@ -3722,15 +3725,16 @@ title_placeholder.markdown(
             min-height: 98px;
         }}
         .top-brand-title-wrap {{
-            align-items: flex-end;
-            padding-bottom: 4px;
+            align-items: center;
+            padding: 0 0 0 4px;
         }}
         .top-brand-logo-img {{
             height: 88px;
         }}
         .top-brand-title {{
             font-size: 48px;
-            font-weight: 540;
+            font-weight: 520;
+            line-height: 0.98;
         }}
     }}
     </style>
