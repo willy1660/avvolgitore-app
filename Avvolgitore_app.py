@@ -9992,7 +9992,7 @@ with tab_production:
 
     render_section_header(
         "Risultati" if lang == "IT" else "Results",
-        "Lettura sintetica sotto il render; il dettaglio completo resta espandibile." if lang == "IT" else "Synthetic reading below the render; full detail remains expandable.",
+        "Lettura sintetica sotto il render; i risultati principali sono visibili direttamente qui sotto." if lang == "IT" else "Quick reading below the render; the main results are shown directly below.",
         "4",
     )
 
@@ -10010,20 +10010,18 @@ with tab_production:
         pallet_size_mm,
     )
 
-    detail_label = "Dettaglio tecnico" if lang == "IT" else "Technical detail"
-    with st.expander(detail_label, expanded=False):
-        render_summary_cards(
-                t["results"],
-            [
-                {"label": t["metric1"], "value": tube_diameter_label, "note": ("Configurazione verticale" if tube_layout_code == "double" else "")},
-                {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
-                {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
-                {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
-                {"label": t["metric5"], "value": f"{visual_metrics['max_xy_span']:.1f} mm"},
-                {"label": t["metric6"], "value": f"{visual_metrics['wound_length_m']:.3f} m"},
-            ],
-            cards_per_row=3,
-        )
+    result_cards = [
+        {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
+        {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
+        {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
+        {"label": t["metric5"], "value": f"{visual_metrics['max_xy_span']:.1f} mm"},
+    ]
+
+    render_summary_cards(
+        t["results"],
+        result_cards,
+        cards_per_row=2,
+    )
 
     if coil_footprint_mm > pallet_size_mm:
         st.warning(t["warning"])
