@@ -102,7 +102,7 @@ TEXTS = {
         "preset_subtitle": "Configurazione tecnica prodotto · valori caricati dal preset",
         "csv_params": "#### Parametri del preset",
         "presets_readonly": "In questo passaggio i preset sono solo consultabili. Nel passaggio successivo aggiungeremo il pulsante per caricarli nel calcolatore.",
-        "presets_file_missing": "File preset non trovato. Mettilo nella stessa cartella dell'app.",
+        "presets_file_missing": "File Presets.csv non trovato. Mettilo nella stessa cartella dell'app.",
         "presets_load_error": "Errore nel caricamento dei preset",
         "preset_visual_title": "Anteprima tecnica",
         "load_to_calculator": "Carica nel calcolatore",
@@ -218,7 +218,7 @@ TEXTS = {
         "preset_subtitle": "Product technical configuration · values loaded from the preset",
         "csv_params": "#### Preset parameters",
         "presets_readonly": "At this stage, presets are read-only. In the next step, we will add the button to load them into the calculator.",
-        "presets_file_missing": "Preset file not found. Put it in the same folder as the app.",
+        "presets_file_missing": "Presets.csv file not found. Put it in the same folder as the app.",
         "presets_load_error": "Error loading presets",
         "preset_visual_title": "Technical preview",
         "load_to_calculator": "Load into calculator",
@@ -953,7 +953,7 @@ guide_offset_x = 555.0
 # =========================
 
 @st.cache_data
-def load_presets(path="file preset"):
+def load_presets(path="Presets.csv"):
     # Excel sometimes saves preset files in Windows/Latin encoding instead of UTF-8.
     # Try UTF-8 first, then common Excel encodings.
     last_error = None
@@ -1916,7 +1916,7 @@ def make_csv_preset_pdf_bytes(product_name, selected_row, language):
     title = "Scheda preset" if language == "IT" else "Preset sheet"
     subtitle = "Preset originale - valori ufficiali" if language == "IT" else "Original preset - official values"
     section_title = "Parametri preset" if language == "IT" else "Preset parameters"
-    footer = "Preset originale da file preset - nessuna cattura render inclusa" if language == "IT" else "Original preset from file preset - no render capture included"
+    footer = "Preset originale da file preset - nessuna cattura render inclusa" if language == "IT" else "Original preset from Presets.csv - no render capture included"
 
     source_rows = []
     for col in selected_row.index:
@@ -9642,7 +9642,7 @@ production_label = "Simulazione" if lang == "IT" else "Simulation"
 tech_sheet_label = "Scheda tecnica" if lang == "IT" else "Technical sheet"
 
 try:
-    presets_df = load_presets("file preset")
+    presets_df = load_presets("Presets.csv")
     presets_load_exception = None
 except Exception as e:
     presets_df = None
