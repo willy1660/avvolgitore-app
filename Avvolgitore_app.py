@@ -9039,12 +9039,16 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         --hover-bg:rgba(197,126,90,0.055);
         --shadow:0 7px 18px rgba(0,0,0,0.14);
     }}
+    *, *::before, *::after {{
+        box-sizing:border-box;
+    }}
     html, body {{
         margin:0;
-        padding:0;
+        padding:0 2px 8px 0;
         background:var(--bg);
         color:var(--text);
         font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        overflow-x:hidden;
     }}
     .operator-board-note {{
         margin:4px 0 12px 0;
@@ -9234,23 +9238,47 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
                 try {{
                     const parentDoc = window.parent && window.parent.document;
                     if (parentDoc) {{
-                        const rootStyle = window.parent.getComputedStyle(parentDoc.documentElement);
-                        const bodyStyle = window.parent.getComputedStyle(parentDoc.body);
+                        const root = parentDoc.documentElement;
+                        const body = parentDoc.body;
+                        const appContainer =
+                            parentDoc.querySelector('[data-testid="stAppViewContainer"]') ||
+                            parentDoc.querySelector('.stApp') ||
+                            body;
+
+                        const attrBag = [
+                            root.getAttribute("data-theme") || "",
+                            body.getAttribute("data-theme") || "",
+                            root.className || "",
+                            body.className || "",
+                            appContainer.className || ""
+                        ].join(" ").toLowerCase();
+
+                        if (attrBag.includes("dark")) return true;
+                        if (attrBag.includes("light")) return false;
+
+                        const rootStyle = window.parent.getComputedStyle(root);
+                        const bodyStyle = window.parent.getComputedStyle(body);
+                        const appStyle = window.parent.getComputedStyle(appContainer);
+
                         const candidates = [
                             rootStyle.getPropertyValue("--background-color"),
                             rootStyle.getPropertyValue("--secondary-background-color"),
+                            appStyle.backgroundColor,
                             bodyStyle.backgroundColor
                         ];
+
                         for (const candidate of candidates) {{
                             const rgb = parseRgb(candidate);
-                            if (rgb) return luminance(rgb) < 0.35;
+                            if (rgb) return luminance(rgb) < 0.42;
                         }}
                     }}
                 }} catch (err) {{}}
-                return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+                return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
             }}
 
-            document.body.classList.toggle("dark-theme", detectDark());
+            const isDark = detectDark();
+            document.body.classList.toggle("dark-theme", isDark);
+            document.body.classList.toggle("light-theme", !isDark);
         }})();
         </script>
         <div class="operator-board-note">{html.escape(note)}</div>
