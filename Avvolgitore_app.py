@@ -7211,19 +7211,21 @@ def render_section_header(title, subtitle=None, icon=""):
 
 
 def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
-    """Momentary premium reveal when a preset/prototype is loaded into the render."""
+    """Premium reveal pop-up. It stays open until the operator presses OK."""
     if language == "IT":
         kicker = "Preset caricato" if source_mode != "prototype" else "Prototipo attivo"
         line_1 = "Sincronizzazione render"
         line_2 = "parametri macchina"
         line_3 = "scheda CSV" if source_mode != "prototype" else "configurazione manuale"
         badge = "CSV VERIFIED" if source_mode != "prototype" else "PROTOTYPE MODE"
+        ok_label = "OK"
     else:
         kicker = "Preset loaded" if source_mode != "prototype" else "Active prototype"
         line_1 = "Render synchronization"
         line_2 = "machine parameters"
         line_3 = "CSV sheet" if source_mode != "prototype" else "manual configuration"
         badge = "CSV VERIFIED" if source_mode != "prototype" else "PROTOTYPE MODE"
+        ok_label = "OK"
 
     st.markdown(
         f"""
@@ -7232,15 +7234,16 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
             position: fixed;
             inset: 0;
             z-index: 999999;
-            pointer-events: none;
+            pointer-events: auto;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 22px;
             background:
                 radial-gradient(circle at 50% 46%, rgba(197,126,90,0.16), transparent 34%),
-                linear-gradient(180deg, rgba(3,7,18,0.50), rgba(3,7,18,0.22));
-            backdrop-filter: blur(6px);
-            animation: pdmRevealOverlayOut 1.75s cubic-bezier(.2,.72,.22,1) both;
+                linear-gradient(180deg, rgba(3,7,18,0.64), rgba(3,7,18,0.42));
+            backdrop-filter: blur(7px);
+            animation: pdmRevealOverlayIn .26s cubic-bezier(.2,.72,.22,1) both;
         }}
 
         .pdm-reveal-card {{
@@ -7248,17 +7251,17 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
             width: min(720px, calc(100vw - 44px));
             border-radius: 28px;
             overflow: hidden;
-            padding: 26px 30px 25px 34px;
+            padding: 27px 30px 25px 34px;
             border: 1px solid rgba(197,126,90,0.38);
             background:
                 radial-gradient(circle at 10% 0%, rgba(197,126,90,0.22), transparent 34%),
-                linear-gradient(180deg, rgba(15,23,42,0.94), rgba(2,6,23,0.92));
+                linear-gradient(180deg, rgba(15,23,42,0.96), rgba(2,6,23,0.94));
             box-shadow:
-                0 28px 88px rgba(0,0,0,0.48),
+                0 28px 88px rgba(0,0,0,0.54),
                 inset 6px 0 0 #C57E5A;
             color: #fff;
             transform-origin: center;
-            animation: pdmRevealCardIn 1.35s cubic-bezier(.16,1,.3,1) both;
+            animation: pdmRevealCardIn .42s cubic-bezier(.16,1,.3,1) both;
         }}
 
         .pdm-reveal-card::before {{
@@ -7289,7 +7292,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
             );
             transform: skewX(-17deg);
             mix-blend-mode: screen;
-            animation: pdmRevealSweep 1.22s cubic-bezier(.18,.72,.22,1) 0.18s both;
+            animation: pdmRevealSweep 1.22s cubic-bezier(.18,.72,.22,1) .12s both;
         }}
 
         .pdm-reveal-scanline {{
@@ -7301,7 +7304,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
             background: linear-gradient(90deg, transparent, rgba(197,126,90,0.95), rgba(255,255,255,0.72), transparent);
             box-shadow: 0 0 22px rgba(197,126,90,0.50);
             opacity: 0;
-            animation: pdmRevealScan 1.28s cubic-bezier(.2,.72,.22,1) 0.14s both;
+            animation: pdmRevealScan 1.28s cubic-bezier(.2,.72,.22,1) .10s both;
         }}
 
         .pdm-reveal-kicker {{
@@ -7326,6 +7329,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
             color: #ffffff;
             text-shadow: 0 10px 34px rgba(0,0,0,0.38);
             margin-bottom: 15px;
+            padding-right: 150px;
         }}
 
         .pdm-reveal-meta {{
@@ -7339,6 +7343,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
             line-height: 1.2;
             font-weight: 760;
             color: rgba(226,232,240,0.76);
+            margin-bottom: 22px;
         }}
 
         .pdm-reveal-dot {{
@@ -7366,18 +7371,50 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
             text-transform: uppercase;
         }}
 
-        @keyframes pdmRevealOverlayOut {{
-            0% {{ opacity: 0; }}
-            8% {{ opacity: 1; }}
-            76% {{ opacity: 1; }}
-            100% {{ opacity: 0; visibility: hidden; }}
+        .pdm-reveal-actions {{
+            position: relative;
+            z-index: 3;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            border-top: 1px solid rgba(226,232,240,0.10);
+            padding-top: 17px;
+        }}
+
+        .pdm-reveal-ok {{
+            appearance: none;
+            border: 1px solid rgba(197,126,90,0.78);
+            border-radius: 999px;
+            background: linear-gradient(180deg, #D18A62, #B96F48);
+            color: #fff;
+            min-width: 96px;
+            min-height: 42px;
+            padding: 0 20px;
+            font-size: 12px;
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 12px 26px rgba(197,126,90,0.28);
+            transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
+        }}
+
+        .pdm-reveal-ok:hover {{
+            transform: translateY(-1px);
+            filter: brightness(1.06);
+            box-shadow: 0 16px 30px rgba(197,126,90,0.34);
+        }}
+
+        @keyframes pdmRevealOverlayIn {{
+            from {{ opacity: 0; }}
+            to {{ opacity: 1; }}
         }}
 
         @keyframes pdmRevealCardIn {{
             0% {{ opacity: 0; transform: translateY(18px) scale(.975); filter: blur(3px); }}
-            16% {{ opacity: 1; }}
-            62% {{ opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }}
-            100% {{ opacity: 0; transform: translateY(-7px) scale(.992); filter: blur(1px); }}
+            100% {{ opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }}
         }}
 
         @keyframes pdmRevealSweep {{
@@ -7394,14 +7431,21 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
             100% {{ transform: translateY(98px); opacity: 0; }}
         }}
 
-        @media (prefers-reduced-motion: reduce) {{
-            .pdm-reveal-overlay {{
-                display: none !important;
+        @media (max-width: 720px) {{
+            .pdm-reveal-title {{
+                padding-right: 0;
+            }}
+            .pdm-reveal-badge {{
+                position: relative;
+                right: auto;
+                top: auto;
+                display: inline-flex;
+                margin-bottom: 14px;
             }}
         }}
         </style>
 
-        <div class="pdm-reveal-overlay">
+        <div class="pdm-reveal-overlay" id="pdmPresetReveal">
             <div class="pdm-reveal-card">
                 <div class="pdm-reveal-scanline"></div>
                 <div class="pdm-reveal-badge">{html.escape(badge)}</div>
@@ -7413,6 +7457,9 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset"):
                     <span>{html.escape(line_2)}</span>
                     <span class="pdm-reveal-dot"></span>
                     <span>{html.escape(line_3)}</span>
+                </div>
+                <div class="pdm-reveal-actions">
+                    <button class="pdm-reveal-ok" onclick="document.getElementById('pdmPresetReveal')?.remove();">{html.escape(ok_label)}</button>
                 </div>
             </div>
         </div>
@@ -9610,8 +9657,6 @@ with tab_production:
             st.session_state["last_auto_loaded_preset"] = selected_product
             st.session_state["loaded_preset_name"] = selected_product
             st.session_state["show_preset_loaded_success"] = False
-            st.session_state["preset_reveal_product"] = selected_product
-            st.session_state["preset_reveal_source_mode"] = "preset"
 
         # If the user changes any calculator value manually, keep the preset as base and mark it as modified.
         sync_active_preset_state()
@@ -9619,10 +9664,11 @@ with tab_production:
 
     params_locked = bool(st.session_state.get("params_locked", False))
 
-    reveal_product = st.session_state.pop("preset_reveal_product", None)
-    reveal_source_mode = st.session_state.pop("preset_reveal_source_mode", "preset")
-    if reveal_product:
-        render_preset_reveal_overlay(reveal_product, lang, reveal_source_mode)
+    reveal_source_mode = "prototype" if is_prototype else "preset"
+    reveal_key = f"{reveal_source_mode}::{selected_product}"
+    if st.session_state.get("last_revealed_product_key") != reveal_key:
+        st.session_state["last_revealed_product_key"] = reveal_key
+        render_preset_reveal_overlay(selected_product, lang, reveal_source_mode)
 
     if is_prototype:
         render_prototype_product_card(selected_product, lang)
