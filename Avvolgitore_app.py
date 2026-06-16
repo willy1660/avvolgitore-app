@@ -3,6 +3,7 @@ import glob
 import json
 import html
 import hashlib
+import base64
 from io import BytesIO
 import numpy as np
 import pandas as pd
@@ -2305,19 +2306,34 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-top1, top2, top3 = st.columns([1.25, 5.20, 1.05])
+top1, top2, top3 = st.columns([1.55, 4.90, 1.10])
 
 with top1:
     if logo_path:
-        st.image(logo_path, width=205)
+        try:
+            logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
+            st.markdown(
+                f"""
+                <div class="top-brand-logo-wrap">
+                    <img src="data:image/png;base64,{logo_b64}" class="top-brand-logo-img" alt="PDM logo" />
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        except Exception:
+            st.image(logo_path, width=205)
     else:
         st.markdown(
             """
-            <div style="font-size:24px;font-weight:950;letter-spacing:-0.04em;line-height:1;">
-                PDM
-            </div>
-            <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:color-mix(in srgb, var(--text-color) 58%, transparent);">
-                avvolgimento
+            <div class="top-brand-logo-wrap">
+                <div>
+                    <div style="font-size:24px;font-weight:950;letter-spacing:-0.04em;line-height:1;">
+                        PDM
+                    </div>
+                    <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:color-mix(in srgb, var(--text-color) 58%, transparent);">
+                        avvolgimento
+                    </div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2352,7 +2368,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: -34px;
+        margin-top: -60px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -3644,36 +3660,67 @@ def render_scheda_preset_real_sweep_css():
 title_placeholder.markdown(
     f"""
     <style>
+    .top-brand-logo-wrap {{
+        min-height: 188px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+    }}
+
+    .top-brand-logo-img {{
+        display: block;
+        width: auto;
+        height: 172px;
+        max-width: 100%;
+        object-fit: contain;
+    }}
+
     .top-brand-title-wrap {{
-        display:flex;
-        align-items:center;
-        min-height:108px;
-        margin:0;
-        padding:0 0 2px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        min-height: 188px;
+        margin: 0;
+        padding: 0;
     }}
+
     .top-brand-title {{
-        margin:0;
-        padding:0;
-        font-size:78px;
-        line-height:0.94;
-        font-weight:950;
-        letter-spacing:-0.05em;
-        color:var(--text-color);
+        margin: 0;
+        padding: 0;
+        font-size: 92px;
+        line-height: 0.94;
+        font-weight: 720;
+        letter-spacing: -0.055em;
+        color: var(--text-color);
     }}
+
     @media (max-width: 1280px) {{
+        .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height:92px;
+            min-height: 156px;
+        }}
+        .top-brand-logo-img {{
+            height: 138px;
         }}
         .top-brand-title {{
-            font-size:64px;
+            font-size: 76px;
         }}
     }}
+
     @media (max-width: 820px) {{
+        .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height:74px;
+            min-height: 112px;
+        }}
+        .top-brand-logo-img {{
+            height: 96px;
         }}
         .top-brand-title {{
-            font-size:50px;
+            font-size: 54px;
         }}
     }}
     </style>
