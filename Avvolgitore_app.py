@@ -3242,6 +3242,78 @@ def render_light_dark_readability_patch():
         unsafe_allow_html=True,
     )
 
+
+# =========================
+# ANTEPRIMA TECNICA BACKGROUND PATCH
+# =========================
+
+def render_preview_background_patch():
+    st.markdown(
+        """
+        <style>
+        /*
+        Elimina il padding/fondo scuro attorno all'Anteprima tecnica.
+        La sezione respira con il fondo pagina in light/dark mode.
+        */
+        .tube-section-card,
+        .tube-preview-card,
+        .tube-preview-wrapper,
+        .tube-preview-shell,
+        .tube-section,
+        .preview-technical-card,
+        .technical-preview-card,
+        .section-tube-card {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .tube-section-card,
+        .tube-preview-wrapper,
+        .tube-preview-shell,
+        .tube-section,
+        .preview-technical-card,
+        .technical-preview-card,
+        .section-tube-card {
+            padding-bottom: 0 !important;
+            margin-bottom: 0 !important;
+        }
+
+        .tube-section-card::before,
+        .tube-section-card::after,
+        .tube-preview-card::before,
+        .tube-preview-card::after,
+        .tube-preview-wrapper::before,
+        .tube-preview-wrapper::after,
+        .tube-preview-shell::before,
+        .tube-preview-shell::after,
+        .tube-section::before,
+        .tube-section::after,
+        .preview-technical-card::before,
+        .preview-technical-card::after,
+        .technical-preview-card::before,
+        .technical-preview-card::after,
+        .section-tube-card::before,
+        .section-tube-card::after {
+            background: transparent !important;
+        }
+
+        /* Fallback per blocs markdown amb style inline fosc al voltant del preview */
+        div[style*="background:#080b10"],
+        div[style*="background: #080b10"],
+        div[style*="background:#0b0f16"],
+        div[style*="background: #0b0f16"],
+        div[style*="background:#0f1117"],
+        div[style*="background: #0f1117"],
+        div[style*="background:rgb(8, 11, 16)"],
+        div[style*="background: rgb(8, 11, 16)"] {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # =========================
 # GEOMETRY HELPERS
 # =========================
