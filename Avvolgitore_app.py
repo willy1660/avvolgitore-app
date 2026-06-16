@@ -432,7 +432,7 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
             font-size: 31px;
             line-height: 1.08;
             font-weight: 800;
-            color: var(--text-color);
+            color: var(--pdm-popup-text);
             word-break: break-word;
             padding-left: 4px;
         }
@@ -599,7 +599,7 @@ def render_summary_cards(title, items, cards_per_row=4):
             font-size: 34px;
             line-height: 1.08;
             font-weight: 800;
-            color: var(--text-color);
+            color: var(--pdm-popup-text);
             word-break: break-word;
             padding-left: 4px;
         }
@@ -3696,7 +3696,7 @@ title_placeholder.markdown(
         line-height: 0.92;
         font-weight: 520;
         letter-spacing: -0.052em;
-        color: var(--text-color);
+        color: var(--pdm-popup-text);
     }}
 
     @media (max-width: 1280px) {{
@@ -7442,6 +7442,14 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
             f"""
             <style>
             div[data-testid="stDialog"] {{
+                --pdm-popup-overlay: rgba(2, 6, 23, 0.78);
+                --pdm-popup-surface-top: #121a26;
+                --pdm-popup-surface-bottom: #0a111c;
+                --pdm-popup-text: #f8fafc;
+                --pdm-popup-muted: rgba(248, 250, 252, 0.74);
+                --pdm-popup-badge-bg: rgba(197,126,90,0.18);
+                --pdm-popup-badge-border: rgba(197,126,90,0.46);
+                --pdm-popup-shadow: 0 28px 88px rgba(0,0,0,0.48);
                 position: fixed !important;
                 inset: 0 !important;
                 z-index: 999999 !important;
@@ -7449,8 +7457,32 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 align-items: center !important;
                 justify-content: center !important;
                 padding: 24px !important;
-                background: rgba(2, 6, 23, 0.78) !important;
+                background: var(--pdm-popup-overlay) !important;
                 backdrop-filter: blur(8px) !important;
+            }}
+
+            html[data-theme="light"] div[data-testid="stDialog"],
+            body[data-theme="light"] div[data-testid="stDialog"] {{
+                --pdm-popup-overlay: rgba(248, 250, 252, 0.72);
+                --pdm-popup-surface-top: #ffffff;
+                --pdm-popup-surface-bottom: #f3f4f6;
+                --pdm-popup-text: #0f172a;
+                --pdm-popup-muted: rgba(15, 23, 42, 0.72);
+                --pdm-popup-badge-bg: rgba(197,126,90,0.14);
+                --pdm-popup-badge-border: rgba(197,126,90,0.34);
+                --pdm-popup-shadow: 0 24px 64px rgba(15,23,42,0.16);
+            }}
+
+            html[data-theme="dark"] div[data-testid="stDialog"],
+            body[data-theme="dark"] div[data-testid="stDialog"] {{
+                --pdm-popup-overlay: rgba(2, 6, 23, 0.78);
+                --pdm-popup-surface-top: #121a26;
+                --pdm-popup-surface-bottom: #0a111c;
+                --pdm-popup-text: #f8fafc;
+                --pdm-popup-muted: rgba(248, 250, 252, 0.74);
+                --pdm-popup-badge-bg: rgba(197,126,90,0.18);
+                --pdm-popup-badge-border: rgba(197,126,90,0.46);
+                --pdm-popup-shadow: 0 28px 88px rgba(0,0,0,0.48);
             }}
 
             div[data-testid="stDialog"] > div {{
@@ -7466,14 +7498,14 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 border-radius: 30px !important;
                 border: 1px solid rgba(197,126,90,0.36) !important;
                 background:
-                    radial-gradient(circle at 12% 0%, rgba(197,126,90,0.18), transparent 34%),
+                    radial-gradient(circle at 12% 0%, rgba(197,126,90,0.16), transparent 34%),
                     linear-gradient(
                         180deg,
-                        color-mix(in srgb, var(--secondary-background-color) 92%, #0f172a 8%),
-                        color-mix(in srgb, var(--background-color) 94%, #020617 6%)
+                        var(--pdm-popup-surface-top),
+                        var(--pdm-popup-surface-bottom)
                     ) !important;
                 box-shadow:
-                    0 28px 88px rgba(0,0,0,0.48),
+                    var(--pdm-popup-shadow),
                     inset 6px 0 0 #C57E5A !important;
                 overflow: hidden !important;
             }}
@@ -7501,7 +7533,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 position: relative;
                 overflow: hidden;
                 padding: 6px 2px 4px 8px;
-                color: var(--text-color);
+                color: var(--pdm-popup-text);
                 min-height: 210px;
                 display: flex;
                 flex-direction: column;
@@ -7557,7 +7589,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 font-weight: 950;
                 letter-spacing: .095em;
                 text-transform: uppercase;
-                color: color-mix(in srgb, var(--text-color) 66%, transparent);
+                color: var(--pdm-popup-muted);
                 margin-bottom: 10px;
             }}
 
@@ -7568,7 +7600,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 line-height: .92;
                 font-weight: 950;
                 letter-spacing: -.055em;
-                color: var(--text-color);
+                color: var(--pdm-popup-text);
                 margin-bottom: 15px;
                 padding-right: 150px;
             }}
@@ -7583,7 +7615,7 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 font-size: 13px;
                 line-height: 1.2;
                 font-weight: 760;
-                color: color-mix(in srgb, var(--text-color) 70%, transparent);
+                color: var(--pdm-popup-muted);
                 margin-bottom: 22px;
             }}
 
@@ -7602,9 +7634,9 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 top: 2px;
                 border-radius: 999px;
                 padding: 8px 11px;
-                background: rgba(197,126,90,0.16);
-                border: 1px solid rgba(197,126,90,0.46);
-                color: var(--text-color);
+                background: var(--pdm-popup-badge-bg);
+                border: 1px solid var(--pdm-popup-badge-border);
+                color: var(--pdm-popup-text);
                 font-size: 10.5px;
                 line-height: 1;
                 font-weight: 950;
@@ -10325,6 +10357,10 @@ with tab_tech_sheet:
                 st.warning("Per scaricare il PDF aggiungi `reportlab` a requirements.txt." if lang == "IT" else "To download the PDF, add `reportlab` to requirements.txt.")
 
         render_tech_snapshot_cards(selected_row, lang)
+
+        # Local spacer: the global tabs style uses a negative top margin,
+        # so this prevents overlap with the snapshot cards in Scheda tecnica.
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
 
         overview_tab, machine_sheet_tab = st.tabs([
             "Anteprima" if lang == "IT" else "Overview",
