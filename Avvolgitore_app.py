@@ -1239,9 +1239,7 @@ def make_preset_visual(row, language):
         --component-muted-strong: rgba(31,41,55,0.82);
         --component-border: rgba(17,24,39,0.12);
         --component-border-soft: rgba(17,24,39,0.09);
-        --component-drawing-bg:
-            radial-gradient(circle at 38% 45%, rgba(197,126,90,0.12), transparent 44%),
-            linear-gradient(180deg, #f8fafc, #e9eef4);
+        --component-drawing-bg: transparent;
         --component-surface-solid: rgba(17,24,39,0.035);
         --foam-fill: rgba(226,232,240,0.96);
         --foam-stroke: rgba(100,116,139,0.50);
@@ -1261,9 +1259,7 @@ def make_preset_visual(row, language):
         --component-muted-strong: rgba(226,232,240,0.82);
         --component-border: rgba(226,232,240,0.14);
         --component-border-soft: rgba(226,232,240,0.10);
-        --component-drawing-bg:
-            radial-gradient(circle at 38% 45%, rgba(197,126,90,0.10), transparent 44%),
-            linear-gradient(180deg, #09111a, #101923);
+        --component-drawing-bg: transparent;
         --component-surface-solid: rgba(226,232,240,0.055);
         --foam-fill: rgba(231,236,242,0.88);
         --foam-stroke: rgba(248,250,252,0.92);
@@ -1334,7 +1330,7 @@ def make_preset_visual(row, language):
         margin:12px 8px;
         border-radius:18px;
         overflow:hidden;
-        background:var(--component-drawing-bg);
+        background:transparent;
         border:1px solid var(--component-border-soft);
         box-shadow:none !important;
     }}
