@@ -1443,6 +1443,84 @@ def make_preset_visual(row, language):
         .section-svg {{ height:300px; }}
         .metrics {{ grid-template-columns:1fr 1fr; }}
     }}
+
+    /* Premium sweep per Anteprima tecnica */
+    .drawing-wrap,
+    .preview-metric,
+    .preview-head,
+    .preview-tag {{
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+    }}
+
+    .drawing-wrap > *,
+    .preview-metric > *,
+    .preview-head > *,
+    .preview-tag > * {{
+        position: relative;
+        z-index: 2;
+    }}
+
+    .drawing-wrap::after,
+    .preview-metric::after,
+    .preview-head::after,
+    .preview-tag::after {{
+        content: "";
+        position: absolute;
+        top: -42%;
+        bottom: -42%;
+        left: -82%;
+        width: 48%;
+        pointer-events: none;
+        border-radius: inherit;
+        background: linear-gradient(
+            105deg,
+            transparent 0%,
+            rgba(255,255,255,0.00) 25%,
+            rgba(255,255,255,0.34) 48%,
+            rgba(197,126,90,0.26) 56%,
+            rgba(255,255,255,0.14) 64%,
+            transparent 100%
+        );
+        transform: skewX(-16deg);
+        opacity: 0;
+        z-index: 4;
+        mix-blend-mode: screen;
+    }}
+
+    .drawing-wrap:hover::after,
+    .preview-metric:hover::after,
+    .preview-head:hover::after,
+    .preview-tag:hover::after {{
+        opacity: 1;
+        animation: pdmPreviewSweep 1.05s cubic-bezier(.2,.72,.22,1) both;
+    }}
+
+    @keyframes pdmPreviewSweep {{
+        0% {{
+            left: -82%;
+            opacity: 0;
+        }}
+        12% {{
+            opacity: 1;
+        }}
+        100% {{
+            left: 138%;
+            opacity: 0;
+        }}
+    }}
+
+    @media (hover: none) {{
+        .drawing-wrap:active::after,
+        .preview-metric:active::after,
+        .preview-head:active::after,
+        .preview-tag:active::after {{
+            opacity: 1;
+            animation: pdmPreviewSweep 1.05s cubic-bezier(.2,.72,.22,1) both;
+        }}
+    }}
+
     </style>
 
     <section class="preview-card">
@@ -3183,6 +3261,7 @@ def render_premium_card_sweep_effect():
     )
 
 title_placeholder.markdown(f"## {t['title']}")
+render_global_all_cards_sweep_patch()
 
 st.markdown(
     """
@@ -3367,6 +3446,225 @@ def render_anteprima_corner_cleanup_patch():
             background: transparent !important;
             border: 0 !important;
             box-shadow: none !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# =========================
+# GLOBAL PREMIUM SWEEP ALL CARDS
+# =========================
+
+def render_global_all_cards_sweep_patch():
+    st.markdown(
+        """
+        <style>
+        /*
+        Sweep premium global. Usa ::after per no tocar els detalls coure amb ::before.
+        */
+        .preset-hero,
+        .preset-status-strip,
+        .summary-card,
+        .preset-param-card,
+        .quick-card-v2,
+        .semaphore-card,
+        .tech-mini-card,
+        .machine-card-native,
+        .preview-metric,
+        .summary-strip,
+        .summary-strip-item,
+        .section-header,
+        .workflow-step,
+        .elegant-panel,
+        .checklist-hero,
+        .pdm-action-bar,
+        .pack_stat,
+        .hud_card,
+        .preset-chip,
+        .preview-card,
+        .preset-card,
+        .machine-card,
+        .operator-card,
+        .tech-sheet-preset-card,
+        .premium-sweep-card,
+        .csv-print-row,
+        div[data-testid="stMetric"],
+        div[data-testid="stDownloadButton"] > button,
+        .stButton > button {
+            position: relative !important;
+            overflow: hidden !important;
+            isolation: isolate !important;
+        }
+
+        .preset-hero > *,
+        .preset-status-strip > *,
+        .summary-card > *,
+        .preset-param-card > *,
+        .quick-card-v2 > *,
+        .semaphore-card > *,
+        .tech-mini-card > *,
+        .machine-card-native > *,
+        .preview-metric > *,
+        .summary-strip > *,
+        .summary-strip-item > *,
+        .section-header > *,
+        .workflow-step > *,
+        .elegant-panel > *,
+        .checklist-hero > *,
+        .pdm-action-bar > *,
+        .pack_stat > *,
+        .hud_card > *,
+        .preset-chip > *,
+        .preview-card > *,
+        .preset-card > *,
+        .machine-card > *,
+        .operator-card > *,
+        .tech-sheet-preset-card > *,
+        .premium-sweep-card > *,
+        .csv-print-row > * {
+            position: relative !important;
+            z-index: 2 !important;
+        }
+
+        .preset-hero::after,
+        .preset-status-strip::after,
+        .summary-card::after,
+        .preset-param-card::after,
+        .quick-card-v2::after,
+        .semaphore-card::after,
+        .tech-mini-card::after,
+        .machine-card-native::after,
+        .preview-metric::after,
+        .summary-strip::after,
+        .summary-strip-item::after,
+        .section-header::after,
+        .workflow-step::after,
+        .elegant-panel::after,
+        .checklist-hero::after,
+        .pdm-action-bar::after,
+        .pack_stat::after,
+        .hud_card::after,
+        .preset-chip::after,
+        .preview-card::after,
+        .preset-card::after,
+        .machine-card::after,
+        .operator-card::after,
+        .tech-sheet-preset-card::after,
+        .premium-sweep-card::after,
+        .csv-print-row::after,
+        div[data-testid="stMetric"]::after,
+        div[data-testid="stDownloadButton"] > button::after,
+        .stButton > button::after {
+            content: "" !important;
+            position: absolute !important;
+            top: -42% !important;
+            bottom: -42% !important;
+            left: -82% !important;
+            width: 48% !important;
+            pointer-events: none !important;
+            border-radius: inherit !important;
+            background: linear-gradient(
+                105deg,
+                transparent 0%,
+                rgba(255,255,255,0.00) 25%,
+                rgba(255,255,255,0.34) 48%,
+                rgba(197,126,90,0.26) 56%,
+                rgba(255,255,255,0.14) 64%,
+                transparent 100%
+            ) !important;
+            transform: skewX(-16deg) !important;
+            opacity: 0 !important;
+            z-index: 4 !important;
+            mix-blend-mode: screen !important;
+        }
+
+        .preset-hero:hover::after,
+        .preset-status-strip:hover::after,
+        .summary-card:hover::after,
+        .preset-param-card:hover::after,
+        .quick-card-v2:hover::after,
+        .semaphore-card:hover::after,
+        .tech-mini-card:hover::after,
+        .machine-card-native:hover::after,
+        .preview-metric:hover::after,
+        .summary-strip:hover::after,
+        .summary-strip-item:hover::after,
+        .section-header:hover::after,
+        .workflow-step:hover::after,
+        .elegant-panel:hover::after,
+        .checklist-hero:hover::after,
+        .pdm-action-bar:hover::after,
+        .pack_stat:hover::after,
+        .hud_card:hover::after,
+        .preset-chip:hover::after,
+        .preview-card:hover::after,
+        .preset-card:hover::after,
+        .machine-card:hover::after,
+        .operator-card:hover::after,
+        .tech-sheet-preset-card:hover::after,
+        .premium-sweep-card:hover::after,
+        .csv-print-row:hover::after,
+        div[data-testid="stMetric"]:hover::after,
+        div[data-testid="stDownloadButton"] > button:hover::after,
+        .stButton > button:hover::after {
+            opacity: 1 !important;
+            animation: pdmGlobalCardSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+        }
+
+        .pdm-pulse::after {
+            opacity: 1 !important;
+            animation: pdmGlobalCardSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+        }
+
+        @keyframes pdmGlobalCardSweep {
+            0% {
+                left: -82%;
+                opacity: 0;
+            }
+            12% {
+                opacity: 1;
+            }
+            100% {
+                left: 138%;
+                opacity: 0;
+            }
+        }
+
+        @media (hover: none) {
+            .preset-hero:active::after,
+            .preset-status-strip:active::after,
+            .summary-card:active::after,
+            .preset-param-card:active::after,
+            .quick-card-v2:active::after,
+            .semaphore-card:active::after,
+            .tech-mini-card:active::after,
+            .machine-card-native:active::after,
+            .preview-metric:active::after,
+            .summary-strip:active::after,
+            .summary-strip-item:active::after,
+            .section-header:active::after,
+            .workflow-step:active::after,
+            .elegant-panel:active::after,
+            .checklist-hero:active::after,
+            .pdm-action-bar:active::after,
+            .pack_stat:active::after,
+            .hud_card:active::after,
+            .preset-chip:active::after,
+            .preview-card:active::after,
+            .preset-card:active::after,
+            .machine-card:active::after,
+            .operator-card:active::after,
+            .tech-sheet-preset-card:active::after,
+            .premium-sweep-card:active::after,
+            .csv-print-row:active::after,
+            div[data-testid="stMetric"]:active::after,
+            div[data-testid="stDownloadButton"] > button:active::after,
+            .stButton > button:active::after {
+                opacity: 1 !important;
+                animation: pdmGlobalCardSweep 1.05s cubic-bezier(.2,.72,.22,1) both !important;
+            }
         }
         </style>
         """,
@@ -9277,7 +9575,7 @@ with tab_tech_sheet:
                 "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
                 "A",
             )
-            components.html(make_preset_visual(selected_row, lang), height=470, scrolling=False)
+            components.html(make_preset_visual(selected_row, lang), height=570, scrolling=False)
 
         with machine_sheet_tab:
             render_section_header(
