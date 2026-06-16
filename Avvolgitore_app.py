@@ -7578,6 +7578,81 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
 
 
 
+
+
+def render_tech_sheet_preset_card(selected_product, selected_row, language):
+    """Preset card in Scheda tecnica with the same style and dimensions as the Simulazione selected preset card."""
+    def gv(*names, default="-"):
+        for name in names:
+            if name in selected_row.index:
+                value = safe_value(selected_row, name)
+                if value != "-":
+                    return format_preset_value(value)
+        return default
+
+    if language == "IT":
+        kicker = "Scheda preset"
+        subtitle = "Configurazione tecnica prodotto · valori caricati da CSV"
+        status_txt = "Originale"
+        lock_txt = "Scheda CSV"
+        status_class = "original"
+        lock_class = "editable"
+        chip_defs = [
+            ("Tipo tubo", gv("Tipo tubo")),
+            ("Ø rame", gv("Diametro Rame", "Diametro rame superiore", default="-")),
+            ("Guaina", f"{gv('Spessore Guaina (mm)', 'Spessore guaina superiore', default='-')} mm"),
+            ("Lunghezza", f"{gv('Lunghezza (m)', default='-')} m"),
+            ("Aspo", f"Ø {gv('Diametro aspo (mm)', default='-')} mm"),
+            ("Spalla", f"{gv('Spalla (mm)', default='-')} mm"),
+        ]
+    else:
+        kicker = "Preset sheet"
+        subtitle = "Product technical configuration · values loaded from CSV"
+        status_txt = "Original"
+        lock_txt = "CSV sheet"
+        status_class = "original"
+        lock_class = "editable"
+        chip_defs = [
+            ("Tube type", gv("Tipo tubo")),
+            ("Copper Ø", gv("Diametro Rame", "Diametro rame superiore", default="-")),
+            ("Foam", f"{gv('Spessore Guaina (mm)', 'Spessore guaina superiore', default='-')} mm"),
+            ("Length", f"{gv('Lunghezza (m)', default='-')} m"),
+            ("Spool", f"Ø {gv('Diametro aspo (mm)', default='-')} mm"),
+            ("Width", f"{gv('Spalla (mm)', default='-')} mm"),
+        ]
+
+    chips_html = "".join(
+        f"""
+        <div class="preset-hero-chip">
+            <span>{html.escape(str(label))}</span>
+            <strong>{html.escape(str(value))}</strong>
+        </div>
+        """
+        for label, value in chip_defs
+    )
+
+    st.markdown(
+        f"""
+        <div class="preset-hero">
+            <div class="premium-sweep-layer"></div>
+            <div class="preset-hero-top">
+                <div>
+                    <div class="preset-hero-kicker">{html.escape(kicker)}</div>
+                    <div class="preset-hero-title">{html.escape(str(selected_product))}</div>
+                    <div class="preset-hero-subtitle">{html.escape(subtitle)}</div>
+                </div>
+                <div class="preset-hero-badges">
+                    <span class="preset-hero-badge {status_class}">{html.escape(status_txt)}</span>
+                    <span class="preset-hero-badge {lock_class}">{html.escape(lock_txt)}</span>
+                </div>
+            </div>
+            <div class="preset-hero-chips">{chips_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_prototype_product_card(prototype_name, language):
     """Hero card for a manual prototype. Makes clear it is not an official CSV preset."""
     locked = bool(st.session_state.get("params_locked", False))
@@ -9684,97 +9759,7 @@ with tab_tech_sheet:
         selected_product = st.session_state.get("selected_preset_product", preset_names[0])
         selected_row = presets_df[presets_df["Prodotto"] == selected_product].iloc[0]
         
-        st.markdown(
-            f"""
-            <style>
-            .tech-sheet-preset-card {{
-                position: relative;
-                overflow: hidden;
-                isolation: isolate;
-                margin-top: 12px;
-                margin-bottom: 18px;
-                padding: 22px 24px 22px 28px;
-                border-radius: 18px;
-                background: linear-gradient(
-                    180deg,
-                    color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
-                    color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-                );
-                border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-                box-shadow: 0 8px 22px rgba(0,0,0,0.08);
-            }}
-
-            .tech-sheet-preset-card::before {{
-                content: "";
-                position: absolute;
-                left: 14px;
-                top: 18px;
-                bottom: 18px;
-                width: 4px;
-                border-radius: 999px;
-                background: linear-gradient(180deg, #D18A62 0%, #B96F48 100%);
-                box-shadow: 0 0 18px rgba(197,126,90,0.22);
-                z-index: 2;
-            }}
-
-            .tech-sheet-preset-card > * {{
-                position: relative;
-                z-index: 3;
-            }}
-
-            .tech-sheet-preset-card .premium-sweep-layer {{
-                position: absolute;
-                top: -45%;
-                bottom: -45%;
-                left: -72%;
-                width: 36%;
-                pointer-events: none;
-                border-radius: inherit;
-                background: linear-gradient(
-                    105deg,
-                    transparent 0%,
-                    rgba(197,126,90,0.00) 18%,
-                    rgba(197,126,90,0.28) 42%,
-                    rgba(197,126,90,0.62) 56%,
-                    rgba(197,126,90,0.30) 70%,
-                    transparent 100%
-                );
-                transform: skewX(-17deg);
-                opacity: 0;
-                z-index: 2;
-                mix-blend-mode: screen;
-                filter: brightness(1.35);
-                animation: pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) 0.25s both;
-            }}
-
-            .tech-sheet-preset-card:hover .premium-sweep-layer,
-            .tech-sheet-preset-card:active .premium-sweep-layer {{
-                animation: pdmRealSweepLayerScheda 1.25s cubic-bezier(.18,.72,.22,1) both;
-            }}
-
-            @keyframes pdmRealSweepLayerScheda {{
-                0% {{ left: -72%; opacity: 0; }}
-                10% {{ opacity: 1; }}
-                52% {{ opacity: 1; }}
-                100% {{ left: 135%; opacity: 0; }}
-            }}
-            </style>
-
-            <div class="tech-sheet-preset-card premium-sweep-card pdm-pulse">
-                <div class="premium-sweep-layer"></div>
-                <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
-                    {t["preset_sheet"]}
-                </div>
-                <div style="font-size:30px; font-weight:800; color:var(--text-color); line-height:1.15;">
-                    {selected_product}
-                </div>
-                <div style="font-size:14px; color:color-mix(in srgb, var(--text-color) 68%, transparent); margin-top:8px;">
-                    {t["preset_subtitle"]}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        render_tech_sheet_preset_card(selected_product, selected_row, lang)
 
         safe_product_filename = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in str(selected_product)).strip("_") or "preset"
         csv_print_pdf = make_csv_preset_pdf_bytes(selected_product, selected_row, lang)
