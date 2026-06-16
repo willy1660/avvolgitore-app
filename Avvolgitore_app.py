@@ -1467,40 +1467,40 @@ def make_preset_visual(row, language):
     .preview-card,
     .preview-card:hover,
     .preview-card:focus,
-    .preview-card:active {
+    .preview-card:active {{
         border:0 !important;
         outline:0 !important;
         box-shadow:none !important;
         background:transparent !important;
         border-radius:0 !important;
         overflow:visible !important;
-    }
+    }}
 
-    .preview-head {
+    .preview-head {{
         border-top:0 !important;
         border-left:0 !important;
         border-right:0 !important;
         outline:0 !important;
         box-shadow:none !important;
-    }
+    }}
 
-    section.preview-card {
+    section.preview-card {{
         border:0 !important;
         outline:0 !important;
-    }
+    }}
 
     body::before,
     body::after,
     html::before,
     html::after,
     .preview-card::before,
-    .preview-card::after {
+    .preview-card::after {{
         content:none !important;
         display:none !important;
         border:0 !important;
         background:transparent !important;
         box-shadow:none !important;
-    }
+    }}
 
     </style>
 
