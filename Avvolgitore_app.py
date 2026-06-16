@@ -7653,62 +7653,95 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
             font-weight:950;
             box-shadow:0 6px 14px rgba(197,126,90,0.22);
         }
-        .machine-card-native{
-            min-height:106px;
-            padding:15px 16px;
-            border-radius:16px;
-            border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+        .machine-grid-native{
+            display:grid;
+            grid-template-columns:repeat(4, minmax(0, 1fr));
+            gap:0;
+            width:100%;
+            border:1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            border-radius:0 0 18px 18px;
+            overflow:hidden;
             background:linear-gradient(180deg,
-                color-mix(in srgb, var(--text-color) 4%, transparent),
-                color-mix(in srgb, var(--text-color) 7%, transparent)
+                color-mix(in srgb, var(--secondary-background-color) 90%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
+            box-shadow:0 7px 18px rgba(0,0,0,0.045);
+            margin:0 0 18px 0;
+        }
+        .machine-card-native{
+            min-height:112px;
+            padding:18px 20px;
+            border-radius:0;
+            border:0;
+            border-right:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+            border-bottom:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+            background:transparent;
             display:flex;
             flex-direction:column;
-            justify-content:space-between;
-            gap:12px;
+            justify-content:center;
+            gap:14px;
             box-sizing:border-box;
+            min-width:0;
         }
-        .machine-card-native.primary{
-            min-height:118px;
-            border-left:4px solid #C57E5A;
+        .machine-card-native:nth-child(4n){
+            border-right:0;
         }
+        .machine-card-native.primary,
         .machine-card-native.compact{
-            min-height:88px;
-            padding:13px 14px;
+            min-height:112px;
+            padding:18px 20px;
         }
         .machine-card-label-native{
             font-size:11px;
-            line-height:1.22;
-            font-weight:860;
+            line-height:1.12;
+            font-weight:950;
             text-transform:uppercase;
-            letter-spacing:0.045em;
-            color:color-mix(in srgb, var(--text-color) 68%, transparent);
+            letter-spacing:0.07em;
+            color:color-mix(in srgb, var(--text-color) 64%, transparent);
             word-break:break-word;
-            min-height:28px;
+            min-height:24px;
             display:flex;
             align-items:flex-start;
         }
         .machine-card-value-native{
-            font-size:26px;
-            line-height:1.02;
+            font-size:clamp(20px, 1.32vw, 26px);
+            line-height:1.05;
             font-weight:950;
             color:var(--text-color);
-            letter-spacing:-0.01em;
+            letter-spacing:-0.025em;
             word-break:break-word;
             min-height:32px;
             display:flex;
             align-items:flex-end;
         }
         .machine-card-native.compact .machine-card-value-native{
-            font-size:22px;
+            font-size:clamp(20px, 1.32vw, 26px);
         }
-        @media (max-width: 900px){
-            .machine-card-native,
-            .machine-card-native.primary{
-                min-height:86px;
+        .machine-card-native:hover{
+            background:color-mix(in srgb, var(--pdm-accent) 4%, transparent);
+        }
+        @media (max-width: 1180px){
+            .machine-grid-native{
+                grid-template-columns:repeat(2, minmax(0, 1fr));
             }
-            .machine-card-value-native{
-                font-size:22px;
+            .machine-card-native:nth-child(4n){
+                border-right:1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+            }
+            .machine-card-native:nth-child(2n){
+                border-right:0;
+            }
+        }
+        @media (max-width: 720px){
+            .machine-grid-native{
+                grid-template-columns:1fr;
+            }
+            .machine-card-native,
+            .machine-card-native:nth-child(2n),
+            .machine-card-native:nth-child(4n){
+                border-right:0;
+            }
+            .machine-card-native{
+                min-height:88px;
             }
         }
         </style>
@@ -7737,24 +7770,20 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
             unsafe_allow_html=True,
         )
 
-        with st.container(border=True):
-            cols_per_row = 4 if density == "primary" else 5
+        cards_html = "".join(
+            f"""
+            <div class="machine-card-native {html.escape(density)}">
+                <div class="machine-card-label-native">{html.escape(str(label))}</div>
+                <div class="machine-card-value-native">{html.escape(str(value))}</div>
+            </div>
+            """
+            for label, value in pairs
+        )
 
-            for i in range(0, len(pairs), cols_per_row):
-                row_pairs = pairs[i:i + cols_per_row]
-                cols = st.columns(cols_per_row, gap="medium")
-                for col_ui, pair in zip(cols, row_pairs):
-                    label, value = pair
-                    with col_ui:
-                        st.markdown(
-                            f"""
-                            <div class="machine-card-native {html.escape(density)}">
-                                <div class="machine-card-label-native">{html.escape(str(label))}</div>
-                                <div class="machine-card-value-native">{html.escape(str(value))}</div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+        st.markdown(
+            f'<div class="machine-grid-native">{cards_html}</div>',
+            unsafe_allow_html=True,
+        )
 
 def render_preset_summary_strip(product_name, selected_row, language, modified=False):
     def gv(*names, default="-"):
