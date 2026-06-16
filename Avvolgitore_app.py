@@ -5038,6 +5038,40 @@ def viewer(
                 padding:6px 9px !important;
                 border-radius:8px !important;
             }}
+
+            /* iPad/tablet: align bottom HUD with the render padding */
+            #viewer_hud {{
+                left:10px !important;
+                right:10px !important;
+                bottom:10px !important;
+                width:calc(100% - 20px) !important;
+                grid-template-columns:repeat(3, minmax(0, 1fr)) !important;
+                gap:7px !important;
+                box-sizing:border-box !important;
+            }}
+
+            .hud_card {{
+                min-width:0 !important;
+                width:100% !important;
+                padding:9px 10px !important;
+                box-sizing:border-box !important;
+            }}
+
+            .hud_value {{
+                font-size:14px !important;
+                white-space:nowrap !important;
+                overflow:hidden !important;
+                text-overflow:ellipsis !important;
+            }}
+
+            #packaging_status_badge {{
+                left:10px !important;
+                right:10px !important;
+                bottom:10px !important;
+                min-width:0 !important;
+                width:auto !important;
+                box-sizing:border-box !important;
+            }}
         }}
     </style>
 
