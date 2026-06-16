@@ -7457,41 +7457,48 @@ def render_section_header(title, subtitle=None, icon=""):
 
 
 def render_pdf_open_new_tab_link(pdf_bytes, file_name, label, helper_text=None):
-    """Render an iPad-friendly PDF open/download link in a new tab."""
+    """Render an iPad-friendly PDF open button without exposing the base64/HTML in Streamlit."""
     if not pdf_bytes:
         return
 
     pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-    safe_file_name = html.escape(str(file_name), quote=True)
+    safe_file_name_js = json.dumps(str(file_name))
     safe_label = html.escape(str(label))
-    helper_html = ""
-    if helper_text:
-        helper_html = f'<div class="pdf-open-helper">{html.escape(str(helper_text))}</div>'
+    safe_helper = html.escape(str(helper_text or ""))
 
-    st.markdown(
-        f"""
-        <style>
-        .pdf-open-link {{
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
+    button_html = f"""
+    <!doctype html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <style>
+        html, body {{
+            margin:0;
+            padding:0;
+            background:transparent;
+            font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            overflow:hidden;
+        }}
+        .pdf-open-wrap {{
+            width:100%;
+            box-sizing:border-box;
+        }}
+        .pdf-open-button {{
             width:100%;
             min-height:42px;
-            box-sizing:border-box;
             border-radius:999px;
             padding:0 18px;
-            margin-top:7px;
-            background:transparent;
-            color:#C57E5A !important;
             border:1px solid rgba(197,126,90,0.72);
+            background:transparent;
+            color:#C57E5A;
             font-weight:950;
             font-size:13px;
             line-height:1;
             letter-spacing:0.01em;
-            text-decoration:none !important;
+            cursor:pointer;
             box-shadow:0 8px 18px rgba(197,126,90,0.12);
         }}
-        .pdf-open-link:hover {{
+        .pdf-open-button:hover {{
             background:rgba(197,126,90,0.10);
             filter:brightness(1.04);
         }}
@@ -7499,22 +7506,70 @@ def render_pdf_open_new_tab_link(pdf_bytes, file_name, label, helper_text=None):
             margin-top:7px;
             font-size:11px;
             line-height:1.25;
-            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            color:rgba(100,116,139,0.92);
             font-weight:650;
             text-align:center;
         }}
-        </style>
-        <a
-            class="pdf-open-link"
-            href="data:application/pdf;base64,{pdf_b64}"
-            download="{safe_file_name}"
-            target="_blank"
-            rel="noopener"
-        >{safe_label}</a>
-        {helper_html}
-        """,
-        unsafe_allow_html=True,
-    )
+    </style>
+    </head>
+    <body>
+        <div class="pdf-open-wrap">
+            <button class="pdf-open-button" id="openPdfBtn">{safe_label}</button>
+            <div class="pdf-open-helper">{safe_helper}</div>
+        </div>
+
+        <script>
+        (function () {{
+            const pdfBase64 = "{pdf_b64}";
+            const fileName = {safe_file_name_js};
+
+            function base64ToBlob(base64, mimeType) {{
+                const byteCharacters = atob(base64);
+                const byteArrays = [];
+                const sliceSize = 1024;
+
+                for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {{
+                    const slice = byteCharacters.slice(offset, offset + sliceSize);
+                    const byteNumbers = new Array(slice.length);
+                    for (let i = 0; i < slice.length; i++) {{
+                        byteNumbers[i] = slice.charCodeAt(i);
+                    }}
+                    byteArrays.push(new Uint8Array(byteNumbers));
+                }}
+
+                return new Blob(byteArrays, {{ type: mimeType }});
+            }}
+
+            document.getElementById("openPdfBtn").addEventListener("click", function () {{
+                try {{
+                    const blob = base64ToBlob(pdfBase64, "application/pdf");
+                    const url = URL.createObjectURL(blob);
+                    const opened = window.open(url, "_blank", "noopener");
+
+                    if (!opened) {{
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = fileName;
+                        a.target = "_blank";
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                    }}
+
+                    setTimeout(function () {{
+                        URL.revokeObjectURL(url);
+                    }}, 60000);
+                }} catch (err) {{
+                    console.error(err);
+                }}
+            }});
+        }})();
+        </script>
+    </body>
+    </html>
+    """
+
+    components.html(button_html, height=78, scrolling=False)
 
 
 def render_preset_reveal_overlay(product_name, language, source_mode="preset", reveal_key=None):
