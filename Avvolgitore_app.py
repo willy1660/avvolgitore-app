@@ -4256,6 +4256,8 @@ def viewer(
     d_tubo_upper=None,
     tube_diameter_label=None,
     simulation_print_payload=None,
+    active_product_name=None,
+    active_product_kind="preset",
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -4271,6 +4273,9 @@ def viewer(
     d_tubo_upper = float(d_tubo if d_tubo_upper is None else d_tubo_upper)
     tube_diameter_label = tube_diameter_label or f"{float(d_tubo):.2f} mm"
     tube_diameter_label_json = json.dumps(str(tube_diameter_label))
+    active_product_name = active_product_name or ("Preset attivo" if language == "IT" else "Active preset")
+    active_product_name_json = json.dumps(str(active_product_name))
+    active_product_kind_json = json.dumps(str(active_product_kind or "preset"))
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -4322,6 +4327,49 @@ def viewer(
             <button id="print_simulation_btn" class="viewer_btn viewer_print_btn">Stampa</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
+        </div>
+
+        <div id="active_preset_badge" style="
+            position:absolute;
+            top:14px;
+            left:50%;
+            transform:translateX(-50%);
+            z-index:21;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            gap:4px;
+            min-width:260px;
+            max-width:min(62%, 520px);
+            padding:10px 16px 11px 16px;
+            background:rgba(18,22,27,0.80);
+            color:#f8fafc;
+            border:1px solid rgba(197,126,90,0.34);
+            border-radius:16px;
+            backdrop-filter:blur(10px);
+            box-shadow:0 14px 30px rgba(0,0,0,0.24), inset 4px 0 0 #C57E5A;
+            font-family:Arial, sans-serif;
+            text-align:center;
+            user-select:none;
+            line-height:1.15;
+        ">
+            <div id="active_preset_badge_label" style="
+                font-size:11px;
+                opacity:0.74;
+                text-transform:uppercase;
+                letter-spacing:0.08em;
+                font-weight:800;
+            "></div>
+            <div id="active_preset_badge_value" style="
+                font-size:22px;
+                font-weight:900;
+                line-height:1.05;
+                max-width:100%;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow:ellipsis;
+            "></div>
         </div>
 
         <div id="viewer_hud" style="
@@ -4831,6 +4879,37 @@ def viewer(
             margin-top:8px;
         }}
 
+        @media (max-width: 900px) {{
+            #active_preset_badge {{
+                top:68px !important;
+                min-width:220px !important;
+                max-width:min(72%, 420px) !important;
+                padding:9px 13px 10px 13px !important;
+            }}
+            #active_preset_badge_value {{
+                font-size:18px !important;
+            }}
+        }}
+
+        @media (max-width: 680px) {{
+            #active_preset_badge {{
+                top:68px !important;
+                left:14px !important;
+                right:14px !important;
+                transform:none !important;
+                min-width:0 !important;
+                max-width:none !important;
+                align-items:flex-start !important;
+                text-align:left !important;
+            }}
+            #active_preset_badge_value {{
+                font-size:16px !important;
+                white-space:normal !important;
+                overflow:visible !important;
+                text-overflow:initial !important;
+            }}
+        }}
+
         .pack_stat {{
             padding:9px 10px;
             border-radius:11px;
@@ -4958,6 +5037,8 @@ def viewer(
     (() => {{
         const T = {labels_json};
         const SIM_PRINT = {simulation_print_payload_json};
+        const ACTIVE_PRODUCT_NAME = {active_product_name_json};
+        const ACTIVE_PRODUCT_KIND = {active_product_kind_json};
 
         const host = document.getElementById("viewer_root");
         const loadingOverlay = document.getElementById("viewer_loading_overlay");
@@ -4993,6 +5074,8 @@ def viewer(
         const packagingStatusBadge = document.getElementById("packaging_status_badge");
         const packagingStatusText = document.getElementById("packaging_status_text");
         const packagingStatusReason = document.getElementById("packaging_status_reason");
+        const activePresetBadgeLabel = document.getElementById("active_preset_badge_label");
+        const activePresetBadgeValue = document.getElementById("active_preset_badge_value");
 
         const studioCheck = document.getElementById("studio_check");
         const ghostCheck = document.getElementById("ghost_check");
@@ -5033,6 +5116,17 @@ def viewer(
         if (printSimulationBtn) {{
             printSimulationBtn.textContent = T.print_simulation || "Print simulation";
             printSimulationBtn.title = T.print_simulation || "Print simulation";
+        }}
+
+        if (activePresetBadgeLabel) {{
+            const presetLabel = (ACTIVE_PRODUCT_KIND === "prototype")
+                ? ((T.language === "Language") ? "Active prototype" : "Prototipo attivo")
+                : ((T.language === "Language") ? "Active preset" : "Preset attivo");
+            activePresetBadgeLabel.textContent = presetLabel;
+        }}
+        if (activePresetBadgeValue) {{
+            activePresetBadgeValue.textContent = ACTIVE_PRODUCT_NAME || "";
+            activePresetBadgeValue.title = ACTIVE_PRODUCT_NAME || "";
         }}
 
         function updateSidepanelToggle() {{
@@ -10098,6 +10192,8 @@ with tab_production:
             d_tubo_upper=d_tubo_upper,
             tube_diameter_label=tube_diameter_label,
             simulation_print_payload=simulation_print_payload,
+            active_product_name=selected_product,
+            active_product_kind="prototype" if is_prototype else "preset",
         ),
         height=720,
     )
