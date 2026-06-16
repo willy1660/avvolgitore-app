@@ -7285,12 +7285,18 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
         .preset-hero::after {{
             content:"";
             position:absolute;
-            inset:0;
+            top:-45%;
+            bottom:-45%;
+            left:-72%;
+            width:36%;
             pointer-events:none;
-            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 24%, rgba(255,255,255,0.34) 48%, rgba(197,126,90,0.26) 56%, rgba(255,255,255,0.14) 64%, transparent 100%);
-            transform:translateX(-120%);
+            border-radius:inherit;
+            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.42) 46%, rgba(197,126,90,0.34) 56%, rgba(255,255,255,0.22) 66%, transparent 100%);
+            transform:skewX(-17deg);
             opacity:0;
-            z-index:1;
+            z-index:4;
+            mix-blend-mode:screen;
+            animation:pdmPresetCardShine 1.18s cubic-bezier(.18,.72,.22,1) 0.18s both;
         }}
         .preset-hero:hover {{
             transform:translateY(-1px);
@@ -7303,14 +7309,16 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
                     color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
                 );
         }}
-        .preset-hero:hover::after {{
+        .preset-hero:hover::after,
+        .preset-hero:active::after {{
             opacity:1;
-            animation:pdmPresetCardShine 1.05s cubic-bezier(.2,.72,.22,1) both;
+            animation:pdmPresetCardShine 1.18s cubic-bezier(.18,.72,.22,1) both;
         }}
         @keyframes pdmPresetCardShine {{
-            0% {{ transform:translateX(-120%); opacity:0; }}
-            12% {{ opacity:1; }}
-            100% {{ transform:translateX(120%); opacity:0; }}
+            0% {{ left:-72%; opacity:0; }}
+            10% {{ opacity:1; }}
+            52% {{ opacity:1; }}
+            100% {{ left:135%; opacity:0; }}
         }}
         .preset-hero-top {{
             position:relative;
@@ -7354,6 +7362,9 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             min-width:max-content;
         }}
         .preset-hero-badge {{
+            position:relative;
+            overflow:hidden;
+            isolation:isolate;
             border-radius:999px;
             padding:9px 12px;
             font-size:11px;
@@ -7394,6 +7405,36 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             border-radius:16px;
             border:1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
             background:color-mix(in srgb, var(--text-color) 4%, transparent);
+            position:relative;
+            overflow:hidden;
+            isolation:isolate;
+        }}
+        .preset-hero-chip > *,
+        .preset-hero-badge > * {{
+            position:relative;
+            z-index:2;
+        }}
+        .preset-hero-chip::after,
+        .preset-hero-badge::after {{
+            content:"";
+            position:absolute;
+            top:-45%;
+            bottom:-45%;
+            left:-72%;
+            width:36%;
+            pointer-events:none;
+            border-radius:inherit;
+            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.42) 46%, rgba(197,126,90,0.34) 56%, rgba(255,255,255,0.22) 66%, transparent 100%);
+            transform:skewX(-17deg);
+            opacity:0;
+            z-index:4;
+            mix-blend-mode:screen;
+        }}
+        .preset-hero-chip:hover::after,
+        .preset-hero-chip:active::after,
+        .preset-hero-badge:hover::after,
+        .preset-hero-badge:active::after {{
+            animation:pdmPresetCardShine 1.18s cubic-bezier(.18,.72,.22,1) both;
         }}
         .preset-hero-chip span {{
             display:block;
@@ -9554,6 +9595,44 @@ with tab_tech_sheet:
         
         st.markdown(
             f"""
+
+            <style>
+            .tech-sheet-preset-card {{
+                position:relative !important;
+                overflow:hidden !important;
+                isolation:isolate !important;
+            }}
+            .tech-sheet-preset-card > * {{
+                position:relative !important;
+                z-index:3 !important;
+            }}
+            .tech-sheet-preset-card::after {{
+                content:"" !important;
+                position:absolute !important;
+                top:-45% !important;
+                bottom:-45% !important;
+                left:-72% !important;
+                width:36% !important;
+                pointer-events:none !important;
+                border-radius:inherit !important;
+                background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.42) 46%, rgba(197,126,90,0.34) 56%, rgba(255,255,255,0.22) 66%, transparent 100%) !important;
+                transform:skewX(-17deg) !important;
+                opacity:0 !important;
+                z-index:50 !important;
+                mix-blend-mode:screen !important;
+                animation:pdmTechSheetCardShine 1.18s cubic-bezier(.18,.72,.22,1) 0.18s both !important;
+            }}
+            .tech-sheet-preset-card:hover::after,
+            .tech-sheet-preset-card:active::after {{
+                animation:pdmTechSheetCardShine 1.18s cubic-bezier(.18,.72,.22,1) both !important;
+            }}
+            @keyframes pdmTechSheetCardShine {{
+                0% {{ left:-72%; opacity:0; }}
+                10% {{ opacity:1; }}
+                52% {{ opacity:1; }}
+                100% {{ left:135%; opacity:0; }}
+            }}
+            </style>
             <div class="tech-sheet-preset-card premium-sweep-card pdm-pulse" style="
                 margin-top:12px;
                 margin-bottom:18px;
