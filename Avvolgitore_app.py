@@ -3170,6 +3170,40 @@ def render_premium_card_sweep_effect():
 
 title_placeholder.markdown(f"## {t['title']}")
 render_premium_card_sweep_effect()
+
+# =========================
+# CARD BACKGROUND PAGE-MATCH PATCH
+# =========================
+
+def render_card_background_page_match_patch():
+    st.markdown(
+        """
+        <style>
+        /*
+        Les cards de paràmetres respiren amb el mateix fons de la pàgina.
+        Funciona en mode clar/fosc perquè no fixa cap color sòlid de fons.
+        */
+        .machine-card-native,
+        .tech-mini-card,
+        .summary-strip-item {
+            background: transparent !important;
+        }
+
+        .machine-card-native:hover,
+        .tech-mini-card:hover,
+        .summary-strip-item:hover {
+            background: color-mix(in srgb, var(--pdm-accent) 3.5%, transparent) !important;
+        }
+
+        .machine-grid-native {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # =========================
 # GEOMETRY HELPERS
 # =========================
@@ -7645,18 +7679,18 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         --bg: transparent;
         --text:#0f172a;
         --muted:#475569;
-        --line:rgba(15,23,42,0.12);
-        --surface:rgba(248,250,252,0.86);
-        --surface2:rgba(241,245,249,0.92);
+        --line:rgba(15,23,42,0.10);
+        --surface:transparent;
+        --surface2:transparent;
         --shadow:0 7px 18px rgba(0,0,0,0.055);
     }}
     @media (prefers-color-scheme: dark) {{
         :root {{
             --text:#f8fafc;
             --muted:rgba(248,250,252,0.66);
-            --line:rgba(248,250,252,0.12);
-            --surface:rgba(17,24,39,0.86);
-            --surface2:rgba(15,23,42,0.92);
+            --line:rgba(248,250,252,0.10);
+            --surface:transparent;
+            --surface2:transparent;
             --shadow:0 7px 18px rgba(0,0,0,0.14);
         }}
     }}
@@ -7741,7 +7775,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         padding:18px 20px;
         border:1px solid var(--line);
         border-radius:18px;
-        background:linear-gradient(180deg, var(--surface), var(--surface2));
+        background:transparent;
         display:flex;
         flex-direction:column;
         justify-content:center;
