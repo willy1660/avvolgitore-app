@@ -2,6 +2,7 @@ import os
 import glob
 import json
 import html
+import hashlib
 from io import BytesIO
 import numpy as np
 import pandas as pd
