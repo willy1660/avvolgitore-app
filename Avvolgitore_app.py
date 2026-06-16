@@ -2380,9 +2380,20 @@ st.markdown(
         border-bottom: 3px solid var(--pdm-accent) !important;
     }
 
-    [data-testid="stTabs"] button[aria-selected="true"] p {
-        color: var(--text-color) !important;
+    [data-testid="stTabs"] button[aria-selected="true"] {
+        color: var(--pdm-accent) !important;
+        border-bottom: 3px solid var(--pdm-accent) !important;
+    }
+
+    [data-testid="stTabs"] button[aria-selected="true"] p,
+    [data-testid="stTabs"] button[aria-selected="true"] * {
+        color: var(--pdm-accent) !important;
         font-weight: 900 !important;
+    }
+
+    [data-testid="stTabs"] button:hover p,
+    [data-testid="stTabs"] button:hover * {
+        color: color-mix(in srgb, var(--pdm-accent) 78%, var(--text-color)) !important;
     }
 
     div[data-baseweb="input"] > div,
@@ -3601,7 +3612,7 @@ def render_scheda_preset_real_sweep_css():
             width:36% !important;
             pointer-events:none !important;
             border-radius:inherit !important;
-            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.46) 46%, rgba(197,126,90,0.36) 56%, rgba(255,255,255,0.22) 66%, transparent 100%) !important;
+            background:linear-gradient(105deg, transparent 0%, rgba(197,126,90,0.00) 18%, rgba(197,126,90,0.28) 42%, rgba(197,126,90,0.62) 56%, rgba(197,126,90,0.30) 70%, transparent 100%) !important;
             transform:skewX(-17deg) !important;
             opacity:0 !important;
             z-index:12 !important;
@@ -7342,7 +7353,7 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             width:36%;
             pointer-events:none;
             border-radius:inherit;
-            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.42) 46%, rgba(197,126,90,0.34) 56%, rgba(255,255,255,0.22) 66%, transparent 100%);
+            background:linear-gradient(105deg, transparent 0%, rgba(197,126,90,0.00) 18%, rgba(197,126,90,0.26) 40%, rgba(197,126,90,0.58) 56%, rgba(197,126,90,0.28) 70%, transparent 100%);
             transform:skewX(-17deg);
             opacity:0;
             z-index:4;
@@ -7380,7 +7391,7 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             width:36%;
             pointer-events:none;
             border-radius:inherit;
-            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.46) 46%, rgba(197,126,90,0.36) 56%, rgba(255,255,255,0.22) 66%, transparent 100%);
+            background:linear-gradient(105deg, transparent 0%, rgba(197,126,90,0.00) 18%, rgba(197,126,90,0.28) 42%, rgba(197,126,90,0.62) 56%, rgba(197,126,90,0.30) 70%, transparent 100%);
             transform:skewX(-17deg);
             opacity:0;
             z-index:12;
@@ -7503,7 +7514,7 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             width:36%;
             pointer-events:none;
             border-radius:inherit;
-            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.42) 46%, rgba(197,126,90,0.34) 56%, rgba(255,255,255,0.22) 66%, transparent 100%);
+            background:linear-gradient(105deg, transparent 0%, rgba(197,126,90,0.00) 18%, rgba(197,126,90,0.26) 40%, rgba(197,126,90,0.58) 56%, rgba(197,126,90,0.28) 70%, transparent 100%);
             transform:skewX(-17deg);
             opacity:0;
             z-index:4;
@@ -9694,7 +9705,7 @@ with tab_tech_sheet:
                 width:36% !important;
                 pointer-events:none !important;
                 border-radius:inherit !important;
-                background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.46) 46%, rgba(197,126,90,0.36) 56%, rgba(255,255,255,0.22) 66%, transparent 100%) !important;
+                background:linear-gradient(105deg, transparent 0%, rgba(197,126,90,0.00) 18%, rgba(197,126,90,0.28) 42%, rgba(197,126,90,0.62) 56%, rgba(197,126,90,0.30) 70%, transparent 100%) !important;
                 transform:skewX(-17deg) !important;
                 opacity:0 !important;
                 z-index:12 !important;
