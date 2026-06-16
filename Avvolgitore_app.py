@@ -2306,7 +2306,7 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-top1, top2, top3 = st.columns([1.55, 4.90, 1.10])
+top1, top2, top3 = st.columns([0.86, 5.72, 1.12])
 
 with top1:
     if logo_path:
@@ -2368,7 +2368,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: -60px;
+        margin-top: -42px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -3661,19 +3661,19 @@ title_placeholder.markdown(
     f"""
     <style>
     .top-brand-logo-wrap {{
-        min-height: 188px;
+        min-height: 150px;
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         margin: 0;
         padding: 0;
-        text-align: center;
+        text-align: left;
     }}
 
     .top-brand-logo-img {{
         display: block;
         width: auto;
-        height: 172px;
+        height: 142px;
         max-width: 100%;
         object-fit: contain;
     }}
@@ -3681,46 +3681,48 @@ title_placeholder.markdown(
     .top-brand-title-wrap {{
         display: flex;
         align-items: center;
-        justify-content: center;
-        text-align: center;
-        min-height: 188px;
+        justify-content: flex-start;
+        text-align: left;
+        min-height: 150px;
         margin: 0;
-        padding: 0;
+        padding: 0 0 0 8px;
     }}
 
     .top-brand-title {{
         margin: 0;
         padding: 0;
-        font-size: 92px;
-        line-height: 0.94;
-        font-weight: 720;
-        letter-spacing: -0.055em;
+        font-size: 88px;
+        line-height: 0.92;
+        font-weight: 520;
+        letter-spacing: -0.052em;
         color: var(--text-color);
     }}
 
     @media (max-width: 1280px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 156px;
+            min-height: 128px;
         }}
         .top-brand-logo-img {{
-            height: 138px;
+            height: 118px;
         }}
         .top-brand-title {{
-            font-size: 76px;
+            font-size: 72px;
+            font-weight: 520;
         }}
     }}
 
     @media (max-width: 820px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 112px;
+            min-height: 98px;
         }}
         .top-brand-logo-img {{
-            height: 96px;
+            height: 88px;
         }}
         .top-brand-title {{
-            font-size: 54px;
+            font-size: 48px;
+            font-weight: 540;
         }}
     }}
     </style>
