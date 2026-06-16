@@ -3216,7 +3216,27 @@ def render_premium_card_sweep_effect():
     )
 
 title_placeholder.markdown(f"## {t['title']}")
-render_anteprima_corner_cleanup_patch()
+
+st.markdown(
+    """
+    <style>
+    /* Anteprima · elimina contorns/fons de l'iframe exterior */
+    iframe {
+        background: transparent !important;
+    }
+
+    div[data-testid="stIFrame"],
+    div[data-testid="stIFrame"] iframe {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        outline: 0 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 render_premium_card_sweep_effect()
 
 # =========================
