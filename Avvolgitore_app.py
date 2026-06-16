@@ -7488,9 +7488,9 @@ def render_pdf_open_new_tab_link(pdf_bytes, file_name, label, helper_text=None):
             min-height:42px;
             border-radius:999px;
             padding:0 18px;
-            border:1px solid rgba(197,126,90,0.72);
-            background:transparent;
-            color:#C57E5A;
+            border:1px solid #C57E5A;
+            background:linear-gradient(180deg, #D18A62, #B96F48);
+            color:#ffffff;
             font-weight:950;
             font-size:13px;
             line-height:1;
@@ -7499,8 +7499,8 @@ def render_pdf_open_new_tab_link(pdf_bytes, file_name, label, helper_text=None):
             box-shadow:0 8px 18px rgba(197,126,90,0.12);
         }}
         .pdf-open-button:hover {{
-            background:rgba(197,126,90,0.10);
-            filter:brightness(1.04);
+            filter:brightness(1.06);
+            transform:translateY(-1px);
         }}
         .pdf-open-helper {{
             margin-top:7px;
@@ -7515,7 +7515,7 @@ def render_pdf_open_new_tab_link(pdf_bytes, file_name, label, helper_text=None):
     <body>
         <div class="pdf-open-wrap">
             <button class="pdf-open-button" id="openPdfBtn">{safe_label}</button>
-            <div class="pdf-open-helper">{safe_helper}</div>
+            {f'<div class="pdf-open-helper">{safe_helper}</div>' if safe_helper else ''}
         </div>
 
         <script>
@@ -10599,18 +10599,11 @@ with tab_tech_sheet:
             st.markdown(f'<div class="csv-print-copy">{html.escape(csv_copy)}</div>', unsafe_allow_html=True)
         with csv_button_col:
             if csv_print_pdf is not None:
-                st.download_button(
-                    t["print_preset_csv"],
-                    data=csv_print_pdf,
-                    file_name=f"scheda_preset_{safe_product_filename}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                )
                 render_pdf_open_new_tab_link(
                     csv_print_pdf,
                     f"scheda_preset_{safe_product_filename}.pdf",
-                    "Apri in nuova scheda" if lang == "IT" else "Open in new tab",
-                    "Su iPad: aprilo in una nuova scheda e poi chiudila per tornare all'app." if lang == "IT" else "On iPad: open it in a new tab, then close it to return to the app.",
+                    "PDF scheda",
+                    None,
                 )
             else:
                 st.warning("Per scaricare il PDF aggiungi `reportlab` a requirements.txt." if lang == "IT" else "To download the PDF, add `reportlab` to requirements.txt.")
