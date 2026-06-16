@@ -1231,102 +1231,79 @@ def make_preset_visual(row, language):
     return f"""
     <style>
     :root {{
-        color-scheme: light dark;
-        --component-bg: transparent;
-        --component-text: #f8fafc;
-        --component-muted: rgba(226,232,240,0.66);
-        --component-muted-strong: rgba(226,232,240,0.82);
-        --component-border: rgba(226,232,240,0.14);
-        --component-border-soft: rgba(226,232,240,0.10);
-        --component-surface: linear-gradient(180deg, rgba(18,22,27,0.44), rgba(18,22,27,0.25));
-        --component-surface-solid: rgba(226,232,240,0.055);
-        --component-drawing-bg:
-            radial-gradient(circle at 38% 45%, rgba(197,126,90,0.10), transparent 44%),
-            linear-gradient(180deg, #09111a, #101923);
-        --component-shadow: 0 12px 26px rgba(0,0,0,0.10);
-        --foam-fill: rgba(231,236,242,0.88);
-        --foam-stroke: rgba(248,250,252,0.92);
-        --center-line: rgba(226,232,240,0.24);
-        --dim-line: rgba(235,241,248,0.92);
-        --dim-guide: rgba(193,204,219,0.56);
-        --dim-label: rgba(203,214,228,0.88);
-        --copper-fill: #C57E5A;
-        --copper-stroke: #7a4124;
-        --copper-highlight: #E7B18F;
-    }}
-
-    html[data-theme="light"] {{
+        color-scheme: light;
         --component-text: #111827;
         --component-muted: rgba(75,85,99,0.74);
         --component-muted-strong: rgba(31,41,55,0.82);
         --component-border: rgba(17,24,39,0.12);
         --component-border-soft: rgba(17,24,39,0.09);
-        --component-surface: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.88));
-        --component-surface-solid: rgba(17,24,39,0.035);
         --component-drawing-bg:
             radial-gradient(circle at 38% 45%, rgba(197,126,90,0.12), transparent 44%),
             linear-gradient(180deg, #f8fafc, #e9eef4);
-        --component-shadow: 0 12px 26px rgba(15,23,42,0.08);
+        --component-surface-solid: rgba(17,24,39,0.035);
         --foam-fill: rgba(226,232,240,0.96);
         --foam-stroke: rgba(100,116,139,0.50);
         --center-line: rgba(51,65,85,0.24);
         --dim-line: rgba(15,23,42,0.78);
         --dim-guide: rgba(71,85,105,0.38);
         --dim-label: rgba(51,65,85,0.76);
+        --copper-fill: #C57E5A;
+        --copper-stroke: #7a4124;
+        --copper-highlight: #E7B18F;
     }}
 
-    @media (prefers-color-scheme: light) {{
-        html:not([data-theme="dark"]) {{
-            --component-text: #111827;
-            --component-muted: rgba(75,85,99,0.74);
-            --component-muted-strong: rgba(31,41,55,0.82);
-            --component-border: rgba(17,24,39,0.12);
-            --component-border-soft: rgba(17,24,39,0.09);
-            --component-surface: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.88));
-            --component-surface-solid: rgba(17,24,39,0.035);
-            --component-drawing-bg:
-                radial-gradient(circle at 38% 45%, rgba(197,126,90,0.12), transparent 44%),
-                linear-gradient(180deg, #f8fafc, #e9eef4);
-            --component-shadow: 0 12px 26px rgba(15,23,42,0.08);
-            --foam-fill: rgba(226,232,240,0.96);
-            --foam-stroke: rgba(100,116,139,0.50);
-            --center-line: rgba(51,65,85,0.24);
-            --dim-line: rgba(15,23,42,0.78);
-            --dim-guide: rgba(71,85,105,0.38);
-            --dim-label: rgba(51,65,85,0.76);
-        }}
+    html[data-theme="dark"] {{
+        color-scheme: dark;
+        --component-text: #f8fafc;
+        --component-muted: rgba(226,232,240,0.66);
+        --component-muted-strong: rgba(226,232,240,0.82);
+        --component-border: rgba(226,232,240,0.14);
+        --component-border-soft: rgba(226,232,240,0.10);
+        --component-drawing-bg:
+            radial-gradient(circle at 38% 45%, rgba(197,126,90,0.10), transparent 44%),
+            linear-gradient(180deg, #09111a, #101923);
+        --component-surface-solid: rgba(226,232,240,0.055);
+        --foam-fill: rgba(231,236,242,0.88);
+        --foam-stroke: rgba(248,250,252,0.92);
+        --center-line: rgba(226,232,240,0.24);
+        --dim-line: rgba(235,241,248,0.92);
+        --dim-guide: rgba(193,204,219,0.56);
+        --dim-label: rgba(203,214,228,0.88);
     }}
 
     html, body {{
         margin:0;
         padding:0;
         width:100%;
-        min-height:0 !important;
         height:auto !important;
+        min-height:0 !important;
         overflow:hidden;
         background:transparent !important;
         color:var(--component-text);
         font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     }}
+
     .preview-card {{
         width:100%;
         box-sizing:border-box;
-        border-radius:0;
-        overflow:visible;
-        background:transparent !important;
         border:0 !important;
+        outline:0 !important;
         box-shadow:none !important;
+        background:transparent !important;
+        border-radius:0 !important;
+        overflow:visible !important;
     }}
+
     .preview-head {{
         display:flex;
         align-items:center;
         justify-content:space-between;
         gap:12px;
-        padding:15px 18px;
+        padding:4px 8px 12px 8px;
         border-bottom:1px solid var(--component-border-soft);
         background:transparent !important;
-        border-radius:0;
     }}
+
     .preview-title {{
         font-size:20px;
         line-height:1.05;
@@ -1334,6 +1311,7 @@ def make_preset_visual(row, language):
         letter-spacing:-0.035em;
         color:var(--component-text);
     }}
+
     .preview-tag {{
         flex:0 0 auto;
         min-height:30px;
@@ -1349,19 +1327,22 @@ def make_preset_visual(row, language):
         font-weight:900;
         letter-spacing:0.035em;
     }}
+
     .drawing-wrap {{
-        margin:12px;
+        margin:12px 8px;
         border-radius:18px;
         overflow:hidden;
         background:var(--component-drawing-bg);
         border:1px solid var(--component-border-soft);
         box-shadow:none !important;
     }}
+
     .section-svg {{
         width:100%;
-        height:330px;
+        height:300px;
         display:block;
     }}
+
     .foam {{
         fill:var(--foam-fill);
         stroke:var(--foam-stroke);
@@ -1429,7 +1410,7 @@ def make_preset_visual(row, language):
         display:grid;
         grid-template-columns:repeat(3, minmax(0,1fr));
         gap:9px;
-        padding:0 12px 12px 12px;
+        padding:0 8px 0 8px;
     }}
     .preview-metric {{
         min-height:50px;
@@ -1462,46 +1443,6 @@ def make_preset_visual(row, language):
         .section-svg {{ height:300px; }}
         .metrics {{ grid-template-columns:1fr 1fr; }}
     }}
-
-    /* Final override · elimina cantonades/contorn exterior de l'anteprima */
-    .preview-card,
-    .preview-card:hover,
-    .preview-card:focus,
-    .preview-card:active {{
-        border:0 !important;
-        outline:0 !important;
-        box-shadow:none !important;
-        background:transparent !important;
-        border-radius:0 !important;
-        overflow:visible !important;
-    }}
-
-    .preview-head {{
-        border-top:0 !important;
-        border-left:0 !important;
-        border-right:0 !important;
-        outline:0 !important;
-        box-shadow:none !important;
-    }}
-
-    section.preview-card {{
-        border:0 !important;
-        outline:0 !important;
-    }}
-
-    body::before,
-    body::after,
-    html::before,
-    html::after,
-    .preview-card::before,
-    .preview-card::after {{
-        content:none !important;
-        display:none !important;
-        border:0 !important;
-        background:transparent !important;
-        box-shadow:none !important;
-    }}
-
     </style>
 
     <section class="preview-card">
@@ -1517,26 +1458,52 @@ def make_preset_visual(row, language):
 
     <script>
     (() => {{
+        function parseRgb(value) {{
+            if (!value) return null;
+            value = String(value).trim();
+            if (value.startsWith("#")) {{
+                let hex = value.slice(1);
+                if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+                const n = parseInt(hex, 16);
+                if (Number.isNaN(n)) return null;
+                return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+            }}
+            const match = value.match(/rgba?\\(([^)]+)\\)/i);
+            if (!match) return null;
+            const parts = match[1].split(",").map(x => parseFloat(x.trim()));
+            if (parts.length < 3) return null;
+            return [parts[0], parts[1], parts[2]];
+        }}
+
         function luminance(rgb) {{
-            const parts = (rgb || "").match(/\\d+(\\.\\d+)?/g);
-            if (!parts || parts.length < 3) return null;
-            const vals = parts.slice(0,3).map(Number).map(v => {{
-                v = v / 255;
+            const mapped = rgb.map(v => {{
+                v = Math.max(0, Math.min(255, v)) / 255;
                 return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
             }});
-            return 0.2126 * vals[0] + 0.7152 * vals[1] + 0.0722 * vals[2];
+            return 0.2126 * mapped[0] + 0.7152 * mapped[1] + 0.0722 * mapped[2];
         }}
+
         function applyTheme() {{
             try {{
                 const parentDoc = window.parent && window.parent.document;
-                const bg = parentDoc ? window.parent.getComputedStyle(parentDoc.body).backgroundColor : "";
-                const lum = luminance(bg);
-                if (lum !== null) {{
-                    document.documentElement.dataset.theme = lum > 0.55 ? "light" : "dark";
-                    return;
+                if (parentDoc) {{
+                    const rootStyle = window.parent.getComputedStyle(parentDoc.documentElement);
+                    const bodyStyle = window.parent.getComputedStyle(parentDoc.body);
+                    const candidates = [
+                        rootStyle.getPropertyValue("--background-color"),
+                        rootStyle.getPropertyValue("--secondary-background-color"),
+                        bodyStyle.backgroundColor
+                    ];
+                    for (const candidate of candidates) {{
+                        const rgb = parseRgb(candidate);
+                        if (rgb) {{
+                            document.documentElement.dataset.theme = luminance(rgb) < 0.35 ? "dark" : "light";
+                            return;
+                        }}
+                    }}
                 }}
             }} catch (err) {{}}
-            document.documentElement.dataset.theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+            document.documentElement.dataset.theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         }}
         applyTheme();
         setInterval(applyTheme, 1000);
@@ -9310,7 +9277,7 @@ with tab_tech_sheet:
                 "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
                 "A",
             )
-            components.html(make_preset_visual(selected_row, lang), height=525, scrolling=False)
+            components.html(make_preset_visual(selected_row, lang), height=470, scrolling=False)
 
         with machine_sheet_tab:
             render_section_header(
