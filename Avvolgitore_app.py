@@ -9234,7 +9234,12 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
                 return 0.2126 * mapped[0] + 0.7152 * mapped[1] + 0.0722 * mapped[2];
             }}
 
-            function detectDark() {{
+            function rgbaFrom(rgb, alpha) {{
+                if (!rgb) return "";
+                return `rgba(${Math.round(rgb[0])}, ${Math.round(rgb[1])}, ${Math.round(rgb[2])}, ${alpha})`;
+            }}
+
+            function getThemeInfo() {{
                 try {{
                     const parentDoc = window.parent && window.parent.document;
                     if (parentDoc) {{
@@ -9245,40 +9250,96 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
                             parentDoc.querySelector('.stApp') ||
                             body;
 
-                        const attrBag = [
-                            root.getAttribute("data-theme") || "",
-                            body.getAttribute("data-theme") || "",
-                            root.className || "",
-                            body.className || "",
-                            appContainer.className || ""
-                        ].join(" ").toLowerCase();
-
-                        if (attrBag.includes("dark")) return true;
-                        if (attrBag.includes("light")) return false;
-
                         const rootStyle = window.parent.getComputedStyle(root);
                         const bodyStyle = window.parent.getComputedStyle(body);
                         const appStyle = window.parent.getComputedStyle(appContainer);
 
-                        const candidates = [
+                        const textCandidates = [
+                            rootStyle.getPropertyValue("--text-color"),
+                            appStyle.color,
+                            bodyStyle.color
+                        ];
+                        const bgCandidates = [
                             rootStyle.getPropertyValue("--background-color"),
                             rootStyle.getPropertyValue("--secondary-background-color"),
                             appStyle.backgroundColor,
                             bodyStyle.backgroundColor
                         ];
 
-                        for (const candidate of candidates) {{
+                        let textRgb = null;
+                        let bgRgb = null;
+                        let textValue = "";
+                        let bgValue = "";
+
+                        for (const candidate of textCandidates) {{
                             const rgb = parseRgb(candidate);
-                            if (rgb) return luminance(rgb) < 0.42;
+                            if (rgb) {{
+                                textRgb = rgb;
+                                textValue = String(candidate).trim();
+                                break;
+                            }}
                         }}
+
+                        for (const candidate of bgCandidates) {{
+                            const rgb = parseRgb(candidate);
+                            if (rgb) {{
+                                bgRgb = rgb;
+                                bgValue = String(candidate).trim();
+                                break;
+                            }}
+                        }}
+
+                        let isDark = false;
+                        if (textRgb) {{
+                            // Light text implies dark theme.
+                            isDark = luminance(textRgb) > 0.6;
+                        }} else if (bgRgb) {{
+                            isDark = luminance(bgRgb) < 0.42;
+                        }} else {{
+                            isDark = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+                        }}
+
+                        return {{
+                            isDark,
+                            textRgb,
+                            bgRgb,
+                            textValue,
+                            bgValue
+                        }};
                     }}
                 }} catch (err) {{}}
-                return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+                return {{
+                    isDark: !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches),
+                    textRgb: null,
+                    bgRgb: null,
+                    textValue: "",
+                    bgValue: ""
+                }};
             }}
 
-            const isDark = detectDark();
-            document.body.classList.toggle("dark-theme", isDark);
-            document.body.classList.toggle("light-theme", !isDark);
+            const theme = getThemeInfo();
+            document.body.classList.toggle("dark-theme", theme.isDark);
+            document.body.classList.toggle("light-theme", !theme.isDark);
+
+            const fallbackText = theme.isDark ? "#f8fafc" : "#0f172a";
+            const fallbackMuted = theme.isDark ? "rgba(248,250,252,0.70)" : "rgba(15,23,42,0.66)";
+            const fallbackLine = theme.isDark ? "rgba(248,250,252,0.12)" : "rgba(15,23,42,0.11)";
+            const fallbackHeader = theme.isDark
+                ? "linear-gradient(90deg, rgba(197,126,90,0.18), transparent 70%)"
+                : "linear-gradient(90deg, rgba(197,126,90,0.10), transparent 72%)";
+            const fallbackHover = theme.isDark
+                ? "rgba(197,126,90,0.055)"
+                : "rgba(197,126,90,0.045)";
+
+            const resolvedText = theme.textValue || fallbackText;
+            const resolvedMuted = theme.textRgb ? rgbaFrom(theme.textRgb, theme.isDark ? 0.70 : 0.66) : fallbackMuted;
+            const resolvedLine = theme.textRgb ? rgbaFrom(theme.textRgb, theme.isDark ? 0.12 : 0.11) : fallbackLine;
+
+            document.body.style.setProperty("--text", resolvedText);
+            document.body.style.setProperty("--muted", resolvedMuted);
+            document.body.style.setProperty("--line", resolvedLine);
+            document.body.style.setProperty("--header-bg", fallbackHeader);
+            document.body.style.setProperty("--hover-bg", fallbackHover);
         }})();
         </script>
         <div class="operator-board-note">{html.escape(note)}</div>
