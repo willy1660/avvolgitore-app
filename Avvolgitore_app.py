@@ -3027,6 +3027,8 @@ def render_premium_card_sweep_effect():
         No toca ::before, així es conserven els detalls verticals en coure.
         */
         .preset-hero,
+        .preset-hero-chip,
+        .preset-hero-badge,
         .preset-status-strip,
         .summary-card,
         .preset-param-card,
@@ -3058,6 +3060,8 @@ def render_premium_card_sweep_effect():
         }
 
         .preset-hero > *,
+        .preset-hero-chip > *,
+        .preset-hero-badge > *,
         .preset-status-strip > *,
         .summary-card > *,
         .preset-param-card > *,
@@ -3087,6 +3091,8 @@ def render_premium_card_sweep_effect():
         }
 
         .preset-hero::after,
+        .preset-hero-chip::after,
+        .preset-hero-badge::after,
         .preset-status-strip::after,
         .summary-card::after,
         .preset-param-card::after,
@@ -3136,6 +3142,8 @@ def render_premium_card_sweep_effect():
         }
 
         .preset-hero:hover::after,
+        .preset-hero-chip:hover::after,
+        .preset-hero-badge:hover::after,
         .preset-status-strip:hover::after,
         .summary-card:hover::after,
         .preset-param-card:hover::after,
@@ -3186,6 +3194,8 @@ def render_premium_card_sweep_effect():
 
         @media (hover: none) {
             .preset-hero:active::after,
+            .preset-hero-chip:active::after,
+            .preset-hero-badge:active::after,
             .preset-status-strip:active::after,
             .summary-card:active::after,
             .preset-param-card:active::after,
@@ -3218,6 +3228,8 @@ def render_premium_card_sweep_effect():
 
         @media (prefers-reduced-motion: reduce) {
             .preset-hero::after,
+            .preset-hero-chip::after,
+            .preset-hero-badge::after,
             .preset-status-strip::after,
             .summary-card::after,
             .preset-param-card::after,
@@ -3262,6 +3274,8 @@ def render_global_all_cards_sweep_patch():
         """
         <style>
         .preset-hero,
+        .preset-hero-chip,
+        .preset-hero-badge,
         .preset-status-strip,
         .summary-card,
         .preset-param-card,
@@ -3296,6 +3310,8 @@ def render_global_all_cards_sweep_patch():
         }
 
         .preset-hero > *,
+        .preset-hero-chip > *,
+        .preset-hero-badge > *,
         .preset-status-strip > *,
         .summary-card > *,
         .preset-param-card > *,
@@ -3326,6 +3342,8 @@ def render_global_all_cards_sweep_patch():
         }
 
         .preset-hero::after,
+        .preset-hero-chip::after,
+        .preset-hero-badge::after,
         .preset-status-strip::after,
         .summary-card::after,
         .preset-param-card::after,
@@ -3378,6 +3396,8 @@ def render_global_all_cards_sweep_patch():
         }
 
         .preset-hero:hover::after,
+        .preset-hero-chip:hover::after,
+        .preset-hero-badge:hover::after,
         .preset-status-strip:hover::after,
         .summary-card:hover::after,
         .preset-param-card:hover::after,
@@ -3423,6 +3443,8 @@ def render_global_all_cards_sweep_patch():
 
         @media (hover: none) {
             .preset-hero:active::after,
+            .preset-hero-chip:active::after,
+            .preset-hero-badge:active::after,
             .preset-status-strip:active::after,
             .summary-card:active::after,
             .preset-param-card:active::after,
@@ -7170,7 +7192,7 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             position:absolute;
             inset:0;
             pointer-events:none;
-            background:linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.10) 42%, transparent 68%);
+            background:linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.00) 24%, rgba(255,255,255,0.34) 48%, rgba(197,126,90,0.26) 56%, rgba(255,255,255,0.14) 64%, transparent 100%);
             transform:translateX(-120%);
             opacity:0;
             z-index:1;
@@ -7188,10 +7210,12 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
         }}
         .preset-hero:hover::after {{
             opacity:1;
-            animation:pdmPresetCardShine 0.72s ease-out both;
+            animation:pdmPresetCardShine 1.05s cubic-bezier(.2,.72,.22,1) both;
         }}
         @keyframes pdmPresetCardShine {{
-            to {{ transform:translateX(120%); }}
+            0% {{ transform:translateX(-120%); opacity:0; }}
+            12% {{ opacity:1; }}
+            100% {{ transform:translateX(120%); opacity:0; }}
         }}
         .preset-hero-top {{
             position:relative;
@@ -7307,7 +7331,7 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             .preset-hero-chips {{ grid-template-columns:repeat(2, minmax(0,1fr)); }}
         }}
         </style>
-        <div class="preset-hero{pulse_class}">
+        <div class="preset-hero pdm-pulse{pulse_class}">
             <div class="preset-hero-top">
                 <div>
                     <div class="preset-hero-kicker">{html.escape(kicker)}</div>
@@ -7389,7 +7413,7 @@ def render_prototype_product_card(prototype_name, language):
 
     st.markdown(
         f"""
-        <div class="preset-hero{pulse_class}">
+        <div class="preset-hero pdm-pulse{pulse_class}">
             <div class="preset-hero-top">
                 <div>
                     <div class="preset-hero-kicker">{html.escape(kicker)}</div>
@@ -9435,7 +9459,7 @@ with tab_tech_sheet:
         
         st.markdown(
             f"""
-            <div class="tech-sheet-preset-card premium-sweep-card" style="
+            <div class="tech-sheet-preset-card premium-sweep-card pdm-pulse" style="
                 margin-top:12px;
                 margin-bottom:18px;
                 padding:22px 24px;
