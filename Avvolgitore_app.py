@@ -7419,22 +7419,24 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 position: absolute;
                 top: -48%;
                 bottom: -48%;
-                left: -72%;
+                left: 50%;
                 width: 38%;
                 background: linear-gradient(
                     105deg,
                     transparent 0%,
                     rgba(197,126,90,0.00) 18%,
-                    rgba(197,126,90,0.30) 42%,
-                    rgba(255,255,255,0.46) 50%,
-                    rgba(197,126,90,0.50) 59%,
-                    rgba(197,126,90,0.22) 70%,
+                    rgba(197,126,90,0.26) 42%,
+                    rgba(255,255,255,0.38) 50%,
+                    rgba(197,126,90,0.46) 59%,
+                    rgba(197,126,90,0.20) 70%,
                     transparent 100%
                 );
-                transform: skewX(-17deg);
+                transform: translate3d(-260%,0,0) skewX(-17deg);
+                will-change: transform, opacity;
+                backface-visibility: hidden;
                 mix-blend-mode: screen;
                 pointer-events: none;
-                animation: pdmRevealSweep 1.22s cubic-bezier(.18,.72,.22,1) .12s both;
+                animation: pdmRevealSweep 1.05s cubic-bezier(.22,.72,.18,1) .08s both;
             }}
 
             .pdm-reveal-scanline {{
@@ -7447,7 +7449,10 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                 box-shadow: 0 0 22px rgba(197,126,90,0.50);
                 opacity: 0;
                 pointer-events: none;
-                animation: pdmRevealScan 1.28s cubic-bezier(.2,.72,.22,1) .10s both;
+                will-change: transform, opacity;
+                backface-visibility: hidden;
+                transform: translate3d(0,-92px,0);
+                animation: pdmRevealScan 1.12s cubic-bezier(.22,.72,.18,1) .08s both;
             }}
 
             .pdm-reveal-kicker {{
@@ -7514,17 +7519,17 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
             }}
 
             @keyframes pdmRevealSweep {{
-                0% {{ left: -72%; opacity: 0; }}
-                10% {{ opacity: 1; }}
-                54% {{ opacity: 1; }}
-                100% {{ left: 135%; opacity: 0; }}
+                0% {{ transform: translate3d(-260%,0,0) skewX(-17deg); opacity: 0; }}
+                10% {{ opacity: .92; }}
+                58% {{ opacity: .92; }}
+                100% {{ transform: translate3d(260%,0,0) skewX(-17deg); opacity: 0; }}
             }}
 
             @keyframes pdmRevealScan {{
-                0% {{ transform: translateY(-92px); opacity: 0; }}
-                12% {{ opacity: 1; }}
-                72% {{ opacity: .9; }}
-                100% {{ transform: translateY(98px); opacity: 0; }}
+                0% {{ transform: translate3d(0,-92px,0); opacity: 0; }}
+                12% {{ opacity: .92; }}
+                72% {{ opacity: .86; }}
+                100% {{ transform: translate3d(0,98px,0); opacity: 0; }}
             }}
 
             @media (max-width: 720px) {{
@@ -7717,11 +7722,13 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             pointer-events:none;
             border-radius:inherit;
             background:linear-gradient(105deg, transparent 0%, rgba(197,126,90,0.00) 18%, rgba(197,126,90,0.26) 40%, rgba(197,126,90,0.58) 56%, rgba(197,126,90,0.28) 70%, transparent 100%);
-            transform:skewX(-17deg);
+            transform:translate3d(-260%,0,0) skewX(-17deg);
             opacity:0;
             z-index:4;
             mix-blend-mode:screen;
-            animation:pdmPresetCardShine 1.18s cubic-bezier(.18,.72,.22,1) 0.18s both;
+            will-change:transform, opacity;
+            backface-visibility:hidden;
+            animation:pdmPresetCardShine 1.05s cubic-bezier(.22,.72,.18,1) 0.12s both;
         }}
         .preset-hero:hover {{
             transform:translateY(-1px);
@@ -7740,10 +7747,10 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             animation:pdmPresetCardShine 1.18s cubic-bezier(.18,.72,.22,1) both;
         }}
         @keyframes pdmPresetCardShine {{
-            0% {{ left:-72%; opacity:0; }}
-            10% {{ opacity:1; }}
-            52% {{ opacity:1; }}
-            100% {{ left:135%; opacity:0; }}
+            0% {{ transform:translate3d(-260%,0,0) skewX(-17deg); opacity:0; }}
+            10% {{ opacity:.92; }}
+            56% {{ opacity:.92; }}
+            100% {{ transform:translate3d(260%,0,0) skewX(-17deg); opacity:0; }}
         }}
 
         .premium-sweep-layer {{
@@ -7755,22 +7762,23 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
             pointer-events:none;
             border-radius:inherit;
             background:linear-gradient(105deg, transparent 0%, rgba(197,126,90,0.00) 18%, rgba(197,126,90,0.28) 42%, rgba(197,126,90,0.62) 56%, rgba(197,126,90,0.30) 70%, transparent 100%);
-            transform:skewX(-17deg);
+            transform:translate3d(-260%,0,0) skewX(-17deg);
             opacity:0;
             z-index:12;
             mix-blend-mode:screen;
-            filter:brightness(1.35);
-            animation:pdmRealSweepLayer 1.25s cubic-bezier(.18,.72,.22,1) 0.25s both;
+            will-change:transform, opacity;
+            backface-visibility:hidden;
+            animation:pdmRealSweepLayer 1.05s cubic-bezier(.22,.72,.18,1) 0.12s both;
         }}
         .preset-hero:hover .premium-sweep-layer,
         .preset-hero:active .premium-sweep-layer {{
             animation:pdmRealSweepLayer 1.25s cubic-bezier(.18,.72,.22,1) both;
         }}
         @keyframes pdmRealSweepLayer {{
-            0% {{ left:-72%; opacity:0; }}
-            10% {{ opacity:1; }}
-            52% {{ opacity:1; }}
-            100% {{ left:135%; opacity:0; }}
+            0% {{ transform:translate3d(-260%,0,0) skewX(-17deg); opacity:0; }}
+            10% {{ opacity:.92; }}
+            56% {{ opacity:.92; }}
+            100% {{ transform:translate3d(260%,0,0) skewX(-17deg); opacity:0; }}
         }}
 
         .preset-hero-top {{
