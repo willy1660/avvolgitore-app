@@ -96,13 +96,13 @@ TEXTS = {
         "tab_presets": "Preset",
         "tab_calculator": "Calcolatore / Render",
         "presets_title": "### Preset prodotto",
-        "presets_loaded": "preset caricati correttamente da Presets.csv",
+        "presets_loaded": "preset caricati correttamente",
         "select_product": "Seleziona prodotto",
         "preset_sheet": "Scheda preset",
-        "preset_subtitle": "Configurazione tecnica prodotto · valori caricati da CSV",
+        "preset_subtitle": "Configurazione tecnica prodotto · valori caricati dal preset",
         "csv_params": "#### Parametri del preset",
         "presets_readonly": "In questo passaggio i preset sono solo consultabili. Nel passaggio successivo aggiungeremo il pulsante per caricarli nel calcolatore.",
-        "presets_file_missing": "File Presets.csv non trovato. Mettilo nella stessa cartella dell'app.",
+        "presets_file_missing": "File preset non trovato. Mettilo nella stessa cartella dell'app.",
         "presets_load_error": "Errore nel caricamento dei preset",
         "preset_visual_title": "Anteprima tecnica",
         "load_to_calculator": "Carica nel calcolatore",
@@ -110,7 +110,7 @@ TEXTS = {
         "linked_params": "Parametri collegati al render",
         "non_render_params": "Parametri macchina consultivi",
         "calculator_loaded_from": "Valori caricati dal preset",
-        "preset_render_note": "I parametri del preset sono stati caricati nel calcolatore. Puoi modificarli liberamente senza cambiare il CSV.",
+        "preset_render_note": "I parametri del preset sono stati caricati nel calcolatore. Puoi modificarli liberamente.",
         "preset_loaded_ok": "Preset {name} caricato correttamente.",
         "active_preset": "Preset attivo",
         "pallet_title": "Verifica pallet 750 × 750 mm",
@@ -157,7 +157,7 @@ TEXTS = {
         "print_sheet": "Scheda stampabile",
         "print_sheet_help": "Scarica una scheda HTML pronta da stampare.",
         "print_simulation": "PDF simulazione",
-        "print_preset_csv": "PDF scheda CSV",
+        "print_preset_csv": "PDF scheda preset",
     },
     "EN": {
         "title": "Coiling",
@@ -212,13 +212,13 @@ TEXTS = {
         "tab_presets": "Presets",
         "tab_calculator": "Calculator / Render",
         "presets_title": "### Product presets",
-        "presets_loaded": "presets loaded correctly from Presets.csv",
+        "presets_loaded": "presets loaded correctly",
         "select_product": "Select product",
         "preset_sheet": "Preset sheet",
-        "preset_subtitle": "Product technical configuration · values loaded from CSV",
+        "preset_subtitle": "Product technical configuration · values loaded from the preset",
         "csv_params": "#### Preset parameters",
         "presets_readonly": "At this stage, presets are read-only. In the next step, we will add the button to load them into the calculator.",
-        "presets_file_missing": "Presets.csv file not found. Put it in the same folder as the app.",
+        "presets_file_missing": "Preset file not found. Put it in the same folder as the app.",
         "presets_load_error": "Error loading presets",
         "preset_visual_title": "Technical preview",
         "load_to_calculator": "Load into calculator",
@@ -226,7 +226,7 @@ TEXTS = {
         "linked_params": "Parameters linked to the render",
         "non_render_params": "Consultative machine parameters",
         "calculator_loaded_from": "Values loaded from preset",
-        "preset_render_note": "The preset parameters have been loaded into the calculator. You can edit them freely without changing the CSV.",
+        "preset_render_note": "The preset parameters have been loaded into the calculator. You can edit them freely.",
         "preset_loaded_ok": "Preset {name} loaded correctly.",
         "active_preset": "Active preset",
         "pallet_title": "750 × 750 mm pallet check",
@@ -273,7 +273,7 @@ TEXTS = {
         "print_sheet": "Printable sheet",
         "print_sheet_help": "Download a print-ready HTML sheet.",
         "print_simulation": "Simulation PDF",
-        "print_preset_csv": "CSV sheet PDF",
+        "print_preset_csv": "Preset sheet PDF",
     },
 }
 
@@ -953,8 +953,8 @@ guide_offset_x = 555.0
 # =========================
 
 @st.cache_data
-def load_presets(path="Presets.csv"):
-    # Excel sometimes saves CSV files in Windows/Latin encoding instead of UTF-8.
+def load_presets(path="file preset"):
+    # Excel sometimes saves preset files in Windows/Latin encoding instead of UTF-8.
     # Try UTF-8 first, then common Excel encodings.
     last_error = None
     for encoding in ("utf-8-sig", "cp1252", "latin1"):
@@ -1755,7 +1755,7 @@ def make_preset_export_html(product_name, selected_row, language, status_items=N
 
     title = "Scheda preset avvolgimento" if language == "IT" else "Winding preset sheet"
     calc_title = "Valori calcolatore" if language == "IT" else "Calculator values"
-    csv_title = "Valori CSV" if language == "IT" else "CSV values"
+    csv_title = "Valori preset" if language == "IT" else "Preset values"
     print_label = "Stampa scheda" if language == "IT" else "Print sheet"
     modified_label = "Sì" if modified and language == "IT" else ("Yes" if modified else ("No" if language != "IT" else "No"))
     rows = []
@@ -1825,11 +1825,11 @@ td{{font-weight:800;padding:8px;border-bottom:1px solid #e5e7eb;}}
 
 
 def make_csv_preset_print_html(product_name, selected_row, language):
-    title = "Scheda preset CSV" if language == "IT" else "CSV preset sheet"
-    subtitle = "Preset originale · valori letti direttamente dal CSV" if language == "IT" else "Original preset · values read directly from CSV"
+    title = "Scheda preset" if language == "IT" else "Preset sheet"
+    subtitle = "Preset originale · valori ufficiali" if language == "IT" else "Original preset · official values"
     print_label = "Stampa scheda" if language == "IT" else "Print sheet"
-    section_title = "Parametri CSV" if language == "IT" else "CSV parameters"
-    footer = "Preset originale da Presets.csv · nessuna cattura render inclusa" if language == "IT" else "Original preset from Presets.csv · no render capture included"
+    section_title = "Parametri preset" if language == "IT" else "Preset parameters"
+    footer = "Preset originale · nessuna cattura render inclusa" if language == "IT" else "Original preset · no render capture included"
 
     source_rows = []
     for col in selected_row.index:
@@ -1843,8 +1843,8 @@ def make_csv_preset_print_html(product_name, selected_row, language):
         for label, value in source_rows
     )
 
-    # Print layout: stretch the CSV sheet vertically so the table uses the full A4 height.
-    # The row height is calculated dynamically from the number of visible CSV fields.
+    # Print layout: stretch the Preset sheet vertically so the table uses the full A4 height.
+    # The row height is calculated dynamically from the number of visible preset fields.
     row_count = max(1, len(source_rows))
     row_height_mm = max(5.8, min(8.6, 238.0 / row_count))
 
@@ -1909,14 +1909,14 @@ tr:last-child th,tr:last-child td{{border-bottom:none;}}
 
 
 def make_csv_preset_pdf_bytes(product_name, selected_row, language):
-    """Build a one-page portrait PDF for the original CSV preset."""
+    """Build a one-page portrait PDF for the original Preset."""
     if SimpleDocTemplate is None:
         return None
 
-    title = "Scheda preset CSV" if language == "IT" else "CSV preset sheet"
-    subtitle = "Preset originale - valori letti direttamente dal CSV" if language == "IT" else "Original preset - values read directly from CSV"
-    section_title = "Parametri CSV" if language == "IT" else "CSV parameters"
-    footer = "Preset originale da Presets.csv - nessuna cattura render inclusa" if language == "IT" else "Original preset from Presets.csv - no render capture included"
+    title = "Scheda preset" if language == "IT" else "Preset sheet"
+    subtitle = "Preset originale - valori ufficiali" if language == "IT" else "Original preset - official values"
+    section_title = "Parametri preset" if language == "IT" else "Preset parameters"
+    footer = "Preset originale da file preset - nessuna cattura render inclusa" if language == "IT" else "Original preset from file preset - no render capture included"
 
     source_rows = []
     for col in selected_row.index:
@@ -7318,17 +7318,17 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
     """Premium reveal pop-up. It stays open until the operator presses OK."""
     if language == "IT":
         kicker = "Preset caricato" if source_mode != "prototype" else "Prototipo attivo"
-        line_1 = "Sincronizzazione render"
-        line_2 = "parametri macchina"
-        line_3 = "scheda CSV" if source_mode != "prototype" else "configurazione manuale"
-        badge = "CSV VERIFIED" if source_mode != "prototype" else "PROTOTYPE MODE"
+        line_1 = "Parametri caricati"
+        line_2 = "render pronto"
+        line_3 = ""
+        badge = "PRESET ATTIVO" if source_mode != "prototype" else "PROTOTIPO"
         ok_label = "OK"
     else:
         kicker = "Preset loaded" if source_mode != "prototype" else "Active prototype"
-        line_1 = "Render synchronization"
-        line_2 = "machine parameters"
-        line_3 = "CSV sheet" if source_mode != "prototype" else "manual configuration"
-        badge = "CSV VERIFIED" if source_mode != "prototype" else "PROTOTYPE MODE"
+        line_1 = "Parameters loaded"
+        line_2 = "render ready"
+        line_3 = ""
+        badge = "ACTIVE PRESET" if source_mode != "prototype" else "PROTOTYPE"
         ok_label = "OK"
 
     if reveal_key is None:
@@ -7550,8 +7550,6 @@ def render_preset_reveal_overlay(product_name, language, source_mode="preset", r
                     <span>{html.escape(line_1)}</span>
                     <span class="pdm-reveal-dot"></span>
                     <span>{html.escape(line_2)}</span>
-                    <span class="pdm-reveal-dot"></span>
-                    <span>{html.escape(line_3)}</span>
                 </div>
             </div>
             """,
@@ -7956,7 +7954,7 @@ def render_preset_product_card(selected_product, selected_row, language, modifie
                 </div>
                 <div class="preset-hero-badges">
                     <span class="preset-hero-badge {status_class}">{html.escape(status_txt)}</span>
-                    <span class="preset-hero-badge verified">CSV VERIFIED</span>
+                    <span class="preset-hero-badge verified">PRESET ATTIVO</span>
                     <span class="preset-hero-badge {lock_class}">{html.escape(lock_txt)}</span>
                 </div>
             </div>
@@ -7982,9 +7980,9 @@ def render_tech_sheet_preset_card(selected_product, selected_row, language):
 
     if language == "IT":
         kicker = "Scheda preset"
-        subtitle = "Configurazione tecnica prodotto · valori caricati da CSV"
+        subtitle = "Configurazione tecnica prodotto · valori caricati da preset"
         status_txt = "Originale"
-        lock_txt = "Scheda CSV"
+        lock_txt = "Scheda preset"
         status_class = "original"
         lock_class = "editable"
         chip_defs = [
@@ -7997,9 +7995,9 @@ def render_tech_sheet_preset_card(selected_product, selected_row, language):
         ]
     else:
         kicker = "Preset sheet"
-        subtitle = "Product technical configuration · values loaded from CSV"
+        subtitle = "Product technical configuration · values loaded from preset"
         status_txt = "Original"
-        lock_txt = "CSV sheet"
+        lock_txt = "Preset sheet"
         status_class = "original"
         lock_class = "editable"
         chip_defs = [
@@ -8033,7 +8031,7 @@ def render_tech_sheet_preset_card(selected_product, selected_row, language):
                 </div>
                 <div class="preset-hero-badges">
                     <span class="preset-hero-badge {status_class}">{html.escape(status_txt)}</span>
-                    <span class="preset-hero-badge verified">CSV VERIFIED</span>
+                    <span class="preset-hero-badge verified">PRESET ATTIVO</span>
                     <span class="preset-hero-badge {lock_class}">{html.escape(lock_txt)}</span>
                 </div>
             </div>
@@ -8045,7 +8043,7 @@ def render_tech_sheet_preset_card(selected_product, selected_row, language):
 
 
 def render_prototype_product_card(prototype_name, language):
-    """Hero card for a manual prototype. Makes clear it is not an official CSV preset."""
+    """Hero card for a manual prototype. Makes clear it is not an official Preset."""
     locked = bool(st.session_state.get("params_locked", False))
     pulse_class = " pdm-pulse" if bool(st.session_state.get("changed_values_pulse", False)) else ""
     if pulse_class:
@@ -8065,7 +8063,7 @@ def render_prototype_product_card(prototype_name, language):
 
     if language == "IT":
         kicker = "Prototipo prodotto"
-        subtitle = "Configurazione manuale · non salvata nel CSV · PDF scheda CSV non disponibile"
+        subtitle = "Configurazione manuale · non salvata nel preset · PDF scheda preset non disponibile"
         prototype_txt = "Prototipo"
         locked_txt = "Bloccato"
         editable_txt = "Editabile"
@@ -8079,7 +8077,7 @@ def render_prototype_product_card(prototype_name, language):
         ]
     else:
         kicker = "Product prototype"
-        subtitle = "Manual configuration · not saved in the CSV · CSV sheet PDF unavailable"
+        subtitle = "Manual configuration · not saved in the preset · Preset sheet PDF unavailable"
         prototype_txt = "Prototype"
         locked_txt = "Locked"
         editable_txt = "Editable"
@@ -8787,7 +8785,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     if extra_pairs:
         groups.append((
             "Altri parametri" if language == "IT" else "Other parameters",
-            "Valori presenti nel CSV non classificati nei gruppi principali." if language == "IT" else "Values present in the CSV not classified in the main groups.",
+            "Valori presenti nel preset non classificati nei gruppi principali." if language == "IT" else "Values present in the preset not classified in the main groups.",
             "compact",
             extra_pairs,
         ))
@@ -9644,7 +9642,7 @@ production_label = "Simulazione" if lang == "IT" else "Simulation"
 tech_sheet_label = "Scheda tecnica" if lang == "IT" else "Technical sheet"
 
 try:
-    presets_df = load_presets("Presets.csv")
+    presets_df = load_presets("file preset")
     presets_load_exception = None
 except Exception as e:
     presets_df = None
@@ -9680,7 +9678,7 @@ with tab_production:
         "1",
     )
 
-    source_options = ["Preset CSV", "Prototipo"] if lang == "IT" else ["CSV preset", "Prototype"]
+    source_options = ["Preset", "Prototipo"] if lang == "IT" else ["Preset", "Prototype"]
     default_source = st.session_state.get("product_source_mode", "preset")
     source_index = 1 if default_source == "prototype" else 0
 
@@ -9742,7 +9740,7 @@ with tab_production:
         st.session_state["changed_values_pulse"] = True
 
     if is_prototype:
-        # Keep prototype clearly independent from official CSV presets.
+        # Keep prototype clearly independent from official Presets.
         st.session_state["last_auto_loaded_preset"] = None
         st.session_state.pop("loaded_preset_name", None)
         st.session_state.pop("loaded_preset_values", None)
@@ -10130,7 +10128,7 @@ with tab_tech_sheet:
 
     render_section_header(
         "Consultazione preset" if lang == "IT" else "Preset reference",
-        "Qui trovi anteprima, lettura rapida e parametri completi del CSV in una vista più ordinata." if lang == "IT" else "Here you find preview, quick reading and full CSV parameters in a cleaner layout.",
+        "Qui trovi anteprima, lettura rapida e parametri completi del preset in una vista più ordinata." if lang == "IT" else "Here you find preview, quick reading and full Preset parameters in a cleaner layout.",
         "i",
     )
 
@@ -10143,7 +10141,7 @@ with tab_tech_sheet:
                     <div>
                         <div class="preset-hero-kicker">{"Prototipo prodotto" if lang == "IT" else "Product prototype"}</div>
                         <div class="preset-hero-title">{html.escape(str(prototype_name))}</div>
-                        <div class="preset-hero-subtitle">{"La scheda CSV non è disponibile perché questo prodotto non esiste ancora nei preset ufficiali." if lang == "IT" else "The CSV sheet is unavailable because this product does not yet exist in the official presets."}</div>
+                        <div class="preset-hero-subtitle">{"La scheda preset non è disponibile perché questo prodotto non esiste ancora nei preset ufficiali." if lang == "IT" else "The Preset sheet is unavailable because this product does not yet exist in the official presets."}</div>
                     </div>
                     <div class="preset-hero-badges">
                         <span class="preset-hero-badge modified">{"PROTOTIPO" if lang == "IT" else "PROTOTYPE"}</span>
@@ -10154,7 +10152,7 @@ with tab_tech_sheet:
             unsafe_allow_html=True,
         )
         st.info(
-            "Per i prototipi usa il PDF di simulazione nella scheda Simulazione. La scheda CSV resta disponibile solo per preset ufficiali." if lang == "IT" else "For prototypes, use the simulation PDF in the Simulation tab. The CSV sheet remains available only for official presets."
+            "Per i prototipi usa il PDF di simulazione nella scheda Simulazione. La scheda preset resta disponibile solo per preset ufficiali." if lang == "IT" else "For prototypes, use the simulation PDF in the Simulation tab. The Preset sheet remains available only for official presets."
         )
     else:
         selected_product = st.session_state.get("selected_preset_product", preset_names[0])
@@ -10206,7 +10204,7 @@ with tab_tech_sheet:
             """,
             unsafe_allow_html=True,
         )
-        csv_copy = "Scarica il PDF del preset originale CSV, senza cattura render." if lang == "IT" else "Download the original CSV preset PDF, without render capture."
+        csv_copy = "Scarica il PDF del preset selezionato, senza cattura render." if lang == "IT" else "Download the selected preset PDF, without render capture."
         csv_note_col, csv_button_col = st.columns([0.78, 0.22], gap="small")
         with csv_note_col:
             st.markdown(f'<div class="csv-print-copy">{html.escape(csv_copy)}</div>', unsafe_allow_html=True)
@@ -10215,7 +10213,7 @@ with tab_tech_sheet:
                 st.download_button(
                     t["print_preset_csv"],
                     data=csv_print_pdf,
-                    file_name=f"preset_csv_{safe_product_filename}.pdf",
+                    file_name=f"scheda_preset_{safe_product_filename}.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                 )
