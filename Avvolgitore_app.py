@@ -4648,7 +4648,7 @@ def viewer(
 
         .btn_grid_3 {{
             display:grid;
-            grid-template-columns:repeat(3, minmax(0, 1fr));
+            grid-template-columns:repeat(2, minmax(0, 1fr));
             gap:8px;
         }}
 
@@ -7996,7 +7996,6 @@ def render_quick_reading(language, tube_layout_code, tube_diameter_label, passo_
     cards = [
         (tube_title, tube_diameter_label, tube_note, "neutral"),
         (wind_title, f"{visual_metrics['wound_length_m']:.2f}", "m · " + wind_note, "neutral"),
-        (size_title, f"{coil_footprint_mm:.1f}", "mm · " + ok_note, size_tone),
     ]
 
     cards_html = ""
@@ -9689,6 +9688,13 @@ with tab_tech_sheet:
             f"""
             <style>
             .tech-sheet-preset-card {{
+            .tech-sheet-preset-card {
+                border:0 !important;
+                border-left:6px solid #C57E5A !important;
+                outline:0 !important;
+                box-shadow:0 8px 22px rgba(0,0,0,0.08), inset 6px 0 0 #C57E5A !important;
+            }
+
                 position:relative !important;
                 overflow:hidden !important;
                 isolation:isolate !important;
@@ -9733,9 +9739,10 @@ with tab_tech_sheet:
                     color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color)),
                     color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
                 );
-                border:1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
-                box-shadow:0 8px 22px rgba(0,0,0,0.08);
-                border-left:6px solid #C57E5A;
+                border:0 !important;
+                border-left:6px solid #C57E5A !important;
+                box-shadow:0 8px 22px rgba(0,0,0,0.08), inset 6px 0 0 #C57E5A;
+                outline:0 !important;
             ">
                 <div class="premium-sweep-layer"></div>
                 <div style="font-size:13px; color:color-mix(in srgb, var(--text-color) 62%, transparent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-weight:700;">
