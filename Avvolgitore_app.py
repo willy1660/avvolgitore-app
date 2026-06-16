@@ -7454,6 +7454,69 @@ def render_section_header(title, subtitle=None, icon=""):
 
 
 
+
+
+def render_pdf_open_new_tab_link(pdf_bytes, file_name, label, helper_text=None):
+    """Render an iPad-friendly PDF open/download link in a new tab."""
+    if not pdf_bytes:
+        return
+
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+    safe_file_name = html.escape(str(file_name), quote=True)
+    safe_label = html.escape(str(label))
+    helper_html = ""
+    if helper_text:
+        helper_html = f'<div class="pdf-open-helper">{html.escape(str(helper_text))}</div>'
+
+    st.markdown(
+        f"""
+        <style>
+        .pdf-open-link {{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            width:100%;
+            min-height:42px;
+            box-sizing:border-box;
+            border-radius:999px;
+            padding:0 18px;
+            margin-top:7px;
+            background:transparent;
+            color:#C57E5A !important;
+            border:1px solid rgba(197,126,90,0.72);
+            font-weight:950;
+            font-size:13px;
+            line-height:1;
+            letter-spacing:0.01em;
+            text-decoration:none !important;
+            box-shadow:0 8px 18px rgba(197,126,90,0.12);
+        }}
+        .pdf-open-link:hover {{
+            background:rgba(197,126,90,0.10);
+            filter:brightness(1.04);
+        }}
+        .pdf-open-helper {{
+            margin-top:7px;
+            font-size:11px;
+            line-height:1.25;
+            color:color-mix(in srgb, var(--text-color) 58%, transparent);
+            font-weight:650;
+            text-align:center;
+        }}
+        </style>
+        <a
+            class="pdf-open-link"
+            href="data:application/pdf;base64,{pdf_b64}"
+            download="{safe_file_name}"
+            target="_blank"
+            rel="noopener"
+        >{safe_label}</a>
+        {helper_html}
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_preset_reveal_overlay(product_name, language, source_mode="preset", reveal_key=None):
     """Premium reveal pop-up. It stays open until the operator presses OK."""
     if language == "IT":
@@ -10487,6 +10550,12 @@ with tab_tech_sheet:
                     file_name=f"scheda_preset_{safe_product_filename}.pdf",
                     mime="application/pdf",
                     use_container_width=True,
+                )
+                render_pdf_open_new_tab_link(
+                    csv_print_pdf,
+                    f"scheda_preset_{safe_product_filename}.pdf",
+                    "Apri in nuova scheda" if lang == "IT" else "Open in new tab",
+                    "Su iPad: aprilo in una nuova scheda e poi chiudila per tornare all'app." if lang == "IT" else "On iPad: open it in a new tab, then close it to return to the app.",
                 )
             else:
                 st.warning("Per scaricare il PDF aggiungi `reportlab` a requirements.txt." if lang == "IT" else "To download the PDF, add `reportlab` to requirements.txt.")
