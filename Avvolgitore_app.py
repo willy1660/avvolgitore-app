@@ -4879,15 +4879,24 @@ def viewer(
             margin-top:8px;
         }}
 
-        @media (max-width: 900px) {{
+        /* Tablet / iPad: move the active preset badge lower so it does not overlap
+           the top controls and progress bar. */
+        @media (max-width: 1180px) and (min-width: 681px) {{
             #active_preset_badge {{
-                top:68px !important;
+                top:74px !important;
                 min-width:220px !important;
-                max-width:min(72%, 420px) !important;
+                max-width:min(56%, 430px) !important;
                 padding:9px 13px 10px 13px !important;
             }}
             #active_preset_badge_value {{
                 font-size:18px !important;
+            }}
+        }}
+
+        @media (max-width: 900px) and (min-width: 681px) {{
+            #active_preset_badge {{
+                top:84px !important;
+                max-width:min(62%, 420px) !important;
             }}
         }}
 
