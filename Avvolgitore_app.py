@@ -7631,7 +7631,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
             """
         )
 
-    board_height = max(520, min(2400, 150 + 150 * total_cards // 4 + 96 * len(groups)))
+    board_height = max(520, min(2600, 170 + 162 * total_cards // 4 + 104 * len(groups)))
 
     board_html = f"""
     <!doctype html>
@@ -7727,21 +7727,21 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     .machine-grid-native {{
         display:grid;
         grid-template-columns:repeat(4, minmax(0, 1fr));
-        gap:0;
+        gap:12px;
         width:100%;
-        border:1px solid var(--line);
+        border:0;
         border-radius:0 0 18px 18px;
-        overflow:hidden;
-        background:linear-gradient(180deg, var(--surface), var(--surface2));
-        box-shadow:var(--shadow);
+        overflow:visible;
+        background:transparent;
+        box-shadow:none;
         box-sizing:border-box;
     }}
     .machine-card-native {{
         min-height:112px;
         padding:18px 20px;
-        border-right:1px solid var(--line);
-        border-bottom:1px solid var(--line);
-        background:transparent;
+        border:1px solid var(--line);
+        border-radius:18px;
+        background:linear-gradient(180deg, var(--surface), var(--surface2));
         display:flex;
         flex-direction:column;
         justify-content:center;
