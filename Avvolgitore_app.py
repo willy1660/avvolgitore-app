@@ -3204,6 +3204,44 @@ def render_card_background_page_match_patch():
         unsafe_allow_html=True,
     )
 
+
+# =========================
+# LIGHT DARK READABILITY PATCH
+# =========================
+
+def render_light_dark_readability_patch():
+    st.markdown(
+        """
+        <style>
+        .machine-card-native,
+        .tech-mini-card,
+        .summary-strip-item {
+            background: transparent !important;
+            color: var(--text-color) !important;
+        }
+
+        .machine-card-label-native,
+        .tech-mini-label,
+        .summary-strip-label {
+            color: color-mix(in srgb, var(--text-color) 64%, transparent) !important;
+        }
+
+        .machine-card-value-native,
+        .tech-mini-value,
+        .summary-strip-value {
+            color: var(--text-color) !important;
+        }
+
+        .machine-card-native:hover,
+        .tech-mini-card:hover,
+        .summary-strip-item:hover {
+            background: color-mix(in srgb, var(--pdm-accent) 4%, transparent) !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # =========================
 # GEOMETRY HELPERS
 # =========================
@@ -7667,6 +7705,42 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
 
     board_height = max(520, min(2600, 170 + 162 * total_cards // 4 + 104 * len(groups)))
 
+    streamlit_theme_base = str(st.get_option("theme.base") or "light").lower()
+    is_dark_theme = streamlit_theme_base == "dark"
+
+    board_theme_css = (
+        """
+        :root {
+            color-scheme: dark;
+            --pdm-accent:#C57E5A;
+            --bg: transparent;
+            --text:#f8fafc;
+            --muted:rgba(248,250,252,0.66);
+            --line:rgba(248,250,252,0.10);
+            --card-bg:transparent;
+            --header-bg:linear-gradient(90deg, rgba(197,126,90,0.18), transparent 70%);
+            --hover-bg:rgba(197,126,90,0.055);
+            --shadow:0 7px 18px rgba(0,0,0,0.14);
+        }
+        """
+        if is_dark_theme
+        else
+        """
+        :root {
+            color-scheme: light;
+            --pdm-accent:#C57E5A;
+            --bg: transparent;
+            --text:#0f172a;
+            --muted:#475569;
+            --line:rgba(15,23,42,0.11);
+            --card-bg:transparent;
+            --header-bg:linear-gradient(90deg, rgba(197,126,90,0.10), transparent 72%);
+            --hover-bg:rgba(197,126,90,0.045);
+            --shadow:0 7px 18px rgba(15,23,42,0.045);
+        }
+        """
+    )
+
     board_html = f"""
     <!doctype html>
     <html>
@@ -7706,10 +7780,10 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         padding:12px 14px;
         border-radius:16px;
         border:1px solid var(--line);
-        background:var(--surface);
+        background:var(--card-bg);
         font-size:12.5px;
         line-height:1.32;
-        font-weight:650;
+        font-weight:700;
         color:var(--muted);
     }}
     .machine-section-native {{
@@ -7722,7 +7796,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         gap:14px;
         padding:15px 18px;
         border-radius:18px 18px 0 0;
-        background:linear-gradient(90deg, rgba(197,126,90,0.18), transparent 70%);
+        background:var(--header-bg);
         border:1px solid var(--line);
         border-bottom:none;
         box-sizing:border-box;
@@ -7738,7 +7812,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         margin-top:4px;
         font-size:12px;
         line-height:1.25;
-        font-weight:650;
+        font-weight:700;
         color:var(--muted);
         letter-spacing:0;
         text-transform:none;
@@ -7766,7 +7840,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         border:0;
         border-radius:0 0 18px 18px;
         overflow:visible;
-        background:transparent;
+        background:var(--card-bg);
         box-shadow:none;
         box-sizing:border-box;
     }}
@@ -7832,7 +7906,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         mix-blend-mode:screen;
     }}
     .machine-card-native:hover {{
-        background:rgba(197,126,90,0.04);
+        background:var(--hover-bg);
     }}
     .machine-card-native:hover::after {{
         opacity:1;
