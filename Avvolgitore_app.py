@@ -2305,11 +2305,11 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-top1, top2, top3 = st.columns([1.0, 4.85, 0.90])
+top1, top2, top3 = st.columns([1.25, 5.20, 1.05])
 
 with top1:
     if logo_path:
-        st.image(logo_path, width=150)
+        st.image(logo_path, width=205)
     else:
         st.markdown(
             """
@@ -2349,6 +2349,10 @@ st.markdown(
         padding-bottom: 1.75rem;
         padding-left: 0.90rem;
         padding-right: 0.90rem;
+    }
+
+    [data-testid="stTabs"] {
+        margin-top: -10px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -3637,7 +3641,48 @@ def render_scheda_preset_real_sweep_css():
     )
 
 
-title_placeholder.markdown(f"## {t['title']}")
+title_placeholder.markdown(
+    f"""
+    <style>
+    .top-brand-title-wrap {{
+        display:flex;
+        align-items:center;
+        min-height:132px;
+        margin:0;
+        padding:0 0 2px 0;
+    }}
+    .top-brand-title {{
+        margin:0;
+        padding:0;
+        font-size:64px;
+        line-height:0.94;
+        font-weight:950;
+        letter-spacing:-0.05em;
+        color:var(--text-color);
+    }}
+    @media (max-width: 1280px) {{
+        .top-brand-title-wrap {{
+            min-height:110px;
+        }}
+        .top-brand-title {{
+            font-size:52px;
+        }}
+    }}
+    @media (max-width: 820px) {{
+        .top-brand-title-wrap {{
+            min-height:86px;
+        }}
+        .top-brand-title {{
+            font-size:40px;
+        }}
+    }}
+    </style>
+    <div class="top-brand-title-wrap">
+        <div class="top-brand-title">{html.escape(str(t["title"]))}</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 render_scheda_preset_real_sweep_css()
 render_force_visible_premium_sweep_patch()
 render_global_all_cards_sweep_patch()
@@ -9992,23 +10037,12 @@ with tab_production:
 
     render_section_header(
         "Risultati" if lang == "IT" else "Results",
-        "Lettura sintetica sotto il render; i risultati principali sono visibili direttamente qui sotto." if lang == "IT" else "Quick reading below the render; the main results are shown directly below.",
+        "I risultati principali sono visibili direttamente qui sotto, senza passaggi extra." if lang == "IT" else "The main results are shown directly below, without extra steps.",
         "4",
     )
 
     pallet_size_mm = 750.0
     coil_footprint_mm = float(visual_metrics["max_xy_span"])
-
-    render_quick_reading(
-        lang,
-        tube_layout_code,
-        tube_diameter_label,
-        passo_visuale,
-        incremento_visuale,
-        visual_metrics,
-        coil_footprint_mm,
-        pallet_size_mm,
-    )
 
     result_cards = [
         {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
