@@ -5160,8 +5160,8 @@ def viewer(
         fullscreenBtn.title = T.fullscreen;
         captureRenderBtn.title = T.capture_render || "Save render image";
         if (printSimulationBtn) {{
-            printSimulationBtn.textContent = T.print_simulation || "Print simulation";
-            printSimulationBtn.title = T.print_simulation || "Print simulation";
+            printSimulationBtn.textContent = (T.language === "Language") ? "PDF render" : "PDF render";
+            printSimulationBtn.title = (T.language === "Language") ? "Open render PDF in a new tab" : "Apri PDF render in una nuova scheda";
         }}
 
         if (activePresetBadgeLabel) {{
@@ -5744,7 +5744,24 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             doc.text("PDF generato dalla simulazione - include cattura render", 15, pageH - 8);
 
             const cleanName = String(SIM_PRINT.product || "simulazione").replace(/[^a-z0-9_-]+/gi, "_").replace(/^_+|_+$/g, "") || "simulazione";
-            doc.save(`simulazione_${{cleanName}}.pdf`);
+            const fileName = "simulazione_" + cleanName + ".pdf";
+            const pdfBlob = doc.output("blob");
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            const opened = window.open(pdfUrl, "_blank", "noopener");
+
+            if (!opened) {{
+                const a = document.createElement("a");
+                a.href = pdfUrl;
+                a.download = fileName;
+                a.target = "_blank";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            }}
+
+            setTimeout(() => {{
+                URL.revokeObjectURL(pdfUrl);
+            }}, 60000);
         }}
 
 
@@ -7569,7 +7586,7 @@ def render_pdf_open_new_tab_link(pdf_bytes, file_name, label, helper_text=None):
     </html>
     """
 
-    components.html(button_html, height=78, scrolling=False)
+    components.html(button_html, height=52 if not helper_text else 78, scrolling=False)
 
 
 def render_preset_reveal_overlay(product_name, language, source_mode="preset", reveal_key=None):
