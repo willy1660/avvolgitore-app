@@ -1311,11 +1311,11 @@ def make_preset_visual(row, language):
     .preview-card {{
         width:100%;
         box-sizing:border-box;
-        border-radius:22px;
-        overflow:hidden;
-        background:var(--component-surface);
-        border:1px solid var(--component-border);
-        box-shadow:var(--component-shadow);
+        border-radius:0;
+        overflow:visible;
+        background:transparent !important;
+        border:0 !important;
+        box-shadow:none !important;
     }}
     .preview-head {{
         display:flex;
@@ -1324,6 +1324,8 @@ def make_preset_visual(row, language):
         gap:12px;
         padding:15px 18px;
         border-bottom:1px solid var(--component-border-soft);
+        background:transparent !important;
+        border-radius:0;
     }}
     .preview-title {{
         font-size:20px;
@@ -1353,6 +1355,7 @@ def make_preset_visual(row, language):
         overflow:hidden;
         background:var(--component-drawing-bg);
         border:1px solid var(--component-border-soft);
+        box-shadow:none !important;
     }}
     .section-svg {{
         width:100%;
@@ -1459,6 +1462,46 @@ def make_preset_visual(row, language):
         .section-svg {{ height:300px; }}
         .metrics {{ grid-template-columns:1fr 1fr; }}
     }}
+
+    /* Final override · elimina cantonades/contorn exterior de l'anteprima */
+    .preview-card,
+    .preview-card:hover,
+    .preview-card:focus,
+    .preview-card:active {
+        border:0 !important;
+        outline:0 !important;
+        box-shadow:none !important;
+        background:transparent !important;
+        border-radius:0 !important;
+        overflow:visible !important;
+    }
+
+    .preview-head {
+        border-top:0 !important;
+        border-left:0 !important;
+        border-right:0 !important;
+        outline:0 !important;
+        box-shadow:none !important;
+    }
+
+    section.preview-card {
+        border:0 !important;
+        outline:0 !important;
+    }
+
+    body::before,
+    body::after,
+    html::before,
+    html::after,
+    .preview-card::before,
+    .preview-card::after {
+        content:none !important;
+        display:none !important;
+        border:0 !important;
+        background:transparent !important;
+        box-shadow:none !important;
+    }
+
     </style>
 
     <section class="preview-card">
@@ -3173,6 +3216,7 @@ def render_premium_card_sweep_effect():
     )
 
 title_placeholder.markdown(f"## {t['title']}")
+render_anteprima_corner_cleanup_patch()
 render_premium_card_sweep_effect()
 
 # =========================
@@ -3311,6 +3355,30 @@ def render_preview_background_patch():
         div[style*="background:rgb(8, 11, 16)"],
         div[style*="background: rgb(8, 11, 16)"] {
             background: transparent !important;
+            box-shadow: none !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# =========================
+# ANTEPRIMA CORNER CLEANUP PATCH
+# =========================
+
+def render_anteprima_corner_cleanup_patch():
+    st.markdown(
+        """
+        <style>
+        iframe {
+            background: transparent !important;
+        }
+
+        div[data-testid="stIFrame"],
+        div[data-testid="stIFrame"] iframe {
+            background: transparent !important;
+            border: 0 !important;
             box-shadow: none !important;
         }
         </style>
@@ -9222,7 +9290,7 @@ with tab_tech_sheet:
                 "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
                 "A",
             )
-            components.html(make_preset_visual(selected_row, lang), height=545, scrolling=False)
+            components.html(make_preset_visual(selected_row, lang), height=525, scrolling=False)
 
         with machine_sheet_tab:
             render_section_header(
