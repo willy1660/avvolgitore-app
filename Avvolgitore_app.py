@@ -3680,12 +3680,12 @@ title_placeholder.markdown(
 
     .top-brand-title-wrap {{
         display: flex;
-        align-items: flex-start;
+        align-items: flex-end;
         justify-content: flex-start;
         text-align: left;
         min-height: 150px;
         margin: 0;
-        padding: 0 0 0 8px;
+        padding: 0 0 8px 8px;
     }}
 
     .top-brand-title {{
@@ -3704,6 +3704,10 @@ title_placeholder.markdown(
         .top-brand-title-wrap {{
             min-height: 128px;
         }}
+        .top-brand-title-wrap {{
+            align-items: flex-end;
+            padding-bottom: 6px;
+        }}
         .top-brand-logo-img {{
             height: 118px;
         }}
@@ -3717,6 +3721,10 @@ title_placeholder.markdown(
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
             min-height: 98px;
+        }}
+        .top-brand-title-wrap {{
+            align-items: flex-end;
+            padding-bottom: 4px;
         }}
         .top-brand-logo-img {{
             height: 88px;
