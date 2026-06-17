@@ -10263,6 +10263,175 @@ st.markdown(
 )
 
 
+
+st.markdown(
+    """
+    <style>
+    /*
+    FINAL FIX · Simulazione form labels and number steppers.
+    This is intentionally broad and late in the cascade because previous premium CSS
+    hid labels/steppers through nested BaseWeb selectors.
+    */
+
+    /* Restore all widget labels inside the main app */
+    div[data-testid="stVerticalBlock"] div[data-testid="stWidgetLabel"],
+    div[data-testid="stVerticalBlock"] div[data-testid="stWidgetLabel"] *,
+    div[data-testid="stVerticalBlock"] label,
+    div[data-testid="stVerticalBlock"] label *,
+    div[data-testid="stNumberInput"] label,
+    div[data-testid="stNumberInput"] label *,
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stSelectbox"] label *,
+    div[data-testid="stRadio"] label,
+    div[data-testid="stRadio"] label * {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: auto !important;
+        height: auto !important;
+        min-height: 1.18rem !important;
+        max-height: none !important;
+        clip: auto !important;
+        clip-path: none !important;
+        overflow: visible !important;
+        position: static !important;
+        color: var(--text-color) !important;
+        font-size: 0.82rem !important;
+        line-height: 1.18 !important;
+        font-weight: 850 !important;
+        letter-spacing: 0.01em !important;
+        text-indent: 0 !important;
+        transform: none !important;
+        pointer-events: auto !important;
+    }
+
+    div[data-testid="stWidgetLabel"] {
+        margin: 0 0 0.34rem 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Do not let older compact-card CSS crop Streamlit inputs */
+    div[data-testid="stNumberInput"],
+    div[data-testid="stNumberInput"] > div,
+    div[data-testid="stNumberInput"] [data-baseweb="input"],
+    div[data-testid="stNumberInput"] [data-baseweb="input"] > div {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+
+    /* Input body */
+    div[data-testid="stNumberInput"] input {
+        height: 2.58rem !important;
+        min-height: 2.58rem !important;
+        padding-left: 0.92rem !important;
+        padding-right: 5.00rem !important;
+        color: var(--text-color) !important;
+        font-weight: 850 !important;
+        opacity: 1 !important;
+    }
+
+    /* Restore the +/- buttons and their click area */
+    div[data-testid="stNumberInput"] button,
+    div[data-testid="stNumberInput"] [role="button"],
+    div[data-testid="stNumberInput"] button[kind],
+    div[data-testid="stNumberInput"] [data-baseweb="button"] {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 2.28rem !important;
+        min-width: 2.28rem !important;
+        height: 2.58rem !important;
+        min-height: 2.58rem !important;
+        max-height: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        position: relative !important;
+        right: auto !important;
+        top: auto !important;
+        transform: none !important;
+        color: var(--text-color) !important;
+        background: color-mix(in srgb, var(--text-color) 7%, transparent) !important;
+        border-left: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+
+    div[data-testid="stNumberInput"] button:hover,
+    div[data-testid="stNumberInput"] [role="button"]:hover,
+    div[data-testid="stNumberInput"] [data-baseweb="button"]:hover {
+        background: color-mix(in srgb, var(--pdm-accent) 22%, transparent) !important;
+    }
+
+    div[data-testid="stNumberInput"] button svg,
+    div[data-testid="stNumberInput"] [role="button"] svg,
+    div[data-testid="stNumberInput"] [data-baseweb="button"] svg {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 0.92rem !important;
+        height: 0.92rem !important;
+        fill: currentColor !important;
+        stroke: currentColor !important;
+    }
+
+    /* Fallback symbols if Safari fails to show Streamlit SVG icons */
+    div[data-testid="stNumberInput"] button:first-of-type::before {
+        content: "−";
+        font-size: 1.18rem;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    div[data-testid="stNumberInput"] button:last-of-type::before {
+        content: "+";
+        font-size: 1.05rem;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    div[data-testid="stNumberInput"] button svg + span,
+    div[data-testid="stNumberInput"] button span {
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    @media (max-width: 1180px) {
+        div[data-testid="stWidgetLabel"],
+        div[data-testid="stWidgetLabel"] *,
+        div[data-testid="stVerticalBlock"] label,
+        div[data-testid="stVerticalBlock"] label * {
+            font-size: 0.80rem !important;
+            min-height: 1.14rem !important;
+            line-height: 1.16 !important;
+        }
+
+        div[data-testid="stNumberInput"] input {
+            height: 2.50rem !important;
+            min-height: 2.50rem !important;
+            padding-right: 4.80rem !important;
+        }
+
+        div[data-testid="stNumberInput"] button,
+        div[data-testid="stNumberInput"] [role="button"],
+        div[data-testid="stNumberInput"] [data-baseweb="button"] {
+            width: 2.16rem !important;
+            min-width: 2.16rem !important;
+            height: 2.50rem !important;
+            min-height: 2.50rem !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 # =========================
 # UI
 # =========================
