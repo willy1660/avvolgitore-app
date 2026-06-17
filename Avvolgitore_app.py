@@ -4426,18 +4426,19 @@ def viewer(
 
         <div id="active_preset_badge" style="
             position:absolute;
-            top:112px;
-            left:50%;
-            transform:translateX(-50%);
+            top:22px;
+            right:18px;
+            left:auto;
+            transform:none;
             z-index:21;
             display:flex;
             flex-direction:column;
             align-items:center;
             justify-content:center;
-            gap:4px;
-            min-width:260px;
-            max-width:min(62%, 520px);
-            padding:10px 16px 11px 16px;
+            gap:3px;
+            min-width:230px;
+            max-width:min(32%, 360px);
+            padding:8px 38px 9px 14px;
             background:rgba(18,22,27,0.80);
             color:#f8fafc;
             border:1px solid rgba(197,126,90,0.34);
@@ -4449,7 +4450,7 @@ def viewer(
             user-select:none;
             line-height:1.15;
         ">
-            <button id="active_preset_badge_toggle" title="Riduci preset" style="
+            <button id="active_preset_badge_toggle" title="Riduci nome preset" style="
                 position:absolute;
                 top:7px;
                 right:8px;
@@ -4473,7 +4474,7 @@ def viewer(
                 font-weight:800;
             "></div>
             <div id="active_preset_badge_value" style="
-                font-size:22px;
+                font-size:18px;
                 font-weight:900;
                 line-height:1.05;
                 max-width:100%;
@@ -4991,9 +4992,9 @@ def viewer(
         }}
 
         #active_preset_badge.is-minimized {{
-            min-width:180px !important;
-            max-width:260px !important;
-            padding:8px 38px 8px 12px !important;
+            min-width:165px !important;
+            max-width:230px !important;
+            padding:7px 36px 7px 12px !important;
             align-items:flex-start !important;
             text-align:left !important;
             opacity:0.86;
@@ -5002,32 +5003,42 @@ def viewer(
             display:none !important;
         }}
         #active_preset_badge.is-minimized #active_preset_badge_value {{
-            font-size:14px !important;
+            font-size:13px !important;
             max-width:100% !important;
         }}
         #active_preset_badge.is-minimized #active_preset_badge_toggle {{
             transform:rotate(180deg);
         }}
 
-
-
-        /* Tablet / iPad: keep the active preset badge clearly below the progress bar. */
-        @media (max-width: 1180px) and (min-width: 681px) {{
+        /* Wide render: preset name stays top-right, away from the progress controls. */
+        @media (min-width: 1001px) {{
             #active_preset_badge {{
-                top:112px !important;
-                min-width:220px !important;
-                max-width:min(56%, 430px) !important;
-                padding:9px 13px 10px 13px !important;
+                top:22px !important;
+                right:18px !important;
+                left:auto !important;
+                transform:none !important;
+                min-width:230px !important;
+                max-width:min(32%, 360px) !important;
+                padding:8px 38px 9px 14px !important;
             }}
             #active_preset_badge_value {{
                 font-size:18px !important;
             }}
         }}
 
-        @media (max-width: 900px) and (min-width: 681px) {{
+        /* iPad/narrow render: badge drops below the control bar to avoid overlap. */
+        @media (max-width: 1000px) and (min-width: 681px) {{
             #active_preset_badge {{
-                top:122px !important;
-                max-width:min(62%, 420px) !important;
+                top:112px !important;
+                right:14px !important;
+                left:14px !important;
+                transform:none !important;
+                min-width:0 !important;
+                max-width:none !important;
+                padding:8px 38px 9px 14px !important;
+            }}
+            #active_preset_badge_value {{
+                font-size:17px !important;
             }}
         }}
 
@@ -5312,7 +5323,7 @@ def viewer(
                 activePresetBadge.classList.toggle("is-minimized");
                 const minimized = activePresetBadge.classList.contains("is-minimized");
                 activePresetBadgeToggle.textContent = minimized ? "+" : "−";
-                activePresetBadgeToggle.title = minimized ? "Mostra preset" : "Riduci preset";
+                activePresetBadgeToggle.title = minimized ? "Mostra nome preset" : "Riduci nome preset";
             }});
         }}
 
