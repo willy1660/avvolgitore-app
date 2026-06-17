@@ -3749,30 +3749,39 @@ st.markdown(
     """
     <style>
     /*
-    Main tabs · prevent the active copper underline from overlapping the label text,
-    especially on iPad/Safari where Streamlit's tab indicator can shift upward.
+    Main tabs · one single copper active line.
+    The native Streamlit/BaseWeb indicators are hidden to avoid duplicate red lines.
     */
     div[data-testid="stTabs"] [role="tablist"] {
+        position: relative !important;
         align-items: flex-start !important;
-        gap: 0.10rem !important;
         padding-top: 0.12rem !important;
-        padding-bottom: 0.34rem !important;
-        min-height: 3.05rem !important;
+        padding-bottom: 0.42rem !important;
+        min-height: 3.00rem !important;
+        border-bottom: 0 !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] * {
+        border-bottom-color: transparent !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stTabs"] [role="tab"] {
         position: relative !important;
-        min-height: 2.62rem !important;
-        padding: 0.64rem 1.05rem 0.88rem 1.05rem !important;
+        min-height: 2.60rem !important;
+        padding: 0.68rem 1.05rem 0.92rem 1.05rem !important;
         line-height: 1.15 !important;
         overflow: visible !important;
+        border: 0 !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stTabs"] [role="tab"] p {
         margin: 0 !important;
         line-height: 1.15 !important;
         position: relative !important;
-        z-index: 2 !important;
+        z-index: 3 !important;
     }
 
     div[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
@@ -3782,39 +3791,50 @@ st.markdown(
     div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
         content: "" !important;
         position: absolute !important;
-        left: 0.95rem !important;
-        right: 0.95rem !important;
-        bottom: 0.20rem !important;
+        left: 0.92rem !important;
+        right: 0.92rem !important;
+        bottom: 0.22rem !important;
         height: 3px !important;
         border-radius: 999px !important;
         background: var(--pdm-accent) !important;
-        z-index: 1 !important;
+        z-index: 2 !important;
         pointer-events: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stTabs"] [role="tab"]::before,
     div[data-testid="stTabs"] [role="tab"] > div::before,
-    div[data-testid="stTabs"] [role="tab"] > div::after {
+    div[data-testid="stTabs"] [role="tab"] > div::after,
+    div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+    div[data-testid="stTabs"] [data-testid="stTabHighlight"],
+    div[data-testid="stTabs"] [aria-hidden="true"] {
+        display: none !important;
+        opacity: 0 !important;
         background: transparent !important;
-        border-color: transparent !important;
+        border: 0 !important;
+        height: 0 !important;
         box-shadow: none !important;
     }
 
     @media (max-width: 1180px) {
         div[data-testid="stTabs"] [role="tab"] {
-            min-height: 2.76rem !important;
-            padding-top: 0.70rem !important;
-            padding-bottom: 0.98rem !important;
+            min-height: 2.70rem !important;
+            padding-top: 0.72rem !important;
+            padding-bottom: 1.00rem !important;
         }
 
         div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
-            bottom: 0.24rem !important;
+            bottom: 0.26rem !important;
         }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+
 
 render_scheda_preset_real_sweep_css()
 render_force_visible_premium_sweep_patch()
