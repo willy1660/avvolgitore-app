@@ -3744,6 +3744,78 @@ title_placeholder.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+st.markdown(
+    """
+    <style>
+    /*
+    Main tabs · prevent the active copper underline from overlapping the label text,
+    especially on iPad/Safari where Streamlit's tab indicator can shift upward.
+    */
+    div[data-testid="stTabs"] [role="tablist"] {
+        align-items: flex-start !important;
+        gap: 0.10rem !important;
+        padding-top: 0.12rem !important;
+        padding-bottom: 0.34rem !important;
+        min-height: 3.05rem !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"] {
+        position: relative !important;
+        min-height: 2.62rem !important;
+        padding: 0.64rem 1.05rem 0.88rem 1.05rem !important;
+        line-height: 1.15 !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"] p {
+        margin: 0 !important;
+        line-height: 1.15 !important;
+        position: relative !important;
+        z-index: 2 !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+        color: var(--pdm-accent) !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
+        content: "" !important;
+        position: absolute !important;
+        left: 0.95rem !important;
+        right: 0.95rem !important;
+        bottom: 0.20rem !important;
+        height: 3px !important;
+        border-radius: 999px !important;
+        background: var(--pdm-accent) !important;
+        z-index: 1 !important;
+        pointer-events: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"]::before,
+    div[data-testid="stTabs"] [role="tab"] > div::before,
+    div[data-testid="stTabs"] [role="tab"] > div::after {
+        background: transparent !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    @media (max-width: 1180px) {
+        div[data-testid="stTabs"] [role="tab"] {
+            min-height: 2.76rem !important;
+            padding-top: 0.70rem !important;
+            padding-bottom: 0.98rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
+            bottom: 0.24rem !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 render_scheda_preset_real_sweep_css()
 render_force_visible_premium_sweep_patch()
 render_global_all_cards_sweep_patch()
