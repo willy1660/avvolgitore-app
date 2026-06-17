@@ -10192,6 +10192,58 @@ st.markdown(
 )
 
 
+
+st.markdown(
+    """
+    <style>
+    /*
+    Native Streamlit number input · visible +/- icons.
+    Minimal patch: keeps the native control, only paints symbols inside the existing buttons.
+    */
+    div[data-testid="stNumberInput"] button {
+        color: var(--text-color) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    div[data-testid="stNumberInput"] button svg {
+        display: none !important;
+    }
+
+    div[data-testid="stNumberInput"] button::before {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        color: var(--text-color) !important;
+        font-weight: 950 !important;
+        line-height: 1 !important;
+        opacity: 0.96 !important;
+        pointer-events: none !important;
+    }
+
+    div[data-testid="stNumberInput"] button:first-of-type::before {
+        content: "−" !important;
+        font-size: 1.20rem !important;
+        transform: translateY(-1px);
+    }
+
+    div[data-testid="stNumberInput"] button:last-of-type::before {
+        content: "+" !important;
+        font-size: 1.06rem !important;
+        transform: translateY(-1px);
+    }
+
+    div[data-testid="stNumberInput"] button:hover::before {
+        color: var(--pdm-accent) !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 # =========================
 # UI
 # =========================
