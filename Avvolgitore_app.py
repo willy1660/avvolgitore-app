@@ -4427,18 +4427,18 @@ def viewer(
         <div id="active_preset_badge" style="
             position:absolute;
             top:22px;
-            right:18px;
+            right:286px;
             left:auto;
             transform:none;
             z-index:21;
             display:flex;
             flex-direction:column;
-            align-items:center;
+            align-items:flex-start;
             justify-content:center;
-            gap:3px;
-            min-width:230px;
-            max-width:min(32%, 360px);
-            padding:8px 38px 9px 14px;
+            gap:0px;
+            min-width:150px;
+            max-width:180px;
+            padding:9px 36px 9px 14px;
             background:rgba(18,22,27,0.80);
             color:#f8fafc;
             border:1px solid rgba(197,126,90,0.34);
@@ -4466,15 +4466,9 @@ def viewer(
                 cursor:pointer;
                 z-index:5;
             ">−</button>
-            <div id="active_preset_badge_label" style="
-                font-size:11px;
-                opacity:0.74;
-                text-transform:uppercase;
-                letter-spacing:0.08em;
-                font-weight:800;
-            "></div>
+            <div id="active_preset_badge_label" style="display:none;"></div>
             <div id="active_preset_badge_value" style="
-                font-size:18px;
+                font-size:16px;
                 font-weight:900;
                 line-height:1.05;
                 max-width:100%;
@@ -4991,13 +4985,30 @@ def viewer(
             margin-top:8px;
         }}
 
+        #active_preset_badge {{
+            box-sizing:border-box !important;
+        }}
+        #active_preset_badge_label {{
+            display:none !important;
+        }}
+        #active_preset_badge_value {{
+            width:100% !important;
+            text-align:left !important;
+        }}
+        #active_preset_badge_toggle {{
+            top:6px !important;
+            right:7px !important;
+            width:22px !important;
+            height:22px !important;
+            font-size:14px !important;
+        }}
         #active_preset_badge.is-minimized {{
-            min-width:165px !important;
-            max-width:230px !important;
-            padding:7px 36px 7px 12px !important;
+            min-width:120px !important;
+            max-width:140px !important;
+            padding:8px 34px 8px 12px !important;
             align-items:flex-start !important;
             text-align:left !important;
-            opacity:0.86;
+            opacity:0.90;
         }}
         #active_preset_badge.is-minimized #active_preset_badge_label {{
             display:none !important;
@@ -5010,23 +5021,43 @@ def viewer(
             transform:rotate(180deg);
         }}
 
-        /* Wide render: preset name stays top-right, away from the progress controls. */
-        @media (min-width: 1001px) {{
+        /* Wide render: compact badge on the top row, between toolbar and side panel. */
+        @media (min-width: 1181px) {{
             #active_preset_badge {{
                 top:22px !important;
-                right:18px !important;
+                right:286px !important;
                 left:auto !important;
                 transform:none !important;
-                min-width:230px !important;
-                max-width:min(32%, 360px) !important;
-                padding:8px 38px 9px 14px !important;
+                min-width:150px !important;
+                max-width:180px !important;
+                padding:9px 36px 9px 14px !important;
+                align-items:flex-start !important;
+                text-align:left !important;
             }}
             #active_preset_badge_value {{
-                font-size:18px !important;
+                font-size:16px !important;
             }}
         }}
 
-        /* iPad/narrow render: badge drops below the control bar to avoid overlap. */
+        /* Medium width: still top row, but slightly narrower and further left. */
+        @media (max-width: 1180px) and (min-width: 1001px) {{
+            #active_preset_badge {{
+                top:22px !important;
+                right:272px !important;
+                left:auto !important;
+                transform:none !important;
+                min-width:132px !important;
+                max-width:150px !important;
+                padding:8px 34px 8px 12px !important;
+                align-items:flex-start !important;
+                text-align:left !important;
+            }}
+            #active_preset_badge_value {{
+                font-size:14px !important;
+            }}
+        }}
+
+        /* iPad / narrow render: move below toolbar so it never covers the side panel. */
         @media (max-width: 1000px) and (min-width: 681px) {{
             #active_preset_badge {{
                 top:112px !important;
@@ -5036,6 +5067,8 @@ def viewer(
                 min-width:0 !important;
                 max-width:none !important;
                 padding:8px 38px 9px 14px !important;
+                align-items:flex-start !important;
+                text-align:left !important;
             }}
             #active_preset_badge_value {{
                 font-size:17px !important;
