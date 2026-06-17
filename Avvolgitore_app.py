@@ -10155,6 +10155,114 @@ def render_app_footer():
 
 
 
+
+st.markdown(
+    """
+    <style>
+    /*
+    Simulazione controls · restore parameter titles and +/- controls.
+    Keeps the premium dark look but makes the controls usable again on iPad.
+    */
+    [data-testid="stWidgetLabel"],
+    [data-testid="stWidgetLabel"] label,
+    [data-testid="stWidgetLabel"] p,
+    [data-testid="stWidgetLabel"] span,
+    div[data-testid="stNumberInput"] label,
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stSlider"] label,
+    div[data-testid="stRadio"] label {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        min-height: 1.20rem !important;
+        max-height: none !important;
+        overflow: visible !important;
+        color: var(--text-color) !important;
+        font-size: 0.82rem !important;
+        line-height: 1.18 !important;
+        font-weight: 850 !important;
+        letter-spacing: 0.01em !important;
+        margin-bottom: 0.34rem !important;
+    }
+
+    div[data-testid="stNumberInput"],
+    div[data-testid="stNumberInput"] > div {
+        overflow: visible !important;
+    }
+
+    div[data-testid="stNumberInput"] input {
+        min-height: 2.58rem !important;
+        padding-left: 0.92rem !important;
+        padding-right: 4.8rem !important;
+        color: var(--text-color) !important;
+        font-weight: 850 !important;
+    }
+
+    div[data-testid="stNumberInput"] button {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-width: 2.16rem !important;
+        width: 2.16rem !important;
+        height: 2.58rem !important;
+        min-height: 2.58rem !important;
+        color: var(--text-color) !important;
+        background: color-mix(in srgb, var(--text-color) 6%, transparent) !important;
+        border-left: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stNumberInput"] button:hover {
+        background: color-mix(in srgb, var(--pdm-accent) 18%, transparent) !important;
+        color: var(--text-color) !important;
+    }
+
+    div[data-testid="stNumberInput"] button svg {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 0.88rem !important;
+        height: 0.88rem !important;
+        fill: currentColor !important;
+        stroke: currentColor !important;
+    }
+
+    @media (max-width: 1180px) {
+        [data-testid="stWidgetLabel"],
+        [data-testid="stWidgetLabel"] label,
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stWidgetLabel"] span,
+        div[data-testid="stNumberInput"] label,
+        div[data-testid="stSelectbox"] label,
+        div[data-testid="stSlider"] label,
+        div[data-testid="stRadio"] label {
+            font-size: 0.80rem !important;
+            min-height: 1.16rem !important;
+            margin-bottom: 0.32rem !important;
+        }
+
+        div[data-testid="stNumberInput"] input {
+            min-height: 2.48rem !important;
+            padding-right: 4.6rem !important;
+        }
+
+        div[data-testid="stNumberInput"] button {
+            width: 2.06rem !important;
+            min-width: 2.06rem !important;
+            height: 2.48rem !important;
+            min-height: 2.48rem !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 # =========================
 # UI
 # =========================
