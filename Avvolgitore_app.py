@@ -7085,8 +7085,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
-        let depositedChunks = [];
-        let activeDepositedChunk = null;
+        let depositedSegments = [];
         let freeMesh = null;
         let activeCoilMesh = null;
         let startMarker = null;
@@ -7094,8 +7093,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let endMarkerGlow = null;
 
         let drawPos = 1.0;
+        let lastFrozenSegmentEnd = 0;
         let lastRebuiltCompleted = 0;
-        const FROZEN_CHUNK_SIZE = 18;
 
         function disposeGeometryTree(obj) {{
             if (!obj) return;
@@ -7105,59 +7104,60 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }});
         }}
 
-        function removeFrozenChunk(chunk) {{
-            if (!chunk) return;
-            depositedGroup.remove(chunk);
-            disposeGeometryTree(chunk);
+        function removeFrozenSegment(segment) {{
+            if (!segment) return;
+            depositedGroup.remove(segment);
+            disposeGeometryTree(segment);
         }}
 
         function clearDepositedChunks() {{
-            depositedChunks.forEach(removeFrozenChunk);
-            depositedChunks = [];
-
-            if (activeDepositedChunk) {{
-                removeFrozenChunk(activeDepositedChunk);
-                activeDepositedChunk = null;
-            }}
-
+            depositedSegments.forEach(removeFrozenSegment);
+            depositedSegments = [];
+            lastFrozenSegmentEnd = 0;
             lastRebuiltCompleted = 0;
         }}
 
-        function makeDepositedChunk(startIndex, endIndex) {{
-            const start = Math.max(0, Math.min(startIndex, localPts.length - 1));
-            const end = Math.max(start + 1, Math.min(endIndex, localPts.length - 1));
+        function makeDepositedSegment(segmentEndIndex) {{
+            const end = Math.floor(Math.max(1, Math.min(segmentEndIndex, localPts.length - 1)));
+            const start = end - 1;
 
-            if (end <= start) return null;
+            const p0 = localPts[start].clone();
+            const p1 = localPts[end].clone();
 
-            // Important: clone points once and build the geometry in aspo-local coordinates.
-            // After the chunk is added, it is never recalculated; it only rotates with the aspo.
-            const pts = localPts.slice(start, end + 1).map(p => p.clone());
-            return makeWoundTubeObject(pts, tubeMat);
+            if (p0.distanceTo(p1) < 1e-6) return null;
+
+            // 3D-printer logic:
+            // every completed segment is created once in aspo-local coordinates.
+            // It is then never rebuilt or recalculated, so it can only rotate with the aspo.
+            const segment = makeWoundTubeSegment(p0, p1, tubeMat);
+
+            if (segment) {{
+                segment.userData.frozenStartIndex = start;
+                segment.userData.frozenEndIndex = end;
+            }}
+
+            return segment;
         }}
 
-        function appendSealedChunksUntil(sealedEndIndex) {{
-            let coveredEnd = depositedChunks.length * FROZEN_CHUNK_SIZE;
+        function appendFrozenSegmentsUntil(completedIndex) {{
+            const target = Math.floor(Math.max(1, Math.min(completedIndex, localPts.length - 1)));
 
-            while (coveredEnd + FROZEN_CHUNK_SIZE <= sealedEndIndex) {{
-                const start = coveredEnd;
-                const end = coveredEnd + FROZEN_CHUNK_SIZE;
-                const chunk = makeDepositedChunk(start, end);
+            for (let endIndex = lastFrozenSegmentEnd + 1; endIndex <= target; endIndex++) {{
+                const segment = makeDepositedSegment(endIndex);
 
-                if (chunk) {{
-                    chunk.userData.frozenStartIndex = start;
-                    chunk.userData.frozenEndIndex = end;
-                    depositedGroup.add(chunk);
-                    depositedChunks.push(chunk);
+                if (segment) {{
+                    depositedGroup.add(segment);
+                    depositedSegments.push(segment);
                 }}
 
-                coveredEnd = end;
+                lastFrozenSegmentEnd = endIndex;
             }}
         }}
 
         function rebuildDepositedMesh(completedIndex, force=false) {{
             completedIndex = Math.floor(Math.max(0, Math.min(completedIndex, localPts.length - 1)));
 
-            if (force || completedIndex < lastRebuiltCompleted) {{
+            if (force || completedIndex < lastFrozenSegmentEnd) {{
                 clearDepositedChunks();
             }}
 
@@ -7166,27 +7166,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const sealedEndIndex = Math.floor(completedIndex / FROZEN_CHUNK_SIZE) * FROZEN_CHUNK_SIZE;
-
-            appendSealedChunksUntil(sealedEndIndex);
-
-            if (activeDepositedChunk) {{
-                removeFrozenChunk(activeDepositedChunk);
-                activeDepositedChunk = null;
-            }}
-
-            const activeStartIndex = depositedChunks.length * FROZEN_CHUNK_SIZE;
-
-            if (completedIndex > activeStartIndex) {{
-                activeDepositedChunk = makeDepositedChunk(activeStartIndex, completedIndex);
-
-                if (activeDepositedChunk) {{
-                    activeDepositedChunk.userData.frozenStartIndex = activeStartIndex;
-                    activeDepositedChunk.userData.frozenEndIndex = completedIndex;
-                    depositedGroup.add(activeDepositedChunk);
-                }}
-            }}
-
+            appendFrozenSegmentsUntil(completedIndex);
             lastRebuiltCompleted = completedIndex;
         }}
 
