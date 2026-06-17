@@ -4589,7 +4589,7 @@ def viewer(
 
             <div id="checks_block" class="panel_checks_block">
                 <label class="panel_check">
-                    <input type="checkbox" id="ghost_check" checked />
+                    <input type="checkbox" id="ghost_check" />
                     <span id="ghost_title"></span>
                 </label>
 
@@ -5397,7 +5397,7 @@ def viewer(
         let packagingMode = "{packaging_mode}";
         let containerMode = "{container_mode}";
         let showStudio = false;
-        let showGhost = true;
+        let showGhost = false;
         let showGrid = false;
         let showAxes = false;
         let showSection = false;
@@ -5610,7 +5610,7 @@ def viewer(
             if (!animationEnabled) {{
                 isPlaying = false;
                 drawPos = localPts.length - 1;
-                rebuildDepositedMesh(Math.floor(drawPos), true);
+                revealDepositedMesh(drawPos);
                 updateOverlayContinuous(true);
                 progressSlider.value = 1000;
             }} else {{
@@ -5927,7 +5927,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         progressSlider.addEventListener("input", () => {{
             const maxPos = Math.max(1, localPts.length - 1);
             drawPos = (parseInt(progressSlider.value) / 1000.0) * maxPos;
-            rebuildDepositedMesh(Math.floor(drawPos), true);
+            revealDepositedMesh(drawPos);
             updateOverlayContinuous(true);
         }});
 
@@ -6950,7 +6950,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
-        function makeTubeMeshFromPoints(points, radius, material) {{
+        function makeTubeMeshFromPoints(points, radius, material, withCaps=true) {{
             if (!points || points.length < 2) return null;
 
             let totalLen = 0;
@@ -6976,19 +6976,21 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const group = new THREE.Group();
             group.add(body);
 
-            const startPoint = points[0];
-            const endPoint = points[points.length - 1];
-            const startDir = new THREE.Vector3().subVectors(points[1], points[0]);
-            const endDir = new THREE.Vector3().subVectors(points[points.length - 1], points[points.length - 2]);
+            if (withCaps) {{
+                const startPoint = points[0];
+                const endPoint = points[points.length - 1];
+                const startDir = new THREE.Vector3().subVectors(points[1], points[0]);
+                const endDir = new THREE.Vector3().subVectors(points[points.length - 1], points[points.length - 2]);
 
-            if (startDir.length() > 1e-6) {{
-                const startCap = makeTubeEndCap(startPoint, startDir, radius, material);
-                group.add(startCap);
-            }}
+                if (startDir.length() > 1e-6) {{
+                    const startCap = makeTubeEndCap(startPoint, startDir, radius, material);
+                    group.add(startCap);
+                }}
 
-            if (endDir.length() > 1e-6) {{
-                const endCap = makeTubeEndCap(endPoint, endDir, radius, material);
-                group.add(endCap);
+                if (endDir.length() > 1e-6) {{
+                    const endCap = makeTubeEndCap(endPoint, endDir, radius, material);
+                    group.add(endCap);
+                }}
             }}
 
             return group;
@@ -7002,9 +7004,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return new THREE.Vector3(point.x, point.y, point.z + offset);
         }}
 
-        function makeWoundTubeObject(points, material) {{
+        function makeWoundTubeObject(points, material, withCaps=true) {{
             if (!isDoubleTube) {{
-                return makeTubeMeshFromPoints(points, Rt, material);
+                return makeTubeMeshFromPoints(points, Rt, material, withCaps);
             }}
 
             // Doppio verticale:
@@ -7013,12 +7015,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             // L'offset è assiale/verticale (asse Z locale), non radiale.
             const group = new THREE.Group();
 
-            const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material);
+            const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material, withCaps);
             if (lowerMesh) group.add(lowerMesh);
 
             const verticalOffset = RtLower + RtUpper;
             const upperPts = offsetPointsVertical(points, verticalOffset);
-            const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material);
+            const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material, withCaps);
             if (upperMesh) group.add(upperMesh);
 
             return group;
@@ -7094,25 +7096,54 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let drawPos = 1.0;
         let lastRebuiltCompleted = -1;
 
-        function rebuildDepositedMesh(completedIndex, force=false) {{
-            if (completedIndex < 1) return;
+        function setDrawRangeRecursive(obj, visibleRatio) {{
+            if (!obj) return;
 
-            if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
+            const ratio = Math.max(0.0, Math.min(1.0, visibleRatio));
 
-            lastRebuiltCompleted = completedIndex;
+            obj.traverse(child => {{
+                if (!child.geometry) return;
 
-            if (depositedMesh) {{
-                disposeObj(depositedMesh, depositedGroup);
-                depositedMesh = null;
-            }}
+                const geometry = child.geometry;
+                const positionAttr = geometry.getAttribute("position");
+                if (!positionAttr) return;
 
-            const pts = localPts.slice(0, completedIndex + 1);
+                const totalCount = geometry.index ? geometry.index.count : positionAttr.count;
+                const triangleCount = Math.floor(totalCount / 3);
+                const visibleTriangleCount = Math.floor(triangleCount * ratio);
+                const visibleCount = Math.max(0, Math.min(totalCount, visibleTriangleCount * 3));
 
-            depositedMesh = makeWoundTubeObject(pts, tubeMat);
+                geometry.setDrawRange(0, visibleCount);
+                child.visible = visibleCount > 0;
+            }});
+        }}
+
+        function ensureDepositedMesh() {{
+            if (depositedMesh || localPts.length < 2) return;
+
+            // Important: build the deposited tube ONCE in local spool coordinates.
+            // After this point, old points are never recalculated from guide radius/Z.
+            depositedMesh = makeWoundTubeObject(localPts, tubeMat, false);
 
             if (depositedMesh) {{
                 depositedGroup.add(depositedMesh);
+                setDrawRangeRecursive(depositedMesh, 0.0);
             }}
+        }}
+
+        function revealDepositedMesh(drawPosition) {{
+            ensureDepositedMesh();
+            if (!depositedMesh || localPts.length < 2) return;
+
+            const maxPos = Math.max(1.0, localPts.length - 1);
+            const ratio = Math.max(0.0, Math.min(1.0, drawPosition / maxPos));
+            setDrawRangeRecursive(depositedMesh, ratio);
+        }}
+
+        function rebuildDepositedMesh(completedIndex, force=false) {{
+            // Compatibility wrapper used by existing event handlers.
+            // It no longer destroys/recreates the tube. It only reveals more of the fixed mesh.
+            revealDepositedMesh(Math.max(0.0, completedIndex));
         }}
 
         function clearOverlay() {{
@@ -7213,57 +7244,21 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const radius = lerp(radiusRaw[i0], radiusRaw[i1], frac);
             const z = lerp(zRaw[i0], zRaw[i1], frac);
 
+            // The aspo rotates as one rigid body. The deposited mesh is child of machine,
+            // so every already-deposited point keeps constant local X/Y/Z relative to the aspo.
             machine.rotation.z = theta;
+            revealDepositedMesh(clampedPos);
 
-            const activeLocalStart = localPts[i0];
             const activeLocalEnd = lerpVec3(localPts[i0], localPts[i1], frac);
-
-            const startWorld = localPointToWorld(localPts[0], theta);
             const endWorld = localPointToWorld(activeLocalEnd, theta);
 
-            const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
-            const endTangentLocal = activeLocalEnd.clone().sub(activeLocalStart);
-
-            const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
-            const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
-
-            startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.70);
-
-            endMarker = makeEndpointDisc(
-                endWorld,
-                endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld,
-                markerEndMat,
-                0.82
-            );
-
-            const glowRadius = Math.max(14.0, Rt * 1.35);
-            endMarkerGlow = new THREE.Mesh(
-                new THREE.SphereGeometry(glowRadius, 28, 14),
-                new THREE.MeshBasicMaterial({{
-                    color: 0xffb020,
-                    transparent: true,
-                    opacity: tubeMode === "gelblack" ? 0.11 : 0.16,
-                    depthWrite: false
-                }})
-            );
-            endMarkerGlow.position.copy(endWorld);
-
-            overlayGroup.add(startMarker);
-            overlayGroup.add(endMarkerGlow);
-            overlayGroup.add(endMarker);
+            // No start/end discs and no active deposited overlay here.
+            // The only visible deposited tube is the fixed mesh inside depositedGroup.
 
             if (animationEnabled) {{
-                if (frac > 1e-6 && i1 > i0) {{
-                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-                    activeCoilMesh = makeWoundTubeSegment(activeStartWorld, endWorld, activeTubeMat);
-
-                    if (activeCoilMesh) {{
-                        overlayGroup.add(activeCoilMesh);
-                    }}
-                }}
-
                 const guideWorld = guidePointWorld(radius, z);
 
+                // Keep only the live free span guide -> contact. It is not part of depositedGroup.
                 freeMesh = makeWoundTubeSegment(guideWorld, endWorld, freeTubeMat);
 
                 if (freeMesh) {{
@@ -7301,10 +7296,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
                 const newCompleted = Math.floor(drawPos);
 
-                if (newCompleted > oldCompleted) {{
-                    rebuildDepositedMesh(newCompleted);
-                }}
-
+                // No rebuild here: updateOverlayContinuous() reveals the prebuilt fixed mesh.
                 updateOverlayContinuous();
 
                 progressSlider.value = Math.round(
@@ -7326,7 +7318,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
         if (!animationEnabled) {{
             drawPos = localPts.length - 1;
-            rebuildDepositedMesh(Math.floor(drawPos), true);
+            revealDepositedMesh(drawPos);
             updateOverlayContinuous(true);
             progressSlider.value = 1000;
         }} else {{
