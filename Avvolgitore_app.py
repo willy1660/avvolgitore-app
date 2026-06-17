@@ -3837,58 +3837,6 @@ st.markdown(
 
 
 
-st.markdown(
-    """
-    <style>
-    /*
-    Render / iframes · stable spacing on iPad and no accidental clipped edges.
-    */
-    div[data-testid="stIFrame"] {
-        overflow: visible !important;
-    }
-
-    iframe {
-        max-width: 100% !important;
-    }
-
-    @media (max-width: 1180px) {
-        div[data-testid="stIFrame"] iframe {
-            min-height: 720px !important;
-        }
-    }
-
-    @media (max-width: 820px) {
-        div[data-testid="stIFrame"] iframe {
-            min-height: 640px !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-st.markdown(
-    """
-    <style>
-    .viewer_reset_btn {
-        min-width: 88px !important;
-        white-space: nowrap !important;
-    }
-
-    @media (max-width: 1180px) {
-        .viewer_reset_btn {
-            min-width: 80px !important;
-            font-size: 12px !important;
-            padding-left: 10px !important;
-            padding-right: 10px !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 render_scheda_preset_real_sweep_css()
 render_force_visible_premium_sweep_patch()
 render_global_all_cards_sweep_patch()
@@ -4469,7 +4417,7 @@ def viewer(
             line-height:1.25;
         ">
             <button id="play_pause_btn" class="viewer_btn viewer_icon_btn">⏸</button>
-            <button id="reset_view_btn" class="viewer_btn viewer_reset_btn">Reset vista</button>
+            <button id="reset_view_btn" class="viewer_btn viewer_icon_btn">↺</button>
             <button id="fullscreen_btn" class="viewer_btn viewer_icon_btn">⛶</button>
             <button id="capture_render_btn" class="viewer_btn viewer_icon_btn">📷</button>
             <button id="print_simulation_btn" class="viewer_btn viewer_print_btn">Stampa</button>
@@ -5301,8 +5249,7 @@ def viewer(
         document.getElementById("view_3d_btn").textContent = T.view_3d;
         document.getElementById("view_front_btn").textContent = T.view_front;
         document.getElementById("view_side_btn").textContent = T.view_side;
-        resetViewBtn.textContent = "Reset vista";
-        resetViewBtn.title = "Reset vista";
+        resetViewBtn.title = T.reset_view;
         fullscreenBtn.title = T.fullscreen;
         captureRenderBtn.title = T.capture_render || "Save render image";
         if (printSimulationBtn) {{
@@ -9289,9 +9236,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
             """
         )
 
-    columns_for_height = 2 if total_cards <= 16 else 4
-    estimated_rows = max(1, math.ceil(total_cards / columns_for_height))
-    board_height = min(4200, 96 + (estimated_rows * 128) + (len(groups) * 86))
+    board_height = max(520, min(2600, 170 + 162 * total_cards // 4 + 104 * len(groups)))
 
 
     board_html = f"""
@@ -9327,7 +9272,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     }}
     html, body {{
         margin:0;
-        padding:0 2px 18px 0;
+        padding:0 2px 8px 0;
         background:var(--bg);
         color:var(--text);
         font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
@@ -9631,7 +9576,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     </html>
     """
 
-    components.html(board_html, height=board_height, scrolling=False)
+    components.html(board_html, height=board_height, scrolling=True)
 
 def render_preset_summary_strip(product_name, selected_row, language, modified=False):
     def gv(*names, default="-"):
