@@ -4449,6 +4449,22 @@ def viewer(
             user-select:none;
             line-height:1.15;
         ">
+            <button id="active_preset_badge_toggle" title="Riduci preset" style="
+                position:absolute;
+                top:7px;
+                right:8px;
+                width:24px;
+                height:24px;
+                border-radius:999px;
+                border:1px solid rgba(255,255,255,0.14);
+                background:rgba(255,255,255,0.08);
+                color:#f8fafc;
+                font-size:15px;
+                line-height:1;
+                font-weight:900;
+                cursor:pointer;
+                z-index:5;
+            ">−</button>
             <div id="active_preset_badge_label" style="
                 font-size:11px;
                 opacity:0.74;
@@ -4974,6 +4990,27 @@ def viewer(
             margin-top:8px;
         }}
 
+        #active_preset_badge.is-minimized {{
+            min-width:180px !important;
+            max-width:260px !important;
+            padding:8px 38px 8px 12px !important;
+            align-items:flex-start !important;
+            text-align:left !important;
+            opacity:0.86;
+        }}
+        #active_preset_badge.is-minimized #active_preset_badge_label {{
+            display:none !important;
+        }}
+        #active_preset_badge.is-minimized #active_preset_badge_value {{
+            font-size:14px !important;
+            max-width:100% !important;
+        }}
+        #active_preset_badge.is-minimized #active_preset_badge_toggle {{
+            transform:rotate(180deg);
+        }}
+
+
+
         /* Tablet / iPad: keep the active preset badge clearly below the progress bar. */
         @media (max-width: 1180px) and (min-width: 681px) {{
             #active_preset_badge {{
@@ -5212,8 +5249,10 @@ def viewer(
         const packagingStatusBadge = document.getElementById("packaging_status_badge");
         const packagingStatusText = document.getElementById("packaging_status_text");
         const packagingStatusReason = document.getElementById("packaging_status_reason");
+        const activePresetBadge = document.getElementById("active_preset_badge");
         const activePresetBadgeLabel = document.getElementById("active_preset_badge_label");
         const activePresetBadgeValue = document.getElementById("active_preset_badge_value");
+        const activePresetBadgeToggle = document.getElementById("active_preset_badge_toggle");
 
         const studioCheck = document.getElementById("studio_check");
         const ghostCheck = document.getElementById("ghost_check");
@@ -5252,8 +5291,8 @@ def viewer(
         fullscreenBtn.title = T.fullscreen;
         captureRenderBtn.title = T.capture_render || "Save render image";
         if (printSimulationBtn) {{
-            printSimulationBtn.textContent = (T.language === "Language") ? "PDF render" : "PDF render";
-            printSimulationBtn.title = (T.language === "Language") ? "Open render PDF in a new tab" : "Apri PDF render in una nuova scheda";
+            printSimulationBtn.textContent = "PDF render";
+            printSimulationBtn.title = "Apri PDF render in una nuova scheda";
         }}
 
         if (activePresetBadgeLabel) {{
@@ -5265,6 +5304,16 @@ def viewer(
         if (activePresetBadgeValue) {{
             activePresetBadgeValue.textContent = ACTIVE_PRODUCT_NAME || "";
             activePresetBadgeValue.title = ACTIVE_PRODUCT_NAME || "";
+        }}
+
+        if (activePresetBadge && activePresetBadgeToggle) {{
+            activePresetBadgeToggle.addEventListener("click", (event) => {{
+                event.stopPropagation();
+                activePresetBadge.classList.toggle("is-minimized");
+                const minimized = activePresetBadge.classList.contains("is-minimized");
+                activePresetBadgeToggle.textContent = minimized ? "+" : "−";
+                activePresetBadgeToggle.title = minimized ? "Mostra preset" : "Riduci preset";
+            }});
         }}
 
         function updateSidepanelToggle() {{
@@ -9815,6 +9864,8 @@ def render_startup_checklist(language):
         subtitle = "Sequenza operativa per cambio formato: linea + avvolgitore."
         reset_label = "Azzera checklist"
         progress_label = "Avanzamento"
+        complete_label = "Cambio misura completato"
+        pending_label = "Cambio misura in corso"
         groups = [
             (
                 "Linea",
@@ -9882,6 +9933,8 @@ def render_startup_checklist(language):
         subtitle = "Operating sequence for format change: line + coiler."
         reset_label = "Reset checklist"
         progress_label = "Progress"
+        complete_label = "Size change completed"
+        pending_label = "Size change in progress"
         groups = [
             (
                 "Line",
@@ -9962,6 +10015,9 @@ def render_startup_checklist(language):
     completed = sum(1 for key, _ in flat_items if st.session_state.get(key, False))
     total = len(flat_items)
     progress = completed / total if total else 0.0
+    checklist_done = total > 0 and completed == total
+    status_label = complete_label if checklist_done else pending_label
+    status_class = "is-complete" if checklist_done else "is-pending"
 
     st.markdown(
         f"""
@@ -10025,6 +10081,30 @@ def render_startup_checklist(language):
             font-weight:650;
             color:color-mix(in srgb, var(--text-color) 64%, transparent);
         }}
+        .checklist-status-pill {{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            margin-top:10px;
+            padding:7px 11px;
+            border-radius:999px;
+            font-size:11px;
+            line-height:1;
+            font-weight:950;
+            letter-spacing:0.06em;
+            text-transform:uppercase;
+            border:1px solid color-mix(in srgb, var(--text-color) 13%, transparent);
+        }}
+        .checklist-status-pill.is-pending {{
+            color:var(--pdm-accent);
+            background:rgba(197,126,90,0.12);
+            border-color:rgba(197,126,90,0.32);
+        }}
+        .checklist-status-pill.is-complete {{
+            color:#ffffff;
+            background:#22c55e;
+            border-color:#22c55e;
+        }}
         .checklist-progress {{
             padding:14px 18px 16px 18px;
         }}
@@ -10070,18 +10150,25 @@ def render_startup_checklist(language):
         }}
         div[data-testid="stCheckbox"] label {{
             transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
-            border-radius:12px;
-            padding:4px 6px;
+            border-radius:13px;
+            padding:8px 8px;
+            min-height:42px;
         }}
         div[data-testid="stCheckbox"] label:hover {{
             background:color-mix(in srgb, var(--pdm-accent) 8%, transparent);
             transform:translateX(1px);
+        }}
+        div[data-testid="stCheckbox"] label p {{
+            font-size:0.98rem !important;
+            line-height:1.22 !important;
+            font-weight:720 !important;
         }}
         </style>
         <div class="checklist-hero">
             <div class="checklist-hero-head">
                 <div class="checklist-title">{html.escape(title)}</div>
                 <div class="checklist-subtitle">{html.escape(subtitle)}</div>
+                <div class="checklist-status-pill {status_class}">{html.escape(status_label)}</div>
             </div>
             <div class="checklist-progress">
                 <div class="checklist-progress-row">
@@ -10095,13 +10182,14 @@ def render_startup_checklist(language):
         unsafe_allow_html=True,
     )
 
+    step_idx = 1
     for area_name, sections in groups:
         st.markdown(f'<div class="checklist-area-title">{html.escape(area_name)}</div>', unsafe_allow_html=True)
         area_cols = st.columns(len(sections), gap="large")
         for col_ui, (section_name, items) in zip(area_cols, sections):
             with col_ui:
                 st.markdown(
-                    f'<div class="checklist-section-title">{html.escape(section_name)}</div>',
+                    f'<div class="checklist-section-title">{step_idx}. {html.escape(section_name)}</div>',
                     unsafe_allow_html=True,
                 )
                 with st.container(border=True):
@@ -10109,6 +10197,7 @@ def render_startup_checklist(language):
                         key_base = f"{area_name}_{section_name}_{item}".lower()
                         key = "check_cambio_" + "".join(ch if ch.isalnum() else "_" for ch in key_base)
                         st.checkbox(item, key=key)
+            step_idx += 1
 
 
 
@@ -10147,7 +10236,7 @@ def render_app_footer():
             user-select: none;
         }
         </style>
-        <div class="pdm-app-footer">Avvolgimento · PDM · versione prototipo</div>
+        <div class="pdm-app-footer">Avvolgimento · PDM · versione stabile v1.0</div>
         """,
         unsafe_allow_html=True,
     )
@@ -10162,12 +10251,12 @@ def render_operator_field_label(label):
     )
 
 
+
 st.markdown(
     """
     <style>
     /*
-    Simulazione · explicit operator labels + visible native number steppers.
-    Minimal patch: no broad Streamlit overrides, no layout changes.
+    Configurazione · soft card feel without altering native inputs.
     */
     .operator-field-label {
         margin: 0.58rem 0 0.32rem 0;
@@ -10177,6 +10266,16 @@ st.markdown(
         font-weight: 850;
         letter-spacing: 0.01em;
         opacity: 0.92;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-color: color-mix(in srgb, var(--text-color) 12%, transparent) !important;
+        background: linear-gradient(180deg,
+            color-mix(in srgb, var(--secondary-background-color) 82%, var(--background-color)),
+            color-mix(in srgb, var(--secondary-background-color) 96%, var(--background-color))
+        ) !important;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.055) !important;
+        border-radius: 18px !important;
     }
 
     @media (max-width: 1180px) {
@@ -10190,8 +10289,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-
 
 st.markdown(
     """
@@ -10254,6 +10351,56 @@ st.markdown(
     */
     iframe {
         overflow: hidden !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+
+st.markdown(
+    """
+    <style>
+    /*
+    Motion cleanup · reduce decorative shine. Keep hover feedback, avoid excessive sweep effects.
+    */
+    .summary-card::after,
+    .preset-param-card::after,
+    .quick-card-v2::after,
+    .semaphore-card::after,
+    .tech-mini-card::after,
+    .machine-card-native::after,
+    .preview-metric::after,
+    .summary-strip::after,
+    .summary-strip-item::after,
+    .section-header::after,
+    .workflow-step::after,
+    .elegant-panel::after,
+    .checklist-hero::after,
+    .pdm-action-bar::after,
+    .pack_stat::after {
+        opacity: 0 !important;
+        animation: none !important;
+    }
+
+    .summary-card:hover::after,
+    .preset-param-card:hover::after,
+    .quick-card-v2:hover::after,
+    .semaphore-card:hover::after,
+    .tech-mini-card:hover::after,
+    .machine-card-native:hover::after,
+    .preview-metric:hover::after,
+    .summary-strip:hover::after,
+    .summary-strip-item:hover::after,
+    .section-header:hover::after,
+    .workflow-step:hover::after,
+    .elegant-panel:hover::after,
+    .checklist-hero:hover::after,
+    .pdm-action-bar:hover::after,
+    .pack_stat:hover::after {
+        opacity: 0 !important;
+        animation: none !important;
     }
     </style>
     """,
@@ -10434,102 +10581,108 @@ with tab_production:
     colA, colB, colC = st.columns([1, 1, 1], gap="large")
 
     with colA:
-        st.markdown("**Tubo**")
-        tube_layout_label = st.radio(
-            "Tipo tubo",
-            ["Singolo", "Doppio"],
-            horizontal=True,
-            key="calc_tube_layout",
-            disabled=params_locked,
-        )
 
-        if tube_layout_label == "Singolo":
-            if st.session_state.get("calc_rame") not in rame_options:
-                st.session_state["calc_rame"] = "1/4"
-            render_operator_field_label(t["rame"])
-            rame = st.selectbox(t["rame"], rame_options, key="calc_rame", disabled=params_locked, label_visibility="collapsed")
-            render_operator_field_label(t["isolamento"])
-            spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore", disabled=params_locked, label_visibility="collapsed")
-            render_operator_field_label(t["lunghezza"])
-            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked, label_visibility="collapsed")
+        with st.container(border=True):
+            st.markdown("**Tubo**")
+            tube_layout_label = st.radio(
+                "Tipo tubo",
+                ["Singolo", "Doppio"],
+                horizontal=True,
+                key="calc_tube_layout",
+                disabled=params_locked,
+            )
 
-            d_rame = COPPER_SIZES_MM[rame]
-            d_tubo = d_rame + 2.0 * spessore
-            d_tubo_lower = d_tubo
-            d_tubo_upper = d_tubo
-            d_tubo_sim = d_tubo
-            d_tubo_footprint = d_tubo
-            tube_layout_code = "single"
-            tube_diameter_label = f"{d_tubo:.2f} mm"
-            passo_consigliato = d_tubo
-            incremento_consigliato = d_tubo
-        else:
-            st.caption("Doppio verticale: diametro grande sotto, diametro piccolo sopra")
-            c_inf, c_sup = st.columns(2)
-            with c_inf:
-                if st.session_state.get("calc_rame_inf") not in rame_options:
-                    st.session_state["calc_rame_inf"] = "3/8"
-                render_operator_field_label("Rame inferiore")
-                rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf", disabled=params_locked, label_visibility="collapsed")
-                render_operator_field_label("Guaina inferiore (mm)")
-                spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf", disabled=params_locked, label_visibility="collapsed")
-            with c_sup:
-                if st.session_state.get("calc_rame_sup") not in rame_options:
-                    st.session_state["calc_rame_sup"] = "1/4"
-                render_operator_field_label("Rame superiore")
-                rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup", disabled=params_locked, label_visibility="collapsed")
-                render_operator_field_label("Guaina superiore (mm)")
-                spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup", disabled=params_locked, label_visibility="collapsed")
-            render_operator_field_label(t["lunghezza"])
-            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked, label_visibility="collapsed")
+            if tube_layout_label == "Singolo":
+                if st.session_state.get("calc_rame") not in rame_options:
+                    st.session_state["calc_rame"] = "1/4"
+                render_operator_field_label(t["rame"])
+                rame = st.selectbox(t["rame"], rame_options, key="calc_rame", disabled=params_locked, label_visibility="collapsed")
+                render_operator_field_label(t["isolamento"])
+                spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore", disabled=params_locked, label_visibility="collapsed")
+                render_operator_field_label(t["lunghezza"])
+                lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked, label_visibility="collapsed")
 
-            d_tubo_lower = COPPER_SIZES_MM[rame_inf] + 2.0 * spessore_inf
-            d_tubo_upper = COPPER_SIZES_MM[rame_sup] + 2.0 * spessore_sup
-            d_tubo_sim = max(d_tubo_lower, d_tubo_upper)
-            d_tubo = d_tubo_sim
-            d_tubo_footprint = d_tubo_sim
-            tube_layout_code = "double"
-            tube_diameter_label = f"Inferiore {d_tubo_lower:.2f} / Superiore {d_tubo_upper:.2f} mm"
-            passo_consigliato = d_tubo_lower + d_tubo_upper
-            incremento_consigliato = max(d_tubo_lower, d_tubo_upper)
+                d_rame = COPPER_SIZES_MM[rame]
+                d_tubo = d_rame + 2.0 * spessore
+                d_tubo_lower = d_tubo
+                d_tubo_upper = d_tubo
+                d_tubo_sim = d_tubo
+                d_tubo_footprint = d_tubo
+                tube_layout_code = "single"
+                tube_diameter_label = f"{d_tubo:.2f} mm"
+                passo_consigliato = d_tubo
+                incremento_consigliato = d_tubo
+            else:
+                st.caption("Doppio verticale: diametro grande sotto, diametro piccolo sopra")
+                c_inf, c_sup = st.columns(2)
+                with c_inf:
+                    if st.session_state.get("calc_rame_inf") not in rame_options:
+                        st.session_state["calc_rame_inf"] = "3/8"
+                    render_operator_field_label("Rame inferiore")
+                    rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf", disabled=params_locked, label_visibility="collapsed")
+                    render_operator_field_label("Guaina inferiore (mm)")
+                    spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf", disabled=params_locked, label_visibility="collapsed")
+                with c_sup:
+                    if st.session_state.get("calc_rame_sup") not in rame_options:
+                        st.session_state["calc_rame_sup"] = "1/4"
+                    render_operator_field_label("Rame superiore")
+                    rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup", disabled=params_locked, label_visibility="collapsed")
+                    render_operator_field_label("Guaina superiore (mm)")
+                    spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup", disabled=params_locked, label_visibility="collapsed")
+                render_operator_field_label(t["lunghezza"])
+                lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked, label_visibility="collapsed")
+
+                d_tubo_lower = COPPER_SIZES_MM[rame_inf] + 2.0 * spessore_inf
+                d_tubo_upper = COPPER_SIZES_MM[rame_sup] + 2.0 * spessore_sup
+                d_tubo_sim = max(d_tubo_lower, d_tubo_upper)
+                d_tubo = d_tubo_sim
+                d_tubo_footprint = d_tubo_sim
+                tube_layout_code = "double"
+                tube_diameter_label = f"Inferiore {d_tubo_lower:.2f} / Superiore {d_tubo_upper:.2f} mm"
+                passo_consigliato = d_tubo_lower + d_tubo_upper
+                incremento_consigliato = max(d_tubo_lower, d_tubo_upper)
 
     with colB:
-        st.markdown("**Avvolgitore**")
-        render_operator_field_label(t["diam_aspo"])
-        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo", disabled=params_locked, label_visibility="collapsed")
-        render_operator_field_label(t["spalla"])
-        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla", disabled=params_locked, label_visibility="collapsed")
-        render_operator_field_label(t["passo_assiale"])
-        passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale", disabled=params_locked, label_visibility="collapsed")
-        render_operator_field_label(t["incremento"])
-        incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale", disabled=params_locked, label_visibility="collapsed")
+
+        with st.container(border=True):
+            st.markdown("**Avvolgitore**")
+            render_operator_field_label(t["diam_aspo"])
+            diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo", disabled=params_locked, label_visibility="collapsed")
+            render_operator_field_label(t["spalla"])
+            spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla", disabled=params_locked, label_visibility="collapsed")
+            render_operator_field_label(t["passo_assiale"])
+            passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale", disabled=params_locked, label_visibility="collapsed")
+            render_operator_field_label(t["incremento"])
+            incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale", disabled=params_locked, label_visibility="collapsed")
 
     with colC:
-        st.markdown("**Ritardi e regolazione**" if lang == "IT" else "Delays and setup")
-        render_operator_field_label(t["rit_min"])
-        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked, label_visibility="collapsed")
-        render_operator_field_label(t["rit_max"])
-        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked, label_visibility="collapsed")
 
-        restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
-        lock_label_inline = "Blocca parametri" if lang == "IT" else "Lock parameters"
+        with st.container(border=True):
+            st.markdown("**Ritardi e regolazione**" if lang == "IT" else "Delays and setup")
+            render_operator_field_label(t["rit_min"])
+            rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked, label_visibility="collapsed")
+            render_operator_field_label(t["rit_max"])
+            rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked, label_visibility="collapsed")
 
-        st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
-        action_a, action_b = st.columns([1, 1], gap="small")
+            restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
+            lock_label_inline = "Blocca parametri" if lang == "IT" else "Lock parameters"
 
-        with action_a:
-            if is_prototype:
-                reset_label_inline = "Reset prototipo" if lang == "IT" else "Reset prototype"
-                if st.button(reset_label_inline, use_container_width=True, key="reset_prototype_inline"):
-                    st.session_state["reset_prototype_request"] = True
-                    st.rerun()
-            else:
-                if st.button(restore_label_inline, use_container_width=True, key="restore_preset_inline"):
-                    st.session_state["restore_preset_request"] = str(selected_product)
-                    st.rerun()
+            st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
+            action_a, action_b = st.columns([1, 1], gap="small")
 
-        with action_b:
-            st.toggle(lock_label_inline, key="params_locked")
+            with action_a:
+                if is_prototype:
+                    reset_label_inline = "Reset prototipo" if lang == "IT" else "Reset prototype"
+                    if st.button(reset_label_inline, use_container_width=True, key="reset_prototype_inline"):
+                        st.session_state["reset_prototype_request"] = True
+                        st.rerun()
+                else:
+                    if st.button(restore_label_inline, use_container_width=True, key="restore_preset_inline"):
+                        st.session_state["restore_preset_request"] = str(selected_product)
+                        st.rerun()
+
+            with action_b:
+                st.toggle(lock_label_inline, key="params_locked")
 
 
     z_min_center = None
@@ -10651,6 +10804,7 @@ with tab_production:
                 <div class="section-badge">3</div>
                 <div class="section-header-copy">
                     <div class="section-title">{"Render 3D" if lang == "IT" else "3D render"}</div>
+                    <div class="section-subtitle">{"Anteprima generata dai parametri attuali." if lang == "IT" else "Preview generated from current parameters."}</div>
                 </div>
             </div>
         </div>
