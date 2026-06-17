@@ -10128,6 +10128,89 @@ def render_elegant_panel_close():
     # Deprecated raw-HTML wrapper removed.
     return
 
+
+def render_app_footer():
+    st.markdown(
+        """
+        <style>
+        .pdm-app-footer {
+            margin: 38px 0 18px 0;
+            padding: 14px 0 6px 0;
+            border-top: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            color: color-mix(in srgb, var(--text-color) 48%, transparent);
+            font-size: 11px;
+            line-height: 1.2;
+            font-weight: 750;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+            user-select: none;
+        }
+        </style>
+        <div class="pdm-app-footer">Avvolgimento · PDM · versione prototipo</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+
+
+def render_operator_field_label(label):
+    st.markdown(
+        f"<div class='operator-field-label'>{html.escape(str(label))}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+st.markdown(
+    """
+    <style>
+    /*
+    Simulazione · explicit operator labels + visible native number steppers.
+    Minimal patch: no broad Streamlit overrides, no layout changes.
+    */
+    .operator-field-label {
+        margin: 0.58rem 0 0.32rem 0;
+        color: var(--text-color);
+        font-size: 0.80rem;
+        line-height: 1.15;
+        font-weight: 850;
+        letter-spacing: 0.01em;
+        opacity: 0.92;
+    }
+
+    div[data-testid="stNumberInput"] button {
+        color: var(--text-color) !important;
+        background: color-mix(in srgb, var(--text-color) 7%, transparent) !important;
+        border-left: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    div[data-testid="stNumberInput"] button:hover {
+        background: color-mix(in srgb, var(--pdm-accent) 18%, transparent) !important;
+    }
+
+    div[data-testid="stNumberInput"] button svg {
+        opacity: 1 !important;
+        visibility: visible !important;
+        fill: currentColor !important;
+        stroke: currentColor !important;
+    }
+
+    @media (max-width: 1180px) {
+        .operator-field-label {
+            margin-top: 0.54rem;
+            margin-bottom: 0.30rem;
+            font-size: 0.78rem;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 # =========================
 # UI
 # =========================
@@ -10313,9 +10396,12 @@ with tab_production:
         if tube_layout_label == "Singolo":
             if st.session_state.get("calc_rame") not in rame_options:
                 st.session_state["calc_rame"] = "1/4"
-            rame = st.selectbox(t["rame"], rame_options, key="calc_rame", disabled=params_locked)
-            spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore", disabled=params_locked)
-            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked)
+            render_operator_field_label(t["rame"])
+            rame = st.selectbox(t["rame"], rame_options, key="calc_rame", disabled=params_locked, label_visibility="collapsed")
+            render_operator_field_label(t["isolamento"])
+            spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore", disabled=params_locked, label_visibility="collapsed")
+            render_operator_field_label(t["lunghezza"])
+            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked, label_visibility="collapsed")
 
             d_rame = COPPER_SIZES_MM[rame]
             d_tubo = d_rame + 2.0 * spessore
@@ -10333,14 +10419,19 @@ with tab_production:
             with c_inf:
                 if st.session_state.get("calc_rame_inf") not in rame_options:
                     st.session_state["calc_rame_inf"] = "3/8"
-                rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf", disabled=params_locked)
-                spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf", disabled=params_locked)
+                render_operator_field_label("Rame inferiore")
+                rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf", disabled=params_locked, label_visibility="collapsed")
+                render_operator_field_label("Guaina inferiore (mm)")
+                spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf", disabled=params_locked, label_visibility="collapsed")
             with c_sup:
                 if st.session_state.get("calc_rame_sup") not in rame_options:
                     st.session_state["calc_rame_sup"] = "1/4"
-                rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup", disabled=params_locked)
-                spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup", disabled=params_locked)
-            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked)
+                render_operator_field_label("Rame superiore")
+                rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup", disabled=params_locked, label_visibility="collapsed")
+                render_operator_field_label("Guaina superiore (mm)")
+                spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup", disabled=params_locked, label_visibility="collapsed")
+            render_operator_field_label(t["lunghezza"])
+            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked, label_visibility="collapsed")
 
             d_tubo_lower = COPPER_SIZES_MM[rame_inf] + 2.0 * spessore_inf
             d_tubo_upper = COPPER_SIZES_MM[rame_sup] + 2.0 * spessore_sup
@@ -10354,15 +10445,21 @@ with tab_production:
 
     with colB:
         st.markdown("**Avvolgitore**")
-        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo", disabled=params_locked)
-        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla", disabled=params_locked)
-        passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale", disabled=params_locked)
-        incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale", disabled=params_locked)
+        render_operator_field_label(t["diam_aspo"])
+        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo", disabled=params_locked, label_visibility="collapsed")
+        render_operator_field_label(t["spalla"])
+        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla", disabled=params_locked, label_visibility="collapsed")
+        render_operator_field_label(t["passo_assiale"])
+        passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale", disabled=params_locked, label_visibility="collapsed")
+        render_operator_field_label(t["incremento"])
+        incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale", disabled=params_locked, label_visibility="collapsed")
 
     with colC:
         st.markdown("**Ritardi e regolazione**" if lang == "IT" else "Delays and setup")
-        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked)
-        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked)
+        render_operator_field_label(t["rit_min"])
+        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked, label_visibility="collapsed")
+        render_operator_field_label(t["rit_max"])
+        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked, label_visibility="collapsed")
 
         restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
         lock_label_inline = "Blocca parametri" if lang == "IT" else "Lock parameters"
@@ -10767,3 +10864,5 @@ with tab_tech_sheet:
             render_machine_parameter_groups(selected_row, lang, key_suffix="_tech")
 with tab_checklist:
     render_startup_checklist(lang)
+
+render_app_footer()
