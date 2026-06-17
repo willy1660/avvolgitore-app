@@ -4589,7 +4589,7 @@ def viewer(
 
             <div id="checks_block" class="panel_checks_block">
                 <label class="panel_check">
-                    <input type="checkbox" id="ghost_check" checked />
+                    <input type="checkbox" id="ghost_check" />
                     <span id="ghost_title"></span>
                 </label>
 
@@ -5397,7 +5397,7 @@ def viewer(
         let packagingMode = "{packaging_mode}";
         let containerMode = "{container_mode}";
         let showStudio = false;
-        let showGhost = true;
+        let showGhost = false;
         let showGrid = false;
         let showAxes = false;
         let showSection = false;
@@ -7235,7 +7235,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
         function updateGhostLine() {{
             if (ghostLine) {{
-                scene.remove(ghostLine);
+                if (ghostLine.parent) ghostLine.parent.remove(ghostLine);
                 ghostLine.geometry.dispose();
                 ghostLine.material.dispose();
                 ghostLine = null;
@@ -7249,12 +7249,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (end <= i0 + 2) return;
 
-            const theta = thetaRaw[Math.max(0, Math.min(i0, thetaRaw.length - 1))];
-
             const futurePts = [];
 
+            // Future path in spool-local coordinates, attached to the machine group.
+            // This avoids a misleading world-space wave that can look like deposited coils moving.
             for (let i = i0; i <= end; i++) {{
-                futurePts.push(localPointToWorld(localPts[i], theta));
+                futurePts.push(localPts[i].clone());
             }}
 
             const geo = new THREE.BufferGeometry().setFromPoints(futurePts);
@@ -7270,7 +7270,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             ghostLine = new THREE.Line(geo, mat);
             ghostLine.computeLineDistances();
-            scene.add(ghostLine);
+            machine.add(ghostLine);
         }}
 
         function updateOverlayContinuous(force=false) {{
@@ -7334,15 +7334,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             overlayGroup.add(endMarker);
 
             if (animationEnabled) {{
-                if (frac > 1e-6 && i1 > i0) {{
-                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-                    activeCoilMesh = makeWoundTubeSegment(activeStartWorld, endWorld, activeTubeMat);
-
-                    if (activeCoilMesh) {{
-                        overlayGroup.add(activeCoilMesh);
-                    }}
-                }}
-
+                // The deposited coil is now a frozen/revealed mesh attached to the spool.
+                // Do not draw an extra "active deposited" segment here: it looked like already deposited turns
+                // were still following the tube guide. Only the free tube guide -> contact point remains dynamic.
                 const guideWorld = guidePointWorld(radius, z);
 
                 freeMesh = makeWoundTubeSegment(guideWorld, endWorld, freeTubeMat);
