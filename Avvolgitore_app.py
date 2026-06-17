@@ -4589,7 +4589,7 @@ def viewer(
 
             <div id="checks_block" class="panel_checks_block">
                 <label class="panel_check">
-                    <input type="checkbox" id="ghost_check" checked />
+                    <input type="checkbox" id="ghost_check" />
                     <span id="ghost_title"></span>
                 </label>
 
@@ -5397,7 +5397,7 @@ def viewer(
         let packagingMode = "{packaging_mode}";
         let containerMode = "{container_mode}";
         let showStudio = false;
-        let showGhost = true;
+        let showGhost = false;
         let showGrid = false;
         let showAxes = false;
         let showSection = false;
@@ -6951,47 +6951,160 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         }}
 
         function makeTubeMeshFromPoints(points, radius, material) {{
+            /*
+            Frozen deposited tube.
+
+            Important: this mesh is built as fixed cross-section rings in the local
+            reference frame of the aspo. We do NOT use THREE.TubeGeometry here,
+            because TubeGeometry recalculates the full curve and its tangents every
+            time the visible part changes. That recalculation is what made already
+            deposited spire appear to keep following the guidatubo wave.
+
+            The deposited geometry is static. Animation only changes drawRange.
+            */
             if (!points || points.length < 2) return null;
 
-            let totalLen = 0;
-
-            for (let i = 1; i < points.length; i++) {{
-                totalLen += points[i].distanceTo(points[i - 1]);
+            const cleanPts = [];
+            for (let i = 0; i < points.length; i++) {{
+                if (i === 0 || points[i].distanceTo(points[i - 1]) > 0.05) {{
+                    cleanPts.push(points[i].clone());
+                }}
             }}
 
-            const curve = new PolylineCurve3(points);
+            if (cleanPts.length < 2) return null;
 
-            const tubularSegments = Math.max(
-                18,
-                Math.min(1200, Math.floor(totalLen / Math.max(1.60, radius * 0.75)))
-            );
+            const radialSegments = 18;
+            const ringCount = cleanPts.length;
+            const segmentCount = ringCount - 1;
+            const vertexCount = ringCount * radialSegments;
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
-            geo.computeVertexNormals();
+            const positions = new Float32Array(vertexCount * 3);
+            const normals = new Float32Array(vertexCount * 3);
+            const indices = [];
+
+            const zAxis = new THREE.Vector3(0, 0, 1);
+            const xAxis = new THREE.Vector3(1, 0, 0);
+            let prevTangent = null;
+            let normal = null;
+
+            function tangentAt(i) {{
+                let tangent;
+                if (i <= 0) {{
+                    tangent = new THREE.Vector3().subVectors(cleanPts[1], cleanPts[0]);
+                }} else if (i >= cleanPts.length - 1) {{
+                    tangent = new THREE.Vector3().subVectors(cleanPts[i], cleanPts[i - 1]);
+                }} else {{
+                    tangent = new THREE.Vector3().subVectors(cleanPts[i + 1], cleanPts[i - 1]);
+                }}
+
+                if (tangent.length() < 1e-9) tangent.set(0, 1, 0);
+                return tangent.normalize();
+            }}
+
+            for (let i = 0; i < ringCount; i++) {{
+                const tangent = tangentAt(i);
+
+                if (!normal) {{
+                    // Pick a stable first normal not parallel to the tangent.
+                    normal = new THREE.Vector3().crossVectors(tangent, zAxis);
+                    if (normal.length() < 1e-6) {{
+                        normal = new THREE.Vector3().crossVectors(tangent, xAxis);
+                    }}
+                    normal.normalize();
+                }} else if (prevTangent) {{
+                    // Parallel transport: keeps the tube orientation stable ring by ring.
+                    const q = new THREE.Quaternion().setFromUnitVectors(prevTangent, tangent);
+                    normal.applyQuaternion(q).normalize();
+                }}
+
+                const binormal = new THREE.Vector3().crossVectors(tangent, normal).normalize();
+
+                for (let j = 0; j < radialSegments; j++) {{
+                    const a = (j / radialSegments) * Math.PI * 2.0;
+                    const ca = Math.cos(a);
+                    const sa = Math.sin(a);
+
+                    const n = new THREE.Vector3()
+                        .copy(normal).multiplyScalar(ca)
+                        .add(binormal.clone().multiplyScalar(sa))
+                        .normalize();
+
+                    const p = cleanPts[i].clone().add(n.clone().multiplyScalar(radius));
+                    const v = i * radialSegments + j;
+
+                    positions[v * 3 + 0] = p.x;
+                    positions[v * 3 + 1] = p.y;
+                    positions[v * 3 + 2] = p.z;
+
+                    normals[v * 3 + 0] = n.x;
+                    normals[v * 3 + 1] = n.y;
+                    normals[v * 3 + 2] = n.z;
+                }}
+
+                prevTangent = tangent.clone();
+            }}
+
+            for (let i = 0; i < segmentCount; i++) {{
+                const r0 = i * radialSegments;
+                const r1 = (i + 1) * radialSegments;
+
+                for (let j = 0; j < radialSegments; j++) {{
+                    const jn = (j + 1) % radialSegments;
+
+                    const a = r0 + j;
+                    const b = r0 + jn;
+                    const c = r1 + jn;
+                    const d = r1 + j;
+
+                    indices.push(a, d, b);
+                    indices.push(b, d, c);
+                }}
+            }}
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+            geo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+            geo.setIndex(indices);
+            geo.computeBoundingSphere();
+
+            // Start hidden. rebuildDepositedMesh() reveals only completed segments.
+            geo.setDrawRange(0, 0);
 
             const body = new THREE.Mesh(geo, material);
             body.castShadow = false;
             body.receiveShadow = true;
+            body.frustumCulled = false;
+            body.userData.frozenTubeSegmentCount = segmentCount;
+            body.userData.frozenTubeIndicesPerSegment = radialSegments * 6;
 
             const group = new THREE.Group();
             group.add(body);
 
-            const startPoint = points[0];
-            const endPoint = points[points.length - 1];
-            const startDir = new THREE.Vector3().subVectors(points[1], points[0]);
-            const endDir = new THREE.Vector3().subVectors(points[points.length - 1], points[points.length - 2]);
-
+            // Fixed start cap. The moving/contact end is represented by the overlay marker.
+            const startDir = new THREE.Vector3().subVectors(cleanPts[1], cleanPts[0]);
             if (startDir.length() > 1e-6) {{
-                const startCap = makeTubeEndCap(startPoint, startDir, radius, material);
+                const startCap = makeTubeEndCap(cleanPts[0], startDir, radius, material);
                 group.add(startCap);
             }}
 
-            if (endDir.length() > 1e-6) {{
-                const endCap = makeTubeEndCap(endPoint, endDir, radius, material);
-                group.add(endCap);
-            }}
-
+            group.userData.isFrozenDepositedTube = true;
             return group;
+        }}
+
+        function setFrozenTubeProgress(root, completedIndex) {{
+            if (!root) return;
+
+            const safeCompleted = Math.max(0, completedIndex);
+
+            root.traverse(obj => {{
+                if (!obj.geometry || !obj.userData || !obj.userData.frozenTubeSegmentCount) return;
+
+                const segmentCount = obj.userData.frozenTubeSegmentCount;
+                const indicesPerSegment = obj.userData.frozenTubeIndicesPerSegment || 108;
+                const visibleSegments = Math.max(0, Math.min(segmentCount, safeCompleted));
+
+                obj.geometry.setDrawRange(0, visibleSegments * indicesPerSegment);
+            }});
         }}
 
         function offsetPointsVertical(points, offset) {{
@@ -7095,24 +7208,28 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let lastRebuiltCompleted = -1;
 
         function rebuildDepositedMesh(completedIndex, force=false) {{
-            if (completedIndex < 1) return;
+            if (completedIndex < 1) completedIndex = 0;
 
             if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
 
             lastRebuiltCompleted = completedIndex;
 
-            if (depositedMesh) {{
+            // Build the complete deposited coil ONCE in local aspo coordinates.
+            // Afterwards, never recalculate its Z/radius: only reveal more triangles.
+            if (force && depositedMesh) {{
                 disposeObj(depositedMesh, depositedGroup);
                 depositedMesh = null;
             }}
 
-            const pts = localPts.slice(0, completedIndex + 1);
+            if (!depositedMesh) {{
+                depositedMesh = makeWoundTubeObject(localPts, tubeMat);
 
-            depositedMesh = makeWoundTubeObject(pts, tubeMat);
-
-            if (depositedMesh) {{
-                depositedGroup.add(depositedMesh);
+                if (depositedMesh) {{
+                    depositedGroup.add(depositedMesh);
+                }}
             }}
+
+            setFrozenTubeProgress(depositedMesh, completedIndex);
         }}
 
         function clearOverlay() {{
@@ -7154,7 +7271,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
         function updateGhostLine() {{
             if (ghostLine) {{
-                scene.remove(ghostLine);
+                machine.remove(ghostLine);
                 ghostLine.geometry.dispose();
                 ghostLine.material.dispose();
                 ghostLine = null;
@@ -7168,12 +7285,10 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (end <= i0 + 2) return;
 
-            const theta = thetaRaw[Math.max(0, Math.min(i0, thetaRaw.length - 1))];
-
             const futurePts = [];
 
             for (let i = i0; i <= end; i++) {{
-                futurePts.push(localPointToWorld(localPts[i], theta));
+                futurePts.push(localPts[i].clone());
             }}
 
             const geo = new THREE.BufferGeometry().setFromPoints(futurePts);
@@ -7189,7 +7304,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             ghostLine = new THREE.Line(geo, mat);
             ghostLine.computeLineDistances();
-            scene.add(ghostLine);
+            machine.add(ghostLine);
         }}
 
         function updateOverlayContinuous(force=false) {{
@@ -7253,14 +7368,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             overlayGroup.add(endMarker);
 
             if (animationEnabled) {{
-                if (frac > 1e-6 && i1 > i0) {{
-                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
-                    activeCoilMesh = makeWoundTubeSegment(activeStartWorld, endWorld, activeTubeMat);
-
-                    if (activeCoilMesh) {{
-                        overlayGroup.add(activeCoilMesh);
-                    }}
-                }}
+                // No active deposited overlay here.
+                // The deposited tube is the frozen local-aspo mesh above; drawing an
+                // extra dynamic segment here makes already-deposited spire look alive.
 
                 const guideWorld = guidePointWorld(radius, z);
 
