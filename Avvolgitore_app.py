@@ -4438,7 +4438,7 @@ def viewer(
             gap:0px;
             min-width:150px;
             max-width:180px;
-            padding:9px 36px 9px 14px;
+            padding:9px 15px 9px 14px;
             background:rgba(18,22,27,0.80);
             color:#f8fafc;
             border:1px solid rgba(197,126,90,0.34);
@@ -4450,22 +4450,6 @@ def viewer(
             user-select:none;
             line-height:1.15;
         ">
-            <button id="active_preset_badge_toggle" title="Riduci nome preset" style="
-                position:absolute;
-                top:7px;
-                right:8px;
-                width:24px;
-                height:24px;
-                border-radius:999px;
-                border:1px solid rgba(255,255,255,0.14);
-                background:rgba(255,255,255,0.08);
-                color:#f8fafc;
-                font-size:15px;
-                line-height:1;
-                font-weight:900;
-                cursor:pointer;
-                z-index:5;
-            ">−</button>
             <div id="active_preset_badge_label" style="display:none;"></div>
             <div id="active_preset_badge_value" style="
                 font-size:16px;
@@ -4995,33 +4979,8 @@ def viewer(
             width:100% !important;
             text-align:left !important;
         }}
-        #active_preset_badge_toggle {{
-            top:6px !important;
-            right:7px !important;
-            width:22px !important;
-            height:22px !important;
-            font-size:14px !important;
-        }}
-        #active_preset_badge.is-minimized {{
-            min-width:120px !important;
-            max-width:140px !important;
-            padding:8px 34px 8px 12px !important;
-            align-items:flex-start !important;
-            text-align:left !important;
-            opacity:0.90;
-        }}
-        #active_preset_badge.is-minimized #active_preset_badge_label {{
-            display:none !important;
-        }}
-        #active_preset_badge.is-minimized #active_preset_badge_value {{
-            font-size:13px !important;
-            max-width:100% !important;
-        }}
-        #active_preset_badge.is-minimized #active_preset_badge_toggle {{
-            transform:rotate(180deg);
-        }}
 
-        /* Wide render: compact badge on the top row, between toolbar and side panel. */
+        /* Wide render: compact fixed badge on the top row, between toolbar and side panel. */
         @media (min-width: 1181px) {{
             #active_preset_badge {{
                 top:22px !important;
@@ -5030,7 +4989,7 @@ def viewer(
                 transform:none !important;
                 min-width:150px !important;
                 max-width:180px !important;
-                padding:9px 36px 9px 14px !important;
+                padding:9px 15px 9px 14px !important;
                 align-items:flex-start !important;
                 text-align:left !important;
             }}
@@ -5048,7 +5007,7 @@ def viewer(
                 transform:none !important;
                 min-width:132px !important;
                 max-width:150px !important;
-                padding:8px 34px 8px 12px !important;
+                padding:8px 13px 8px 12px !important;
                 align-items:flex-start !important;
                 text-align:left !important;
             }}
@@ -5066,7 +5025,7 @@ def viewer(
                 transform:none !important;
                 min-width:0 !important;
                 max-width:none !important;
-                padding:8px 38px 9px 14px !important;
+                padding:8px 14px 9px 14px !important;
                 align-items:flex-start !important;
                 text-align:left !important;
             }}
@@ -5083,6 +5042,7 @@ def viewer(
                 transform:none !important;
                 min-width:0 !important;
                 max-width:none !important;
+                padding:8px 14px 9px 14px !important;
                 align-items:flex-start !important;
                 text-align:left !important;
             }}
@@ -5293,10 +5253,8 @@ def viewer(
         const packagingStatusBadge = document.getElementById("packaging_status_badge");
         const packagingStatusText = document.getElementById("packaging_status_text");
         const packagingStatusReason = document.getElementById("packaging_status_reason");
-        const activePresetBadge = document.getElementById("active_preset_badge");
         const activePresetBadgeLabel = document.getElementById("active_preset_badge_label");
         const activePresetBadgeValue = document.getElementById("active_preset_badge_value");
-        const activePresetBadgeToggle = document.getElementById("active_preset_badge_toggle");
 
         const studioCheck = document.getElementById("studio_check");
         const ghostCheck = document.getElementById("ghost_check");
@@ -5348,16 +5306,6 @@ def viewer(
         if (activePresetBadgeValue) {{
             activePresetBadgeValue.textContent = ACTIVE_PRODUCT_NAME || "";
             activePresetBadgeValue.title = ACTIVE_PRODUCT_NAME || "";
-        }}
-
-        if (activePresetBadge && activePresetBadgeToggle) {{
-            activePresetBadgeToggle.addEventListener("click", (event) => {{
-                event.stopPropagation();
-                activePresetBadge.classList.toggle("is-minimized");
-                const minimized = activePresetBadge.classList.contains("is-minimized");
-                activePresetBadgeToggle.textContent = minimized ? "+" : "−";
-                activePresetBadgeToggle.title = minimized ? "Mostra nome preset" : "Riduci nome preset";
-            }});
         }}
 
         function updateSidepanelToggle() {{
