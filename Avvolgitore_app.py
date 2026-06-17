@@ -4426,7 +4426,7 @@ def viewer(
 
         <div id="active_preset_badge" style="
             position:absolute;
-            top:14px;
+            top:112px;
             left:50%;
             transform:translateX(-50%);
             z-index:21;
@@ -4977,7 +4977,7 @@ def viewer(
         /* Tablet / iPad: keep the active preset badge clearly below the progress bar. */
         @media (max-width: 1180px) and (min-width: 681px) {{
             #active_preset_badge {{
-                top:118px !important;
+                top:112px !important;
                 min-width:220px !important;
                 max-width:min(56%, 430px) !important;
                 padding:9px 13px 10px 13px !important;
@@ -4989,14 +4989,14 @@ def viewer(
 
         @media (max-width: 900px) and (min-width: 681px) {{
             #active_preset_badge {{
-                top:128px !important;
+                top:122px !important;
                 max-width:min(62%, 420px) !important;
             }}
         }}
 
         @media (max-width: 680px) {{
             #active_preset_badge {{
-                top:68px !important;
+                top:104px !important;
                 left:14px !important;
                 right:14px !important;
                 transform:none !important;
@@ -10237,6 +10237,23 @@ st.markdown(
 
     div[data-testid="stNumberInput"] button:hover::before {
         color: var(--pdm-accent) !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+
+st.markdown(
+    """
+    <style>
+    /*
+    Render badge · keep preset title below the progress controls.
+    This is intentionally global because wide iPad iframes can bypass tablet media queries.
+    */
+    iframe {
+        overflow: hidden !important;
     }
     </style>
     """,
