@@ -10128,32 +10128,6 @@ def render_elegant_panel_close():
     # Deprecated raw-HTML wrapper removed.
     return
 
-
-def render_app_footer():
-    st.markdown(
-        """
-        <style>
-        .pdm-app-footer {
-            margin: 38px 0 18px 0;
-            padding: 14px 0 6px 0;
-            border-top: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-            color: color-mix(in srgb, var(--text-color) 48%, transparent);
-            font-size: 11px;
-            line-height: 1.2;
-            font-weight: 750;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            text-align: center;
-            user-select: none;
-        }
-        </style>
-        <div class="pdm-app-footer">Avvolgimento · PDM · versione prototipo</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-
 # =========================
 # UI
 # =========================
@@ -10793,5 +10767,3 @@ with tab_tech_sheet:
             render_machine_parameter_groups(selected_row, lang, key_suffix="_tech")
 with tab_checklist:
     render_startup_checklist(lang)
-
-render_app_footer()
