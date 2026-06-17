@@ -6182,6 +6182,11 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         const depositedGroup = new THREE.Group();
         machine.add(depositedGroup);
 
+        // Small fixed local-coordinate witnesses: they are attached to depositedGroup, not updated in animate().
+        // They should remain glued to the same deposited positions while the aspo rotates.
+        const depositedWitnessGroup = new THREE.Group();
+        depositedGroup.add(depositedWitnessGroup);
+
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
@@ -6265,6 +6270,50 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         top.receiveShadow = true;
         machine.add(top);
         spoolParts.push(top);
+
+        // Reference mark fixed to the aspo.
+        // If the deposited coil is really frozen, this stripe and the coil must move together.
+        const aspoReferenceMat = new THREE.MeshStandardMaterial({{
+            color: 0xC57E5A,
+            roughness: 0.50,
+            metalness: 0.02,
+            emissive: 0x2a1207,
+            emissiveIntensity: 0.18
+        }});
+
+        const aspoReferenceStripe = new THREE.Mesh(
+            new THREE.BoxGeometry(Math.max(8.0, Rt * 0.38), Math.max(4.0, Rt * 0.16), Hs + 18.0),
+            aspoReferenceMat
+        );
+        aspoReferenceStripe.position.set(0.0, R + Math.max(5.0, Rt * 0.18), Hs / 2.0);
+        aspoReferenceStripe.castShadow = false;
+        aspoReferenceStripe.receiveShadow = true;
+        machine.add(aspoReferenceStripe);
+
+        const witnessMat = new THREE.MeshStandardMaterial({{
+            color: 0x23a55a,
+            roughness: 0.55,
+            metalness: 0.02,
+            emissive: 0x092915,
+            emissiveIntensity: 0.18
+        }});
+        const witnessIndexes = [
+            Math.max(1, Math.floor(localPts.length * 0.08)),
+            Math.max(1, Math.floor(localPts.length * 0.18)),
+            Math.max(1, Math.floor(localPts.length * 0.30))
+        ];
+        witnessIndexes.forEach((idx) => {{
+            if (localPts[idx]) {{
+                const witness = new THREE.Mesh(
+                    new THREE.SphereGeometry(Math.max(7.0, Rt * 0.40), 18, 10),
+                    witnessMat
+                );
+                witness.position.copy(localPts[idx]);
+                witness.castShadow = false;
+                witness.receiveShadow = false;
+                depositedWitnessGroup.add(witness);
+            }}
+        }});
 
         // ==========================================
         // SIMPLE GUIDATUBO
@@ -7273,6 +7322,16 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             machine.add(ghostLine);
         }}
 
+        function makeDiagnosticFreeLine(p0, p1) {{
+            const geo = new THREE.BufferGeometry().setFromPoints([p0, p1]);
+            const mat = new THREE.LineBasicMaterial({{
+                color: tubeMode === "gelblack" ? 0x111111 : 0xffb020,
+                transparent: true,
+                opacity: tubeMode === "gelblack" ? 0.42 : 0.58
+            }});
+            return new THREE.Line(geo, mat);
+        }}
+
         function updateOverlayContinuous(force=false) {{
             clearOverlay();
 
@@ -7339,7 +7398,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 // were still following the tube guide. Only the free tube guide -> contact point remains dynamic.
                 const guideWorld = guidePointWorld(radius, z);
 
-                freeMesh = makeWoundTubeSegment(guideWorld, endWorld, freeTubeMat);
+                // Diagnostic version: the free tube is shown as a thin line, not as a real tube.
+                // This avoids confusing the moving guide/contact path with already deposited turns.
+                freeMesh = makeDiagnosticFreeLine(guideWorld, endWorld);
 
                 if (freeMesh) {{
                     overlayGroup.add(freeMesh);
