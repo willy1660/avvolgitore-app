@@ -4,6 +4,7 @@ import json
 import html
 import hashlib
 import base64
+from pathlib import Path
 from io import BytesIO
 import numpy as np
 import pandas as pd
@@ -7084,7 +7085,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
-        let depositedMesh = null;
+        let depositedChunks = [];
+        let activeDepositedChunk = null;
         let freeMesh = null;
         let activeCoilMesh = null;
         let startMarker = null;
@@ -7092,27 +7094,100 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let endMarkerGlow = null;
 
         let drawPos = 1.0;
-        let lastRebuiltCompleted = -1;
+        let lastRebuiltCompleted = 0;
+        const FROZEN_CHUNK_SIZE = 18;
+
+        function disposeGeometryTree(obj) {{
+            if (!obj) return;
+
+            obj.traverse(child => {{
+                if (child.geometry) child.geometry.dispose();
+            }});
+        }}
+
+        function removeFrozenChunk(chunk) {{
+            if (!chunk) return;
+            depositedGroup.remove(chunk);
+            disposeGeometryTree(chunk);
+        }}
+
+        function clearDepositedChunks() {{
+            depositedChunks.forEach(removeFrozenChunk);
+            depositedChunks = [];
+
+            if (activeDepositedChunk) {{
+                removeFrozenChunk(activeDepositedChunk);
+                activeDepositedChunk = null;
+            }}
+
+            lastRebuiltCompleted = 0;
+        }}
+
+        function makeDepositedChunk(startIndex, endIndex) {{
+            const start = Math.max(0, Math.min(startIndex, localPts.length - 1));
+            const end = Math.max(start + 1, Math.min(endIndex, localPts.length - 1));
+
+            if (end <= start) return null;
+
+            // Important: clone points once and build the geometry in aspo-local coordinates.
+            // After the chunk is added, it is never recalculated; it only rotates with the aspo.
+            const pts = localPts.slice(start, end + 1).map(p => p.clone());
+            return makeWoundTubeObject(pts, tubeMat);
+        }}
+
+        function appendSealedChunksUntil(sealedEndIndex) {{
+            let coveredEnd = depositedChunks.length * FROZEN_CHUNK_SIZE;
+
+            while (coveredEnd + FROZEN_CHUNK_SIZE <= sealedEndIndex) {{
+                const start = coveredEnd;
+                const end = coveredEnd + FROZEN_CHUNK_SIZE;
+                const chunk = makeDepositedChunk(start, end);
+
+                if (chunk) {{
+                    chunk.userData.frozenStartIndex = start;
+                    chunk.userData.frozenEndIndex = end;
+                    depositedGroup.add(chunk);
+                    depositedChunks.push(chunk);
+                }}
+
+                coveredEnd = end;
+            }}
+        }}
 
         function rebuildDepositedMesh(completedIndex, force=false) {{
-            if (completedIndex < 1) return;
+            completedIndex = Math.floor(Math.max(0, Math.min(completedIndex, localPts.length - 1)));
 
-            if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
+            if (force || completedIndex < lastRebuiltCompleted) {{
+                clearDepositedChunks();
+            }}
+
+            if (completedIndex < 1) {{
+                lastRebuiltCompleted = completedIndex;
+                return;
+            }}
+
+            const sealedEndIndex = Math.floor(completedIndex / FROZEN_CHUNK_SIZE) * FROZEN_CHUNK_SIZE;
+
+            appendSealedChunksUntil(sealedEndIndex);
+
+            if (activeDepositedChunk) {{
+                removeFrozenChunk(activeDepositedChunk);
+                activeDepositedChunk = null;
+            }}
+
+            const activeStartIndex = depositedChunks.length * FROZEN_CHUNK_SIZE;
+
+            if (completedIndex > activeStartIndex) {{
+                activeDepositedChunk = makeDepositedChunk(activeStartIndex, completedIndex);
+
+                if (activeDepositedChunk) {{
+                    activeDepositedChunk.userData.frozenStartIndex = activeStartIndex;
+                    activeDepositedChunk.userData.frozenEndIndex = completedIndex;
+                    depositedGroup.add(activeDepositedChunk);
+                }}
+            }}
 
             lastRebuiltCompleted = completedIndex;
-
-            if (depositedMesh) {{
-                disposeObj(depositedMesh, depositedGroup);
-                depositedMesh = null;
-            }}
-
-            const pts = localPts.slice(0, completedIndex + 1);
-
-            depositedMesh = makeWoundTubeObject(pts, tubeMat);
-
-            if (depositedMesh) {{
-                depositedGroup.add(depositedMesh);
-            }}
         }}
 
         function clearOverlay() {{
