@@ -10155,6 +10155,7 @@ def render_app_footer():
 
 
 
+
 def render_operator_field_label(label):
     st.markdown(
         f"<div class='operator-field-label'>{html.escape(str(label))}</div>",
@@ -10162,12 +10163,45 @@ def render_operator_field_label(label):
     )
 
 
+def operator_number_input(label, key, step=1.0, disabled=False, fmt="%.2f"):
+    """
+    Numeric input with explicit operator label and visible +/- buttons.
+    This avoids relying on Streamlit's native stepper icons, which can disappear on iPad/Safari.
+    """
+    render_operator_field_label(label)
+
+    value = float(st.session_state.get(key, 0.0))
+    input_col, minus_col, plus_col = st.columns([8.3, 1, 1], gap="small")
+
+    with input_col:
+        new_value = st.number_input(
+            label,
+            step=float(step),
+            key=key,
+            disabled=disabled,
+            label_visibility="collapsed",
+            format=fmt,
+        )
+
+    with minus_col:
+        if st.button("−", key=f"{key}_minus_btn", disabled=disabled, use_container_width=True):
+            st.session_state[key] = float(st.session_state.get(key, value)) - float(step)
+            st.rerun()
+
+    with plus_col:
+        if st.button("+", key=f"{key}_plus_btn", disabled=disabled, use_container_width=True):
+            st.session_state[key] = float(st.session_state.get(key, value)) + float(step)
+            st.rerun()
+
+    return new_value
+
+
 st.markdown(
     """
     <style>
     /*
-    Simulazione · explicit operator labels + visible native number steppers.
-    Minimal patch: no broad Streamlit overrides, no layout changes.
+    Simulazione · explicit operator labels + custom visible +/- buttons.
+    Minimal and controlled: no broad label-forcing selectors.
     */
     .operator-field-label {
         margin: 0.58rem 0 0.32rem 0;
@@ -10179,23 +10213,29 @@ st.markdown(
         opacity: 0.92;
     }
 
-    div[data-testid="stNumberInput"] button {
+    /* Hide the unreliable native Streamlit number steppers.
+       The app now uses explicit +/- buttons beside each numeric field. */
+    div[data-testid="stNumberInput"] button,
+    div[data-testid="stNumberInput"] [data-baseweb="button"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        pointer-events: none !important;
+    }
+
+    div[data-testid="stNumberInput"] input {
+        padding-right: 0.92rem !important;
         color: var(--text-color) !important;
-        background: color-mix(in srgb, var(--text-color) 7%, transparent) !important;
-        border-left: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent) !important;
-        opacity: 1 !important;
-        visibility: visible !important;
+        font-weight: 850 !important;
     }
 
-    div[data-testid="stNumberInput"] button:hover {
-        background: color-mix(in srgb, var(--pdm-accent) 18%, transparent) !important;
-    }
-
-    div[data-testid="stNumberInput"] button svg {
-        opacity: 1 !important;
-        visibility: visible !important;
-        fill: currentColor !important;
-        stroke: currentColor !important;
+    /* Custom +/- buttons */
+    .stButton > button {
+        font-weight: 900 !important;
     }
 
     @media (max-width: 1180px) {
@@ -10209,7 +10249,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
 
 # =========================
 # UI
@@ -10398,10 +10437,8 @@ with tab_production:
                 st.session_state["calc_rame"] = "1/4"
             render_operator_field_label(t["rame"])
             rame = st.selectbox(t["rame"], rame_options, key="calc_rame", disabled=params_locked, label_visibility="collapsed")
-            render_operator_field_label(t["isolamento"])
-            spessore = st.number_input(t["isolamento"], step=1.0, key="calc_spessore", disabled=params_locked, label_visibility="collapsed")
-            render_operator_field_label(t["lunghezza"])
-            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked, label_visibility="collapsed")
+            spessore = operator_number_input(t["isolamento"], key="calc_spessore", step=1.0, disabled=params_locked)
+            lunghezza = operator_number_input(t["lunghezza"], key="calc_lunghezza", step=5.0, disabled=params_locked)
 
             d_rame = COPPER_SIZES_MM[rame]
             d_tubo = d_rame + 2.0 * spessore
@@ -10421,17 +10458,14 @@ with tab_production:
                     st.session_state["calc_rame_inf"] = "3/8"
                 render_operator_field_label("Rame inferiore")
                 rame_inf = st.selectbox("Rame inferiore", rame_options, key="calc_rame_inf", disabled=params_locked, label_visibility="collapsed")
-                render_operator_field_label("Guaina inferiore (mm)")
-                spessore_inf = st.number_input("Guaina inferiore (mm)", step=1.0, key="calc_spessore_inf", disabled=params_locked, label_visibility="collapsed")
+                spessore_inf = operator_number_input("Guaina inferiore (mm)", key="calc_spessore_inf", step=1.0, disabled=params_locked)
             with c_sup:
                 if st.session_state.get("calc_rame_sup") not in rame_options:
                     st.session_state["calc_rame_sup"] = "1/4"
                 render_operator_field_label("Rame superiore")
                 rame_sup = st.selectbox("Rame superiore", rame_options, key="calc_rame_sup", disabled=params_locked, label_visibility="collapsed")
-                render_operator_field_label("Guaina superiore (mm)")
-                spessore_sup = st.number_input("Guaina superiore (mm)", step=1.0, key="calc_spessore_sup", disabled=params_locked, label_visibility="collapsed")
-            render_operator_field_label(t["lunghezza"])
-            lunghezza = st.number_input(t["lunghezza"], step=5.0, key="calc_lunghezza", disabled=params_locked, label_visibility="collapsed")
+                spessore_sup = operator_number_input("Guaina superiore (mm)", key="calc_spessore_sup", step=1.0, disabled=params_locked)
+            lunghezza = operator_number_input(t["lunghezza"], key="calc_lunghezza", step=5.0, disabled=params_locked)
 
             d_tubo_lower = COPPER_SIZES_MM[rame_inf] + 2.0 * spessore_inf
             d_tubo_upper = COPPER_SIZES_MM[rame_sup] + 2.0 * spessore_sup
@@ -10445,21 +10479,15 @@ with tab_production:
 
     with colB:
         st.markdown("**Avvolgitore**")
-        render_operator_field_label(t["diam_aspo"])
-        diametro_aspo = st.number_input(t["diam_aspo"], step=10.0, key="calc_diametro_aspo", disabled=params_locked, label_visibility="collapsed")
-        render_operator_field_label(t["spalla"])
-        spalla = st.number_input(t["spalla"], step=1.0, key="calc_spalla", disabled=params_locked, label_visibility="collapsed")
-        render_operator_field_label(t["passo_assiale"])
-        passo_visuale = st.number_input(t["passo_assiale"], step=0.5, key="calc_passo_visuale", disabled=params_locked, label_visibility="collapsed")
-        render_operator_field_label(t["incremento"])
-        incremento_visuale = st.number_input(t["incremento"], step=0.5, key="calc_incremento_visuale", disabled=params_locked, label_visibility="collapsed")
+        diametro_aspo = operator_number_input(t["diam_aspo"], key="calc_diametro_aspo", step=10.0, disabled=params_locked)
+        spalla = operator_number_input(t["spalla"], key="calc_spalla", step=1.0, disabled=params_locked)
+        passo_visuale = operator_number_input(t["passo_assiale"], key="calc_passo_visuale", step=0.5, disabled=params_locked)
+        incremento_visuale = operator_number_input(t["incremento"], key="calc_incremento_visuale", step=0.5, disabled=params_locked)
 
     with colC:
         st.markdown("**Ritardi e regolazione**" if lang == "IT" else "Delays and setup")
-        render_operator_field_label(t["rit_min"])
-        rit_b = st.number_input(t["rit_min"], step=1.0, key="calc_rit_b", disabled=params_locked, label_visibility="collapsed")
-        render_operator_field_label(t["rit_max"])
-        rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked, label_visibility="collapsed")
+        rit_b = operator_number_input(t["rit_min"], key="calc_rit_b", step=1.0, disabled=params_locked)
+        rit_t = operator_number_input(t["rit_max"], key="calc_rit_t", step=1.0, disabled=params_locked)
 
         restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
         lock_label_inline = "Blocca parametri" if lang == "IT" else "Lock parameters"
