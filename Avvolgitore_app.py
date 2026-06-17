@@ -6182,11 +6182,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         const depositedGroup = new THREE.Group();
         machine.add(depositedGroup);
 
-        // Small fixed local-coordinate witnesses: they are attached to depositedGroup, not updated in animate().
-        // They should remain glued to the same deposited positions while the aspo rotates.
-        const depositedWitnessGroup = new THREE.Group();
-        depositedGroup.add(depositedWitnessGroup);
-
         const overlayGroup = new THREE.Group();
         scene.add(overlayGroup);
 
@@ -6270,50 +6265,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         top.receiveShadow = true;
         machine.add(top);
         spoolParts.push(top);
-
-        // Reference mark fixed to the aspo.
-        // If the deposited coil is really frozen, this stripe and the coil must move together.
-        const aspoReferenceMat = new THREE.MeshStandardMaterial({{
-            color: 0xC57E5A,
-            roughness: 0.50,
-            metalness: 0.02,
-            emissive: 0x2a1207,
-            emissiveIntensity: 0.18
-        }});
-
-        const aspoReferenceStripe = new THREE.Mesh(
-            new THREE.BoxGeometry(Math.max(8.0, Rt * 0.38), Math.max(4.0, Rt * 0.16), Hs + 18.0),
-            aspoReferenceMat
-        );
-        aspoReferenceStripe.position.set(0.0, R + Math.max(5.0, Rt * 0.18), Hs / 2.0);
-        aspoReferenceStripe.castShadow = false;
-        aspoReferenceStripe.receiveShadow = true;
-        machine.add(aspoReferenceStripe);
-
-        const witnessMat = new THREE.MeshStandardMaterial({{
-            color: 0x23a55a,
-            roughness: 0.55,
-            metalness: 0.02,
-            emissive: 0x092915,
-            emissiveIntensity: 0.18
-        }});
-        const witnessIndexes = [
-            Math.max(1, Math.floor(localPts.length * 0.08)),
-            Math.max(1, Math.floor(localPts.length * 0.18)),
-            Math.max(1, Math.floor(localPts.length * 0.30))
-        ];
-        witnessIndexes.forEach((idx) => {{
-            if (localPts[idx]) {{
-                const witness = new THREE.Mesh(
-                    new THREE.SphereGeometry(Math.max(7.0, Rt * 0.40), 18, 10),
-                    witnessMat
-                );
-                witness.position.copy(localPts[idx]);
-                witness.castShadow = false;
-                witness.receiveShadow = false;
-                depositedWitnessGroup.add(witness);
-            }}
-        }});
 
         // ==========================================
         // SIMPLE GUIDATUBO
@@ -6977,11 +6928,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             parentObj.remove(obj);
 
-            // Dispose geometries recursively, but keep shared materials/textures alive.
-            // Tube materials are reused every frame by the deposited, active and free tube meshes.
-            obj.traverse(child => {{
-                if (child.geometry) child.geometry.dispose();
-            }});
+            if (obj.geometry) obj.geometry.dispose();
+
+            disposeMaterial(obj.material);
         }}
 
         function makeTubeEndCap(point, tangentDir, radius, material) {{
@@ -7001,7 +6950,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
-        function makeTubeMeshFromPoints(points, radius, material, revealMode=false) {{
+        function makeTubeMeshFromPoints(points, radius, material) {{
             if (!points || points.length < 2) return null;
 
             let totalLen = 0;
@@ -7012,32 +6961,22 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const curve = new PolylineCurve3(points);
 
-            /*
-            Important: the deposited coil is generated ONCE as a full continuous tube.
-            During animation we only change geometry.drawRange.
-            This avoids rebuilding the curve every frame, which made already deposited turns
-            appear to follow the tube-guide square wave with delay.
-            */
-            const radialSegments = 14;
             const tubularSegments = Math.max(
-                36,
-                Math.min(1800, Math.floor(totalLen / Math.max(1.15, radius * 0.55)))
+                18,
+                Math.min(1200, Math.floor(totalLen / Math.max(1.60, radius * 0.75)))
             );
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, false);
-            geo.userData.tubularSegments = tubularSegments;
-            geo.userData.radialSegments = radialSegments;
-
-            if (revealMode) {{
-                geo.setDrawRange(0, 0);
-            }}
-
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
             geo.computeVertexNormals();
 
             const body = new THREE.Mesh(geo, material);
             body.castShadow = false;
             body.receiveShadow = true;
-            body.userData.revealBody = revealMode;
+            body.userData.pdmTubeBody = true;
+            body.userData.pdmTubularSegments = tubularSegments;
+            body.userData.pdmRadialSegments = 14;
+            body.userData.pdmFullDrawCount = geo.index ? geo.index.count : geo.attributes.position.count;
+            body.geometry.setDrawRange(0, 0);
 
             const group = new THREE.Group();
             group.add(body);
@@ -7049,15 +6988,15 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (startDir.length() > 1e-6) {{
                 const startCap = makeTubeEndCap(startPoint, startDir, radius, material);
-                startCap.userData.revealStartCap = revealMode;
-                startCap.visible = !revealMode;
+                startCap.userData.pdmStartCap = true;
+                startCap.visible = false;
                 group.add(startCap);
             }}
 
-            // In reveal mode the active end is represented by the moving end marker.
-            // Do not add the final cap from the beginning, otherwise the final end appears too early.
-            if (!revealMode && endDir.length() > 1e-6) {{
+            if (endDir.length() > 1e-6) {{
                 const endCap = makeTubeEndCap(endPoint, endDir, radius, material);
+                endCap.userData.pdmEndCap = true;
+                endCap.visible = false;
                 group.add(endCap);
             }}
 
@@ -7072,9 +7011,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return new THREE.Vector3(point.x, point.y, point.z + offset);
         }}
 
-        function makeWoundTubeObject(points, material, revealMode=false) {{
+        function makeWoundTubeObject(points, material) {{
             if (!isDoubleTube) {{
-                return makeTubeMeshFromPoints(points, Rt, material, revealMode);
+                return makeTubeMeshFromPoints(points, Rt, material);
             }}
 
             // Doppio verticale:
@@ -7083,12 +7022,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             // L'offset è assiale/verticale (asse Z locale), non radiale.
             const group = new THREE.Group();
 
-            const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material, revealMode);
+            const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material);
             if (lowerMesh) group.add(lowerMesh);
 
             const verticalOffset = RtLower + RtUpper;
             const upperPts = offsetPointsVertical(points, verticalOffset);
-            const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material, revealMode);
+            const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material);
             if (upperMesh) group.add(upperMesh);
 
             return group;
@@ -7155,8 +7094,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         }}
 
         let depositedMesh = null;
-        let depositedRevealBodies = [];
-        let depositedStartCaps = [];
         let freeMesh = null;
         let activeCoilMesh = null;
         let startMarker = null;
@@ -7166,83 +7103,82 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let drawPos = 1.0;
         let lastRebuiltCompleted = -1;
 
-        function collectDepositedRevealParts() {{
-            depositedRevealBodies = [];
-            depositedStartCaps = [];
-
+        function refreshDepositedMaterial() {{
             if (!depositedMesh) return;
 
-            depositedMesh.traverse(obj => {{
-                if (obj.isMesh && obj.userData && obj.userData.revealBody && obj.geometry) {{
-                    depositedRevealBodies.push(obj);
-                }}
-                if (obj.isMesh && obj.userData && obj.userData.revealStartCap) {{
-                    depositedStartCaps.push(obj);
+            depositedMesh.traverse(child => {{
+                if (!child.isMesh) return;
+
+                if (child.userData.pdmTubeBody || child.userData.pdmStartCap || child.userData.pdmEndCap) {{
+                    child.material = tubeMat;
+                    if (child.material) {{
+                        child.material.clippingPlanes = clippingPlanes;
+                        child.material.clipShadows = showSection;
+                    }}
                 }}
             }});
         }}
 
-        function setRevealDrawRange(mesh, ratio) {{
-            if (!mesh || !mesh.geometry) return;
+        function applyDepositedDrawRange(completedIndex) {{
+            if (!depositedMesh || localPts.length < 2) return;
 
-            const geo = mesh.geometry;
-            const safeRatio = Math.max(0.0, Math.min(1.0, ratio));
+            const maxIndex = Math.max(1, localPts.length - 1);
+            const safeCompleted = Math.max(1, Math.min(completedIndex, maxIndex));
+            const ratio = Math.max(0.0, Math.min(1.0, safeCompleted / maxIndex));
+            const isFinished = safeCompleted >= maxIndex - 1;
 
-            if (safeRatio <= 0.0) {{
-                geo.setDrawRange(0, 0);
-                return;
-            }}
+            depositedMesh.traverse(child => {{
+                if (!child.isMesh || !child.geometry) return;
 
-            const tubularSegments = Math.max(1, geo.userData.tubularSegments || 1);
-            const radialSegments = Math.max(3, geo.userData.radialSegments || 14);
-            const visibleTubeSegments = Math.max(1, Math.min(tubularSegments, Math.ceil(safeRatio * tubularSegments)));
+                if (child.userData.pdmTubeBody) {{
+                    const tubularSegments = Math.max(1, child.userData.pdmTubularSegments || 1);
+                    const radialSegments = Math.max(3, child.userData.pdmRadialSegments || 14);
+                    const indexPerTubularSegment = radialSegments * 6;
 
-            if (geo.index) {{
-                const indicesPerTubeSegment = radialSegments * 6;
-                const drawCount = Math.min(geo.index.count, visibleTubeSegments * indicesPerTubeSegment);
-                geo.setDrawRange(0, drawCount);
-            }} else if (geo.attributes && geo.attributes.position) {{
-                const drawCount = Math.min(geo.attributes.position.count, Math.ceil(safeRatio * geo.attributes.position.count));
-                geo.setDrawRange(0, drawCount);
-            }}
-        }}
+                    let visibleSegments = Math.floor(ratio * tubularSegments);
+                    if (safeCompleted >= 1) visibleSegments = Math.max(1, visibleSegments);
+                    visibleSegments = Math.min(tubularSegments, visibleSegments);
 
-        function updateDepositedReveal(completedIndex) {{
-            if (!depositedMesh || !lengthRaw || lengthRaw.length < 2) return;
+                    const drawCount = visibleSegments * indexPerTubularSegment;
+                    child.geometry.setDrawRange(0, drawCount);
+                    child.visible = drawCount > 0;
+                }}
 
-            const safeIndex = Math.max(0, Math.min(completedIndex, lengthRaw.length - 1));
-            const fullLength = Math.max(1e-9, lengthRaw[lengthRaw.length - 1] || 0);
-            const revealRatio = Math.max(0.0, Math.min(1.0, (lengthRaw[safeIndex] || 0) / fullLength));
+                if (child.userData.pdmStartCap) {{
+                    child.visible = safeCompleted >= 1;
+                }}
 
-            depositedRevealBodies.forEach(mesh => setRevealDrawRange(mesh, revealRatio));
-            depositedStartCaps.forEach(cap => {{
-                cap.visible = revealRatio > 0.0001;
+                if (child.userData.pdmEndCap) {{
+                    child.visible = isFinished;
+                }}
             }});
         }}
 
         function rebuildDepositedMesh(completedIndex, force=false) {{
             if (localPts.length < 2) return;
 
-            if (force || !depositedMesh) {{
-                if (depositedMesh) {{
-                    disposeObj(depositedMesh, depositedGroup);
-                    depositedMesh = null;
-                }}
+            const safeCompleted = Math.max(1, Math.min(completedIndex, localPts.length - 1));
 
-                // Build the full deposited coil once.
-                // From now on we reveal it with drawRange instead of rebuilding the curve.
-                depositedMesh = makeWoundTubeObject(localPts, tubeMat, true);
-
+            // IMPORTANT:
+            // Build the whole deposited tube ONCE in spool-local coordinates.
+            // Then reveal it using drawRange. Rebuilding TubeGeometry with an
+            // ever-growing slice recalculates tangents and makes old turns look
+            // like they are still following the tube guide wave.
+            if (!depositedMesh) {{
+                depositedMesh = makeWoundTubeObject(localPts, tubeMat);
                 if (depositedMesh) {{
                     depositedGroup.add(depositedMesh);
-                    collectDepositedRevealParts();
                 }}
             }}
 
-            if (!force && completedIndex === lastRebuiltCompleted) return;
+            if (!depositedMesh) return;
 
-            lastRebuiltCompleted = completedIndex;
-            updateDepositedReveal(completedIndex);
+            if (force) {{
+                refreshDepositedMaterial();
+            }}
+
+            applyDepositedDrawRange(safeCompleted);
+            lastRebuiltCompleted = safeCompleted;
         }}
 
         function clearOverlay() {{
@@ -7284,7 +7220,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
         function updateGhostLine() {{
             if (ghostLine) {{
-                if (ghostLine.parent) ghostLine.parent.remove(ghostLine);
+                scene.remove(ghostLine);
                 ghostLine.geometry.dispose();
                 ghostLine.material.dispose();
                 ghostLine = null;
@@ -7298,12 +7234,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (end <= i0 + 2) return;
 
+            const theta = thetaRaw[Math.max(0, Math.min(i0, thetaRaw.length - 1))];
+
             const futurePts = [];
 
-            // Future path in spool-local coordinates, attached to the machine group.
-            // This avoids a misleading world-space wave that can look like deposited coils moving.
             for (let i = i0; i <= end; i++) {{
-                futurePts.push(localPts[i].clone());
+                futurePts.push(localPointToWorld(localPts[i], theta));
             }}
 
             const geo = new THREE.BufferGeometry().setFromPoints(futurePts);
@@ -7319,17 +7255,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             ghostLine = new THREE.Line(geo, mat);
             ghostLine.computeLineDistances();
-            machine.add(ghostLine);
-        }}
-
-        function makeDiagnosticFreeLine(p0, p1) {{
-            const geo = new THREE.BufferGeometry().setFromPoints([p0, p1]);
-            const mat = new THREE.LineBasicMaterial({{
-                color: tubeMode === "gelblack" ? 0x111111 : 0xffb020,
-                transparent: true,
-                opacity: tubeMode === "gelblack" ? 0.42 : 0.58
-            }});
-            return new THREE.Line(geo, mat);
+            scene.add(ghostLine);
         }}
 
         function updateOverlayContinuous(force=false) {{
@@ -7393,14 +7319,18 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             overlayGroup.add(endMarker);
 
             if (animationEnabled) {{
-                // The deposited coil is now a frozen/revealed mesh attached to the spool.
-                // Do not draw an extra "active deposited" segment here: it looked like already deposited turns
-                // were still following the tube guide. Only the free tube guide -> contact point remains dynamic.
+                if (frac > 1e-6 && i1 > i0) {{
+                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
+                    activeCoilMesh = makeWoundTubeSegment(activeStartWorld, endWorld, activeTubeMat);
+
+                    if (activeCoilMesh) {{
+                        overlayGroup.add(activeCoilMesh);
+                    }}
+                }}
+
                 const guideWorld = guidePointWorld(radius, z);
 
-                // Diagnostic version: the free tube is shown as a thin line, not as a real tube.
-                // This avoids confusing the moving guide/contact path with already deposited turns.
-                freeMesh = makeDiagnosticFreeLine(guideWorld, endWorld);
+                freeMesh = makeWoundTubeSegment(guideWorld, endWorld, freeTubeMat);
 
                 if (freeMesh) {{
                     overlayGroup.add(freeMesh);
@@ -7437,8 +7367,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
                 const newCompleted = Math.floor(drawPos);
 
-                // Keep the deposited geometry frozen. Only reveal more of the prebuilt tube.
-                rebuildDepositedMesh(newCompleted);
+                if (newCompleted > oldCompleted) {{
+                    rebuildDepositedMesh(newCompleted);
+                }}
 
                 updateOverlayContinuous();
 
