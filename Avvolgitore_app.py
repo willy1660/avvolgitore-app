@@ -9276,7 +9276,15 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
             """
         )
 
-    board_height = max(520, min(2600, 170 + 162 * total_cards // 4 + 104 * len(groups)))
+    # iPad-friendly height: avoid internal iframe scrolling in "Scheda tecnica > Parametri macchina".
+    # The HTML grid becomes 2 columns on iPad, so height is estimated using 2 columns.
+    # This makes the Streamlit page itself scroll instead of the component.
+    height_columns = 2
+    estimated_height = 86  # operator note + breathing room
+    for _, _, _, group_pairs in groups:
+        row_count = max(1, (len(group_pairs) + height_columns - 1) // height_columns)
+        estimated_height += 18 + 78 + (row_count * 124) + max(0, row_count - 1) * 12 + 18
+    board_height = max(680, min(7200, estimated_height + 40))
 
 
     board_html = f"""
@@ -9312,11 +9320,12 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     }}
     html, body {{
         margin:0;
-        padding:0 2px 8px 0;
+        padding:0 2px 18px 0;
         background:var(--bg);
         color:var(--text);
         font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
         overflow-x:hidden;
+        overflow-y:hidden;
     }}
     .operator-board-note {{
         margin:4px 0 12px 0;
@@ -9616,7 +9625,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     </html>
     """
 
-    components.html(board_html, height=board_height, scrolling=True)
+    components.html(board_html, height=board_height, scrolling=False)
 
 def render_preset_summary_strip(product_name, selected_row, language, modified=False):
     def gv(*names, default="-"):
