@@ -4,7 +4,6 @@ import json
 import html
 import hashlib
 import base64
-from pathlib import Path
 from io import BytesIO
 import numpy as np
 import pandas as pd
@@ -6929,9 +6928,11 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             parentObj.remove(obj);
 
-            if (obj.geometry) obj.geometry.dispose();
-
-            disposeMaterial(obj.material);
+            // Dispose geometries recursively, but keep shared materials/textures alive.
+            // Tube materials are reused every frame by the deposited, active and free tube meshes.
+            obj.traverse(child => {{
+                if (child.geometry) child.geometry.dispose();
+            }});
         }}
 
         function makeTubeEndCap(point, tangentDir, radius, material) {{
@@ -6951,7 +6952,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
-        function makeTubeMeshFromPoints(points, radius, material) {{
+        function makeTubeMeshFromPoints(points, radius, material, revealMode=false) {{
             if (!points || points.length < 2) return null;
 
             let totalLen = 0;
@@ -6962,17 +6963,32 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const curve = new PolylineCurve3(points);
 
+            /*
+            Important: the deposited coil is generated ONCE as a full continuous tube.
+            During animation we only change geometry.drawRange.
+            This avoids rebuilding the curve every frame, which made already deposited turns
+            appear to follow the tube-guide square wave with delay.
+            */
+            const radialSegments = 14;
             const tubularSegments = Math.max(
-                18,
-                Math.min(1200, Math.floor(totalLen / Math.max(1.60, radius * 0.75)))
+                36,
+                Math.min(1800, Math.floor(totalLen / Math.max(1.15, radius * 0.55)))
             );
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, false);
+            geo.userData.tubularSegments = tubularSegments;
+            geo.userData.radialSegments = radialSegments;
+
+            if (revealMode) {{
+                geo.setDrawRange(0, 0);
+            }}
+
             geo.computeVertexNormals();
 
             const body = new THREE.Mesh(geo, material);
             body.castShadow = false;
             body.receiveShadow = true;
+            body.userData.revealBody = revealMode;
 
             const group = new THREE.Group();
             group.add(body);
@@ -6984,10 +7000,14 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (startDir.length() > 1e-6) {{
                 const startCap = makeTubeEndCap(startPoint, startDir, radius, material);
+                startCap.userData.revealStartCap = revealMode;
+                startCap.visible = !revealMode;
                 group.add(startCap);
             }}
 
-            if (endDir.length() > 1e-6) {{
+            // In reveal mode the active end is represented by the moving end marker.
+            // Do not add the final cap from the beginning, otherwise the final end appears too early.
+            if (!revealMode && endDir.length() > 1e-6) {{
                 const endCap = makeTubeEndCap(endPoint, endDir, radius, material);
                 group.add(endCap);
             }}
@@ -7003,9 +7023,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return new THREE.Vector3(point.x, point.y, point.z + offset);
         }}
 
-        function makeWoundTubeObject(points, material) {{
+        function makeWoundTubeObject(points, material, revealMode=false) {{
             if (!isDoubleTube) {{
-                return makeTubeMeshFromPoints(points, Rt, material);
+                return makeTubeMeshFromPoints(points, Rt, material, revealMode);
             }}
 
             // Doppio verticale:
@@ -7014,12 +7034,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             // L'offset è assiale/verticale (asse Z locale), non radiale.
             const group = new THREE.Group();
 
-            const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material);
+            const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material, revealMode);
             if (lowerMesh) group.add(lowerMesh);
 
             const verticalOffset = RtLower + RtUpper;
             const upperPts = offsetPointsVertical(points, verticalOffset);
-            const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material);
+            const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material, revealMode);
             if (upperMesh) group.add(upperMesh);
 
             return group;
@@ -7085,7 +7105,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
-        let depositedSegments = [];
+        let depositedMesh = null;
+        let depositedRevealBodies = [];
+        let depositedStartCaps = [];
         let freeMesh = null;
         let activeCoilMesh = null;
         let startMarker = null;
@@ -7093,81 +7115,85 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let endMarkerGlow = null;
 
         let drawPos = 1.0;
-        let lastFrozenSegmentEnd = 0;
-        let lastRebuiltCompleted = 0;
+        let lastRebuiltCompleted = -1;
 
-        function disposeGeometryTree(obj) {{
-            if (!obj) return;
+        function collectDepositedRevealParts() {{
+            depositedRevealBodies = [];
+            depositedStartCaps = [];
 
-            obj.traverse(child => {{
-                if (child.geometry) child.geometry.dispose();
+            if (!depositedMesh) return;
+
+            depositedMesh.traverse(obj => {{
+                if (obj.isMesh && obj.userData && obj.userData.revealBody && obj.geometry) {{
+                    depositedRevealBodies.push(obj);
+                }}
+                if (obj.isMesh && obj.userData && obj.userData.revealStartCap) {{
+                    depositedStartCaps.push(obj);
+                }}
             }});
         }}
 
-        function removeFrozenSegment(segment) {{
-            if (!segment) return;
-            depositedGroup.remove(segment);
-            disposeGeometryTree(segment);
-        }}
+        function setRevealDrawRange(mesh, ratio) {{
+            if (!mesh || !mesh.geometry) return;
 
-        function clearDepositedChunks() {{
-            depositedSegments.forEach(removeFrozenSegment);
-            depositedSegments = [];
-            lastFrozenSegmentEnd = 0;
-            lastRebuiltCompleted = 0;
-        }}
+            const geo = mesh.geometry;
+            const safeRatio = Math.max(0.0, Math.min(1.0, ratio));
 
-        function makeDepositedSegment(segmentEndIndex) {{
-            const end = Math.floor(Math.max(1, Math.min(segmentEndIndex, localPts.length - 1)));
-            const start = end - 1;
-
-            const p0 = localPts[start].clone();
-            const p1 = localPts[end].clone();
-
-            if (p0.distanceTo(p1) < 1e-6) return null;
-
-            // 3D-printer logic:
-            // every completed segment is created once in aspo-local coordinates.
-            // It is then never rebuilt or recalculated, so it can only rotate with the aspo.
-            const segment = makeWoundTubeSegment(p0, p1, tubeMat);
-
-            if (segment) {{
-                segment.userData.frozenStartIndex = start;
-                segment.userData.frozenEndIndex = end;
-            }}
-
-            return segment;
-        }}
-
-        function appendFrozenSegmentsUntil(completedIndex) {{
-            const target = Math.floor(Math.max(1, Math.min(completedIndex, localPts.length - 1)));
-
-            for (let endIndex = lastFrozenSegmentEnd + 1; endIndex <= target; endIndex++) {{
-                const segment = makeDepositedSegment(endIndex);
-
-                if (segment) {{
-                    depositedGroup.add(segment);
-                    depositedSegments.push(segment);
-                }}
-
-                lastFrozenSegmentEnd = endIndex;
-            }}
-        }}
-
-        function rebuildDepositedMesh(completedIndex, force=false) {{
-            completedIndex = Math.floor(Math.max(0, Math.min(completedIndex, localPts.length - 1)));
-
-            if (force || completedIndex < lastFrozenSegmentEnd) {{
-                clearDepositedChunks();
-            }}
-
-            if (completedIndex < 1) {{
-                lastRebuiltCompleted = completedIndex;
+            if (safeRatio <= 0.0) {{
+                geo.setDrawRange(0, 0);
                 return;
             }}
 
-            appendFrozenSegmentsUntil(completedIndex);
+            const tubularSegments = Math.max(1, geo.userData.tubularSegments || 1);
+            const radialSegments = Math.max(3, geo.userData.radialSegments || 14);
+            const visibleTubeSegments = Math.max(1, Math.min(tubularSegments, Math.ceil(safeRatio * tubularSegments)));
+
+            if (geo.index) {{
+                const indicesPerTubeSegment = radialSegments * 6;
+                const drawCount = Math.min(geo.index.count, visibleTubeSegments * indicesPerTubeSegment);
+                geo.setDrawRange(0, drawCount);
+            }} else if (geo.attributes && geo.attributes.position) {{
+                const drawCount = Math.min(geo.attributes.position.count, Math.ceil(safeRatio * geo.attributes.position.count));
+                geo.setDrawRange(0, drawCount);
+            }}
+        }}
+
+        function updateDepositedReveal(completedIndex) {{
+            if (!depositedMesh || !lengthRaw || lengthRaw.length < 2) return;
+
+            const safeIndex = Math.max(0, Math.min(completedIndex, lengthRaw.length - 1));
+            const fullLength = Math.max(1e-9, lengthRaw[lengthRaw.length - 1] || 0);
+            const revealRatio = Math.max(0.0, Math.min(1.0, (lengthRaw[safeIndex] || 0) / fullLength));
+
+            depositedRevealBodies.forEach(mesh => setRevealDrawRange(mesh, revealRatio));
+            depositedStartCaps.forEach(cap => {{
+                cap.visible = revealRatio > 0.0001;
+            }});
+        }}
+
+        function rebuildDepositedMesh(completedIndex, force=false) {{
+            if (localPts.length < 2) return;
+
+            if (force || !depositedMesh) {{
+                if (depositedMesh) {{
+                    disposeObj(depositedMesh, depositedGroup);
+                    depositedMesh = null;
+                }}
+
+                // Build the full deposited coil once.
+                // From now on we reveal it with drawRange instead of rebuilding the curve.
+                depositedMesh = makeWoundTubeObject(localPts, tubeMat, true);
+
+                if (depositedMesh) {{
+                    depositedGroup.add(depositedMesh);
+                    collectDepositedRevealParts();
+                }}
+            }}
+
+            if (!force && completedIndex === lastRebuiltCompleted) return;
+
             lastRebuiltCompleted = completedIndex;
+            updateDepositedReveal(completedIndex);
         }}
 
         function clearOverlay() {{
@@ -7356,9 +7382,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
                 const newCompleted = Math.floor(drawPos);
 
-                if (newCompleted > oldCompleted) {{
-                    rebuildDepositedMesh(newCompleted);
-                }}
+                // Keep the deposited geometry frozen. Only reveal more of the prebuilt tube.
+                rebuildDepositedMesh(newCompleted);
 
                 updateOverlayContinuous();
 
