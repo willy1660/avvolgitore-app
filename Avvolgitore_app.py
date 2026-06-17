@@ -5397,7 +5397,7 @@ def viewer(
         let packagingMode = "{packaging_mode}";
         let containerMode = "{container_mode}";
         let showStudio = false;
-        let showGhost = false;
+        let showGhost = true;
         let showGrid = false;
         let showAxes = false;
         let showSection = false;
@@ -7095,21 +7095,20 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let lastRebuiltCompleted = -1;
 
         function rebuildDepositedMesh(completedIndex, force=false) {{
-            // FIX FÍSIC: la bobina dipositada es crea UNA SOLA VEGADA
-            // en coordenades locals de l'aspo. No es torna a fer slice(),
-            // no es recalcula Z/radi i no segueix el guidatubo.
-            if (localPts.length < 2) return;
+            if (completedIndex < 1) return;
 
-            if (depositedMesh && !force) return;
+            if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
 
-            lastRebuiltCompleted = Math.max(1, Math.min(completedIndex, localPts.length - 1));
+            lastRebuiltCompleted = completedIndex;
 
             if (depositedMesh) {{
                 disposeObj(depositedMesh, depositedGroup);
                 depositedMesh = null;
             }}
 
-            depositedMesh = makeWoundTubeObject(localPts, tubeMat);
+            const pts = localPts.slice(0, completedIndex + 1);
+
+            depositedMesh = makeWoundTubeObject(pts, tubeMat);
 
             if (depositedMesh) {{
                 depositedGroup.add(depositedMesh);
@@ -7254,9 +7253,14 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             overlayGroup.add(endMarker);
 
             if (animationEnabled) {{
-                // No dibuixem cap segment dipositat actiu en coordenades món.
-                // Si es dibuixa aquí, visualment sembla que una espira ja dipositada
-                // continua seguint l'ona del guidatubo.
+                if (frac > 1e-6 && i1 > i0) {{
+                    const activeStartWorld = localPointToWorld(activeLocalStart, theta);
+                    activeCoilMesh = makeWoundTubeSegment(activeStartWorld, endWorld, activeTubeMat);
+
+                    if (activeCoilMesh) {{
+                        overlayGroup.add(activeCoilMesh);
+                    }}
+                }}
 
                 const guideWorld = guidePointWorld(radius, z);
 
