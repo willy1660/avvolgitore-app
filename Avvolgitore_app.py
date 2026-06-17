@@ -4589,7 +4589,7 @@ def viewer(
 
             <div id="checks_block" class="panel_checks_block">
                 <label class="panel_check">
-                    <input type="checkbox" id="ghost_check" />
+                    <input type="checkbox" id="ghost_check" checked />
                     <span id="ghost_title"></span>
                 </label>
 
@@ -5397,7 +5397,7 @@ def viewer(
         let packagingMode = "{packaging_mode}";
         let containerMode = "{container_mode}";
         let showStudio = false;
-        let showGhost = false;
+        let showGhost = true;
         let showGrid = false;
         let showAxes = false;
         let showSection = false;
@@ -6972,11 +6972,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const body = new THREE.Mesh(geo, material);
             body.castShadow = false;
             body.receiveShadow = true;
-            body.userData.pdmTubeBody = true;
-            body.userData.pdmTubularSegments = tubularSegments;
-            body.userData.pdmRadialSegments = 14;
-            body.userData.pdmFullDrawCount = geo.index ? geo.index.count : geo.attributes.position.count;
-            body.geometry.setDrawRange(0, 0);
 
             const group = new THREE.Group();
             group.add(body);
@@ -6988,15 +6983,11 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (startDir.length() > 1e-6) {{
                 const startCap = makeTubeEndCap(startPoint, startDir, radius, material);
-                startCap.userData.pdmStartCap = true;
-                startCap.visible = false;
                 group.add(startCap);
             }}
 
             if (endDir.length() > 1e-6) {{
                 const endCap = makeTubeEndCap(endPoint, endDir, radius, material);
-                endCap.userData.pdmEndCap = true;
-                endCap.visible = false;
                 group.add(endCap);
             }}
 
@@ -7103,82 +7094,25 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let drawPos = 1.0;
         let lastRebuiltCompleted = -1;
 
-        function refreshDepositedMaterial() {{
-            if (!depositedMesh) return;
-
-            depositedMesh.traverse(child => {{
-                if (!child.isMesh) return;
-
-                if (child.userData.pdmTubeBody || child.userData.pdmStartCap || child.userData.pdmEndCap) {{
-                    child.material = tubeMat;
-                    if (child.material) {{
-                        child.material.clippingPlanes = clippingPlanes;
-                        child.material.clipShadows = showSection;
-                    }}
-                }}
-            }});
-        }}
-
-        function applyDepositedDrawRange(completedIndex) {{
-            if (!depositedMesh || localPts.length < 2) return;
-
-            const maxIndex = Math.max(1, localPts.length - 1);
-            const safeCompleted = Math.max(1, Math.min(completedIndex, maxIndex));
-            const ratio = Math.max(0.0, Math.min(1.0, safeCompleted / maxIndex));
-            const isFinished = safeCompleted >= maxIndex - 1;
-
-            depositedMesh.traverse(child => {{
-                if (!child.isMesh || !child.geometry) return;
-
-                if (child.userData.pdmTubeBody) {{
-                    const tubularSegments = Math.max(1, child.userData.pdmTubularSegments || 1);
-                    const radialSegments = Math.max(3, child.userData.pdmRadialSegments || 14);
-                    const indexPerTubularSegment = radialSegments * 6;
-
-                    let visibleSegments = Math.floor(ratio * tubularSegments);
-                    if (safeCompleted >= 1) visibleSegments = Math.max(1, visibleSegments);
-                    visibleSegments = Math.min(tubularSegments, visibleSegments);
-
-                    const drawCount = visibleSegments * indexPerTubularSegment;
-                    child.geometry.setDrawRange(0, drawCount);
-                    child.visible = drawCount > 0;
-                }}
-
-                if (child.userData.pdmStartCap) {{
-                    child.visible = safeCompleted >= 1;
-                }}
-
-                if (child.userData.pdmEndCap) {{
-                    child.visible = isFinished;
-                }}
-            }});
-        }}
-
         function rebuildDepositedMesh(completedIndex, force=false) {{
-            if (localPts.length < 2) return;
+            if (completedIndex < 1) return;
 
-            const safeCompleted = Math.max(1, Math.min(completedIndex, localPts.length - 1));
+            if (!force && completedIndex === lastRebuiltCompleted && depositedMesh) return;
 
-            // IMPORTANT:
-            // Build the whole deposited tube ONCE in spool-local coordinates.
-            // Then reveal it using drawRange. Rebuilding TubeGeometry with an
-            // ever-growing slice recalculates tangents and makes old turns look
-            // like they are still following the tube guide wave.
-            if (!depositedMesh) {{
-                depositedMesh = makeWoundTubeObject(localPts, tubeMat);
-                if (depositedMesh) {{
-                    depositedGroup.add(depositedMesh);
-                }}
+            lastRebuiltCompleted = completedIndex;
+
+            if (depositedMesh) {{
+                disposeObj(depositedMesh, depositedGroup);
+                depositedMesh = null;
             }}
 
-            if (!depositedMesh) return;
+            const pts = localPts.slice(0, completedIndex + 1);
 
-            if (force) {{
-                refreshDepositedMaterial();
+            depositedMesh = makeWoundTubeObject(pts, tubeMat);
+
+            if (depositedMesh) {{
+                depositedGroup.add(depositedMesh);
             }}
-
-            applyDepositedDrawRange(safeCompleted);
-            lastRebuiltCompleted = safeCompleted;
         }}
 
         function clearOverlay() {{
