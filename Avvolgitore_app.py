@@ -947,10 +947,12 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 
 # Modello fisico semplificato:
-# "Compattato geometrico" calcola l'incremento radiale effettivo con una formula di nesting:
-# incremento = sqrt(D_contatto^2 - (passo/2)^2)
-# dove D_contatto viene interpretato dal valore macchina "Incremento strato".
-DEFAULT_MODELLO_STRATI = "Compattato geometrico"
+# "Gole passo" prova a modellare il modo in cui le spire dello strato superiore
+# cadono nelle gole create dal passo dello strato inferiore.
+# L'incremento radiale viene calcolato con:
+# incremento = sqrt(D_tubo^2 - (passo/2)^2)
+# e gli strati alterni vengono sfalsati assialmente di mezzo passo.
+DEFAULT_MODELLO_STRATI = "Gole passo"
 
 gradi_start = 0.0
 guide_offset_x = 555.0
@@ -4083,6 +4085,7 @@ def simulate_winding_visual(
     deg_step: float = 2.0,
     z_min_center: float | None = None,
     z_max_center: float | None = None,
+    axial_nesting_fraction: float = 0.0,
 ):
     max_len = lunghezza_m * 1000.0
 
@@ -4097,12 +4100,21 @@ def simulate_winding_visual(
 
     z_min_center = float(z_min_center)
     z_max_center = float(z_max_center)
+    axial_nesting_fraction = max(0.0, min(0.5, float(axial_nesting_fraction)))
+
+    def effective_layer_z(raw_z: float, layer_index: int) -> float:
+        # Gole passo: gli strati alterni vengono sfalsati di mezzo passo
+        # per simulare la caduta della spira nella gola tra due spire inferiori.
+        if axial_nesting_fraction <= 0.0:
+            return float(raw_z)
+        offset = -float(passo) * axial_nesting_fraction if int(layer_index) % 2 == 1 else 0.0
+        return float(np.clip(raw_z + offset, z_min_center, z_max_center))
 
     theta = np.deg2rad(gradi_start)
     z = z_min_center
     current_layer_radius = R + Rt
 
-    first_contact_world = deposit_point_world(current_layer_radius, z)
+    first_contact_world = deposit_point_world(current_layer_radius, effective_layer_z(z, 0))
     first_local = world_to_spool_local(first_contact_world, theta)
 
     contact_world = [first_contact_world]
@@ -4203,7 +4215,7 @@ def simulate_winding_visual(
                 next_transition_progress = transition_delay
                 next_layer = layer + 1
 
-        new_contact_world = deposit_point_world(next_radius, next_z)
+        new_contact_world = deposit_point_world(next_radius, effective_layer_z(next_z, next_layer))
         new_local = world_to_spool_local(new_contact_world, next_theta)
 
         prev_local = deposited_local[-1]
@@ -4236,7 +4248,7 @@ def simulate_winding_visual(
                 prev_r = radius_values[-1]
                 final_r = prev_r + a * (next_radius - prev_r)
 
-                final_contact_world = deposit_point_world(final_r, final_z)
+                final_contact_world = deposit_point_world(final_r, effective_layer_z(final_z, next_layer))
                 final_local = world_to_spool_local(final_contact_world, final_theta)
 
                 contact_world.append(final_contact_world)
@@ -4390,20 +4402,48 @@ def compute_winding_diagnostics(layer_values, z_values, mode_values, z_min_cente
 
 
 def compute_layer_model_values(passo_assiale, incremento_strato, d_tubo_visuale, modello_strati):
-    """Calculate the radial layer increment used by the render.
+    """Calculate the layer model used by the render.
 
     Ideale macchina:
         uses the machine preset value directly.
 
     Compattato geometrico:
-        interprets "Incremento strato" as the contact centre distance between tubes
-        and converts it into vertical/radial growth with triangular nesting:
-        h = sqrt(D_contatto^2 - (passo/2)^2)
+        uses the machine "Incremento strato" as contact distance and calculates
+        the vertical/radial growth using triangular nesting.
+
+    Gole passo:
+        uses the tube outside diameter as contact distance, calculates the radial
+        growth created by the groove between two lower turns, and offsets alternate
+        layers axially by half pitch.
     """
     passo = max(0.0, float(passo_assiale))
     incremento_macchina = max(0.0, float(incremento_strato))
     d_visuale = max(0.0, float(d_tubo_visuale))
     modello = str(modello_strati or DEFAULT_MODELLO_STRATI)
+
+    if modello == "Gole passo":
+        diametro_contatto = d_visuale if d_visuale > 0 else incremento_macchina
+        half_pitch = passo / 2.0
+
+        if diametro_contatto > half_pitch:
+            incremento_effettivo = float(np.sqrt(max(0.0, diametro_contatto ** 2 - half_pitch ** 2)))
+            fallback = False
+            formula = "sqrt(D_tubo^2 - (passo/2)^2)"
+        else:
+            incremento_effettivo = incremento_macchina
+            fallback = True
+            formula = "fallback incremento macchina"
+
+        return {
+            "modello": "Gole passo",
+            "passo_effettivo": passo,
+            "incremento_effettivo": max(0.0, incremento_effettivo),
+            "incremento_macchina": incremento_macchina,
+            "diametro_contatto": diametro_contatto,
+            "formula": formula,
+            "fallback": fallback,
+            "axial_nesting_fraction": 0.5,
+        }
 
     if modello == "Compattato geometrico":
         diametro_contatto = incremento_macchina if incremento_macchina > 0 else d_visuale
@@ -4426,6 +4466,7 @@ def compute_layer_model_values(passo_assiale, incremento_strato, d_tubo_visuale,
             "diametro_contatto": diametro_contatto,
             "formula": formula,
             "fallback": fallback,
+            "axial_nesting_fraction": 0.0,
         }
 
     return {
@@ -4436,6 +4477,7 @@ def compute_layer_model_values(passo_assiale, incremento_strato, d_tubo_visuale,
         "diametro_contatto": d_visuale,
         "formula": "incremento macchina",
         "fallback": False,
+        "axial_nesting_fraction": 0.0,
     }
 
 # =========================
@@ -10784,12 +10826,12 @@ with tab_production:
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
             st.markdown("**Modello strati**" if lang == "IT" else "**Layer model**")
             st.caption(
-                "Il modello geometrico calcola l'incremento radiale reale con il nesting tra spire, senza fattori manuali."
+                "Gole passo usa il passo per sfalsare gli strati e far cadere le spire tra le gole dello strato inferiore."
                 if lang == "IT"
-                else "The geometric model calculates radial layer growth using nesting between turns, without manual factors."
+                else "Pitch grooves use the pitch to offset layers and drop turns into the grooves of the lower layer."
             )
 
-            modello_options = ["Compattato geometrico", "Ideale macchina"]
+            modello_options = ["Gole passo", "Compattato geometrico", "Ideale macchina"]
             if st.session_state.get("calc_modello_strati") not in modello_options:
                 st.session_state["calc_modello_strati"] = DEFAULT_MODELLO_STRATI
 
@@ -10856,6 +10898,7 @@ with tab_production:
     diametro_contatto_modello = layer_model_values["diametro_contatto"]
     formula_modello = layer_model_values["formula"]
     modello_strati_effettivo = layer_model_values["modello"]
+    axial_nesting_fraction = float(layer_model_values.get("axial_nesting_fraction", 0.0))
 
     z_min_used = float(z_min_center) if z_min_center is not None else float(d_tubo_sim / 2.0)
     z_max_used = float(z_max_center) if z_max_center is not None else float(spalla - d_tubo_sim / 2.0)
@@ -10883,6 +10926,7 @@ with tab_production:
         deg_step=4.0,
         z_min_center=z_min_center,
         z_max_center=z_max_center,
+        axial_nesting_fraction=axial_nesting_fraction,
     )
 
     winding_diagnostics = compute_winding_diagnostics(
@@ -10919,6 +10963,7 @@ with tab_production:
         deg_step=4.0,
         z_min_center=z_min_center,
         z_max_center=z_max_center,
+        axial_nesting_fraction=0.0,
     )
 
     reference_metrics = compute_metrics(reference_local_points, d_tubo_footprint)
@@ -11172,6 +11217,7 @@ with tab_production:
             {"label": "Incremento macchina", "value": f"{incremento_macchina_modello:.2f} mm"},
             {"label": "Incremento geometrico", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": formula_modello},
             {"label": "Diametro contatto", "value": f"{diametro_contatto_modello:.2f} mm"},
+            {"label": "Sfalsamento gole", "value": f"{axial_nesting_fraction * passo_effettivo_assiale:.2f} mm"},
             {"label": "Direzione finale", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Quota finale", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
             {"label": "Inversioni", "value": str(winding_diagnostics["inversioni"])},
@@ -11187,6 +11233,7 @@ with tab_production:
             {"label": "Machine increment", "value": f"{incremento_macchina_modello:.2f} mm"},
             {"label": "Geometric increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": formula_modello},
             {"label": "Contact diameter", "value": f"{diametro_contatto_modello:.2f} mm"},
+            {"label": "Groove offset", "value": f"{axial_nesting_fraction * passo_effettivo_assiale:.2f} mm"},
             {"label": "Final direction", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Final position", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
             {"label": "Inversions", "value": str(winding_diagnostics["inversioni"])},
