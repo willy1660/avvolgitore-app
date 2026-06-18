@@ -947,10 +947,14 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 
 # Modello fisico semplificato:
-# la guaina si comprime e le spire tendono ad assestarsi tra le spire dello strato precedente.
-# Per questo l'incremento radiale effettivo usato dal render non coincide sempre con la quota macchina.
-# 0.83 è un valore iniziale di calibrazione: con 5 strati simulati vs 6 reali è coerente con 5/6.
-FATTORE_COMPATTAZIONE_RADIALE = 0.83
+# 1.00 = incremento radiale ufficiale del preset, senza correzione.
+# Lo lasciamo neutro per isolare il test sul passo assiale.
+FATTORE_COMPATTAZIONE_RADIALE = 1.00
+
+# Test di calibrazione del passo:
+# se il simulatore fa 5 strati e la macchina reale ne fa 6, il guidatubo reale
+# sta completando la corsa di spalla con circa il 20% di passo effettivo in più.
+FATTORE_PASSO_EFFETTIVO = 1.20
 
 gradi_start = 0.0
 guide_offset_x = 555.0
@@ -10770,6 +10774,7 @@ with tab_production:
                 f"(spalla {spalla:.2f} mm, altezza coppia {d_tubo_lower + d_tubo_upper:.2f} mm)."
             )
 
+    passo_effettivo_assiale = max(0.0, float(passo_visuale) * FATTORE_PASSO_EFFETTIVO)
     incremento_effettivo_radiale = max(0.0, float(incremento_visuale) * FATTORE_COMPATTAZIONE_RADIALE)
 
     z_min_used = float(z_min_center) if z_min_center is not None else float(d_tubo_sim / 2.0)
@@ -10789,7 +10794,7 @@ with tab_production:
         d_aspo=diametro_aspo,
         spalla=spalla,
         d_tubo=d_tubo_sim,
-        passo=passo_visuale,
+        passo=passo_effettivo_assiale,
         incremento=incremento_effettivo_radiale,
         rit_b=rit_b,
         rit_t=rit_t,
@@ -11005,11 +11010,11 @@ with tab_production:
             {"label": "Strati simulati", "value": str(winding_diagnostics["strati_simulati"])},
             {"label": "Strato finale", "value": str(winding_diagnostics["strato_finale"])},
             {"label": "Lato finale", "value": winding_diagnostics["lato_finale"]},
+            {"label": "Passo effettivo", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"fattore {FATTORE_PASSO_EFFETTIVO:.2f}"},
             {"label": "Incremento effettivo", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"fattore {FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
-            {"label": "Inversioni", "value": str(winding_diagnostics["inversioni"])},
             {"label": "Direzione finale", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Quota finale", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
-            {"label": "Compattazione", "value": f"{FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
+            {"label": "Inversioni", "value": str(winding_diagnostics["inversioni"])},
         ]
     else:
         diagnostic_title = "Layer diagnostics"
@@ -11017,11 +11022,11 @@ with tab_production:
             {"label": "Simulated layers", "value": str(winding_diagnostics["strati_simulati"])},
             {"label": "Final layer", "value": str(winding_diagnostics["strato_finale"])},
             {"label": "Final side", "value": winding_diagnostics["lato_finale"]},
+            {"label": "Effective pitch", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"factor {FATTORE_PASSO_EFFETTIVO:.2f}"},
             {"label": "Effective increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"factor {FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
-            {"label": "Inversions", "value": str(winding_diagnostics["inversioni"])},
             {"label": "Final direction", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Final position", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
-            {"label": "Compaction", "value": f"{FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
+            {"label": "Inversions", "value": str(winding_diagnostics["inversioni"])},
         ]
 
     render_summary_cards(
