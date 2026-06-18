@@ -947,11 +947,10 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 
 # Modello fisico semplificato:
-# la macchina reale può arrivare a più strati perché il tubo si compatta radialmente
-# mentre il guidatubo completa più corsa assiale a parità di metri lineari.
-# Questi sono valori iniziali: l'operatore può regolarli nella UI.
-DEFAULT_FATTORE_COMPATTAZIONE_RADIALE = 0.83
-DEFAULT_FATTORE_PASSO_EFFETTIVO = 1.20
+# "Compattato geometrico" calcola l'incremento radiale effettivo con una formula di nesting:
+# incremento = sqrt(D_contatto^2 - (passo/2)^2)
+# dove D_contatto viene interpretato dal valore macchina "Incremento strato".
+DEFAULT_MODELLO_STRATI = "Compattato geometrico"
 
 gradi_start = 0.0
 guide_offset_x = 555.0
@@ -2241,8 +2240,7 @@ def init_calculator_state():
         "calc_incremento_visuale": 20.0,
         "calc_rit_b": 360.0,
         "calc_rit_t": 360.0,
-        "calc_fattore_passo_effettivo": DEFAULT_FATTORE_PASSO_EFFETTIVO,
-        "calc_fattore_compattazione_radiale": DEFAULT_FATTORE_COMPATTAZIONE_RADIALE,
+        "calc_modello_strati": DEFAULT_MODELLO_STRATI,
         "calc_tube_layout": "Singolo",
         "calc_rame_inf": "3/8",
         "calc_spessore_inf": 7.0,
@@ -4388,6 +4386,56 @@ def compute_winding_diagnostics(layer_values, z_values, mode_values, z_min_cente
         "lato_finale": lato_finale,
         "direzione_finale": direzione_finale,
         "quota_finale": quota_finale,
+    }
+
+
+def compute_layer_model_values(passo_assiale, incremento_strato, d_tubo_visuale, modello_strati):
+    """Calculate the radial layer increment used by the render.
+
+    Ideale macchina:
+        uses the machine preset value directly.
+
+    Compattato geometrico:
+        interprets "Incremento strato" as the contact centre distance between tubes
+        and converts it into vertical/radial growth with triangular nesting:
+        h = sqrt(D_contatto^2 - (passo/2)^2)
+    """
+    passo = max(0.0, float(passo_assiale))
+    incremento_macchina = max(0.0, float(incremento_strato))
+    d_visuale = max(0.0, float(d_tubo_visuale))
+    modello = str(modello_strati or DEFAULT_MODELLO_STRATI)
+
+    if modello == "Compattato geometrico":
+        diametro_contatto = incremento_macchina if incremento_macchina > 0 else d_visuale
+        half_pitch = passo / 2.0
+
+        if diametro_contatto > half_pitch:
+            incremento_effettivo = float(np.sqrt(max(0.0, diametro_contatto ** 2 - half_pitch ** 2)))
+            fallback = False
+            formula = "sqrt(D_contatto^2 - (passo/2)^2)"
+        else:
+            incremento_effettivo = incremento_macchina
+            fallback = True
+            formula = "fallback incremento macchina"
+
+        return {
+            "modello": "Compattato geometrico",
+            "passo_effettivo": passo,
+            "incremento_effettivo": max(0.0, incremento_effettivo),
+            "incremento_macchina": incremento_macchina,
+            "diametro_contatto": diametro_contatto,
+            "formula": formula,
+            "fallback": fallback,
+        }
+
+    return {
+        "modello": "Ideale macchina",
+        "passo_effettivo": passo,
+        "incremento_effettivo": incremento_macchina,
+        "incremento_macchina": incremento_macchina,
+        "diametro_contatto": d_visuale,
+        "formula": "incremento macchina",
+        "fallback": False,
     }
 
 # =========================
@@ -10734,33 +10782,22 @@ with tab_production:
             rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked, label_visibility="collapsed")
 
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-            st.markdown("**Calibrazione fisica**" if lang == "IT" else "**Physical calibration**")
+            st.markdown("**Modello strati**" if lang == "IT" else "**Layer model**")
             st.caption(
-                "Regola passo effettivo e compattazione per far coincidere strati e ingombro con la macchina reale."
+                "Il modello geometrico calcola l'incremento radiale reale con il nesting tra spire, senza fattori manuali."
                 if lang == "IT"
-                else "Adjust effective pitch and compaction to match real machine layers and footprint."
+                else "The geometric model calculates radial layer growth using nesting between turns, without manual factors."
             )
 
-            render_operator_field_label("Fattore passo effettivo" if lang == "IT" else "Effective pitch factor")
-            fattore_passo_effettivo = st.number_input(
-                "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
-                min_value=0.50,
-                max_value=1.80,
-                step=0.01,
-                format="%.2f",
-                key="calc_fattore_passo_effettivo",
-                disabled=params_locked,
-                label_visibility="collapsed",
-            )
+            modello_options = ["Compattato geometrico", "Ideale macchina"]
+            if st.session_state.get("calc_modello_strati") not in modello_options:
+                st.session_state["calc_modello_strati"] = DEFAULT_MODELLO_STRATI
 
-            render_operator_field_label("Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor")
-            fattore_compattazione_radiale = st.number_input(
-                "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
-                min_value=0.50,
-                max_value=1.20,
-                step=0.01,
-                format="%.2f",
-                key="calc_fattore_compattazione_radiale",
+            modello_strati = st.radio(
+                "Modello strati" if lang == "IT" else "Layer model",
+                modello_options,
+                horizontal=True,
+                key="calc_modello_strati",
                 disabled=params_locked,
                 label_visibility="collapsed",
             )
@@ -10805,11 +10842,20 @@ with tab_production:
                 f"(spalla {spalla:.2f} mm, altezza coppia {d_tubo_lower + d_tubo_upper:.2f} mm)."
             )
 
-    fattore_passo_effettivo = float(st.session_state.get("calc_fattore_passo_effettivo", DEFAULT_FATTORE_PASSO_EFFETTIVO))
-    fattore_compattazione_radiale = float(st.session_state.get("calc_fattore_compattazione_radiale", DEFAULT_FATTORE_COMPATTAZIONE_RADIALE))
+    modello_strati = str(st.session_state.get("calc_modello_strati", DEFAULT_MODELLO_STRATI))
+    layer_model_values = compute_layer_model_values(
+        passo_visuale,
+        incremento_visuale,
+        d_tubo_sim,
+        modello_strati,
+    )
 
-    passo_effettivo_assiale = max(0.0, float(passo_visuale) * fattore_passo_effettivo)
-    incremento_effettivo_radiale = max(0.0, float(incremento_visuale) * fattore_compattazione_radiale)
+    passo_effettivo_assiale = layer_model_values["passo_effettivo"]
+    incremento_effettivo_radiale = layer_model_values["incremento_effettivo"]
+    incremento_macchina_modello = layer_model_values["incremento_macchina"]
+    diametro_contatto_modello = layer_model_values["diametro_contatto"]
+    formula_modello = layer_model_values["formula"]
+    modello_strati_effettivo = layer_model_values["modello"]
 
     z_min_used = float(z_min_center) if z_min_center is not None else float(d_tubo_sim / 2.0)
     z_max_used = float(z_max_center) if z_max_center is not None else float(spalla - d_tubo_sim / 2.0)
@@ -10848,9 +10894,49 @@ with tab_production:
         lang,
     )
 
+    # Reference simulation without calibration factors.
+    # This is especially useful for prototypes, where the real compaction is not validated yet.
+    (
+        reference_world_contacts,
+        reference_local_points,
+        reference_theta_values,
+        reference_radius_values,
+        reference_z_values,
+        reference_mode_values,
+        reference_layer_values,
+        reference_length_values,
+        reference_deposited_len_mm,
+    ) = simulate_winding_visual(
+        d_aspo=diametro_aspo,
+        spalla=spalla,
+        d_tubo=d_tubo_sim,
+        passo=passo_visuale,
+        incremento=incremento_visuale,
+        rit_b=rit_b,
+        rit_t=rit_t,
+        lunghezza_m=lunghezza,
+        gradi_start=gradi_start,
+        deg_step=4.0,
+        z_min_center=z_min_center,
+        z_max_center=z_max_center,
+    )
+
+    reference_metrics = compute_metrics(reference_local_points, d_tubo_footprint)
+    reference_diagnostics = compute_winding_diagnostics(
+        reference_layer_values,
+        reference_z_values,
+        reference_mode_values,
+        z_min_used,
+        z_max_used,
+        lang,
+    )
+
     visual_metrics = compute_metrics(local_points, d_tubo_footprint)
 
-    coil_footprint_for_status = float(visual_metrics["max_xy_span"])
+    calibrated_footprint_mm = float(visual_metrics["max_xy_span"])
+    reference_footprint_mm = float(reference_metrics["max_xy_span"])
+    prototype_safe_footprint_mm = max(calibrated_footprint_mm, reference_footprint_mm)
+    coil_footprint_for_status = prototype_safe_footprint_mm if is_prototype else calibrated_footprint_mm
     winding_ok = bool(local_points is not None and len(local_points) > 1 and visual_metrics["wound_length_m"] > 0)
     packaging_width_over = max(0.0, coil_footprint_for_status - 750.0)
     if packaging_width_over <= 0.001:
@@ -10996,7 +11082,7 @@ with tab_production:
             length_values.tolist(),
             guide_offset_x,
             lang,
-            coil_footprint_mm=visual_metrics["max_xy_span"],
+            coil_footprint_mm=coil_footprint_for_status,
             initial_scene="packaging" if view_mode == t["scene_packaging"] else "winding",
             packaging_mode=packaging_mode_selected,
             container_mode=container_mode_selected,
@@ -11023,13 +11109,13 @@ with tab_production:
     )
 
     pallet_size_mm = 750.0
-    coil_footprint_mm = float(visual_metrics["max_xy_span"])
+    coil_footprint_mm = float(coil_footprint_for_status)
 
     result_cards = [
         {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
         {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
         {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
-        {"label": t["metric5"], "value": f"{visual_metrics['max_xy_span']:.1f} mm"},
+        {"label": t["metric5"], "value": f"{coil_footprint_for_status:.1f} mm", "note": ("prudenziale prototipo" if is_prototype and lang == "IT" else ("prototype safe" if is_prototype else ""))},
     ]
 
     render_summary_cards(
@@ -11038,14 +11124,54 @@ with tab_production:
         cards_per_row=2,
     )
 
+    if is_prototype:
+        if lang == "IT":
+            prototype_occupation_cards = [
+                {"label": "Ingombro stimato", "value": f"{calibrated_footprint_mm:.1f} mm", "note": "con calibrazione fisica"},
+                {"label": "Ingombro nominale", "value": f"{reference_footprint_mm:.1f} mm", "note": "senza calibrazione"},
+                {"label": "Ingombro prudenziale", "value": f"{prototype_safe_footprint_mm:.1f} mm", "note": "usa questo per pallet"},
+                {"label": "Delta stima", "value": f"{calibrated_footprint_mm - reference_footprint_mm:+.1f} mm"},
+                {"label": "Strati stimati", "value": str(winding_diagnostics["strati_simulati"]), "note": "con modello attuale"},
+                {"label": "Strati nominali", "value": str(reference_diagnostics["strati_simulati"]), "note": "ideale macchina"},
+            ]
+            prototype_note = (
+                "Per un prototipo non validato non esiste ancora un ingombro reale certo. "
+                "La vista mostra l'ingombro stimato con il modello attuale, l'ingombro nominale senza compattazione geometrica "
+                "e un ingombro prudenziale da usare per il pallet."
+            )
+        else:
+            prototype_occupation_cards = [
+                {"label": "Estimated footprint", "value": f"{calibrated_footprint_mm:.1f} mm", "note": "with physical calibration"},
+                {"label": "Nominal footprint", "value": f"{reference_footprint_mm:.1f} mm", "note": "without calibration"},
+                {"label": "Safe footprint", "value": f"{prototype_safe_footprint_mm:.1f} mm", "note": "use this for pallet"},
+                {"label": "Estimate delta", "value": f"{calibrated_footprint_mm - reference_footprint_mm:+.1f} mm"},
+                {"label": "Estimated layers", "value": str(winding_diagnostics["strati_simulati"]), "note": "with current model"},
+                {"label": "Nominal layers", "value": str(reference_diagnostics["strati_simulati"]), "note": "machine ideal"},
+            ]
+            prototype_note = (
+                "For an unvalidated prototype there is not yet a certain real footprint. "
+                "The view shows the estimated footprint with the current model, the nominal footprint without geometric compaction, "
+                "and a safe footprint to use for pallet checks."
+            )
+
+        render_summary_cards(
+            "Ingombro prototipo" if lang == "IT" else "Prototype footprint",
+            prototype_occupation_cards,
+            cards_per_row=3,
+        )
+        st.info(prototype_note)
+
     if lang == "IT":
         diagnostic_title = "Diagnostica strati"
         diagnostic_cards = [
             {"label": "Strati simulati", "value": str(winding_diagnostics["strati_simulati"])},
             {"label": "Strato finale", "value": str(winding_diagnostics["strato_finale"])},
             {"label": "Lato finale", "value": winding_diagnostics["lato_finale"]},
-            {"label": "Passo effettivo", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"fattore {fattore_passo_effettivo:.2f}"},
-            {"label": "Incremento effettivo", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"fattore {fattore_compattazione_radiale:.2f}"},
+            {"label": "Modello", "value": modello_strati_effettivo},
+            {"label": "Passo usato", "value": f"{passo_effettivo_assiale:.2f} mm"},
+            {"label": "Incremento macchina", "value": f"{incremento_macchina_modello:.2f} mm"},
+            {"label": "Incremento geometrico", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": formula_modello},
+            {"label": "Diametro contatto", "value": f"{diametro_contatto_modello:.2f} mm"},
             {"label": "Direzione finale", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Quota finale", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
             {"label": "Inversioni", "value": str(winding_diagnostics["inversioni"])},
@@ -11056,8 +11182,11 @@ with tab_production:
             {"label": "Simulated layers", "value": str(winding_diagnostics["strati_simulati"])},
             {"label": "Final layer", "value": str(winding_diagnostics["strato_finale"])},
             {"label": "Final side", "value": winding_diagnostics["lato_finale"]},
-            {"label": "Effective pitch", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"factor {fattore_passo_effettivo:.2f}"},
-            {"label": "Effective increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"factor {fattore_compattazione_radiale:.2f}"},
+            {"label": "Model", "value": modello_strati_effettivo},
+            {"label": "Used pitch", "value": f"{passo_effettivo_assiale:.2f} mm"},
+            {"label": "Machine increment", "value": f"{incremento_macchina_modello:.2f} mm"},
+            {"label": "Geometric increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": formula_modello},
+            {"label": "Contact diameter", "value": f"{diametro_contatto_modello:.2f} mm"},
             {"label": "Final direction", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Final position", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
             {"label": "Inversions", "value": str(winding_diagnostics["inversioni"])},
