@@ -947,14 +947,11 @@ COPPER_SIZES_MM = {
 EPS = 1e-9
 
 # Modello fisico semplificato:
-# 1.00 = incremento radiale ufficiale del preset, senza correzione.
-# Lo lasciamo neutro per isolare il test sul passo assiale.
-FATTORE_COMPATTAZIONE_RADIALE = 1.00
-
-# Test di calibrazione del passo:
-# se il simulatore fa 5 strati e la macchina reale ne fa 6, il guidatubo reale
-# sta completando la corsa di spalla con circa il 20% di passo effettivo in più.
-FATTORE_PASSO_EFFETTIVO = 1.20
+# la macchina reale può arrivare a più strati perché il tubo si compatta radialmente
+# mentre il guidatubo completa più corsa assiale a parità di metri lineari.
+# Questi sono valori iniziali: l'operatore può regolarli nella UI.
+DEFAULT_FATTORE_COMPATTAZIONE_RADIALE = 0.83
+DEFAULT_FATTORE_PASSO_EFFETTIVO = 1.20
 
 gradi_start = 0.0
 guide_offset_x = 555.0
@@ -2244,6 +2241,8 @@ def init_calculator_state():
         "calc_incremento_visuale": 20.0,
         "calc_rit_b": 360.0,
         "calc_rit_t": 360.0,
+        "calc_fattore_passo_effettivo": DEFAULT_FATTORE_PASSO_EFFETTIVO,
+        "calc_fattore_compattazione_radiale": DEFAULT_FATTORE_COMPATTAZIONE_RADIALE,
         "calc_tube_layout": "Singolo",
         "calc_rame_inf": "3/8",
         "calc_spessore_inf": 7.0,
@@ -10734,6 +10733,38 @@ with tab_production:
             render_operator_field_label(t["rit_max"])
             rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked, label_visibility="collapsed")
 
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            st.markdown("**Calibrazione fisica**" if lang == "IT" else "**Physical calibration**")
+            st.caption(
+                "Regola passo effettivo e compattazione per far coincidere strati e ingombro con la macchina reale."
+                if lang == "IT"
+                else "Adjust effective pitch and compaction to match real machine layers and footprint."
+            )
+
+            render_operator_field_label("Fattore passo effettivo" if lang == "IT" else "Effective pitch factor")
+            fattore_passo_effettivo = st.number_input(
+                "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
+                min_value=0.50,
+                max_value=1.80,
+                step=0.01,
+                format="%.2f",
+                key="calc_fattore_passo_effettivo",
+                disabled=params_locked,
+                label_visibility="collapsed",
+            )
+
+            render_operator_field_label("Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor")
+            fattore_compattazione_radiale = st.number_input(
+                "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
+                min_value=0.50,
+                max_value=1.20,
+                step=0.01,
+                format="%.2f",
+                key="calc_fattore_compattazione_radiale",
+                disabled=params_locked,
+                label_visibility="collapsed",
+            )
+
             restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
             lock_label_inline = "Blocca parametri" if lang == "IT" else "Lock parameters"
 
@@ -10774,8 +10805,11 @@ with tab_production:
                 f"(spalla {spalla:.2f} mm, altezza coppia {d_tubo_lower + d_tubo_upper:.2f} mm)."
             )
 
-    passo_effettivo_assiale = max(0.0, float(passo_visuale) * FATTORE_PASSO_EFFETTIVO)
-    incremento_effettivo_radiale = max(0.0, float(incremento_visuale) * FATTORE_COMPATTAZIONE_RADIALE)
+    fattore_passo_effettivo = float(st.session_state.get("calc_fattore_passo_effettivo", DEFAULT_FATTORE_PASSO_EFFETTIVO))
+    fattore_compattazione_radiale = float(st.session_state.get("calc_fattore_compattazione_radiale", DEFAULT_FATTORE_COMPATTAZIONE_RADIALE))
+
+    passo_effettivo_assiale = max(0.0, float(passo_visuale) * fattore_passo_effettivo)
+    incremento_effettivo_radiale = max(0.0, float(incremento_visuale) * fattore_compattazione_radiale)
 
     z_min_used = float(z_min_center) if z_min_center is not None else float(d_tubo_sim / 2.0)
     z_max_used = float(z_max_center) if z_max_center is not None else float(spalla - d_tubo_sim / 2.0)
@@ -11010,8 +11044,8 @@ with tab_production:
             {"label": "Strati simulati", "value": str(winding_diagnostics["strati_simulati"])},
             {"label": "Strato finale", "value": str(winding_diagnostics["strato_finale"])},
             {"label": "Lato finale", "value": winding_diagnostics["lato_finale"]},
-            {"label": "Passo effettivo", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"fattore {FATTORE_PASSO_EFFETTIVO:.2f}"},
-            {"label": "Incremento effettivo", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"fattore {FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
+            {"label": "Passo effettivo", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"fattore {fattore_passo_effettivo:.2f}"},
+            {"label": "Incremento effettivo", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"fattore {fattore_compattazione_radiale:.2f}"},
             {"label": "Direzione finale", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Quota finale", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
             {"label": "Inversioni", "value": str(winding_diagnostics["inversioni"])},
@@ -11022,8 +11056,8 @@ with tab_production:
             {"label": "Simulated layers", "value": str(winding_diagnostics["strati_simulati"])},
             {"label": "Final layer", "value": str(winding_diagnostics["strato_finale"])},
             {"label": "Final side", "value": winding_diagnostics["lato_finale"]},
-            {"label": "Effective pitch", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"factor {FATTORE_PASSO_EFFETTIVO:.2f}"},
-            {"label": "Effective increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"factor {FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
+            {"label": "Effective pitch", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"factor {fattore_passo_effettivo:.2f}"},
+            {"label": "Effective increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"factor {fattore_compattazione_radiale:.2f}"},
             {"label": "Final direction", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Final position", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
             {"label": "Inversions", "value": str(winding_diagnostics["inversioni"])},
