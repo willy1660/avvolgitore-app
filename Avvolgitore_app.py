@@ -945,6 +945,13 @@ COPPER_SIZES_MM = {
 }
 
 EPS = 1e-9
+
+# Modello fisico semplificato:
+# la guaina si comprime e le spire tendono ad assestarsi tra le spire dello strato precedente.
+# Per questo l'incremento radiale effettivo usato dal render non coincide sempre con la quota macchina.
+# 0.83 è un valore iniziale di calibrazione: con 5 strati simulati vs 6 reali è coerente con 5/6.
+FATTORE_COMPATTAZIONE_RADIALE = 0.83
+
 gradi_start = 0.0
 guide_offset_x = 555.0
 
@@ -4320,6 +4327,64 @@ def compute_metrics(points: np.ndarray, d_tubo: float):
         "diam_radiale": diam_radiale,
         "max_xy_span": max_xy_span,
         "wound_length_m": wound_length_m,
+    }
+
+
+def compute_winding_diagnostics(layer_values, z_values, mode_values, z_min_center, z_max_center, language):
+    """Small diagnostic block to compare the simulated winding cycle with the real machine."""
+    if layer_values is None or len(layer_values) == 0 or z_values is None or len(z_values) == 0:
+        return {
+            "strati_simulati": 0,
+            "strato_finale": 0,
+            "inversioni": 0,
+            "lato_finale": "-",
+            "direzione_finale": "-",
+            "quota_finale": 0.0,
+        }
+
+    layer_arr = np.asarray(layer_values, dtype=float)
+    z_arr = np.asarray(z_values, dtype=float)
+    mode_arr = np.asarray(mode_values, dtype=int) if mode_values is not None and len(mode_values) else np.zeros(len(z_arr), dtype=int)
+
+    max_layer = int(np.nanmax(layer_arr)) if len(layer_arr) else 0
+    final_layer = int(layer_arr[-1]) if len(layer_arr) else 0
+    strati_simulati = max_layer + 1
+    strato_finale = final_layer + 1
+    inversioni = max_layer
+
+    z_min = float(z_min_center)
+    z_max = float(z_max_center)
+    z_mid = (z_min + z_max) / 2.0
+    quota_finale = float(z_arr[-1])
+
+    if language == "IT":
+        lato_finale = "Quota min" if quota_finale <= z_mid else "Quota max"
+        direction_max = "verso quota max"
+        direction_min = "verso quota min"
+        direction_transition = "in inversione"
+        direction_stable = "fermo"
+    else:
+        lato_finale = "Min side" if quota_finale <= z_mid else "Max side"
+        direction_max = "towards max side"
+        direction_min = "towards min side"
+        direction_transition = "in transition"
+        direction_stable = "steady"
+
+    direzione_finale = direction_transition if int(mode_arr[-1]) == 1 else direction_stable
+    if len(z_arr) >= 2:
+        diffs = np.diff(z_arr)
+        for dz in diffs[::-1]:
+            if abs(float(dz)) > 0.05:
+                direzione_finale = direction_max if dz > 0 else direction_min
+                break
+
+    return {
+        "strati_simulati": strati_simulati,
+        "strato_finale": strato_finale,
+        "inversioni": inversioni,
+        "lato_finale": lato_finale,
+        "direzione_finale": direzione_finale,
+        "quota_finale": quota_finale,
     }
 
 # =========================
@@ -10705,6 +10770,11 @@ with tab_production:
                 f"(spalla {spalla:.2f} mm, altezza coppia {d_tubo_lower + d_tubo_upper:.2f} mm)."
             )
 
+    incremento_effettivo_radiale = max(0.0, float(incremento_visuale) * FATTORE_COMPATTAZIONE_RADIALE)
+
+    z_min_used = float(z_min_center) if z_min_center is not None else float(d_tubo_sim / 2.0)
+    z_max_used = float(z_max_center) if z_max_center is not None else float(spalla - d_tubo_sim / 2.0)
+
     (
         world_contacts,
         local_points,
@@ -10720,7 +10790,7 @@ with tab_production:
         spalla=spalla,
         d_tubo=d_tubo_sim,
         passo=passo_visuale,
-        incremento=incremento_visuale,
+        incremento=incremento_effettivo_radiale,
         rit_b=rit_b,
         rit_t=rit_t,
         lunghezza_m=lunghezza,
@@ -10728,6 +10798,15 @@ with tab_production:
         deg_step=4.0,
         z_min_center=z_min_center,
         z_max_center=z_max_center,
+    )
+
+    winding_diagnostics = compute_winding_diagnostics(
+        layer_values,
+        z_values,
+        mode_values,
+        z_min_used,
+        z_max_used,
+        lang,
     )
 
     visual_metrics = compute_metrics(local_points, d_tubo_footprint)
@@ -10918,6 +10997,37 @@ with tab_production:
         t["results"],
         result_cards,
         cards_per_row=2,
+    )
+
+    if lang == "IT":
+        diagnostic_title = "Diagnostica strati"
+        diagnostic_cards = [
+            {"label": "Strati simulati", "value": str(winding_diagnostics["strati_simulati"])},
+            {"label": "Strato finale", "value": str(winding_diagnostics["strato_finale"])},
+            {"label": "Lato finale", "value": winding_diagnostics["lato_finale"]},
+            {"label": "Incremento effettivo", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"fattore {FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
+            {"label": "Inversioni", "value": str(winding_diagnostics["inversioni"])},
+            {"label": "Direzione finale", "value": winding_diagnostics["direzione_finale"]},
+            {"label": "Quota finale", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
+            {"label": "Compattazione", "value": f"{FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
+        ]
+    else:
+        diagnostic_title = "Layer diagnostics"
+        diagnostic_cards = [
+            {"label": "Simulated layers", "value": str(winding_diagnostics["strati_simulati"])},
+            {"label": "Final layer", "value": str(winding_diagnostics["strato_finale"])},
+            {"label": "Final side", "value": winding_diagnostics["lato_finale"]},
+            {"label": "Effective increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"factor {FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
+            {"label": "Inversions", "value": str(winding_diagnostics["inversioni"])},
+            {"label": "Final direction", "value": winding_diagnostics["direzione_finale"]},
+            {"label": "Final position", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
+            {"label": "Compaction", "value": f"{FATTORE_COMPATTAZIONE_RADIALE:.2f}"},
+        ]
+
+    render_summary_cards(
+        diagnostic_title,
+        diagnostic_cards,
+        cards_per_row=4,
     )
 
     if coil_footprint_mm > pallet_size_mm:
