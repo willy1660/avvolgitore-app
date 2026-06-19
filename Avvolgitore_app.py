@@ -6404,7 +6404,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const ctx = canvas.getContext("2d");
 
-            const base = dark ? 76 : 214;
+            const base = dark ? 70 : 233;
             ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
             ctx.fillRect(0, 0, size, size);
 
@@ -6415,18 +6415,19 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 for (let x = 0; x < size; x++) {{
                     const i = (y * size + x) * 4;
 
-                    const grain = Math.random() * 16 - 8;
-                    const microLine = Math.sin((x + y * 0.20) * 0.48) * 2.2;
-                    const longLine = Math.sin(y * 0.12) * 1.8;
-                    const softBand = Math.sin(x * 0.055) * (dark ? 2.0 : 3.4);
-                    const seam = Math.exp(-Math.pow((x - size * 0.58) / (size * 0.10), 2)) * (dark ? -3.2 : -4.5);
+                    const grain = Math.random() * (dark ? 10 : 7) - (dark ? 5 : 3.5);
+                    const wrapRib = Math.sin(y * 0.85) * (dark ? 3.2 : 4.2);
+                    const microWrap = Math.sin(y * 2.75) * (dark ? 0.8 : 1.3);
+                    const longitudinal = Math.sin((x * 0.06) + (y * 0.05)) * (dark ? 1.6 : 2.4);
+                    const softBand = Math.exp(-Math.pow((x - size * 0.44) / (size * 0.18), 2)) * (dark ? 7.0 : 10.0);
+                    const seam = Math.exp(-Math.pow((x - size * 0.77) / (size * 0.05), 2)) * (dark ? -2.5 : -3.2);
 
-                    let v = base + grain + microLine + longLine + softBand + seam;
+                    let v = base + grain + wrapRib + microWrap + longitudinal + softBand + seam;
 
                     if (dark) {{
-                        v = Math.max(42, Math.min(116, v));
+                        v = Math.max(46, Math.min(112, v));
                     }} else {{
-                        v = Math.max(152, Math.min(245, v));
+                        v = Math.max(210, Math.min(250, v));
                     }}
 
                     data[i] = v;
@@ -6440,9 +6441,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const hl = ctx.createLinearGradient(0, 0, size, 0);
             hl.addColorStop(0.00, "rgba(255,255,255,0.00)");
-            hl.addColorStop(0.30, dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)");
-            hl.addColorStop(0.52, dark ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.10)");
-            hl.addColorStop(0.72, dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)");
+            hl.addColorStop(0.18, dark ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.04)");
+            hl.addColorStop(0.44, dark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.12)");
+            hl.addColorStop(0.60, dark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.07)");
             hl.addColorStop(1.00, "rgba(255,255,255,0.00)");
             ctx.fillStyle = hl;
             ctx.fillRect(0, 0, size, size);
@@ -6450,8 +6451,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(2.2, 18.0);
-            tex.anisotropy = 12;
+            tex.repeat.set(1.8, 26.0);
+            tex.anisotropy = 16;
             tex.needsUpdate = true;
 
             return tex;
@@ -6524,13 +6525,16 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         }}
 
         function makeCopperMat(bright=false) {{
-            return new THREE.MeshStandardMaterial({{
-                color: bright ? 0xd99163 : 0xba7248,
+            return new THREE.MeshPhysicalMaterial({{
+                color: bright ? 0xe1a579 : 0xc47a4d,
                 map: copperTex,
-                roughness: bright ? 0.34 : 0.42,
-                metalness: 0.56,
-                emissive: bright ? 0x2a160a : 0x180c05,
-                emissiveIntensity: bright ? 0.10 : 0.04
+                roughness: bright ? 0.22 : 0.28,
+                metalness: 0.86,
+                clearcoat: 0.22,
+                clearcoatRoughness: 0.18,
+                reflectivity: 0.78,
+                emissive: bright ? 0x201007 : 0x120804,
+                emissiveIntensity: bright ? 0.06 : 0.03
             }});
         }}
 
@@ -6539,11 +6543,14 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
             const tex = mode === "gelblack" ? tubeBlackTex : tubeWhiteTex;
 
-            return new THREE.MeshStandardMaterial({{
+            return new THREE.MeshPhysicalMaterial({{
                 color: chosen,
                 map: tex,
-                roughness: active ? 0.82 : (free ? 0.94 : 0.90),
-                metalness: 0.02,
+                roughness: active ? 0.76 : (free ? 0.88 : 0.82),
+                metalness: 0.01,
+                clearcoat: mode === "gelblack" ? 0.10 : 0.18,
+                clearcoatRoughness: mode === "gelblack" ? 0.20 : 0.14,
+                reflectivity: mode === "gelblack" ? 0.22 : 0.34,
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
@@ -7567,28 +7574,22 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         function makeSingleRealisticTubeTip(point, tangentDir, outerRadius, sleeveMaterial, markerMaterial, outwardSign=1) {{
             if (!tangentDir || tangentDir.length() < 1e-6) return null;
 
-            // The copper tail must follow the local spiral direction.
-            // The cut face of the tube stays normal to this axis automatically.
+            // The exposed copper must keep the local direction of the spiral.
             const dir = tangentDir.clone().normalize().multiplyScalar(outwardSign >= 0 ? 1 : -1);
             const group = new THREE.Group();
 
-            const sleeveLen = Math.max(8.0, outerRadius * 0.95);
-            const copperLen = Math.max(12.0, outerRadius * 1.55);
-            const copperRadius = Math.max(1.8, Math.min(outerRadius * 0.34, outerRadius - 1.1));
+            const copperLen = Math.max(16.0, outerRadius * 1.95);
+            const copperRadius = Math.max(1.8, Math.min(outerRadius * 0.31, outerRadius - 1.1));
 
-            const sleeveStart = point.clone().addScaledVector(dir, -sleeveLen);
-            const sleeveEnd = point.clone();
-            const sleeve = makeTubeSegment(sleeveStart, sleeveEnd, outerRadius, sleeveMaterial);
-            if (sleeve) group.add(sleeve);
-
-            const copperStart = point.clone().addScaledVector(dir, 0.8);
+            const copperStart = point.clone().addScaledVector(dir, 0.9);
             const copperEnd = point.clone().addScaledVector(dir, copperLen);
-            const copperSeg = makeTubeSegment(copperStart, copperEnd, copperRadius, copperMat);
-            if (copperSeg) group.add(copperSeg);
+            const copperSeg = makeTubeSegment(copperStart, copperEnd, copperRadius, copperBrightMat);
+            if (copperSeg) {{
+                copperSeg.castShadow = false;
+                copperSeg.receiveShadow = true;
+                group.add(copperSeg);
+            }}
 
-            // No end disc: keep the tip as a simple exposed copper tube.
-            // The section remains orthogonal to the local spiral direction
-            // because the segment itself is generated along "dir".
             return group;
         }}
 
@@ -7747,8 +7748,20 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const startWorld = localPointToWorld(localPts[0], theta);
             const endWorld = localPointToWorld(activeLocalEnd, theta);
 
-            const startTangentLocal = localPts[Math.min(1, localPts.length - 1)].clone().sub(localPts[0]);
-            const endTangentLocal = activeLocalEnd.clone().sub(activeLocalStart);
+            const startIndexA = 0;
+            const startIndexB = Math.min(1, localPts.length - 1);
+            const startTangentLocal = localPts[startIndexB].clone().sub(localPts[startIndexA]);
+
+            let endTangentLocal;
+            if (i0 >= localPts.length - 1) {{
+                endTangentLocal = localPts[localPts.length - 1].clone().sub(localPts[Math.max(0, localPts.length - 2)]);
+            }} else {{
+                endTangentLocal = localPts[i1].clone().sub(localPts[i0]);
+            }}
+
+            if (endTangentLocal.length() < 1e-6 && i0 > 0) {{
+                endTangentLocal = localPts[i0].clone().sub(localPts[i0 - 1]);
+            }}
 
             const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
             const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
