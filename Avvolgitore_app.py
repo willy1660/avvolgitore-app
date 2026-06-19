@@ -7586,15 +7586,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const copperSeg = makeTubeSegment(copperStart, copperEnd, copperRadius, copperMat);
             if (copperSeg) group.add(copperSeg);
 
-            const copperCap = makeEndpointDisc(
-                copperEnd,
-                dir,
-                copperBrightMat,
-                Math.max(0.28, (copperRadius / Math.max(outerRadius, 1e-6)) * 0.95)
-            );
-            if (copperCap) group.add(copperCap);
-
-            // No colored end collars: keep only the tube sleeve + exposed copper.
+            // No end disc: keep the tip as a simple exposed copper tube.
+            // The section remains orthogonal to the local spiral direction
+            // because the segment itself is generated along "dir".
             return group;
         }}
 
