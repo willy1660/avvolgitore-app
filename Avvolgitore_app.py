@@ -6403,31 +6403,40 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             canvas.height = size;
 
             const ctx = canvas.getContext("2d");
-
-            const base = dark ? 70 : 233;
-            ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
+            const base = dark ? 58 : 236;
+            ctx.fillStyle = `rgb(${base}, ${base}, ${base})`;
             ctx.fillRect(0, 0, size, size);
 
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
+            const ribPeriod = dark ? 9.5 : 10.0;
 
             for (let y = 0; y < size; y++) {{
                 for (let x = 0; x < size; x++) {{
                     const i = (y * size + x) * 4;
 
-                    const grain = Math.random() * (dark ? 10 : 7) - (dark ? 5 : 3.5);
-                    const wrapRib = Math.sin(y * 0.85) * (dark ? 3.2 : 4.2);
-                    const microWrap = Math.sin(y * 2.75) * (dark ? 0.8 : 1.3);
-                    const longitudinal = Math.sin((x * 0.06) + (y * 0.05)) * (dark ? 1.6 : 2.4);
-                    const softBand = Math.exp(-Math.pow((x - size * 0.44) / (size * 0.18), 2)) * (dark ? 7.0 : 10.0);
-                    const seam = Math.exp(-Math.pow((x - size * 0.77) / (size * 0.05), 2)) * (dark ? -2.5 : -3.2);
+                    const phase = ((y + Math.sin(x * 0.028) * 0.65) / ribPeriod) % 1;
+                    const ridgeHi = Math.exp(-Math.pow((phase - 0.22) / 0.10, 2));
+                    const ridgeMid = Math.exp(-Math.pow((phase - 0.40) / 0.18, 2));
+                    const ridgeShadow = Math.exp(-Math.pow((phase - 0.68) / 0.16, 2));
+                    const microGrain = Math.sin((x * 0.055) + (y * 0.11)) * (dark ? 1.0 : 1.5);
+                    const randomGrain = (Math.random() - 0.5) * (dark ? 5.0 : 4.0);
+                    const softBand = Math.exp(-Math.pow((x - size * 0.44) / (size * 0.17), 2)) * (dark ? 6.5 : 9.0);
+                    const lateralFade = Math.exp(-Math.pow((x - size * 0.80) / (size * 0.06), 2)) * (dark ? -1.8 : -2.6);
 
-                    let v = base + grain + wrapRib + microWrap + longitudinal + softBand + seam;
+                    let v = base
+                        + ridgeHi * (dark ? 7.0 : 11.0)
+                        + ridgeMid * (dark ? 3.5 : 5.5)
+                        - ridgeShadow * (dark ? 7.5 : 10.5)
+                        + microGrain
+                        + randomGrain
+                        + softBand
+                        + lateralFade;
 
                     if (dark) {{
-                        v = Math.max(46, Math.min(112, v));
+                        v = Math.max(42, Math.min(108, v));
                     }} else {{
-                        v = Math.max(210, Math.min(250, v));
+                        v = Math.max(214, Math.min(252, v));
                     }}
 
                     data[i] = v;
@@ -6439,19 +6448,38 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             ctx.putImageData(img, 0, 0);
 
-            const hl = ctx.createLinearGradient(0, 0, size, 0);
-            hl.addColorStop(0.00, "rgba(255,255,255,0.00)");
-            hl.addColorStop(0.18, dark ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.04)");
-            hl.addColorStop(0.44, dark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.12)");
-            hl.addColorStop(0.60, dark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.07)");
-            hl.addColorStop(1.00, "rgba(255,255,255,0.00)");
-            ctx.fillStyle = hl;
+            for (let y = 0; y < size; y += ribPeriod) {{
+                const hiY = y + ribPeriod * 0.18;
+                const shY = y + ribPeriod * 0.62;
+
+                ctx.strokeStyle = dark ? "rgba(255,255,255,0.085)" : "rgba(255,255,255,0.16)";
+                ctx.lineWidth = 1.1;
+                ctx.beginPath();
+                ctx.moveTo(0, hiY);
+                ctx.lineTo(size, hiY);
+                ctx.stroke();
+
+                ctx.strokeStyle = dark ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.10)";
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(0, shY);
+                ctx.lineTo(size, shY);
+                ctx.stroke();
+            }}
+
+            const gloss = ctx.createLinearGradient(0, 0, size, 0);
+            gloss.addColorStop(0.00, "rgba(255,255,255,0.00)");
+            gloss.addColorStop(0.14, dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)");
+            gloss.addColorStop(0.42, dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.14)");
+            gloss.addColorStop(0.58, dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.08)");
+            gloss.addColorStop(1.00, "rgba(255,255,255,0.00)");
+            ctx.fillStyle = gloss;
             ctx.fillRect(0, 0, size, size);
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(1.8, 26.0);
+            tex.repeat.set(1.65, 34.0);
             tex.anisotropy = 16;
             tex.needsUpdate = true;
 
@@ -6546,7 +6574,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return new THREE.MeshPhysicalMaterial({{
                 color: chosen,
                 map: tex,
-                roughness: active ? 0.76 : (free ? 0.88 : 0.82),
+                bumpMap: tex,
+                bumpScale: mode === "gelblack" ? 0.42 : 0.58,
+                roughness: active ? 0.74 : (free ? 0.86 : 0.80),
                 metalness: 0.01,
                 clearcoat: mode === "gelblack" ? 0.10 : 0.18,
                 clearcoatRoughness: mode === "gelblack" ? 0.20 : 0.14,
@@ -7782,20 +7812,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 1
             );
 
-            const glowRadius = Math.max(14.0, Rt * 1.35);
-            endMarkerGlow = new THREE.Mesh(
-                new THREE.SphereGeometry(glowRadius, 28, 14),
-                new THREE.MeshBasicMaterial({{
-                    color: 0xffb020,
-                    transparent: true,
-                    opacity: tubeMode === "gelblack" ? 0.11 : 0.16,
-                    depthWrite: false
-                }})
-            );
-            endMarkerGlow.position.copy(endWorld);
+            endMarkerGlow = null;
 
             overlayGroup.add(startMarker);
-            overlayGroup.add(endMarkerGlow);
             overlayGroup.add(endMarker);
 
             if (animationEnabled) {{
