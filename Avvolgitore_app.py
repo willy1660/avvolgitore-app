@@ -2659,32 +2659,7 @@ st.markdown(
         font-size: {HEADER_TITLE_SIZE}px !important;
     }}
 
-    /*
-    Default: nested tabs must not inherit the header offset.
-    The -220px offset is applied only to the main tabs through .main-tabs-anchor.
-    */
     [data-testid="stTabs"] {{
-        margin-top: 0 !important;
-    }}
-
-    .main-tabs-anchor {{
-        height: 0 !important;
-        min-height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-    }}
-
-    div[data-testid="element-container"]:has(.main-tabs-anchor) {{
-        height: 0 !important;
-        min-height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-    }}
-
-    div[data-testid="element-container"]:has(.main-tabs-anchor) + div[data-testid="stTabs"],
-    div[data-testid="element-container"]:has(.main-tabs-anchor) + div[data-testid="element-container"] div[data-testid="stTabs"] {{
         margin-top: {HEADER_TABS_MARGIN}px !important;
     }}
     </style>
@@ -2704,7 +2679,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: 0;
+        margin-top: -42px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -11401,8 +11376,6 @@ except Exception as e:
 
 checklist_label = "Cambio misura" if lang == "IT" else "Size change"
 
-st.markdown('<div class="main-tabs-anchor"></div>', unsafe_allow_html=True)
-
 tab_production, tab_tech_sheet, tab_checklist = st.tabs([
     production_label,
     tech_sheet_label,
@@ -12263,9 +12236,11 @@ with tab_tech_sheet:
 
         render_tech_snapshot_cards(selected_row, lang)
 
-        # Local spacer: the global tabs style uses a negative top margin,
-        # so this prevents overlap with the snapshot cards in Scheda tecnica.
-        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        # Internal tabs need their own compensation because the main header tabs use
+        # HEADER_TABS_MARGIN = -220. This keeps the title/header unchanged while
+        # preventing the "Anteprima / Parametri macchina" tabs from overlapping.
+        INNER_TABS_SPACER = abs(int(HEADER_TABS_MARGIN)) + 28
+        st.markdown(f"<div style='height: {INNER_TABS_SPACER}px;'></div>", unsafe_allow_html=True)
 
         overview_tab, machine_sheet_tab = st.tabs([
             "Anteprima" if lang == "IT" else "Overview",
