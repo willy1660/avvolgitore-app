@@ -11164,7 +11164,7 @@ with tab_production:
             fattore_compattazione_radiale = st.number_input(
                 "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
                 min_value=0.50,
-                max_value=1.20,
+                max_value=3.00,
                 step=0.01,
                 format="%.2f",
                 key="calc_fattore_compattazione_radiale",
@@ -11479,6 +11479,7 @@ with tab_production:
     coil_footprint_mm = float(coil_footprint_for_status)
 
     result_cards = [
+        {"label": "Ø esterno tubo" if lang == "IT" else "Tube outer Ø", "value": str(tube_diameter_label)},
         {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
         {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
         {"label": t["metric4"], "value": f"{visual_metrics['diam_radiale']:.1f} mm"},
@@ -11488,7 +11489,7 @@ with tab_production:
     render_summary_cards(
         t["results"],
         result_cards,
-        cards_per_row=2,
+        cards_per_row=3,
     )
 
     if is_prototype:
