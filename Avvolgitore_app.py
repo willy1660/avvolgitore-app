@@ -444,7 +444,7 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
         }
         @media (max-width: 900px) {
             .preset-param-card {
-                min-height: 108px;
+                min-height: 76px;
                 padding: 14px 16px;
                 margin-bottom: 10px;
             }
@@ -2640,7 +2640,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: -42px;
+        margin-top: -18px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -3933,7 +3933,7 @@ title_placeholder.markdown(
     f"""
     <style>
     .top-brand-logo-wrap {{
-        min-height: 150px;
+        min-height: 96px;
         display: flex;
         align-items: flex-start;
         justify-content: flex-start;
@@ -3945,7 +3945,7 @@ title_placeholder.markdown(
     .top-brand-logo-img {{
         display: block;
         width: auto;
-        height: 142px;
+        height: 92px;
         max-width: 100%;
         object-fit: contain;
     }}
@@ -3957,14 +3957,14 @@ title_placeholder.markdown(
         text-align: left;
         min-height: 150px;
         margin: 0;
-        padding: 0 0 8px 8px;
+        padding: 0 0 2px 6px;
     }}
 
     .top-brand-title {{
         margin: 0;
         padding: 0;
         display: block;
-        font-size: 88px;
+        font-size: 70px;
         line-height: 0.92;
         font-weight: 520;
         letter-spacing: -0.052em;
@@ -3975,7 +3975,7 @@ title_placeholder.markdown(
     @media (max-width: 1180px) and (min-width: 821px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 122px;
+            min-height: 82px;
             align-items: center;
         }}
         .top-brand-title-wrap {{
@@ -3985,7 +3985,7 @@ title_placeholder.markdown(
             height: 108px;
         }}
         .top-brand-title {{
-            font-size: 66px;
+            font-size: 54px;
             line-height: 0.96;
             font-weight: 500;
             letter-spacing: -0.048em;
@@ -3995,17 +3995,17 @@ title_placeholder.markdown(
     @media (max-width: 820px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 98px;
+            min-height: 64px;
         }}
         .top-brand-title-wrap {{
             align-items: center;
             padding: 0 0 0 4px;
         }}
         .top-brand-logo-img {{
-            height: 88px;
+            height: 58px;
         }}
         .top-brand-title {{
-            font-size: 48px;
+            font-size: 36px;
             font-weight: 520;
             line-height: 0.98;
         }}
@@ -4014,6 +4014,49 @@ title_placeholder.markdown(
     <div class="top-brand-title-wrap">
         <div class="top-brand-title">{html.escape(str(t["title"]))}</div>
     </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+st.markdown(
+    """
+    <style>
+    /* Header compact · redueix l'espai buit entre logo/títol i pestanyes */
+    div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        align-items: flex-start !important;
+    }
+
+    .top-brand-logo-wrap,
+    .top-brand-title-wrap {
+        max-height: 100px !important;
+        overflow: hidden !important;
+    }
+
+    .top-brand-logo-wrap {
+        align-items: flex-start !important;
+    }
+
+    .top-brand-title-wrap {
+        align-items: center !important;
+    }
+
+    @media (max-width: 1180px) {
+        .top-brand-logo-wrap,
+        .top-brand-title-wrap {
+            max-height: 86px !important;
+        }
+    }
+
+    @media (max-width: 820px) {
+        .top-brand-logo-wrap,
+        .top-brand-title-wrap {
+            max-height: 66px !important;
+        }
+    }
+    </style>
     """,
     unsafe_allow_html=True,
 )
