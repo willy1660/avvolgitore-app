@@ -444,7 +444,7 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
         }
         @media (max-width: 900px) {
             .preset-param-card {
-                min-height: 76px;
+                min-height: 48px;
                 padding: 14px 16px;
                 margin-bottom: 10px;
             }
@@ -755,10 +755,10 @@ def render_layer_diagnostics_panel(
         }
         @media (max-width: 820px) {
             div[data-testid="stMetric"] {
-                min-height: 92px;
+                min-height: 68px;
             }
             .diagnostic-native-detail {
-                min-height: 92px;
+                min-height: 68px;
                 padding: 11px 12px;
                 border-radius: 15px;
             }
@@ -2640,7 +2640,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: -18px;
+        margin-top: -64px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -3933,7 +3933,7 @@ title_placeholder.markdown(
     f"""
     <style>
     .top-brand-logo-wrap {{
-        min-height: 96px;
+        min-height: 72px;
         display: flex;
         align-items: flex-start;
         justify-content: flex-start;
@@ -3945,7 +3945,7 @@ title_placeholder.markdown(
     .top-brand-logo-img {{
         display: block;
         width: auto;
-        height: 92px;
+        height: 68px;
         max-width: 100%;
         object-fit: contain;
     }}
@@ -3955,7 +3955,7 @@ title_placeholder.markdown(
         align-items: flex-end;
         justify-content: flex-start;
         text-align: left;
-        min-height: 150px;
+        min-height: 72px;
         margin: 0;
         padding: 0 0 2px 6px;
     }}
@@ -3964,7 +3964,7 @@ title_placeholder.markdown(
         margin: 0;
         padding: 0;
         display: block;
-        font-size: 70px;
+        font-size: 58px;
         line-height: 0.92;
         font-weight: 520;
         letter-spacing: -0.052em;
@@ -3975,17 +3975,17 @@ title_placeholder.markdown(
     @media (max-width: 1180px) and (min-width: 821px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 82px;
+            min-height: 62px;
             align-items: center;
         }}
         .top-brand-title-wrap {{
             padding: 0 0 0 4px;
         }}
         .top-brand-logo-img {{
-            height: 108px;
+            height: 58px;
         }}
         .top-brand-title {{
-            font-size: 54px;
+            font-size: 46px;
             line-height: 0.96;
             font-weight: 500;
             letter-spacing: -0.048em;
@@ -3995,7 +3995,7 @@ title_placeholder.markdown(
     @media (max-width: 820px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 64px;
+            min-height: 50px;
         }}
         .top-brand-title-wrap {{
             align-items: center;
@@ -4005,7 +4005,7 @@ title_placeholder.markdown(
             height: 58px;
         }}
         .top-brand-title {{
-            font-size: 36px;
+            font-size: 32px;
             font-weight: 520;
             line-height: 0.98;
         }}
@@ -4023,16 +4023,40 @@ st.markdown(
     """
     <style>
     /* Header compact · redueix l'espai buit entre logo/títol i pestanyes */
-    div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
-        margin-bottom: 0 !important;
+    div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap),
+    div[data-testid="stHorizontalBlock"]:has(.top-brand-title-wrap) {
+        margin-bottom: -34px !important;
         padding-bottom: 0 !important;
         align-items: flex-start !important;
+        min-height: 72px !important;
+        max-height: 82px !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="column"]:has(.top-brand-logo-wrap),
+    div[data-testid="column"]:has(.top-brand-title-wrap) {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        min-height: 72px !important;
+        max-height: 82px !important;
+    }
+
+    div[data-testid="stVerticalBlock"]:has(.top-brand-logo-wrap),
+    div[data-testid="stVerticalBlock"]:has(.top-brand-title-wrap),
+    div[data-testid="element-container"]:has(.top-brand-logo-wrap),
+    div[data-testid="element-container"]:has(.top-brand-title-wrap) {
+        gap: 0 !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        min-height: 0 !important;
     }
 
     .top-brand-logo-wrap,
     .top-brand-title-wrap {
-        max-height: 100px !important;
-        overflow: hidden !important;
+        min-height: 72px !important;
+        max-height: 78px !important;
+        height: 72px !important;
+        overflow: visible !important;
     }
 
     .top-brand-logo-wrap {
@@ -4041,19 +4065,63 @@ st.markdown(
 
     .top-brand-title-wrap {
         align-items: center !important;
+        padding-bottom: 0 !important;
+    }
+
+    .top-brand-logo-img {
+        height: 68px !important;
+    }
+
+    .top-brand-title {
+        font-size: 58px !important;
+        line-height: 0.90 !important;
     }
 
     @media (max-width: 1180px) {
+        div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap),
+        div[data-testid="stHorizontalBlock"]:has(.top-brand-title-wrap) {
+            margin-bottom: -24px !important;
+            min-height: 62px !important;
+            max-height: 70px !important;
+        }
+
         .top-brand-logo-wrap,
         .top-brand-title-wrap {
-            max-height: 86px !important;
+            min-height: 58px !important;
+            max-height: 64px !important;
+            height: 58px !important;
+        }
+
+        .top-brand-logo-img {
+            height: 54px !important;
+        }
+
+        .top-brand-title {
+            font-size: 44px !important;
         }
     }
 
     @media (max-width: 820px) {
+        div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap),
+        div[data-testid="stHorizontalBlock"]:has(.top-brand-title-wrap) {
+            margin-bottom: -14px !important;
+            min-height: 50px !important;
+            max-height: 56px !important;
+        }
+
         .top-brand-logo-wrap,
         .top-brand-title-wrap {
-            max-height: 66px !important;
+            min-height: 46px !important;
+            max-height: 52px !important;
+            height: 46px !important;
+        }
+
+        .top-brand-logo-img {
+            height: 42px !important;
+        }
+
+        .top-brand-title {
+            font-size: 31px !important;
         }
     }
     </style>
@@ -11000,7 +11068,7 @@ st.markdown(
         }
 
         [data-testid="stTabs"] {
-            margin-top: 0 !important;
+            margin-top: -18px !important;
         }
 
         [data-testid="stTabs"] [role="tablist"] {
