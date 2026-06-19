@@ -5576,6 +5576,117 @@ def viewer(
                 box-sizing:border-box !important;
             }}
         }}
+
+        /* Final mobile render fix: avoid overlay conflicts and keep the viewer usable on phones. */
+        @media (max-width: 680px) {{
+            #viewer_root {{
+                min-height: 960px !important;
+            }}
+
+            #viewer_topbar {{
+                top: 8px !important;
+                left: 8px !important;
+                right: 8px !important;
+                width: calc(100% - 16px) !important;
+                max-width: calc(100% - 16px) !important;
+                padding: 8px !important;
+                gap: 6px !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                flex-wrap: nowrap !important;
+                justify-content: flex-start !important;
+                box-sizing: border-box !important;
+                -webkit-overflow-scrolling: touch !important;
+            }}
+
+            #viewer_topbar::-webkit-scrollbar {{
+                display: none !important;
+            }}
+
+            #progress_title {{
+                display: none !important;
+            }}
+
+            #progress_slider {{
+                width: 96px !important;
+                min-width: 96px !important;
+            }}
+
+            .viewer_icon_btn {{
+                width: 34px !important;
+                min-width: 34px !important;
+                height: 34px !important;
+                font-size: 17px !important;
+            }}
+
+            .viewer_print_btn {{
+                min-width: 132px !important;
+                padding: 0 14px !important;
+                font-size: 12px !important;
+            }}
+
+            #active_preset_badge {{
+                display: none !important;
+            }}
+
+            #viewer_sidepanel {{
+                top: 58px !important;
+                right: 8px !important;
+                z-index: 36 !important;
+            }}
+
+            #viewer_sidepanel.collapsed {{
+                width: 50px !important;
+                min-width: 50px !important;
+                height: 50px !important;
+                min-height: 50px !important;
+                max-height: 50px !important;
+                padding: 7px !important;
+            }}
+
+            #viewer_sidepanel:not(.collapsed) {{
+                width: min(236px, calc(100% - 16px)) !important;
+                max-width: min(236px, calc(100% - 16px)) !important;
+                max-height: calc(100% - 74px) !important;
+            }}
+
+            #viewer_hud {{
+                left: 8px !important;
+                right: 8px !important;
+                bottom: 8px !important;
+                width: calc(100% - 16px) !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 6px !important;
+                box-sizing: border-box !important;
+            }}
+
+            .hud_card {{
+                min-width: 0 !important;
+                width: 100% !important;
+                padding: 8px 9px !important;
+                box-sizing: border-box !important;
+            }}
+
+            .hud_label {{
+                font-size: 9px !important;
+            }}
+
+            .hud_value {{
+                font-size: 13px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }}
+
+            #packaging_status_badge {{
+                left: 8px !important;
+                right: 8px !important;
+                bottom: 8px !important;
+                width: auto !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
+            }}
+        }}
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -5682,6 +5793,11 @@ def viewer(
             const collapsed = sidepanel.classList.contains("collapsed");
             sidepanelToggle.textContent = collapsed ? "❯" : "❮";
             sidepanelToggle.title = collapsed ? "Mostra opzioni" : "Nascondi opzioni";
+        }}
+
+        const isNarrowMobile = window.innerWidth <= 680;
+        if (isNarrowMobile && sidepanel) {{
+            sidepanel.classList.add("collapsed");
         }}
 
         sidepanelToggle.addEventListener("click", () => {{
@@ -6961,6 +7077,29 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             rollMesh.position.sub(center);
             group.add(rollMesh);
+
+            if (pts.length >= 2) {{
+                const startPoint = pts[0].clone();
+                const endPoint = pts[pts.length - 1].clone();
+
+                const startTangent = pts[Math.min(1, pts.length - 1)].clone().sub(pts[0]);
+                let endTangent = pts[pts.length - 1].clone().sub(pts[Math.max(0, pts.length - 2)]);
+                if (endTangent.length() < 1e-6) {{
+                    endTangent = startTangent.clone();
+                }}
+
+                const startTip = makeRealisticTubeTip(startPoint, startTangent, packTubeMat, null, -1);
+                const endTip = makeRealisticTubeTip(endPoint, endTangent, packTubeMat, null, 1);
+
+                if (startTip) {{
+                    startTip.position.sub(center);
+                    group.add(startTip);
+                }}
+                if (endTip) {{
+                    endTip.position.sub(center);
+                    group.add(endTip);
+                }}
+            }}
 
             // Scale only in Z so the packaging height follows the actual spalla.
             if (size.z > 1e-6) {{
@@ -11662,6 +11801,72 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+st.markdown(
+    """
+    <style>
+    /* Final mobile header tune: keep logo and title visually centred without breaking desktop */
+    @media (max-width: 820px) {
+        .top-brand-logo-wrap {
+            justify-content: center !important;
+            align-items: center !important;
+            text-align: center !important;
+            padding: 0 !important;
+            margin-bottom: 0 !important;
+        }
+
+        .top-brand-title-wrap {
+            justify-content: center !important;
+            align-items: center !important;
+            text-align: center !important;
+            padding: 0 !important;
+            margin-top: -2px !important;
+            min-height: 70px !important;
+            height: auto !important;
+            max-height: none !important;
+        }
+
+        .top-brand-logo-img {
+            display: block !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+
+        .top-brand-title {
+            display: inline-block !important;
+            width: 100% !important;
+            text-align: center !important;
+            font-size: clamp(36px, 9.2vw, 48px) !important;
+            line-height: 0.96 !important;
+            letter-spacing: -0.050em !important;
+            margin: 0 auto !important;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .top-brand-logo-wrap {
+            min-height: 86px !important;
+            height: 86px !important;
+            max-height: 86px !important;
+        }
+
+        .top-brand-title-wrap {
+            min-height: 60px !important;
+        }
+
+        .top-brand-logo-img {
+            height: 78px !important;
+            max-height: 78px !important;
+        }
+
+        .top-brand-title {
+            font-size: clamp(34px, 8.8vw, 44px) !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # =========================
 # UI
