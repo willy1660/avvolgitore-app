@@ -2670,6 +2670,75 @@ st.markdown(
 st.markdown(
     """
     <style>
+    @media (max-width: 680px) {
+        .main .block-container {
+            padding-top: 0.45rem !important;
+            padding-left: 0.55rem !important;
+            padding-right: 0.55rem !important;
+        }
+
+        .top-brand-logo-wrap {
+            min-height: 84px !important;
+            height: 84px !important;
+            max-height: 84px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            justify-content: center !important;
+            align-items: flex-end !important;
+        }
+
+        .top-brand-logo-img {
+            height: 102px !important;
+            max-height: 102px !important;
+            width: auto !important;
+            object-fit: contain !important;
+        }
+
+        .top-brand-title-wrap {
+            min-height: 52px !important;
+            height: 52px !important;
+            max-height: 52px !important;
+            margin-top: -10px !important;
+            margin-bottom: 0 !important;
+            padding: 0 !important;
+            justify-content: center !important;
+            align-items: center !important;
+            text-align: center !important;
+        }
+
+        .top-brand-title {
+            font-size: clamp(34px, 8.8vw, 46px) !important;
+            line-height: 0.96 !important;
+            letter-spacing: -0.05em !important;
+            text-align: center !important;
+            margin: 0 auto !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
+            margin-bottom: -36px !important;
+            row-gap: 0 !important;
+        }
+
+        div[data-baseweb="select"] > div {
+            min-height: 54px !important;
+        }
+
+        [data-testid="stTabs"] {
+            margin-top: -150px !important;
+        }
+
+        [data-testid="stTabs"] [role="tablist"] {
+            margin-top: 0 !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <style>
     .main .block-container {
         max-width: 1800px;
         padding-top: 0.95rem;
@@ -5993,6 +6062,15 @@ def viewer(
             controls.update();
         }}
 
+        function setPackagingCamera() {{
+            const totalHeight = packagingGroup.userData.totalHeight || 800;
+            const sceneSpan = Math.max(palletSize * 1.75, totalHeight * 1.28);
+            camera.position.set(-sceneSpan * 1.35, -sceneSpan * 1.55, Math.max(1180, totalHeight * 1.35));
+            controls.target.set(0, 0, palletHeight + totalHeight * 0.40);
+            camera.lookAt(0, 0, palletHeight + totalHeight * 0.40);
+            controls.update();
+        }}
+
         speedBtns.forEach(btn => {{
             btn.addEventListener("click", () => {{
                 speed = parseFloat(btn.dataset.speed);
@@ -6040,12 +6118,7 @@ def viewer(
             updatePackagingScene();
 
             if (sceneMode === "packaging") {{
-                const totalHeight = packagingGroup.userData.totalHeight || 800;
-                const sceneSpan = Math.max(palletSize * 1.45, totalHeight * 1.10);
-                camera.position.set(-sceneSpan * 1.15, -sceneSpan * 1.25, Math.max(980, totalHeight * 1.15));
-                controls.target.set(0, 0, palletHeight + totalHeight * 0.42);
-                camera.lookAt(0, 0, palletHeight + totalHeight * 0.42);
-                controls.update();
+                setPackagingCamera();
             }}
         }}
 
@@ -6070,7 +6143,11 @@ def viewer(
         resetViewBtn.addEventListener("click", () => {{
             currentView = "3d";
             setActiveButton(viewBtns, currentView, "data-view");
-            setCameraView("3d");
+            if (sceneMode === "packaging") {{
+                setPackagingCamera();
+            }} else {{
+                setCameraView("3d");
+            }}
         }});
 
         if (studioCheck) {{
@@ -7281,12 +7358,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             animationCheck.disabled = packaging;
             if (packaging) {{
                 updatePackagingScene();
-                const totalHeight = packagingGroup.userData.totalHeight || 800;
-                const sceneSpan = Math.max(palletSize * 1.45, totalHeight * 1.10);
-                camera.position.set(-sceneSpan * 1.15, -sceneSpan * 1.25, Math.max(980, totalHeight * 1.15));
-                controls.target.set(0, 0, palletHeight + totalHeight * 0.42);
-                camera.lookAt(0, 0, palletHeight + totalHeight * 0.42);
-                controls.update();
+                setPackagingCamera();
             }} else {{
                 setCameraView(currentView);
             }}
