@@ -644,6 +644,268 @@ def render_summary_cards(title, items, cards_per_row=4):
 
 
 
+def render_layer_diagnostics_panel(
+    language,
+    winding_diagnostics,
+    passo_effettivo_assiale,
+    incremento_effettivo_radiale,
+    fattore_passo_effettivo,
+    fattore_compattazione_radiale,
+    use_correction_factors,
+):
+    if language == "IT":
+        title = "Diagnostica strati"
+        subtitle = "Lettura sintetica del risultato del render."
+        layers_label = "Strati"
+        side_label = "Lato finale"
+        mode_label = "Modo"
+        pitch_label = "Passo usato"
+        increment_label = "Incremento usato"
+        factors_label = "Fattori applicati"
+        mode_value = "Correzione" if use_correction_factors else "Ideale"
+        factors_value = f"passo ×{fattore_passo_effettivo:.2f} · comp. ×{fattore_compattazione_radiale:.2f}" if use_correction_factors else "non applicati"
+    else:
+        title = "Layer diagnostics"
+        subtitle = "Compact reading of the render result."
+        layers_label = "Layers"
+        side_label = "Final side"
+        mode_label = "Mode"
+        pitch_label = "Used pitch"
+        increment_label = "Used increment"
+        factors_label = "Applied factors"
+        mode_value = "Correction" if use_correction_factors else "Ideal"
+        factors_value = f"pitch ×{fattore_passo_effettivo:.2f} · comp. ×{fattore_compattazione_radiale:.2f}" if use_correction_factors else "not applied"
+
+    layers_value = str(winding_diagnostics.get("strati_simulati", "-"))
+    side_value = str(winding_diagnostics.get("lato_finale", "-"))
+    pitch_value = f"{float(passo_effettivo_assiale):.2f} mm"
+    increment_value = f"{float(incremento_effettivo_radiale):.2f} mm"
+    mode_class = "correction" if use_correction_factors else "ideal"
+
+    st.markdown(
+        f"""
+        <style>
+        .layer-diagnostic-panel {{
+            margin: 12px 0 16px 0;
+            padding: 16px 17px;
+            border-radius: 18px;
+            border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+            background: linear-gradient(180deg,
+                color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+            );
+            box-shadow: 0 8px 20px rgba(0,0,0,0.055);
+        }}
+        .layer-diagnostic-head {{
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 13px;
+        }}
+        .layer-diagnostic-kicker {{
+            font-size: 11px;
+            line-height: 1.05;
+            font-weight: 950;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: color-mix(in srgb, var(--pdm-accent) 78%, var(--text-color));
+        }}
+        .layer-diagnostic-title {{
+            margin-top: 4px;
+            font-size: 19px;
+            line-height: 1.08;
+            font-weight: 950;
+            letter-spacing: -0.018em;
+            color: var(--text-color);
+        }}
+        .layer-diagnostic-subtitle {{
+            margin-top: 4px;
+            font-size: 12px;
+            line-height: 1.25;
+            font-weight: 650;
+            color: color-mix(in srgb, var(--text-color) 56%, transparent);
+        }}
+        .layer-diagnostic-mode {{
+            flex: 0 0 auto;
+            border-radius: 999px;
+            padding: 7px 10px;
+            font-size: 10.5px;
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: 0.055em;
+            text-transform: uppercase;
+            color: #fff;
+            background: var(--pdm-accent);
+            box-shadow: 0 6px 14px rgba(197,126,90,0.22);
+        }}
+        .layer-diagnostic-mode.ideal {{
+            background: #64748b;
+        }}
+        .layer-diagnostic-mode.correction {{
+            background: #C57E5A;
+        }}
+        .layer-diagnostic-grid {{
+            display: grid;
+            grid-template-columns: 1.10fr 0.92fr 0.92fr 1.20fr;
+            gap: 10px;
+            align-items: stretch;
+        }}
+        .layer-diagnostic-card {{
+            min-width: 0;
+            padding: 12px 13px;
+            border-radius: 15px;
+            border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+            background: color-mix(in srgb, var(--text-color) 3.2%, transparent);
+        }}
+        .layer-diagnostic-card.main {{
+            background: color-mix(in srgb, var(--pdm-accent) 7%, transparent);
+            border-color: color-mix(in srgb, var(--pdm-accent) 26%, transparent);
+        }}
+        .layer-diagnostic-label {{
+            font-size: 10px;
+            line-height: 1.05;
+            font-weight: 950;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: color-mix(in srgb, var(--text-color) 58%, transparent);
+            margin-bottom: 7px;
+        }}
+        .layer-diagnostic-value {{
+            font-size: 20px;
+            line-height: 1.03;
+            font-weight: 950;
+            letter-spacing: -0.018em;
+            color: var(--text-color);
+            overflow-wrap: anywhere;
+        }}
+        .layer-diagnostic-card.main .layer-diagnostic-value {{
+            font-size: 38px;
+            letter-spacing: -0.04em;
+        }}
+        .layer-diagnostic-mini {{
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }}
+        .layer-diagnostic-row {{
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: baseline;
+            border-bottom: 1px solid color-mix(in srgb, var(--text-color) 8%, transparent);
+            padding-bottom: 6px;
+        }}
+        .layer-diagnostic-row:last-child {{
+            border-bottom: 0;
+            padding-bottom: 0;
+        }}
+        .layer-diagnostic-row span {{
+            font-size: 10px;
+            line-height: 1.05;
+            font-weight: 900;
+            letter-spacing: 0.045em;
+            text-transform: uppercase;
+            color: color-mix(in srgb, var(--text-color) 55%, transparent);
+        }}
+        .layer-diagnostic-row strong {{
+            font-size: 15px;
+            line-height: 1.05;
+            font-weight: 950;
+            color: var(--text-color);
+            text-align: right;
+            overflow-wrap: anywhere;
+        }}
+        .layer-diagnostic-footnote {{
+            margin-top: 10px;
+            font-size: 11px;
+            line-height: 1.25;
+            font-weight: 650;
+            color: color-mix(in srgb, var(--text-color) 52%, transparent);
+        }}
+        @media (max-width: 1180px) {{
+            .layer-diagnostic-panel {{
+                padding: 14px 15px;
+            }}
+            .layer-diagnostic-grid {{
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }}
+            .layer-diagnostic-card.main .layer-diagnostic-value {{
+                font-size: 34px;
+            }}
+        }}
+        @media (max-width: 560px) {{
+            .layer-diagnostic-panel {{
+                padding: 12px 13px;
+                border-radius: 15px;
+            }}
+            .layer-diagnostic-head {{
+                flex-direction: column;
+                gap: 8px;
+            }}
+            .layer-diagnostic-grid {{
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }}
+            .layer-diagnostic-card {{
+                padding: 10px 11px;
+                border-radius: 13px;
+            }}
+            .layer-diagnostic-card.main .layer-diagnostic-value {{
+                font-size: 31px;
+            }}
+            .layer-diagnostic-title {{
+                font-size: 17px;
+            }}
+        }}
+        </style>
+
+        <section class="layer-diagnostic-panel">
+            <div class="layer-diagnostic-head">
+                <div>
+                    <div class="layer-diagnostic-kicker">{html.escape(title)}</div>
+                    <div class="layer-diagnostic-title">{html.escape(subtitle)}</div>
+                </div>
+                <div class="layer-diagnostic-mode {html.escape(mode_class)}">{html.escape(mode_value)}</div>
+            </div>
+
+            <div class="layer-diagnostic-grid">
+                <div class="layer-diagnostic-card main">
+                    <div class="layer-diagnostic-label">{html.escape(layers_label)}</div>
+                    <div class="layer-diagnostic-value">{html.escape(layers_value)}</div>
+                </div>
+
+                <div class="layer-diagnostic-card">
+                    <div class="layer-diagnostic-label">{html.escape(side_label)}</div>
+                    <div class="layer-diagnostic-value">{html.escape(side_value)}</div>
+                </div>
+
+                <div class="layer-diagnostic-card">
+                    <div class="layer-diagnostic-label">{html.escape(mode_label)}</div>
+                    <div class="layer-diagnostic-value">{html.escape(mode_value)}</div>
+                </div>
+
+                <div class="layer-diagnostic-card layer-diagnostic-mini">
+                    <div class="layer-diagnostic-row">
+                        <span>{html.escape(pitch_label)}</span>
+                        <strong>{html.escape(pitch_value)}</strong>
+                    </div>
+                    <div class="layer-diagnostic-row">
+                        <span>{html.escape(increment_label)}</span>
+                        <strong>{html.escape(increment_value)}</strong>
+                    </div>
+                    <div class="layer-diagnostic-row">
+                        <span>{html.escape(factors_label)}</span>
+                        <strong>{html.escape(factors_value)}</strong>
+                    </div>
+                </div>
+            </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def make_pallet_visual(coil_diameter_mm, pallet_size_mm, language):
     labels = {
         "IT": {"title": "Vista dall'alto", "pallet": "Pallet", "coil": "Rotolo"},
@@ -11875,37 +12137,14 @@ with tab_production:
         )
         st.info(prototype_note)
 
-    if lang == "IT":
-        diagnostic_title = "Diagnostica strati"
-        diagnostic_cards = [
-            {"label": "Strati simulati", "value": str(winding_diagnostics["strati_simulati"])},
-            {"label": "Strato finale", "value": str(winding_diagnostics["strato_finale"])},
-            {"label": "Lato finale", "value": winding_diagnostics["lato_finale"]},
-            {"label": "Modo simulazione", "value": "Fattori correzione" if use_correction_factors else "Ideale macchina"},
-            {"label": "Passo effettivo", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"fattore usato {fattore_passo_effettivo:.2f} · preset {fattore_passo_preset:.2f}"},
-            {"label": "Incremento effettivo", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"fattore usato {fattore_compattazione_radiale:.2f} · preset {fattore_compattazione_preset:.2f}"},
-            {"label": "Direzione finale", "value": winding_diagnostics["direzione_finale"]},
-            {"label": "Quota finale", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
-            {"label": "Inversioni", "value": str(winding_diagnostics["inversioni"])},
-        ]
-    else:
-        diagnostic_title = "Layer diagnostics"
-        diagnostic_cards = [
-            {"label": "Simulated layers", "value": str(winding_diagnostics["strati_simulati"])},
-            {"label": "Final layer", "value": str(winding_diagnostics["strato_finale"])},
-            {"label": "Final side", "value": winding_diagnostics["lato_finale"]},
-            {"label": "Simulation mode", "value": "Correction factors" if use_correction_factors else "Machine ideal"},
-            {"label": "Effective pitch", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"used factor {fattore_passo_effettivo:.2f} · preset {fattore_passo_preset:.2f}"},
-            {"label": "Effective increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"used factor {fattore_compattazione_radiale:.2f} · preset {fattore_compattazione_preset:.2f}"},
-            {"label": "Final direction", "value": winding_diagnostics["direzione_finale"]},
-            {"label": "Final position", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
-            {"label": "Inversions", "value": str(winding_diagnostics["inversioni"])},
-        ]
-
-    render_summary_cards(
-        diagnostic_title,
-        diagnostic_cards,
-        cards_per_row=4,
+    render_layer_diagnostics_panel(
+        lang,
+        winding_diagnostics,
+        passo_effettivo_assiale,
+        incremento_effettivo_radiale,
+        fattore_passo_effettivo,
+        fattore_compattazione_radiale,
+        use_correction_factors,
     )
 
     if coil_footprint_mm > pallet_size_mm:
