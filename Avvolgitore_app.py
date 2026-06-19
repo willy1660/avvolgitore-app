@@ -2739,6 +2739,118 @@ st.markdown(
 st.markdown(
     """
     <style>
+    /*
+    HARD mobile/tablet override.
+    Some mobile browsers inside Streamlit/GitHub are reported with a wide CSS viewport,
+    so this uses pointer:coarse in addition to width.
+    */
+    @media (hover: none) and (pointer: coarse), (max-width: 1180px) {
+        .main .block-container {
+            max-width: 100vw !important;
+            padding-left: 0.42rem !important;
+            padding-right: 0.42rem !important;
+            padding-top: 0.35rem !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
+            margin-top: 0 !important;
+            margin-bottom: -210px !important;
+            row-gap: 0 !important;
+            align-items: center !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"] {
+            min-width: 0 !important;
+        }
+
+        .top-brand-logo-wrap {
+            min-height: 72px !important;
+            height: 72px !important;
+            max-height: 72px !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .top-brand-logo-img {
+            height: 86px !important;
+            max-height: 86px !important;
+            width: auto !important;
+            object-fit: contain !important;
+            margin: 0 auto !important;
+        }
+
+        .top-brand-title-wrap {
+            min-height: 54px !important;
+            height: 54px !important;
+            max-height: 54px !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+        }
+
+        .top-brand-title {
+            font-size: clamp(30px, 7.6vw, 42px) !important;
+            line-height: 0.92 !important;
+            letter-spacing: -0.050em !important;
+            text-align: center !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            white-space: nowrap !important;
+        }
+
+        div[data-baseweb="select"] > div {
+            min-height: 46px !important;
+            border-radius: 14px !important;
+        }
+
+        /* Pull the main tabs up on mobile without touching the desktop layout. */
+        [data-testid="stTabs"] {
+            margin-top: -430px !important;
+        }
+
+        [data-testid="stTabs"] [role="tablist"] {
+            gap: 22px !important;
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+            margin-bottom: 10px !important;
+        }
+
+        [data-testid="stTabs"] [role="tab"] {
+            flex: 0 0 auto !important;
+            min-width: max-content !important;
+            min-height: 42px !important;
+        }
+    }
+
+    @media (hover: none) and (pointer: coarse) and (max-width: 520px) {
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
+            margin-bottom: -235px !important;
+        }
+
+        [data-testid="stTabs"] {
+            margin-top: -470px !important;
+        }
+
+        .top-brand-title {
+            font-size: clamp(29px, 7.2vw, 38px) !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <style>
     .main .block-container {
         max-width: 1800px;
         padding-top: 0.95rem;
@@ -6064,8 +6176,8 @@ def viewer(
 
         function setPackagingCamera() {{
             const totalHeight = packagingGroup.userData.totalHeight || 800;
-            const sceneSpan = Math.max(palletSize * 1.75, totalHeight * 1.28);
-            camera.position.set(-sceneSpan * 1.35, -sceneSpan * 1.55, Math.max(1180, totalHeight * 1.35));
+            const sceneSpan = Math.max(palletSize * 2.05, totalHeight * 1.48);
+            camera.position.set(-sceneSpan * 1.55, -sceneSpan * 1.78, Math.max(1380, totalHeight * 1.55));
             controls.target.set(0, 0, palletHeight + totalHeight * 0.40);
             camera.lookAt(0, 0, palletHeight + totalHeight * 0.40);
             controls.update();
