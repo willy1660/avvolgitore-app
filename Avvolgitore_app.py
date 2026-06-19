@@ -6415,16 +6415,18 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 for (let x = 0; x < size; x++) {{
                     const i = (y * size + x) * 4;
 
-                    const grain = Math.random() * 18 - 9;
-                    const microLine = Math.sin((x + y * 0.18) * 0.50) * 2.4;
-                    const longLine = Math.sin(y * 0.13) * 2.0;
+                    const grain = Math.random() * 16 - 8;
+                    const microLine = Math.sin((x + y * 0.20) * 0.48) * 2.2;
+                    const longLine = Math.sin(y * 0.12) * 1.8;
+                    const softBand = Math.sin(x * 0.055) * (dark ? 2.0 : 3.4);
+                    const seam = Math.exp(-Math.pow((x - size * 0.58) / (size * 0.10), 2)) * (dark ? -3.2 : -4.5);
 
-                    let v = base + grain + microLine + longLine;
+                    let v = base + grain + microLine + longLine + softBand + seam;
 
                     if (dark) {{
-                        v = Math.max(44, Math.min(112, v));
+                        v = Math.max(42, Math.min(116, v));
                     }} else {{
-                        v = Math.max(154, Math.min(244, v));
+                        v = Math.max(152, Math.min(245, v));
                     }}
 
                     data[i] = v;
@@ -6436,10 +6438,64 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             ctx.putImageData(img, 0, 0);
 
+            const hl = ctx.createLinearGradient(0, 0, size, 0);
+            hl.addColorStop(0.00, "rgba(255,255,255,0.00)");
+            hl.addColorStop(0.30, dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)");
+            hl.addColorStop(0.52, dark ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.10)");
+            hl.addColorStop(0.72, dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)");
+            hl.addColorStop(1.00, "rgba(255,255,255,0.00)");
+            ctx.fillStyle = hl;
+            ctx.fillRect(0, 0, size, size);
+
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(2.0, 18.0);
+            tex.repeat.set(2.2, 18.0);
+            tex.anisotropy = 12;
+            tex.needsUpdate = true;
+
+            return tex;
+        }}
+
+        function makeCopperTexture(size = 256) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext("2d");
+            const grad = ctx.createLinearGradient(0, 0, size, 0);
+            grad.addColorStop(0.00, "#8c4f2b");
+            grad.addColorStop(0.18, "#cb8c60");
+            grad.addColorStop(0.34, "#f2bf96");
+            grad.addColorStop(0.52, "#b96f41");
+            grad.addColorStop(0.72, "#e7b188");
+            grad.addColorStop(1.00, "#8a4a28");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+
+            const img = ctx.getImageData(0, 0, size, size);
+            const data = img.data;
+
+            for (let y = 0; y < size; y++) {{
+                for (let x = 0; x < size; x++) {{
+                    const i = (y * size + x) * 4;
+                    const grain = Math.random() * 18 - 9;
+                    const brushed = Math.sin((x * 0.48) + (y * 0.05)) * 10.0;
+                    const warm = Math.sin(y * 0.16) * 4.0;
+
+                    data[i] = Math.max(90, Math.min(255, data[i] + grain + brushed + warm));
+                    data[i + 1] = Math.max(52, Math.min(225, data[i + 1] + grain * 0.65 + brushed * 0.55));
+                    data[i + 2] = Math.max(28, Math.min(188, data[i + 2] + grain * 0.38 + brushed * 0.25));
+                    data[i + 3] = 255;
+                }}
+            }}
+
+            ctx.putImageData(img, 0, 0);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(1.0, 8.0);
             tex.anisotropy = 12;
             tex.needsUpdate = true;
 
@@ -6449,6 +6505,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         const steelTex = makeSteelTexture(256);
         const tubeWhiteTex = makeTubeTexture(256, false);
         const tubeBlackTex = makeTubeTexture(256, true);
+        const copperTex = makeCopperTexture(256);
 
         // ==========================================
         // MATERIALS
@@ -6463,6 +6520,17 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 transparent: transparent,
                 opacity: opacity,
                 depthWrite: !transparent
+            }});
+        }}
+
+        function makeCopperMat(bright=false) {{
+            return new THREE.MeshStandardMaterial({{
+                color: bright ? 0xd99163 : 0xba7248,
+                map: copperTex,
+                roughness: bright ? 0.34 : 0.42,
+                metalness: 0.56,
+                emissive: bright ? 0x2a160a : 0x180c05,
+                emissiveIntensity: bright ? 0.10 : 0.04
             }});
         }}
 
@@ -6487,6 +6555,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let tubeMat = makeTubeMaterial(tubeMode, false, false);
         let activeTubeMat = makeTubeMaterial(tubeMode, true, false);
         let freeTubeMat = makeTubeMaterial(tubeMode, false, true);
+
+        let copperMat = makeCopperMat(false);
+        let copperBrightMat = makeCopperMat(true);
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a,
@@ -7454,6 +7525,74 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
+        function orientAlongDir(obj, dir) {{
+            const yAxis = new THREE.Vector3(0, 1, 0);
+            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
+            obj.setRotationFromQuaternion(quat);
+        }}
+
+        function makeSingleRealisticTubeTip(point, tangentDir, outerRadius, sleeveMaterial, markerMaterial, outwardSign=1) {{
+            if (!tangentDir || tangentDir.length() < 1e-6) return null;
+
+            const dir = tangentDir.clone().normalize().multiplyScalar(outwardSign);
+            const group = new THREE.Group();
+
+            const sleeveLen = Math.max(8.0, outerRadius * 0.95);
+            const copperLen = Math.max(12.0, outerRadius * 1.55);
+            const copperRadius = Math.max(1.8, Math.min(outerRadius * 0.34, outerRadius - 1.1));
+            const collarLen = Math.max(2.8, outerRadius * 0.26);
+
+            const sleeveStart = point.clone().addScaledVector(dir, -sleeveLen);
+            const sleeveEnd = point.clone();
+            const sleeve = makeTubeSegment(sleeveStart, sleeveEnd, outerRadius, sleeveMaterial);
+            if (sleeve) group.add(sleeve);
+
+            const copperStart = point.clone().addScaledVector(dir, 0.8);
+            const copperEnd = point.clone().addScaledVector(dir, copperLen);
+            const copperSeg = makeTubeSegment(copperStart, copperEnd, copperRadius, copperMat);
+            if (copperSeg) group.add(copperSeg);
+
+            const copperCap = makeEndpointDisc(
+                copperEnd,
+                dir,
+                copperBrightMat,
+                Math.max(0.28, (copperRadius / Math.max(outerRadius, 1e-6)) * 0.95)
+            );
+            if (copperCap) group.add(copperCap);
+
+            if (markerMaterial) {{
+                const collar = new THREE.Mesh(
+                    new THREE.CylinderGeometry(outerRadius * 1.01, outerRadius * 1.01, collarLen, 22),
+                    markerMaterial
+                );
+                collar.position.copy(point.clone().addScaledVector(dir, -collarLen * 0.40));
+                orientAlongDir(collar, dir);
+                collar.castShadow = false;
+                collar.receiveShadow = true;
+                group.add(collar);
+            }}
+
+            return group;
+        }}
+
+        function makeRealisticTubeTip(point, tangentDir, sleeveMaterial, markerMaterial, outwardSign=1) {{
+            if (!isDoubleTube) {{
+                return makeSingleRealisticTubeTip(point, tangentDir, Rt, sleeveMaterial, markerMaterial, outwardSign);
+            }}
+
+            const group = new THREE.Group();
+
+            const lower = makeSingleRealisticTubeTip(point, tangentDir, RtLower, sleeveMaterial, markerMaterial, outwardSign);
+            if (lower) group.add(lower);
+
+            const verticalOffset = RtLower + RtUpper;
+            const upperPoint = offsetPointVertical(point, verticalOffset);
+            const upper = makeSingleRealisticTubeTip(upperPoint, tangentDir, RtUpper, sleeveMaterial, markerMaterial, outwardSign);
+            if (upper) group.add(upper);
+
+            return group;
+        }}
+
         let depositedMesh = null;
         let freeMesh = null;
         let activeCoilMesh = null;
@@ -7597,13 +7736,20 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const startTangentWorld = startTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
             const endTangentWorld = endTangentLocal.clone().applyAxisAngle(new THREE.Vector3(0,0,1), theta);
 
-            startMarker = makeEndpointDisc(startWorld, startTangentWorld, markerStartMat, 0.70);
+            startMarker = makeRealisticTubeTip(
+                startWorld,
+                startTangentWorld,
+                tubeMat,
+                markerStartMat,
+                -1
+            );
 
-            endMarker = makeEndpointDisc(
+            endMarker = makeRealisticTubeTip(
                 endWorld,
                 endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld,
+                tubeMat,
                 markerEndMat,
-                0.82
+                1
             );
 
             const glowRadius = Math.max(14.0, Rt * 1.35);
