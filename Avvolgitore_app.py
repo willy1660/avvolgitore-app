@@ -2659,7 +2659,32 @@ st.markdown(
         font-size: {HEADER_TITLE_SIZE}px !important;
     }}
 
+    /*
+    Default: nested tabs must not inherit the header offset.
+    The -220px offset is applied only to the main tabs through .main-tabs-anchor.
+    */
     [data-testid="stTabs"] {{
+        margin-top: 0 !important;
+    }}
+
+    .main-tabs-anchor {{
+        height: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }}
+
+    div[data-testid="element-container"]:has(.main-tabs-anchor) {{
+        height: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }}
+
+    div[data-testid="element-container"]:has(.main-tabs-anchor) + div[data-testid="stTabs"],
+    div[data-testid="element-container"]:has(.main-tabs-anchor) + div[data-testid="element-container"] div[data-testid="stTabs"] {{
         margin-top: {HEADER_TABS_MARGIN}px !important;
     }}
     </style>
@@ -2679,7 +2704,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: -42px;
+        margin-top: 0;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -11375,6 +11400,8 @@ except Exception as e:
     presets_load_exception = e
 
 checklist_label = "Cambio misura" if lang == "IT" else "Size change"
+
+st.markdown('<div class="main-tabs-anchor"></div>', unsafe_allow_html=True)
 
 tab_production, tab_tech_sheet, tab_checklist = st.tabs([
     production_label,
