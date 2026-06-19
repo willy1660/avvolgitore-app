@@ -2628,6 +2628,79 @@ st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
 
+# Manual header tuning.
+# Default values match the stable layout; use the sidebar controls to reduce the white space safely.
+with st.sidebar.expander("Ajuste header" if lang == "IT" else "Header tuning", expanded=False):
+    header_block_height = st.slider(
+        "Altezza blocco header" if lang == "IT" else "Header block height",
+        min_value=60,
+        max_value=180,
+        value=int(st.session_state.get("ui_header_block_height", 150)),
+        step=2,
+        key="ui_header_block_height",
+    )
+    header_logo_height = st.slider(
+        "Altezza logo" if lang == "IT" else "Logo height",
+        min_value=40,
+        max_value=170,
+        value=int(st.session_state.get("ui_header_logo_height", 142)),
+        step=2,
+        key="ui_header_logo_height",
+    )
+    header_title_size = st.slider(
+        "Dimensione titolo" if lang == "IT" else "Title size",
+        min_value=28,
+        max_value=100,
+        value=int(st.session_state.get("ui_header_title_size", 88)),
+        step=1,
+        key="ui_header_title_size",
+    )
+    header_tabs_margin = st.slider(
+        "Distanza tabs" if lang == "IT" else "Tabs distance",
+        min_value=-90,
+        max_value=30,
+        value=int(st.session_state.get("ui_header_tabs_margin", -42)),
+        step=2,
+        key="ui_header_tabs_margin",
+    )
+    st.caption(
+        "Valori più piccoli = meno spazio bianco. Se si sovrappone, aumenta Altezza blocco header o Distanza tabs."
+        if lang == "IT"
+        else "Smaller values = less white space. If it overlaps, increase Header block height or Tabs distance."
+    )
+
+st.markdown(
+    f"""
+    <style>
+    /*
+    Manual header tuning.
+    These values are intentionally controlled from the sidebar instead of hard-coded guesses.
+    */
+    .top-brand-logo-wrap,
+    .top-brand-title-wrap {{
+        min-height: {header_block_height}px !important;
+        height: {header_block_height}px !important;
+        max-height: {header_block_height}px !important;
+        overflow: hidden !important;
+    }}
+
+    .top-brand-logo-img {{
+        height: {header_logo_height}px !important;
+        max-height: {header_logo_height}px !important;
+    }}
+
+    .top-brand-title {{
+        font-size: {header_title_size}px !important;
+    }}
+
+    [data-testid="stTabs"] {{
+        margin-top: {header_tabs_margin}px !important;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.markdown(
     """
     <style>
