@@ -12109,6 +12109,159 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.markdown(
+    """
+    <style>
+    /* FINAL mobile/tablet header fix */
+    @media (max-width: 1180px) {
+        .main .block-container {
+            padding-top: 0.25rem !important;
+        }
+
+        /* tighten the whole header row */
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
+            margin-top: 0 !important;
+            margin-bottom: -120px !important;
+            row-gap: 0 !important;
+            align-items: center !important;
+        }
+
+        .top-brand-logo-wrap,
+        .top-brand-title-wrap {
+            min-height: 82px !important;
+            height: 82px !important;
+            max-height: 82px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .top-brand-logo-wrap {
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .top-brand-title-wrap {
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+        }
+
+        .top-brand-logo-img {
+            height: 72px !important;
+            max-height: 72px !important;
+            width: auto !important;
+            margin: 0 auto !important;
+        }
+
+        .top-brand-title {
+            font-size: clamp(34px, 4.8vw, 52px) !important;
+            line-height: 0.95 !important;
+            letter-spacing: -0.045em !important;
+            text-align: center !important;
+            margin: 0 auto !important;
+        }
+
+        /* the language selector lives in the 3rd header column */
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) [data-testid="column"]:last-child {
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) [data-testid="column"]:last-child > div {
+            width: 100% !important;
+            margin-top: 0 !important;
+        }
+
+        /* pull the tabs upward */
+        div[data-testid="stTabs"] {
+            margin-top: -110px !important;
+        }
+    }
+
+    @media (max-width: 820px) {
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
+            margin-bottom: -185px !important;
+        }
+
+        .top-brand-logo-wrap {
+            min-height: 62px !important;
+            height: 62px !important;
+            max-height: 62px !important;
+        }
+
+        .top-brand-logo-img {
+            height: 58px !important;
+            max-height: 58px !important;
+        }
+
+        .top-brand-title-wrap {
+            min-height: 46px !important;
+            height: 46px !important;
+            max-height: 46px !important;
+        }
+
+        .top-brand-title {
+            font-size: clamp(28px, 7.5vw, 42px) !important;
+            line-height: 0.94 !important;
+        }
+
+        div[data-baseweb="select"] > div {
+            min-height: 48px !important;
+            border-radius: 16px !important;
+        }
+
+        div[data-testid="stTabs"] {
+            margin-top: -205px !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            gap: 16px !important;
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] {
+            flex: 0 0 auto !important;
+            min-width: max-content !important;
+        }
+    }
+
+    @media (max-width: 520px) {
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
+            margin-bottom: -215px !important;
+        }
+
+        .top-brand-logo-wrap {
+            min-height: 56px !important;
+            height: 56px !important;
+            max-height: 56px !important;
+        }
+
+        .top-brand-logo-img {
+            height: 52px !important;
+            max-height: 52px !important;
+        }
+
+        .top-brand-title-wrap {
+            min-height: 40px !important;
+            height: 40px !important;
+            max-height: 40px !important;
+        }
+
+        .top-brand-title {
+            font-size: 30px !important;
+        }
+
+        div[data-testid="stTabs"] {
+            margin-top: -225px !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # =========================
 # UI
 # =========================
