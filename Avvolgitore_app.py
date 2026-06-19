@@ -2640,7 +2640,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: -64px;
+        margin-top: 0;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -3932,82 +3932,79 @@ def render_scheda_preset_real_sweep_css():
 title_placeholder.markdown(
     f"""
     <style>
+    /*
+    Header compacte però sense solapar pestanyes ni contingut.
+    */
     .top-brand-logo-wrap {{
-        min-height: 72px;
+        height: 108px;
+        min-height: 108px;
         display: flex;
         align-items: flex-start;
         justify-content: flex-start;
         margin: 0;
         padding: 0;
         text-align: left;
+        overflow: hidden;
     }}
 
     .top-brand-logo-img {{
         display: block;
         width: auto;
-        height: 68px;
+        height: 102px;
         max-width: 100%;
         object-fit: contain;
     }}
 
     .top-brand-title-wrap {{
+        height: 108px;
+        min-height: 108px;
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         justify-content: flex-start;
         text-align: left;
-        min-height: 72px;
         margin: 0;
-        padding: 0 0 2px 6px;
+        padding: 0 0 0 8px;
+        overflow: hidden;
     }}
 
     .top-brand-title {{
         margin: 0;
         padding: 0;
         display: block;
-        font-size: 58px;
+        font-size: 76px;
         line-height: 0.92;
         font-weight: 520;
         letter-spacing: -0.052em;
         color: var(--pdm-popup-text);
     }}
 
-    /* iPad / tablet: improve logo-title alignment */
     @media (max-width: 1180px) and (min-width: 821px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 62px;
-            align-items: center;
-        }}
-        .top-brand-title-wrap {{
-            padding: 0 0 0 4px;
+            height: 88px;
+            min-height: 88px;
         }}
         .top-brand-logo-img {{
-            height: 58px;
+            height: 82px;
         }}
         .top-brand-title {{
-            font-size: 46px;
-            line-height: 0.96;
-            font-weight: 500;
-            letter-spacing: -0.048em;
+            font-size: 58px;
+            line-height: 0.94;
         }}
     }}
 
     @media (max-width: 820px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            min-height: 50px;
-        }}
-        .top-brand-title-wrap {{
-            align-items: center;
-            padding: 0 0 0 4px;
+            height: 66px;
+            min-height: 66px;
         }}
         .top-brand-logo-img {{
-            height: 58px;
+            height: 60px;
         }}
         .top-brand-title {{
-            font-size: 32px;
-            font-weight: 520;
-            line-height: 0.98;
+            font-size: 38px;
+            line-height: 0.96;
         }}
     }}
     </style>
@@ -4018,110 +4015,33 @@ title_placeholder.markdown(
     unsafe_allow_html=True,
 )
 
-
 st.markdown(
     """
     <style>
-    /* Header compact · redueix l'espai buit entre logo/títol i pestanyes */
+    /*
+    Header layout reset: no negative margins, no forced overlap.
+    */
     div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap),
     div[data-testid="stHorizontalBlock"]:has(.top-brand-title-wrap) {
-        margin-bottom: -34px !important;
+        margin-bottom: 0 !important;
         padding-bottom: 0 !important;
         align-items: flex-start !important;
-        min-height: 72px !important;
-        max-height: 82px !important;
         overflow: visible !important;
     }
 
-    div[data-testid="column"]:has(.top-brand-logo-wrap),
-    div[data-testid="column"]:has(.top-brand-title-wrap) {
-        padding-bottom: 0 !important;
-        margin-bottom: 0 !important;
-        min-height: 72px !important;
-        max-height: 82px !important;
-    }
-
-    div[data-testid="stVerticalBlock"]:has(.top-brand-logo-wrap),
-    div[data-testid="stVerticalBlock"]:has(.top-brand-title-wrap),
     div[data-testid="element-container"]:has(.top-brand-logo-wrap),
     div[data-testid="element-container"]:has(.top-brand-title-wrap) {
-        gap: 0 !important;
         margin-bottom: 0 !important;
         padding-bottom: 0 !important;
-        min-height: 0 !important;
     }
 
-    .top-brand-logo-wrap,
-    .top-brand-title-wrap {
-        min-height: 72px !important;
-        max-height: 78px !important;
-        height: 72px !important;
-        overflow: visible !important;
-    }
-
-    .top-brand-logo-wrap {
-        align-items: flex-start !important;
-    }
-
-    .top-brand-title-wrap {
-        align-items: center !important;
-        padding-bottom: 0 !important;
-    }
-
-    .top-brand-logo-img {
-        height: 68px !important;
-    }
-
-    .top-brand-title {
-        font-size: 58px !important;
-        line-height: 0.90 !important;
+    [data-testid="stTabs"] {
+        margin-top: 0 !important;
     }
 
     @media (max-width: 1180px) {
-        div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap),
-        div[data-testid="stHorizontalBlock"]:has(.top-brand-title-wrap) {
-            margin-bottom: -24px !important;
-            min-height: 62px !important;
-            max-height: 70px !important;
-        }
-
-        .top-brand-logo-wrap,
-        .top-brand-title-wrap {
-            min-height: 58px !important;
-            max-height: 64px !important;
-            height: 58px !important;
-        }
-
-        .top-brand-logo-img {
-            height: 54px !important;
-        }
-
-        .top-brand-title {
-            font-size: 44px !important;
-        }
-    }
-
-    @media (max-width: 820px) {
-        div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap),
-        div[data-testid="stHorizontalBlock"]:has(.top-brand-title-wrap) {
-            margin-bottom: -14px !important;
-            min-height: 50px !important;
-            max-height: 56px !important;
-        }
-
-        .top-brand-logo-wrap,
-        .top-brand-title-wrap {
-            min-height: 46px !important;
-            max-height: 52px !important;
-            height: 46px !important;
-        }
-
-        .top-brand-logo-img {
-            height: 42px !important;
-        }
-
-        .top-brand-title {
-            font-size: 31px !important;
+        [data-testid="stTabs"] {
+            margin-top: 0 !important;
         }
     }
     </style>
@@ -11068,7 +10988,7 @@ st.markdown(
         }
 
         [data-testid="stTabs"] {
-            margin-top: -18px !important;
+            margin-top: 0 !important;
         }
 
         [data-testid="stTabs"] [role="tablist"] {
