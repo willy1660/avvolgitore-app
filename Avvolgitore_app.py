@@ -6403,40 +6403,42 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             canvas.height = size;
 
             const ctx = canvas.getContext("2d");
-            const base = dark ? 58 : 236;
+            const base = dark ? 56 : 236;
             ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
             ctx.fillRect(0, 0, size, size);
 
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
-            const ribPeriod = dark ? 9.5 : 10.0;
+            const ribPeriod = dark ? 8.0 : 8.5;
 
             for (let y = 0; y < size; y++) {{
                 for (let x = 0; x < size; x++) {{
                     const i = (y * size + x) * 4;
 
-                    const phase = ((y + Math.sin(x * 0.028) * 0.65) / ribPeriod) % 1;
-                    const ridgeHi = Math.exp(-Math.pow((phase - 0.22) / 0.10, 2));
-                    const ridgeMid = Math.exp(-Math.pow((phase - 0.40) / 0.18, 2));
-                    const ridgeShadow = Math.exp(-Math.pow((phase - 0.68) / 0.16, 2));
-                    const microGrain = Math.sin((x * 0.055) + (y * 0.11)) * (dark ? 1.0 : 1.5);
-                    const randomGrain = (Math.random() - 0.5) * (dark ? 5.0 : 4.0);
-                    const softBand = Math.exp(-Math.pow((x - size * 0.44) / (size * 0.17), 2)) * (dark ? 6.5 : 9.0);
-                    const lateralFade = Math.exp(-Math.pow((x - size * 0.80) / (size * 0.06), 2)) * (dark ? -1.8 : -2.6);
+                    const phase = ((y + Math.sin(x * 0.032) * 0.95) / ribPeriod) % 1;
+                    const ridgeHi = Math.exp(-Math.pow((phase - 0.20) / 0.07, 2));
+                    const ridgeMid = Math.exp(-Math.pow((phase - 0.34) / 0.12, 2));
+                    const ridgeShadow = Math.exp(-Math.pow((phase - 0.62) / 0.11, 2));
+                    const ribShadow2 = Math.exp(-Math.pow((phase - 0.78) / 0.08, 2));
+                    const microGrain = Math.sin((x * 0.07) + (y * 0.14)) * (dark ? 1.2 : 1.8);
+                    const randomGrain = (Math.random() - 0.5) * (dark ? 4.5 : 3.5);
+                    const softBand = Math.exp(-Math.pow((x - size * 0.45) / (size * 0.15), 2)) * (dark ? 8.5 : 12.0);
+                    const lateralFade = Math.exp(-Math.pow((x - size * 0.82) / (size * 0.05), 2)) * (dark ? -2.5 : -3.5);
 
                     let v = base
-                        + ridgeHi * (dark ? 7.0 : 11.0)
-                        + ridgeMid * (dark ? 3.5 : 5.5)
-                        - ridgeShadow * (dark ? 7.5 : 10.5)
+                        + ridgeHi * (dark ? 11.0 : 16.0)
+                        + ridgeMid * (dark ? 5.5 : 8.0)
+                        - ridgeShadow * (dark ? 10.0 : 14.0)
+                        - ribShadow2 * (dark ? 4.0 : 6.0)
                         + microGrain
                         + randomGrain
                         + softBand
                         + lateralFade;
 
                     if (dark) {{
-                        v = Math.max(42, Math.min(108, v));
+                        v = Math.max(38, Math.min(112, v));
                     }} else {{
-                        v = Math.max(214, Math.min(252, v));
+                        v = Math.max(205, Math.min(252, v));
                     }}
 
                     data[i] = v;
@@ -6449,18 +6451,26 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             ctx.putImageData(img, 0, 0);
 
             for (let y = 0; y < size; y += ribPeriod) {{
-                const hiY = y + ribPeriod * 0.18;
-                const shY = y + ribPeriod * 0.62;
+                const hiY = y + ribPeriod * 0.16;
+                const midY = y + ribPeriod * 0.31;
+                const shY = y + ribPeriod * 0.60;
 
-                ctx.strokeStyle = dark ? "rgba(255,255,255,0.085)" : "rgba(255,255,255,0.16)";
-                ctx.lineWidth = 1.1;
+                ctx.strokeStyle = dark ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.22)";
+                ctx.lineWidth = 1.3;
                 ctx.beginPath();
                 ctx.moveTo(0, hiY);
                 ctx.lineTo(size, hiY);
                 ctx.stroke();
 
-                ctx.strokeStyle = dark ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.10)";
-                ctx.lineWidth = 1.2;
+                ctx.strokeStyle = dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)";
+                ctx.lineWidth = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(0, midY);
+                ctx.lineTo(size, midY);
+                ctx.stroke();
+
+                ctx.strokeStyle = dark ? "rgba(0,0,0,0.22)" : "rgba(0,0,0,0.15)";
+                ctx.lineWidth = 1.45;
                 ctx.beginPath();
                 ctx.moveTo(0, shY);
                 ctx.lineTo(size, shY);
@@ -6469,9 +6479,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const gloss = ctx.createLinearGradient(0, 0, size, 0);
             gloss.addColorStop(0.00, "rgba(255,255,255,0.00)");
-            gloss.addColorStop(0.14, dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)");
-            gloss.addColorStop(0.42, dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.14)");
-            gloss.addColorStop(0.58, dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.08)");
+            gloss.addColorStop(0.12, dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)");
+            gloss.addColorStop(0.38, dark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.18)");
+            gloss.addColorStop(0.56, dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.10)");
             gloss.addColorStop(1.00, "rgba(255,255,255,0.00)");
             ctx.fillStyle = gloss;
             ctx.fillRect(0, 0, size, size);
@@ -6479,7 +6489,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(1.65, 34.0);
+            tex.repeat.set(1.55, 44.0);
             tex.anisotropy = 16;
             tex.needsUpdate = true;
 
@@ -6575,12 +6585,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 color: chosen,
                 map: tex,
                 bumpMap: tex,
-                bumpScale: mode === "gelblack" ? 0.42 : 0.58,
-                roughness: active ? 0.74 : (free ? 0.86 : 0.80),
+                bumpScale: mode === "gelblack" ? 0.85 : 1.25,
+                roughness: active ? 0.72 : (free ? 0.84 : 0.78),
                 metalness: 0.01,
-                clearcoat: mode === "gelblack" ? 0.10 : 0.18,
-                clearcoatRoughness: mode === "gelblack" ? 0.20 : 0.14,
-                reflectivity: mode === "gelblack" ? 0.22 : 0.34,
+                clearcoat: mode === "gelblack" ? 0.10 : 0.20,
+                clearcoatRoughness: mode === "gelblack" ? 0.20 : 0.12,
+                reflectivity: mode === "gelblack" ? 0.24 : 0.38,
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
