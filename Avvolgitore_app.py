@@ -1039,6 +1039,18 @@ def first_existing_value(row, columns, default=None):
     return default
 
 
+def preset_cell_has_value(value):
+    if value is None:
+        return False
+    try:
+        if pd.isna(value):
+            return False
+    except Exception:
+        pass
+    text_value = str(value).strip()
+    return text_value not in {"", "-", "nan", "NaN", "None"}
+
+
 def parse_float_value(value, default=0.0):
     if pd.isna(value):
         return float(default)
@@ -1629,6 +1641,7 @@ def current_calculator_snapshot():
         "calc_incremento_visuale": float(st.session_state.get("calc_incremento_visuale", 20.0)),
         "calc_rit_b": float(st.session_state.get("calc_rit_b", 360.0)),
         "calc_rit_t": float(st.session_state.get("calc_rit_t", 360.0)),
+        "calc_simulation_mode": str(st.session_state.get("calc_simulation_mode", "Fattori correzione")),
         "calc_fattore_passo_effettivo": float(st.session_state.get("calc_fattore_passo_effettivo", DEFAULT_FATTORE_PASSO_EFFETTIVO)),
         "calc_fattore_compattazione_radiale": float(st.session_state.get("calc_fattore_compattazione_radiale", DEFAULT_FATTORE_COMPATTAZIONE_RADIALE)),
         "calc_tube_layout": str(st.session_state.get("calc_tube_layout", "Singolo")),
@@ -1738,42 +1751,51 @@ def apply_preset_to_calculator(row):
 
     # Experimental model calibration values collected on the real product.
     # Add these columns to Presets.csv so each product/family can carry its own simulation correction.
-    st.session_state["calc_fattore_passo_effettivo"] = parse_float_value(
-        first_existing_value(
-            row,
-            [
-                "Fattore passo effettivo",
-                "Fattore Passo Effettivo",
-                "Fattore modello passo",
-                "Fattore Modello Passo",
-                "Passo effettivo fattore",
-            ],
-            DEFAULT_FATTORE_PASSO_EFFETTIVO,
-        ),
-        DEFAULT_FATTORE_PASSO_EFFETTIVO,
+    fattore_passo_raw = first_existing_value(
+        row,
+        [
+            "Fattore passo effettivo",
+            "Fattore Passo Effettivo",
+            "Fattore modello passo",
+            "Fattore Modello Passo",
+            "Passo effettivo fattore",
+        ],
+        None,
     )
-    st.session_state["calc_fattore_compattazione_radiale"] = parse_float_value(
-        first_existing_value(
-            row,
-            [
-                "Fattore compattazione radiale",
-                "Fattore Compattazione Radiale",
-                "Fattore compatazione radiale",
-                "Fattore Compatazione Radiale",
-                "Fattore compatazione",
-                "Fattore Compatazione",
-                "Fattore modello compattazione",
-                "Fattore Modello Compattazione",
-                "Fattore modello compatazione",
-                "Fattore Modello Compatazione",
-                "Compattazione radiale fattore",
-                "Compatazione radiale fattore",
-            ],
-            DEFAULT_FATTORE_COMPATTAZIONE_RADIALE,
-        ),
-        DEFAULT_FATTORE_COMPATTAZIONE_RADIALE,
+    fattore_compattazione_raw = first_existing_value(
+        row,
+        [
+            "Fattore compattazione radiale",
+            "Fattore Compattazione Radiale",
+            "Fattore compatazione radiale",
+            "Fattore Compatazione Radiale",
+            "Fattore compatazione",
+            "Fattore Compatazione",
+            "Fattore modello compattazione",
+            "Fattore Modello Compattazione",
+            "Fattore modello compatazione",
+            "Fattore Modello Compatazione",
+            "Compattazione radiale fattore",
+            "Compatazione radiale fattore",
+        ],
+        None,
     )
 
+    has_passo_factor = preset_cell_has_value(fattore_passo_raw)
+    has_compattazione_factor = preset_cell_has_value(fattore_compattazione_raw)
+    has_complete_correction_factors = bool(has_passo_factor and has_compattazione_factor)
+
+    if has_complete_correction_factors:
+        st.session_state["calc_fattore_passo_effettivo"] = parse_float_value(fattore_passo_raw, 1.0)
+        st.session_state["calc_fattore_compattazione_radiale"] = parse_float_value(fattore_compattazione_raw, 1.0)
+        st.session_state["calc_simulation_mode"] = "Fattori correzione"
+    else:
+        # No complete experimental calibration in Presets.csv: the simulation must start in ideal mode.
+        st.session_state["calc_fattore_passo_effettivo"] = parse_float_value(fattore_passo_raw, 1.0) if has_passo_factor else 1.0
+        st.session_state["calc_fattore_compattazione_radiale"] = parse_float_value(fattore_compattazione_raw, 1.0) if has_compattazione_factor else 1.0
+        st.session_state["calc_simulation_mode"] = "Ideale macchina"
+
+    st.session_state["preset_has_correction_factors"] = has_complete_correction_factors
     st.session_state["loaded_preset_name"] = safe_value(row, "Prodotto")
     st.session_state["loaded_preset_values"] = current_calculator_snapshot()
     st.session_state["preset_values_modified"] = False
@@ -1792,6 +1814,7 @@ FIELD_LABELS_IT = {
     "calc_incremento_visuale": "Incremento",
     "calc_rit_b": "Ritardo base",
     "calc_rit_t": "Ritardo spalla",
+    "calc_simulation_mode": "Modo simulazione",
     "calc_fattore_passo_effettivo": "Fattore passo effettivo",
     "calc_fattore_compattazione_radiale": "Fattore compattazione radiale",
     "calc_tube_layout": "Tipo tubo",
@@ -1811,6 +1834,7 @@ FIELD_LABELS_EN = {
     "calc_incremento_visuale": "Layer increment",
     "calc_rit_b": "Base delay",
     "calc_rit_t": "Shoulder delay",
+    "calc_simulation_mode": "Simulation mode",
     "calc_fattore_passo_effettivo": "Effective pitch factor",
     "calc_fattore_compattazione_radiale": "Radial compaction factor",
     "calc_tube_layout": "Tube type",
@@ -2314,6 +2338,7 @@ def init_calculator_state():
         "calc_rit_b": 360.0,
         "calc_rit_t": 360.0,
         "calc_simulation_mode": "Fattori correzione",
+        "preset_has_correction_factors": False,
         "calc_fattore_passo_effettivo": DEFAULT_FATTORE_PASSO_EFFETTIVO,
         "calc_fattore_compattazione_radiale": DEFAULT_FATTORE_COMPATTAZIONE_RADIALE,
         "calc_tube_layout": "Singolo",
@@ -10417,6 +10442,18 @@ st.markdown(
         opacity: 0.92;
     }
 
+    .calibration-note-mini {
+        margin: 8px 0 8px 0;
+        padding: 9px 11px;
+        border-radius: 12px;
+        border: 1px solid color-mix(in srgb, var(--pdm-accent) 22%, var(--text-color) 8%);
+        background: color-mix(in srgb, var(--pdm-accent) 7%, transparent);
+        color: color-mix(in srgb, var(--text-color) 74%, transparent);
+        font-size: 0.76rem;
+        line-height: 1.30;
+        font-weight: 680;
+    }
+
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border-color: color-mix(in srgb, var(--text-color) 12%, transparent) !important;
         background: linear-gradient(180deg,
@@ -10720,9 +10757,9 @@ st.markdown(
         }
 
         div[data-testid="column"] {
-            flex: 1 1 100% !important;
-            width: 100% !important;
-            min-width: 0 !important;
+            flex: 1 1 calc(50% - 0.78rem) !important;
+            width: calc(50% - 0.78rem) !important;
+            min-width: 280px !important;
         }
 
         .preset-status-top,
@@ -10767,6 +10804,12 @@ st.markdown(
             padding-left: 0.42rem !important;
             padding-right: 0.42rem !important;
             padding-bottom: 1.10rem !important;
+        }
+
+        div[data-testid="column"] {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+            min-width: 0 !important;
         }
 
         [data-testid="stTabs"] [role="tablist"] {
@@ -11200,35 +11243,58 @@ with tab_production:
             )
 
             correction_factors_enabled = st.session_state.get("calc_simulation_mode", "Fattori correzione") == "Fattori correzione"
+            preset_has_correction_factors = bool(st.session_state.get("preset_has_correction_factors", False))
 
-            render_operator_field_label("Fattore passo effettivo" if lang == "IT" else "Effective pitch factor")
-            fattore_passo_effettivo = st.number_input(
-                "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
-                min_value=0.50,
-                max_value=1.80,
-                step=0.01,
-                format="%.2f",
-                key="calc_fattore_passo_effettivo",
-                disabled=params_locked or not correction_factors_enabled,
-                label_visibility="collapsed",
-            )
+            if not preset_has_correction_factors and not is_prototype:
+                st.caption(
+                    "Nessun fattore completo nel preset: avvio automatico in Ideale macchina."
+                    if lang == "IT"
+                    else "No complete factors in the preset: automatic Machine ideal mode."
+                )
 
-            render_operator_field_label("Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor")
-            fattore_compattazione_radiale = st.number_input(
-                "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
-                min_value=0.50,
-                max_value=3.00,
-                step=0.01,
-                format="%.2f",
-                key="calc_fattore_compattazione_radiale",
-                disabled=params_locked or not correction_factors_enabled,
-                label_visibility="collapsed",
-            )
+            if correction_factors_enabled:
+                factor_col_a, factor_col_b = st.columns(2, gap="small")
+                with factor_col_a:
+                    render_operator_field_label("Fattore passo effettivo" if lang == "IT" else "Effective pitch factor")
+                    fattore_passo_effettivo = st.number_input(
+                        "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
+                        min_value=0.50,
+                        max_value=1.80,
+                        step=0.01,
+                        format="%.2f",
+                        key="calc_fattore_passo_effettivo",
+                        disabled=params_locked,
+                        label_visibility="collapsed",
+                    )
+                with factor_col_b:
+                    render_operator_field_label("Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor")
+                    fattore_compattazione_radiale = st.number_input(
+                        "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
+                        min_value=0.50,
+                        max_value=3.00,
+                        step=0.01,
+                        format="%.2f",
+                        key="calc_fattore_compattazione_radiale",
+                        disabled=params_locked,
+                        label_visibility="collapsed",
+                    )
+            else:
+                st.markdown(
+                    f"""
+                    <div class="calibration-note-mini">
+                        {"Modo ideale attivo: i fattori di correzione non vengono applicati al render." if lang == "IT" else "Ideal mode active: correction factors are not applied to the render."}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-            st.info(
-                "Questi non sono parametri macchina: sono parametri di calibrazione raccolti sperimentalmente sul prodotto reale per far coincidere il prodotto fisico con la simulazione. Inseriscili nel file Presets.csv nelle colonne: 'Fattore passo effettivo' e 'Fattore compattazione radiale'. Il codice accetta anche la variante scritta 'Fattore compatazione radiale'."
-                if lang == "IT"
-                else "These are not machine parameters: they are calibration parameters collected experimentally on the real product to align the physical product with the simulation. Store them in Presets.csv using the columns: 'Fattore passo effettivo' and 'Fattore compattazione radiale'. The code also accepts the variant 'Fattore compatazione radiale'."
+            st.markdown(
+                f"""
+                <div class="calibration-note-mini">
+                    {"Parametri sperimentali raccolti sul prodotto reale per allineare simulazione e rotolo fisico. Colonne Presets.csv: <b>Fattore passo effettivo</b> e <b>Fattore compattazione radiale</b>." if lang == "IT" else "Experimental parameters collected on the real product to align simulation and physical coil. Presets.csv columns: <b>Fattore passo effettivo</b> and <b>Fattore compattazione radiale</b>."}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
             restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
