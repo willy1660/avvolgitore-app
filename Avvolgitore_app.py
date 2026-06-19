@@ -4723,6 +4723,9 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
+    texture_rib_density=1.0,
+    texture_bump_strength=1.0,
+    texture_contrast=1.0,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -4741,6 +4744,9 @@ def viewer(
     active_product_name = active_product_name or ("Preset attivo" if language == "IT" else "Active preset")
     active_product_name_json = json.dumps(str(active_product_name))
     active_product_kind_json = json.dumps(str(active_product_kind or "preset"))
+    texture_rib_density_json = json.dumps(float(texture_rib_density))
+    texture_bump_strength_json = json.dumps(float(texture_bump_strength))
+    texture_contrast_json = json.dumps(float(texture_contrast))
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -6397,6 +6403,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return sprite;
         }}
 
+        const tubeTextureControls = {{
+            ribDensity: {texture_rib_density_json},
+            bumpStrength: {texture_bump_strength_json},
+            contrast: {texture_contrast_json}
+        }};
+
         function makeTubeTexture(size = 256, dark=false) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
@@ -6404,12 +6416,14 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const ctx = canvas.getContext("2d");
             const base = dark ? 56 : 236;
+            const ribDensity = Math.max(0.35, Math.min(3.5, tubeTextureControls.ribDensity || 1.0));
+            const contrast = Math.max(0.35, Math.min(3.5, tubeTextureControls.contrast || 1.0));
             ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
             ctx.fillRect(0, 0, size, size);
 
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
-            const ribPeriod = dark ? 8.0 : 8.5;
+            const ribPeriod = (dark ? 8.0 : 8.5) / ribDensity;
 
             for (let y = 0; y < size; y++) {{
                 for (let x = 0; x < size; x++) {{
@@ -6426,10 +6440,10 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                     const lateralFade = Math.exp(-Math.pow((x - size * 0.82) / (size * 0.05), 2)) * (dark ? -2.5 : -3.5);
 
                     let v = base
-                        + ridgeHi * (dark ? 11.0 : 16.0)
-                        + ridgeMid * (dark ? 5.5 : 8.0)
-                        - ridgeShadow * (dark ? 10.0 : 14.0)
-                        - ribShadow2 * (dark ? 4.0 : 6.0)
+                        + ridgeHi * (dark ? 11.0 : 16.0) * contrast
+                        + ridgeMid * (dark ? 5.5 : 8.0) * contrast
+                        - ridgeShadow * (dark ? 10.0 : 14.0) * contrast
+                        - ribShadow2 * (dark ? 4.0 : 6.0) * contrast
                         + microGrain
                         + randomGrain
                         + softBand
@@ -6455,21 +6469,21 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 const midY = y + ribPeriod * 0.31;
                 const shY = y + ribPeriod * 0.60;
 
-                ctx.strokeStyle = dark ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.22)";
+                ctx.strokeStyle = dark ? `rgba(255,255,255,${{0.14 * contrast}})` : `rgba(255,255,255,${{0.22 * contrast}})`;
                 ctx.lineWidth = 1.3;
                 ctx.beginPath();
                 ctx.moveTo(0, hiY);
                 ctx.lineTo(size, hiY);
                 ctx.stroke();
 
-                ctx.strokeStyle = dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)";
+                ctx.strokeStyle = dark ? `rgba(255,255,255,${{0.05 * contrast}})` : `rgba(255,255,255,${{0.08 * contrast}})`;
                 ctx.lineWidth = 0.8;
                 ctx.beginPath();
                 ctx.moveTo(0, midY);
                 ctx.lineTo(size, midY);
                 ctx.stroke();
 
-                ctx.strokeStyle = dark ? "rgba(0,0,0,0.22)" : "rgba(0,0,0,0.15)";
+                ctx.strokeStyle = dark ? `rgba(0,0,0,${{0.22 * contrast}})` : `rgba(0,0,0,${{0.15 * contrast}})`;
                 ctx.lineWidth = 1.45;
                 ctx.beginPath();
                 ctx.moveTo(0, shY);
@@ -6489,7 +6503,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(1.55, 44.0);
+            tex.repeat.set(1.55, 44.0 * ribDensity);
             tex.anisotropy = 16;
             tex.needsUpdate = true;
 
@@ -6585,7 +6599,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 color: chosen,
                 map: tex,
                 bumpMap: tex,
-                bumpScale: mode === "gelblack" ? 0.85 : 1.25,
+                bumpScale: (mode === "gelblack" ? 0.85 : 1.25) * Math.max(0.25, Math.min(3.5, tubeTextureControls.bumpStrength || 1.0)),
                 roughness: active ? 0.72 : (free ? 0.84 : 0.78),
                 metalness: 0.01,
                 clearcoat: mode === "gelblack" ? 0.10 : 0.20,
@@ -12219,6 +12233,47 @@ with tab_production:
                 st.markdown("&nbsp;", unsafe_allow_html=True)
                 st.caption(t["packaging_box_desc"])
 
+    texture_panel_title = "Texture zigrinata" if lang == "IT" else "Embossed texture"
+    texture_panel_help = (
+        "Regola manualmente densità, rilievo e contrasto della texture del tubo nel render."
+        if lang == "IT"
+        else "Manually adjust density, relief and contrast of the tube texture in the render."
+    )
+    texture_density_label = "Densità rigatura" if lang == "IT" else "Rib density"
+    texture_bump_label = "Rilievo texture" if lang == "IT" else "Texture relief"
+    texture_contrast_label = "Contrasto texture" if lang == "IT" else "Texture contrast"
+
+    with st.expander(texture_panel_title, expanded=False):
+        st.caption(texture_panel_help)
+        tx1, tx2, tx3 = st.columns(3)
+        with tx1:
+            texture_rib_density = st.slider(
+                texture_density_label,
+                min_value=0.50,
+                max_value=3.00,
+                value=float(st.session_state.get("texture_rib_density", 1.00)),
+                step=0.05,
+                key="texture_rib_density",
+            )
+        with tx2:
+            texture_bump_strength = st.slider(
+                texture_bump_label,
+                min_value=0.25,
+                max_value=3.00,
+                value=float(st.session_state.get("texture_bump_strength", 1.00)),
+                step=0.05,
+                key="texture_bump_strength",
+            )
+        with tx3:
+            texture_contrast = st.slider(
+                texture_contrast_label,
+                min_value=0.50,
+                max_value=3.00,
+                value=float(st.session_state.get("texture_contrast", 1.00)),
+                step=0.05,
+                key="texture_contrast",
+            )
+
     simulation_print_payload = build_simulation_print_payload(
         selected_product,
         lang,
@@ -12261,6 +12316,9 @@ with tab_production:
             simulation_print_payload=simulation_print_payload,
             active_product_name=selected_product,
             active_product_kind="prototype" if is_prototype else "preset",
+            texture_rib_density=texture_rib_density,
+            texture_bump_strength=texture_bump_strength,
+            texture_contrast=texture_contrast,
         ),
         height=720,
     )
