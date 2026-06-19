@@ -2578,152 +2578,53 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-# One-piece responsive header.
-# Avoid st.columns here: on mobile/iPad Streamlit stacks columns vertically and creates a huge blank space.
-current_lang = st.session_state.lang
-t_preview = TEXTS[current_lang]
+top1, top2, top3 = st.columns([0.86, 5.72, 1.12])
 
-logo_html = ""
-if logo_path:
-    try:
-        logo_suffix = Path(logo_path).suffix.lower()
-        logo_mime = {
-            ".svg": "image/svg+xml",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".webp": "image/webp",
-            ".png": "image/png",
-        }.get(logo_suffix, "image/png")
-        logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
-        logo_html = (
-            f'<img src="data:{logo_mime};base64,{logo_b64}" class="pdm-clean-logo" alt="PDM logo" '
-            f'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';" />'
-            '<div class="pdm-clean-logo-fallback" style="display:none;">PDM<div class="pdm-clean-logo-sub">try it, love it</div></div>'
+with top1:
+    if logo_path:
+        try:
+            logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
+            st.markdown(
+                f"""
+                <div class="top-brand-logo-wrap">
+                    <img src="data:image/png;base64,{logo_b64}" class="top-brand-logo-img" alt="PDM logo" />
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        except Exception:
+            st.image(logo_path, width=205)
+    else:
+        st.markdown(
+            """
+            <div class="top-brand-logo-wrap">
+                <div>
+                    <div style="font-size:24px;font-weight:950;letter-spacing:-0.04em;line-height:1;">
+                        PDM
+                    </div>
+                    <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:color-mix(in srgb, var(--text-color) 58%, transparent);">
+                        avvolgimento
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-    except Exception:
-        logo_html = '<div class="pdm-clean-logo-fallback">PDM<div class="pdm-clean-logo-sub">try it, love it</div></div>'
-else:
-    logo_html = '<div class="pdm-clean-logo-fallback">PDM<div class="pdm-clean-logo-sub">try it, love it</div></div>'
 
-st.markdown(
-    f"""
-    <style>
-    .pdm-clean-header {{
-        width: 100%;
-        box-sizing: border-box;
-        display: grid;
-        grid-template-columns: 150px 1fr 150px;
-        align-items: center;
-        gap: 16px;
-        margin: 0 0 4px 0;
-        padding: 2px 0 0 0;
-    }}
+with top2:
+    title_placeholder = st.empty()
 
-    .pdm-clean-logo-box {{
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        min-width: 0;
-        overflow: visible;
-    }}
+with top3:
+    current_lang = st.session_state.lang
+    lang_option = st.selectbox(
+        TEXTS[current_lang]["language"],
+        ["Italiano", "English (US)"],
+        index=0 if current_lang == "IT" else 1,
+        key="lang_selector_top",
+        label_visibility="collapsed",
+    )
 
-    .pdm-clean-logo {{
-        display: block;
-        height: 108px;
-        width: auto;
-        object-fit: contain;
-    }}
-
-    .pdm-clean-logo-fallback {{
-        color: #C57E5A;
-        font-size: 30px;
-        font-weight: 950;
-        letter-spacing: -0.04em;
-        line-height: 0.90;
-        text-align: center;
-    }}
-
-    .pdm-clean-logo-sub {{
-        margin-top: 3px;
-        font-size: 10px;
-        font-weight: 780;
-        letter-spacing: 0.04em;
-        color: color-mix(in srgb, #C57E5A 70%, var(--text-color));
-    }}
-
-    .pdm-clean-title {{
-        text-align: center;
-        font-size: clamp(46px, 5vw, 78px);
-        line-height: 0.95;
-        font-weight: 520;
-        letter-spacing: -0.052em;
-        color: var(--pdm-popup-text, var(--text-color));
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }}
-
-    @media (max-width: 900px) {{
-        .pdm-clean-header {{
-            grid-template-columns: 1fr;
-            gap: 0;
-            margin-bottom: 2px;
-            padding-top: 0;
-        }}
-
-        .pdm-clean-logo-box {{
-            justify-content: center;
-            height: 76px;
-            overflow: visible;
-        }}
-
-        .pdm-clean-logo {{
-            height: 78px;
-        }}
-
-        .pdm-clean-title {{
-            font-size: clamp(30px, 8vw, 42px);
-            line-height: 0.94;
-            margin-top: 0;
-        }}
-    }}
-
-    @media (max-width: 520px) {{
-        .pdm-clean-logo-box {{
-            height: 66px;
-        }}
-
-        .pdm-clean-logo {{
-            height: 68px;
-        }}
-
-        .pdm-clean-title {{
-            font-size: 30px;
-        }}
-    }}
-    </style>
-    <div class="pdm-clean-header">
-        <div class="pdm-clean-logo-box">{logo_html}</div>
-        <div class="pdm-clean-title">{html.escape(str(t_preview["title"]))}</div>
-        <div></div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-lang_option = st.selectbox(
-    TEXTS[current_lang]["language"],
-    ["Italiano", "English (US)"],
-    index=0 if current_lang == "IT" else 1,
-    key="lang_selector_top",
-    label_visibility="collapsed",
-)
-
-new_lang = "IT" if "Italiano" in lang_option else "EN"
-if new_lang != st.session_state.lang:
-    st.session_state.lang = new_lang
-    st.rerun()
-
+st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
 
@@ -2759,189 +2660,8 @@ st.markdown(
     }}
 
     [data-testid="stTabs"] {{
-        margin-top: 0 !important;
+        margin-top: {HEADER_TABS_MARGIN}px !important;
     }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <style>
-    @media (max-width: 680px) {
-        .main .block-container {
-            padding-top: 0.45rem !important;
-            padding-left: 0.55rem !important;
-            padding-right: 0.55rem !important;
-        }
-
-        .top-brand-logo-wrap {
-            min-height: 84px !important;
-            height: 84px !important;
-            max-height: 84px !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            justify-content: center !important;
-            align-items: flex-end !important;
-        }
-
-        .top-brand-logo-img {
-            height: 102px !important;
-            max-height: 102px !important;
-            width: auto !important;
-            object-fit: contain !important;
-        }
-
-        .top-brand-title-wrap {
-            min-height: 52px !important;
-            height: 52px !important;
-            max-height: 52px !important;
-            margin-top: -10px !important;
-            margin-bottom: 0 !important;
-            padding: 0 !important;
-            justify-content: center !important;
-            align-items: center !important;
-            text-align: center !important;
-        }
-
-        .top-brand-title {
-            font-size: clamp(34px, 8.8vw, 46px) !important;
-            line-height: 0.96 !important;
-            letter-spacing: -0.05em !important;
-            text-align: center !important;
-            margin: 0 auto !important;
-        }
-
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
-            margin-bottom: -36px !important;
-            row-gap: 0 !important;
-        }
-
-        div[data-baseweb="select"] > div {
-            min-height: 54px !important;
-        }
-
-        [data-testid="stTabs"] {
-            margin-top: -150px !important;
-        }
-
-        [data-testid="stTabs"] [role="tablist"] {
-            margin-top: 0 !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <style>
-    /*
-    HARD mobile/tablet override.
-    Some mobile browsers inside Streamlit/GitHub are reported with a wide CSS viewport,
-    so this uses pointer:coarse in addition to width.
-    */
-    @media (hover: none) and (pointer: coarse), (max-width: 1180px) {
-        .main .block-container {
-            max-width: 100vw !important;
-            padding-left: 0.42rem !important;
-            padding-right: 0.42rem !important;
-            padding-top: 0.35rem !important;
-        }
-
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
-            margin-top: 0 !important;
-            margin-bottom: -210px !important;
-            row-gap: 0 !important;
-            align-items: center !important;
-        }
-
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"] {
-            min-width: 0 !important;
-        }
-
-        .top-brand-logo-wrap {
-            min-height: 72px !important;
-            height: 72px !important;
-            max-height: 72px !important;
-            overflow: hidden !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-
-        .top-brand-logo-img {
-            height: 86px !important;
-            max-height: 86px !important;
-            width: auto !important;
-            object-fit: contain !important;
-            margin: 0 auto !important;
-        }
-
-        .top-brand-title-wrap {
-            min-height: 54px !important;
-            height: 54px !important;
-            max-height: 54px !important;
-            overflow: hidden !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            text-align: center !important;
-        }
-
-        .top-brand-title {
-            font-size: clamp(30px, 7.6vw, 42px) !important;
-            line-height: 0.92 !important;
-            letter-spacing: -0.050em !important;
-            text-align: center !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
-            white-space: nowrap !important;
-        }
-
-        div[data-baseweb="select"] > div {
-            min-height: 46px !important;
-            border-radius: 14px !important;
-        }
-
-        /* Pull the main tabs up on mobile without touching the desktop layout. */
-        [data-testid="stTabs"] {
-            margin-top: -430px !important;
-        }
-
-        [data-testid="stTabs"] [role="tablist"] {
-            gap: 22px !important;
-            overflow-x: auto !important;
-            flex-wrap: nowrap !important;
-            margin-bottom: 10px !important;
-        }
-
-        [data-testid="stTabs"] [role="tab"] {
-            flex: 0 0 auto !important;
-            min-width: max-content !important;
-            min-height: 42px !important;
-        }
-    }
-
-    @media (hover: none) and (pointer: coarse) and (max-width: 520px) {
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
-            margin-bottom: -235px !important;
-        }
-
-        [data-testid="stTabs"] {
-            margin-top: -470px !important;
-        }
-
-        .top-brand-title {
-            font-size: clamp(29px, 7.2vw, 38px) !important;
-        }
-    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -2959,7 +2679,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: 0 !important;
+        margin-top: -42px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -4247,6 +3967,95 @@ def render_scheda_preset_real_sweep_css():
         unsafe_allow_html=True,
     )
 
+
+title_placeholder.markdown(
+    f"""
+    <style>
+    .top-brand-logo-wrap {{
+        min-height: 150px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        margin: 0;
+        padding: 0;
+        text-align: left;
+    }}
+
+    .top-brand-logo-img {{
+        display: block;
+        width: auto;
+        height: 142px;
+        max-width: 100%;
+        object-fit: contain;
+    }}
+
+    .top-brand-title-wrap {{
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-start;
+        text-align: left;
+        min-height: 150px;
+        margin: 0;
+        padding: 0 0 8px 8px;
+    }}
+
+    .top-brand-title {{
+        margin: 0;
+        padding: 0;
+        display: block;
+        font-size: 88px;
+        line-height: 0.92;
+        font-weight: 520;
+        letter-spacing: -0.052em;
+        color: var(--pdm-popup-text);
+    }}
+
+    /* iPad / tablet: improve logo-title alignment */
+    @media (max-width: 1180px) and (min-width: 821px) {{
+        .top-brand-logo-wrap,
+        .top-brand-title-wrap {{
+            min-height: 122px;
+            align-items: center;
+        }}
+        .top-brand-title-wrap {{
+            padding: 0 0 0 4px;
+        }}
+        .top-brand-logo-img {{
+            height: 108px;
+        }}
+        .top-brand-title {{
+            font-size: 66px;
+            line-height: 0.96;
+            font-weight: 500;
+            letter-spacing: -0.048em;
+        }}
+    }}
+
+    @media (max-width: 820px) {{
+        .top-brand-logo-wrap,
+        .top-brand-title-wrap {{
+            min-height: 98px;
+        }}
+        .top-brand-title-wrap {{
+            align-items: center;
+            padding: 0 0 0 4px;
+        }}
+        .top-brand-logo-img {{
+            height: 88px;
+        }}
+        .top-brand-title {{
+            font-size: 48px;
+            font-weight: 520;
+            line-height: 0.98;
+        }}
+    }}
+    </style>
+    <div class="top-brand-title-wrap">
+        <div class="top-brand-title">{html.escape(str(t["title"]))}</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.markdown(
     """
@@ -5599,9 +5408,23 @@ def viewer(
             }}
         }}
 
-        @media (max-width: 820px) {{
+        @media (max-width: 680px) {{
             #active_preset_badge {{
-                display:none !important;
+                top:104px !important;
+                left:14px !important;
+                right:14px !important;
+                transform:none !important;
+                min-width:0 !important;
+                max-width:none !important;
+                padding:8px 14px 9px 14px !important;
+                align-items:flex-start !important;
+                text-align:left !important;
+            }}
+            #active_preset_badge_value {{
+                font-size:16px !important;
+                white-space:normal !important;
+                overflow:visible !important;
+                text-overflow:initial !important;
             }}
         }}
 
@@ -5761,8 +5584,7 @@ def viewer(
         /* Final mobile render fix: avoid overlay conflicts and keep the viewer usable on phones. */
         @media (max-width: 680px) {{
             #viewer_root {{
-                min-height: 760px !important;
-                height: 760px !important;
+                min-height: 960px !important;
             }}
 
             #viewer_topbar {{
@@ -5771,7 +5593,7 @@ def viewer(
                 right: 8px !important;
                 width: calc(100% - 16px) !important;
                 max-width: calc(100% - 16px) !important;
-                padding: 7px !important;
+                padding: 8px !important;
                 gap: 6px !important;
                 overflow-x: auto !important;
                 overflow-y: hidden !important;
@@ -5785,22 +5607,25 @@ def viewer(
                 display: none !important;
             }}
 
-            #progress_title,
-            #progress_slider {{
+            #progress_title {{
                 display: none !important;
+            }}
+
+            #progress_slider {{
+                width: 96px !important;
+                min-width: 96px !important;
             }}
 
             .viewer_icon_btn {{
                 width: 34px !important;
                 min-width: 34px !important;
                 height: 34px !important;
-                font-size: 16px !important;
+                font-size: 17px !important;
             }}
 
             .viewer_print_btn {{
-                min-width: 124px !important;
-                height: 34px !important;
-                padding: 0 12px !important;
+                min-width: 132px !important;
+                padding: 0 14px !important;
                 font-size: 12px !important;
             }}
 
@@ -5809,24 +5634,24 @@ def viewer(
             }}
 
             #viewer_sidepanel {{
-                top: 56px !important;
+                top: 58px !important;
                 right: 8px !important;
                 z-index: 36 !important;
             }}
 
             #viewer_sidepanel.collapsed {{
-                width: 46px !important;
-                min-width: 46px !important;
-                height: 46px !important;
-                min-height: 46px !important;
-                max-height: 46px !important;
-                padding: 6px !important;
+                width: 50px !important;
+                min-width: 50px !important;
+                height: 50px !important;
+                min-height: 50px !important;
+                max-height: 50px !important;
+                padding: 7px !important;
             }}
 
             #viewer_sidepanel:not(.collapsed) {{
-                width: min(228px, calc(100% - 16px)) !important;
-                max-width: min(228px, calc(100% - 16px)) !important;
-                max-height: calc(100% - 132px) !important;
+                width: min(236px, calc(100% - 16px)) !important;
+                max-width: min(236px, calc(100% - 16px)) !important;
+                max-height: calc(100% - 74px) !important;
             }}
 
             #viewer_hud {{
@@ -5858,7 +5683,12 @@ def viewer(
             }}
 
             #packaging_status_badge {{
-                display: none !important;
+                left: 8px !important;
+                right: 8px !important;
+                bottom: 8px !important;
+                width: auto !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
             }}
         }}
     </style>
@@ -5976,12 +5806,6 @@ def viewer(
         if (isNarrowMobile && sidepanel) {{
             sidepanel.classList.add("collapsed");
         }}
-
-        window.addEventListener("resize", () => {{
-            if (window.innerWidth <= 680 && sidepanel) {{
-                sidepanel.classList.add("collapsed");
-            }}
-        }});
 
         sidepanelToggle.addEventListener("click", () => {{
             sidepanel.classList.toggle("collapsed");
@@ -6252,11 +6076,7 @@ def viewer(
         resetViewBtn.addEventListener("click", () => {{
             currentView = "3d";
             setActiveButton(viewBtns, currentView, "data-view");
-            if (sceneMode === "packaging") {{
-                setPackagingCamera();
-            }} else {{
-                setCameraView("3d");
-            }}
+            setCameraView("3d");
         }});
 
         if (studioCheck) {{
@@ -12006,50 +11826,6 @@ st.markdown(
 st.markdown(
     """
     <style>
-    @media (max-width: 680px) {
-        .main .block-container {
-            max-width: 100% !important;
-            padding-left: 0.38rem !important;
-            padding-right: 0.38rem !important;
-            padding-top: 0.55rem !important;
-        }
-
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
-            align-items: center !important;
-        }
-
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"] {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-        }
-
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"]:nth-child(1) {
-            flex: 0 0 32% !important;
-            width: 32% !important;
-            min-width: 110px !important;
-        }
-
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"]:nth-child(2) {
-            flex: 1 1 auto !important;
-            width: auto !important;
-            min-width: 0 !important;
-        }
-
-        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"]:nth-child(3) {
-            flex: 0 0 120px !important;
-            width: 120px !important;
-            min-width: 96px !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <style>
     /* Final mobile header tune: keep logo and title visually centred without breaking desktop */
     @media (max-width: 820px) {
         .top-brand-logo-wrap {
@@ -12112,48 +11888,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-st.markdown(
-    """
-    <style>
-    /* Final compact header spacing reset */
-    .main .block-container {
-        padding-top: 0.50rem !important;
-    }
-
-    div[data-testid="stSelectbox"] {
-        margin-bottom: 0.35rem !important;
-    }
-
-    div[data-testid="stTabs"] {
-        margin-top: 0.25rem !important;
-    }
-
-    div[data-testid="stTabs"] [role="tablist"] {
-        margin-top: 0 !important;
-        margin-bottom: 12px !important;
-    }
-
-    @media (max-width: 900px) {
-        .main .block-container {
-            padding-left: 0.65rem !important;
-            padding-right: 0.65rem !important;
-        }
-
-        div[data-testid="stSelectbox"] {
-            margin-top: 0.15rem !important;
-            margin-bottom: 0.20rem !important;
-        }
-
-        div[data-testid="stTabs"] {
-            margin-top: 0.20rem !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 
 # =========================
 # UI
