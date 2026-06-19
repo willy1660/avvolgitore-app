@@ -2586,12 +2586,24 @@ t_preview = TEXTS[current_lang]
 logo_html = ""
 if logo_path:
     try:
+        logo_suffix = Path(logo_path).suffix.lower()
+        logo_mime = {
+            ".svg": "image/svg+xml",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".png": "image/png",
+        }.get(logo_suffix, "image/png")
         logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
-        logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="pdm-clean-logo" alt="PDM logo" />'
+        logo_html = (
+            f'<img src="data:{logo_mime};base64,{logo_b64}" class="pdm-clean-logo" alt="PDM logo" '
+            f'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';" />'
+            '<div class="pdm-clean-logo-fallback" style="display:none;">PDM<div class="pdm-clean-logo-sub">try it, love it</div></div>'
+        )
     except Exception:
-        logo_html = '<div class="pdm-clean-logo-fallback">PDM</div>'
+        logo_html = '<div class="pdm-clean-logo-fallback">PDM<div class="pdm-clean-logo-sub">try it, love it</div></div>'
 else:
-    logo_html = '<div class="pdm-clean-logo-fallback">PDM</div>'
+    logo_html = '<div class="pdm-clean-logo-fallback">PDM<div class="pdm-clean-logo-sub">try it, love it</div></div>'
 
 st.markdown(
     f"""
@@ -2603,8 +2615,8 @@ st.markdown(
         grid-template-columns: 150px 1fr 150px;
         align-items: center;
         gap: 16px;
-        margin: 0 0 8px 0;
-        padding: 4px 0 0 0;
+        margin: 0 0 4px 0;
+        padding: 2px 0 0 0;
     }}
 
     .pdm-clean-logo-box {{
@@ -2612,21 +2624,31 @@ st.markdown(
         align-items: center;
         justify-content: flex-start;
         min-width: 0;
-        overflow: hidden;
+        overflow: visible;
     }}
 
     .pdm-clean-logo {{
         display: block;
-        height: 92px;
+        height: 108px;
         width: auto;
         object-fit: contain;
     }}
 
     .pdm-clean-logo-fallback {{
         color: #C57E5A;
-        font-size: 28px;
+        font-size: 30px;
         font-weight: 950;
         letter-spacing: -0.04em;
+        line-height: 0.90;
+        text-align: center;
+    }}
+
+    .pdm-clean-logo-sub {{
+        margin-top: 3px;
+        font-size: 10px;
+        font-weight: 780;
+        letter-spacing: 0.04em;
+        color: color-mix(in srgb, #C57E5A 70%, var(--text-color));
     }}
 
     .pdm-clean-title {{
@@ -2644,33 +2666,35 @@ st.markdown(
     @media (max-width: 900px) {{
         .pdm-clean-header {{
             grid-template-columns: 1fr;
-            gap: 2px;
-            margin-bottom: 6px;
+            gap: 0;
+            margin-bottom: 2px;
             padding-top: 0;
         }}
 
         .pdm-clean-logo-box {{
             justify-content: center;
-            height: 62px;
+            height: 76px;
+            overflow: visible;
         }}
 
         .pdm-clean-logo {{
-            height: 60px;
+            height: 78px;
         }}
 
         .pdm-clean-title {{
             font-size: clamp(30px, 8vw, 42px);
-            line-height: 0.95;
+            line-height: 0.94;
+            margin-top: 0;
         }}
     }}
 
     @media (max-width: 520px) {{
         .pdm-clean-logo-box {{
-            height: 54px;
+            height: 66px;
         }}
 
         .pdm-clean-logo {{
-            height: 52px;
+            height: 68px;
         }}
 
         .pdm-clean-title {{
@@ -12092,13 +12116,22 @@ st.markdown(
 st.markdown(
     """
     <style>
-    /* Final reset after removing the old column-based header */
-    div[data-testid="stTabs"] {
-        margin-top: 0 !important;
+    /* Final compact header spacing reset */
+    .main .block-container {
+        padding-top: 0.50rem !important;
     }
 
-    .main .block-container {
-        padding-top: 0.55rem !important;
+    div[data-testid="stSelectbox"] {
+        margin-bottom: 0.35rem !important;
+    }
+
+    div[data-testid="stTabs"] {
+        margin-top: 0.25rem !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-top: 0 !important;
+        margin-bottom: 12px !important;
     }
 
     @media (max-width: 900px) {
@@ -12106,11 +12139,21 @@ st.markdown(
             padding-left: 0.65rem !important;
             padding-right: 0.65rem !important;
         }
+
+        div[data-testid="stSelectbox"] {
+            margin-top: 0.15rem !important;
+            margin-bottom: 0.20rem !important;
+        }
+
+        div[data-testid="stTabs"] {
+            margin-top: 0.20rem !important;
+        }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
 
 # =========================
 # UI
