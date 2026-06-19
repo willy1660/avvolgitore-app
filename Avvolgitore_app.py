@@ -444,7 +444,7 @@ def render_preset_param_cards(title, column_names, selected_row, language, cards
         }
         @media (max-width: 900px) {
             .preset-param-card {
-                min-height: 48px;
+                min-height: 108px;
                 padding: 14px 16px;
                 margin-bottom: 10px;
             }
@@ -755,10 +755,10 @@ def render_layer_diagnostics_panel(
         }
         @media (max-width: 820px) {
             div[data-testid="stMetric"] {
-                min-height: 68px;
+                min-height: 92px;
             }
             .diagnostic-native-detail {
-                min-height: 68px;
+                min-height: 92px;
                 padding: 11px 12px;
                 border-radius: 15px;
             }
@@ -2640,7 +2640,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: 0;
+        margin-top: -42px;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -3932,119 +3932,88 @@ def render_scheda_preset_real_sweep_css():
 title_placeholder.markdown(
     f"""
     <style>
-    /*
-    Header compacte però sense solapar pestanyes ni contingut.
-    */
     .top-brand-logo-wrap {{
-        height: 108px;
-        min-height: 108px;
+        min-height: 150px;
         display: flex;
         align-items: flex-start;
         justify-content: flex-start;
         margin: 0;
         padding: 0;
         text-align: left;
-        overflow: hidden;
     }}
 
     .top-brand-logo-img {{
         display: block;
         width: auto;
-        height: 102px;
+        height: 142px;
         max-width: 100%;
         object-fit: contain;
     }}
 
     .top-brand-title-wrap {{
-        height: 108px;
-        min-height: 108px;
         display: flex;
-        align-items: center;
+        align-items: flex-end;
         justify-content: flex-start;
         text-align: left;
+        min-height: 150px;
         margin: 0;
-        padding: 0 0 0 8px;
-        overflow: hidden;
+        padding: 0 0 8px 8px;
     }}
 
     .top-brand-title {{
         margin: 0;
         padding: 0;
         display: block;
-        font-size: 76px;
+        font-size: 88px;
         line-height: 0.92;
         font-weight: 520;
         letter-spacing: -0.052em;
         color: var(--pdm-popup-text);
     }}
 
+    /* iPad / tablet: improve logo-title alignment */
     @media (max-width: 1180px) and (min-width: 821px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            height: 88px;
-            min-height: 88px;
+            min-height: 122px;
+            align-items: center;
+        }}
+        .top-brand-title-wrap {{
+            padding: 0 0 0 4px;
         }}
         .top-brand-logo-img {{
-            height: 82px;
+            height: 108px;
         }}
         .top-brand-title {{
-            font-size: 58px;
-            line-height: 0.94;
+            font-size: 66px;
+            line-height: 0.96;
+            font-weight: 500;
+            letter-spacing: -0.048em;
         }}
     }}
 
     @media (max-width: 820px) {{
         .top-brand-logo-wrap,
         .top-brand-title-wrap {{
-            height: 66px;
-            min-height: 66px;
+            min-height: 98px;
+        }}
+        .top-brand-title-wrap {{
+            align-items: center;
+            padding: 0 0 0 4px;
         }}
         .top-brand-logo-img {{
-            height: 60px;
+            height: 88px;
         }}
         .top-brand-title {{
-            font-size: 38px;
-            line-height: 0.96;
+            font-size: 48px;
+            font-weight: 520;
+            line-height: 0.98;
         }}
     }}
     </style>
     <div class="top-brand-title-wrap">
         <div class="top-brand-title">{html.escape(str(t["title"]))}</div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <style>
-    /*
-    Header layout reset: no negative margins, no forced overlap.
-    */
-    div[data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap),
-    div[data-testid="stHorizontalBlock"]:has(.top-brand-title-wrap) {
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-        align-items: flex-start !important;
-        overflow: visible !important;
-    }
-
-    div[data-testid="element-container"]:has(.top-brand-logo-wrap),
-    div[data-testid="element-container"]:has(.top-brand-title-wrap) {
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-    }
-
-    [data-testid="stTabs"] {
-        margin-top: 0 !important;
-    }
-
-    @media (max-width: 1180px) {
-        [data-testid="stTabs"] {
-            margin-top: 0 !important;
-        }
-    }
-    </style>
     """,
     unsafe_allow_html=True,
 )
