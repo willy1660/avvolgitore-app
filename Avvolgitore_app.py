@@ -10654,6 +10654,23 @@ st.markdown(
         align-items: center;
     }
 
+    .calibration-warning-mini {
+        margin: 9px 0 0 0;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid color-mix(in srgb, #f59e0b 42%, transparent);
+        background: color-mix(in srgb, #f59e0b 10%, var(--secondary-background-color));
+        color: color-mix(in srgb, var(--text-color) 82%, transparent);
+        font-size: 0.73rem;
+        line-height: 1.24;
+        font-weight: 760;
+    }
+
+    .calibration-warning-mini strong {
+        font-weight: 950;
+        color: var(--text-color);
+    }
+
     .calibration-factor-pill {
         min-height: 44px;
         padding: 8px 10px;
@@ -11278,6 +11295,11 @@ st.markdown(
             padding: 6px 8px !important;
             font-size: 0.66rem !important;
         }
+        .calibration-warning-mini {
+            padding: 6px 8px !important;
+            font-size: 0.66rem !important;
+            line-height: 1.18 !important;
+        }
         .preset-live-status {
             padding: 8px 10px !important;
             margin-top: 8px !important;
@@ -11668,6 +11690,29 @@ with tab_production:
                     unsafe_allow_html=True,
                 )
 
+        if not preset_has_correction_factors and not is_prototype:
+            warning_text = (
+                "<strong>Fattori correzione non consolidati.</strong> Questo preset non ha ancora entrambi i fattori salvati nel Presets.csv; il render parte in Ideale macchina finché non vengono raccolti e inseriti."
+                if lang == "IT"
+                else
+                "<strong>Correction factors not consolidated.</strong> This preset does not yet have both factors saved in Presets.csv; the render starts in Machine ideal until they are collected and entered."
+            )
+            st.markdown(
+                f"<div class='calibration-warning-mini'>{warning_text}</div>",
+                unsafe_allow_html=True,
+            )
+        elif is_prototype and not correction_factors_enabled:
+            warning_text = (
+                "<strong>Prototipo senza fattori consolidati.</strong> Usa il modo ideale o inserisci fattori provvisori solo per stimare l’ingombro."
+                if lang == "IT"
+                else
+                "<strong>Prototype without consolidated factors.</strong> Use ideal mode or enter temporary factors only to estimate the footprint."
+            )
+            st.markdown(
+                f"<div class='calibration-warning-mini'>{warning_text}</div>",
+                unsafe_allow_html=True,
+            )
+
     if is_prototype:
         status_title = "Prototipo" if lang == "IT" else "Prototype"
         status_detail = "Valori liberi: non collegati a un preset ufficiale." if lang == "IT" else "Free values: not linked to an official preset."
@@ -11682,6 +11727,10 @@ with tab_production:
                 status_detail += f" +{len(field_list) - 5}"
         else:
             status_detail = "Valori originali caricati da Presets.csv." if lang == "IT" else "Original values loaded from Presets.csv."
+
+        if not bool(st.session_state.get("preset_has_correction_factors", False)):
+            status_detail += " · Fattori correzione non consolidati." if lang == "IT" else " · Correction factors not consolidated."
+
         status_badge = "MODIFICATO" if preset_modified and lang == "IT" else ("MODIFIED" if preset_modified else ("ORIGINALE" if lang == "IT" else "ORIGINAL"))
         status_class = "modified" if preset_modified else "original"
 
