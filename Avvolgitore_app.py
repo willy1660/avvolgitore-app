@@ -2657,7 +2657,7 @@ with st.sidebar.expander("Ajuste header" if lang == "IT" else "Header tuning", e
     )
     header_tabs_margin = st.slider(
         "Distanza tabs" if lang == "IT" else "Tabs distance",
-        min_value=-90,
+        min_value=-220,
         max_value=30,
         value=int(st.session_state.get("ui_header_tabs_margin", -42)),
         step=2,
