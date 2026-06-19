@@ -4038,6 +4038,7 @@ title_placeholder.markdown(
         }}
         .top-brand-title-wrap {{
             align-items: center;
+            justify-content: flex-start;
             padding: 0 0 0 4px;
         }}
         .top-brand-logo-img {{
@@ -4047,6 +4048,33 @@ title_placeholder.markdown(
             font-size: 48px;
             font-weight: 520;
             line-height: 0.98;
+        }}
+    }}
+
+    @media (max-width: 680px) {{
+        .top-brand-logo-wrap {{
+            min-height: 88px;
+            justify-content: center;
+            align-items: center;
+        }}
+        .top-brand-logo-img {{
+            height: 80px;
+            max-height: 80px;
+            margin: 0 auto;
+        }}
+        .top-brand-title-wrap {{
+            min-height: 88px;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 0 0 0;
+        }}
+        .top-brand-title {{
+            width: 100%;
+            text-align: center;
+            font-size: clamp(38px, 8.6vw, 56px);
+            line-height: 0.94;
+            letter-spacing: -0.055em;
         }}
     }}
     </style>
@@ -5404,23 +5432,9 @@ def viewer(
             }}
         }}
 
-        @media (max-width: 680px) {{
+        @media (max-width: 820px) {{
             #active_preset_badge {{
-                top:104px !important;
-                left:14px !important;
-                right:14px !important;
-                transform:none !important;
-                min-width:0 !important;
-                max-width:none !important;
-                padding:8px 14px 9px 14px !important;
-                align-items:flex-start !important;
-                text-align:left !important;
-            }}
-            #active_preset_badge_value {{
-                font-size:16px !important;
-                white-space:normal !important;
-                overflow:visible !important;
-                text-overflow:initial !important;
+                display:none !important;
             }}
         }}
 
@@ -5580,7 +5594,8 @@ def viewer(
         /* Final mobile render fix: avoid overlay conflicts and keep the viewer usable on phones. */
         @media (max-width: 680px) {{
             #viewer_root {{
-                min-height: 960px !important;
+                min-height: 760px !important;
+                height: 760px !important;
             }}
 
             #viewer_topbar {{
@@ -5589,7 +5604,7 @@ def viewer(
                 right: 8px !important;
                 width: calc(100% - 16px) !important;
                 max-width: calc(100% - 16px) !important;
-                padding: 8px !important;
+                padding: 7px !important;
                 gap: 6px !important;
                 overflow-x: auto !important;
                 overflow-y: hidden !important;
@@ -5603,25 +5618,22 @@ def viewer(
                 display: none !important;
             }}
 
-            #progress_title {{
-                display: none !important;
-            }}
-
+            #progress_title,
             #progress_slider {{
-                width: 96px !important;
-                min-width: 96px !important;
+                display: none !important;
             }}
 
             .viewer_icon_btn {{
                 width: 34px !important;
                 min-width: 34px !important;
                 height: 34px !important;
-                font-size: 17px !important;
+                font-size: 16px !important;
             }}
 
             .viewer_print_btn {{
-                min-width: 132px !important;
-                padding: 0 14px !important;
+                min-width: 124px !important;
+                height: 34px !important;
+                padding: 0 12px !important;
                 font-size: 12px !important;
             }}
 
@@ -5630,24 +5642,24 @@ def viewer(
             }}
 
             #viewer_sidepanel {{
-                top: 58px !important;
+                top: 56px !important;
                 right: 8px !important;
                 z-index: 36 !important;
             }}
 
             #viewer_sidepanel.collapsed {{
-                width: 50px !important;
-                min-width: 50px !important;
-                height: 50px !important;
-                min-height: 50px !important;
-                max-height: 50px !important;
-                padding: 7px !important;
+                width: 46px !important;
+                min-width: 46px !important;
+                height: 46px !important;
+                min-height: 46px !important;
+                max-height: 46px !important;
+                padding: 6px !important;
             }}
 
             #viewer_sidepanel:not(.collapsed) {{
-                width: min(236px, calc(100% - 16px)) !important;
-                max-width: min(236px, calc(100% - 16px)) !important;
-                max-height: calc(100% - 74px) !important;
+                width: min(228px, calc(100% - 16px)) !important;
+                max-width: min(228px, calc(100% - 16px)) !important;
+                max-height: calc(100% - 132px) !important;
             }}
 
             #viewer_hud {{
@@ -5679,12 +5691,7 @@ def viewer(
             }}
 
             #packaging_status_badge {{
-                left: 8px !important;
-                right: 8px !important;
-                bottom: 8px !important;
-                width: auto !important;
-                min-width: 0 !important;
-                box-sizing: border-box !important;
+                display: none !important;
             }}
         }}
     </style>
@@ -5799,6 +5806,12 @@ def viewer(
         if (isNarrowMobile && sidepanel) {{
             sidepanel.classList.add("collapsed");
         }}
+
+        window.addEventListener("resize", () => {{
+            if (window.innerWidth <= 680 && sidepanel) {{
+                sidepanel.classList.add("collapsed");
+            }}
+        }});
 
         sidepanelToggle.addEventListener("click", () => {{
             sidepanel.classList.toggle("collapsed");
@@ -11801,6 +11814,50 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+st.markdown(
+    """
+    <style>
+    @media (max-width: 680px) {
+        .main .block-container {
+            max-width: 100% !important;
+            padding-left: 0.38rem !important;
+            padding-right: 0.38rem !important;
+            padding-top: 0.55rem !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) {
+            align-items: center !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"] {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"]:nth-child(1) {
+            flex: 0 0 32% !important;
+            width: 32% !important;
+            min-width: 110px !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"]:nth-child(2) {
+            flex: 1 1 auto !important;
+            width: auto !important;
+            min-width: 0 !important;
+        }
+
+        [data-testid="stHorizontalBlock"]:has(.top-brand-logo-wrap) > [data-testid="column"]:nth-child(3) {
+            flex: 0 0 120px !important;
+            width: 120px !important;
+            min-width: 96px !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.markdown(
     """
