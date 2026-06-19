@@ -6404,7 +6404,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const ctx = canvas.getContext("2d");
             const base = dark ? 58 : 236;
-            ctx.fillStyle = `rgb(${base}, ${base}, ${base})`;
+            ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
             ctx.fillRect(0, 0, size, size);
 
             const img = ctx.getImageData(0, 0, size, size);
