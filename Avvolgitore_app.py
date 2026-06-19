@@ -2578,53 +2578,93 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-top1, top2, top3 = st.columns([0.86, 5.72, 1.12])
+# Card header: safer than fixed-height CSS. It adapts much better on desktop/tablet/mobile.
+current_lang = st.session_state.lang
 
-with top1:
-    if logo_path:
-        try:
-            logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
+st.markdown(
+    """
+    <style>
+    .pdm-card-title {
+        width: 100%;
+        text-align: center;
+        font-size: clamp(42px, 4.8vw, 78px);
+        line-height: 0.95;
+        font-weight: 520;
+        letter-spacing: -0.052em;
+        color: var(--pdm-popup-text, var(--text-color));
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0;
+        padding: 0;
+    }
+
+    .pdm-card-logo-fallback {
+        color: #C57E5A;
+        font-weight: 950;
+        font-size: 28px;
+        line-height: 0.90;
+        letter-spacing: -0.04em;
+        text-align: center;
+    }
+
+    .pdm-card-logo-sub {
+        margin-top: 3px;
+        font-size: 10px;
+        font-weight: 760;
+        letter-spacing: 0.04em;
+    }
+
+    @media (max-width: 900px) {
+        .pdm-card-title {
+            font-size: clamp(32px, 7.5vw, 44px);
+            margin-top: -4px;
+            margin-bottom: -2px;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+with st.container(border=True):
+    h_logo_col, h_title_col, h_lang_col = st.columns([1.05, 5.8, 1.55], gap="large")
+
+    with h_logo_col:
+        if logo_path:
+            try:
+                st.image(logo_path, width=105)
+            except Exception:
+                st.markdown(
+                    '<div class="pdm-card-logo-fallback">PDM<div class="pdm-card-logo-sub">try it, love it</div></div>',
+                    unsafe_allow_html=True,
+                )
+        else:
             st.markdown(
-                f"""
-                <div class="top-brand-logo-wrap">
-                    <img src="data:image/png;base64,{logo_b64}" class="top-brand-logo-img" alt="PDM logo" />
-                </div>
-                """,
+                '<div class="pdm-card-logo-fallback">PDM<div class="pdm-card-logo-sub">try it, love it</div></div>',
                 unsafe_allow_html=True,
             )
-        except Exception:
-            st.image(logo_path, width=205)
-    else:
+
+    with h_title_col:
         st.markdown(
-            """
-            <div class="top-brand-logo-wrap">
-                <div>
-                    <div style="font-size:24px;font-weight:950;letter-spacing:-0.04em;line-height:1;">
-                        PDM
-                    </div>
-                    <div style="font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:color-mix(in srgb, var(--text-color) 58%, transparent);">
-                        avvolgimento
-                    </div>
-                </div>
-            </div>
-            """,
+            f'<div class="pdm-card-title">{html.escape(str(TEXTS[current_lang]["title"]))}</div>',
             unsafe_allow_html=True,
         )
 
-with top2:
-    title_placeholder = st.empty()
+    with h_lang_col:
+        lang_option = st.selectbox(
+            TEXTS[current_lang]["language"],
+            ["Italiano", "English (US)"],
+            index=0 if current_lang == "IT" else 1,
+            key="lang_selector_top",
+            label_visibility="collapsed",
+        )
 
-with top3:
-    current_lang = st.session_state.lang
-    lang_option = st.selectbox(
-        TEXTS[current_lang]["language"],
-        ["Italiano", "English (US)"],
-        index=0 if current_lang == "IT" else 1,
-        key="lang_selector_top",
-        label_visibility="collapsed",
-    )
+new_lang = "IT" if "Italiano" in lang_option else "EN"
+if new_lang != st.session_state.lang:
+    st.session_state.lang = new_lang
+    st.rerun()
 
-st.session_state.lang = "IT" if "Italiano" in lang_option else "EN"
 lang = st.session_state.lang
 t = TEXTS[lang]
 
@@ -2660,7 +2700,7 @@ st.markdown(
     }}
 
     [data-testid="stTabs"] {{
-        margin-top: {HEADER_TABS_MARGIN}px !important;
+        margin-top: 0 !important;
     }}
     </style>
     """,
@@ -2679,7 +2719,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: -42px;
+        margin-top: 0 !important;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -3967,95 +4007,6 @@ def render_scheda_preset_real_sweep_css():
         unsafe_allow_html=True,
     )
 
-
-title_placeholder.markdown(
-    f"""
-    <style>
-    .top-brand-logo-wrap {{
-        min-height: 150px;
-        display: flex;
-        align-items: flex-start;
-        justify-content: flex-start;
-        margin: 0;
-        padding: 0;
-        text-align: left;
-    }}
-
-    .top-brand-logo-img {{
-        display: block;
-        width: auto;
-        height: 142px;
-        max-width: 100%;
-        object-fit: contain;
-    }}
-
-    .top-brand-title-wrap {{
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-start;
-        text-align: left;
-        min-height: 150px;
-        margin: 0;
-        padding: 0 0 8px 8px;
-    }}
-
-    .top-brand-title {{
-        margin: 0;
-        padding: 0;
-        display: block;
-        font-size: 88px;
-        line-height: 0.92;
-        font-weight: 520;
-        letter-spacing: -0.052em;
-        color: var(--pdm-popup-text);
-    }}
-
-    /* iPad / tablet: improve logo-title alignment */
-    @media (max-width: 1180px) and (min-width: 821px) {{
-        .top-brand-logo-wrap,
-        .top-brand-title-wrap {{
-            min-height: 122px;
-            align-items: center;
-        }}
-        .top-brand-title-wrap {{
-            padding: 0 0 0 4px;
-        }}
-        .top-brand-logo-img {{
-            height: 108px;
-        }}
-        .top-brand-title {{
-            font-size: 66px;
-            line-height: 0.96;
-            font-weight: 500;
-            letter-spacing: -0.048em;
-        }}
-    }}
-
-    @media (max-width: 820px) {{
-        .top-brand-logo-wrap,
-        .top-brand-title-wrap {{
-            min-height: 98px;
-        }}
-        .top-brand-title-wrap {{
-            align-items: center;
-            padding: 0 0 0 4px;
-        }}
-        .top-brand-logo-img {{
-            height: 88px;
-        }}
-        .top-brand-title {{
-            font-size: 48px;
-            font-weight: 520;
-            line-height: 0.98;
-        }}
-    }}
-    </style>
-    <div class="top-brand-title-wrap">
-        <div class="top-brand-title">{html.escape(str(t["title"]))}</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
 st.markdown(
     """
@@ -11882,6 +11833,38 @@ st.markdown(
 
         .top-brand-title {
             font-size: clamp(34px, 8.8vw, 44px) !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <style>
+    /* Final spacing for the card header */
+    .main .block-container {
+        padding-top: 0.65rem !important;
+    }
+
+    div[data-testid="stTabs"] {
+        margin-top: 0.55rem !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-top: 0 !important;
+        margin-bottom: 14px !important;
+    }
+
+    @media (max-width: 900px) {
+        .main .block-container {
+            padding-left: 0.65rem !important;
+            padding-right: 0.65rem !important;
+        }
+
+        div[data-testid="stTabs"] {
+            margin-top: 0.45rem !important;
         }
     }
     </style>
