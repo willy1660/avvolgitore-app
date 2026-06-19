@@ -1631,6 +1631,9 @@ def make_preset_visual(row, language):
     """
 
 def current_calculator_snapshot():
+    simulation_mode_raw = str(st.session_state.get("calc_simulation_mode", "Fattori correzione"))
+    simulation_mode_normalized = "Fattori correzione" if simulation_mode_raw in {"Fattori correzione", "Correction factors"} else "Ideale macchina"
+
     return {
         "calc_rame": str(st.session_state.get("calc_rame", "1/4")).strip(),
         "calc_spessore": float(st.session_state.get("calc_spessore", 7.0)),
@@ -1641,7 +1644,7 @@ def current_calculator_snapshot():
         "calc_incremento_visuale": float(st.session_state.get("calc_incremento_visuale", 20.0)),
         "calc_rit_b": float(st.session_state.get("calc_rit_b", 360.0)),
         "calc_rit_t": float(st.session_state.get("calc_rit_t", 360.0)),
-        "calc_simulation_mode": str(st.session_state.get("calc_simulation_mode", "Fattori correzione")),
+        "calc_simulation_mode": simulation_mode_normalized,
         "calc_fattore_passo_effettivo": float(st.session_state.get("calc_fattore_passo_effettivo", DEFAULT_FATTORE_PASSO_EFFETTIVO)),
         "calc_fattore_compattazione_radiale": float(st.session_state.get("calc_fattore_compattazione_radiale", DEFAULT_FATTORE_COMPATTAZIONE_RADIALE)),
         "calc_tube_layout": str(st.session_state.get("calc_tube_layout", "Singolo")),
@@ -10467,6 +10470,123 @@ st.markdown(
         margin-bottom: 0.20rem !important;
     }
 
+    .calibration-horizontal-help {
+        margin: 2px 0 10px 0;
+        color: color-mix(in srgb, var(--text-color) 62%, transparent);
+        font-size: 0.74rem;
+        line-height: 1.28;
+        font-weight: 650;
+    }
+
+    .calibration-horizontal-note {
+        min-height: 44px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid color-mix(in srgb, var(--pdm-accent) 16%, var(--text-color) 7%);
+        background: color-mix(in srgb, var(--pdm-accent) 4.5%, transparent);
+        color: color-mix(in srgb, var(--text-color) 68%, transparent);
+        font-size: 0.72rem;
+        line-height: 1.22;
+        font-weight: 680;
+        display: flex;
+        align-items: center;
+    }
+
+    .calibration-factor-pill {
+        min-height: 44px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid color-mix(in srgb, var(--text-color) 11%, transparent);
+        background: color-mix(in srgb, var(--secondary-background-color) 86%, var(--background-color));
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+    }
+
+    .calibration-factor-pill span {
+        font-size: 0.66rem;
+        line-height: 1.05;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--text-color) 58%, transparent);
+    }
+
+    .calibration-factor-pill strong {
+        font-size: 1.02rem;
+        line-height: 1;
+        font-weight: 950;
+        color: var(--text-color);
+    }
+
+    .preset-live-status {
+        margin: 10px 0 8px 0;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+        background: linear-gradient(180deg,
+            color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+            color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+        );
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.045);
+    }
+
+    .preset-live-status.modified {
+        border-color: color-mix(in srgb, #f59e0b 42%, transparent);
+        background: color-mix(in srgb, #f59e0b 8%, var(--secondary-background-color));
+    }
+
+    .preset-live-status.original {
+        border-color: color-mix(in srgb, #22c55e 32%, transparent);
+    }
+
+    .preset-live-status.prototype {
+        border-color: color-mix(in srgb, var(--pdm-accent) 32%, transparent);
+    }
+
+    .preset-live-status strong {
+        display: block;
+        font-size: 0.86rem;
+        line-height: 1.12;
+        font-weight: 950;
+        color: var(--text-color);
+    }
+
+    .preset-live-status span {
+        display: block;
+        margin-top: 2px;
+        font-size: 0.72rem;
+        line-height: 1.16;
+        font-weight: 650;
+        color: color-mix(in srgb, var(--text-color) 60%, transparent);
+    }
+
+    .preset-live-status em {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 6px 9px;
+        background: var(--pdm-accent);
+        color: #fff;
+        font-size: 0.67rem;
+        line-height: 1;
+        font-style: normal;
+        font-weight: 950;
+        letter-spacing: 0.055em;
+    }
+
+    .preset-live-status.modified em {
+        background: #f59e0b;
+    }
+
+    .preset-live-status.original em {
+        background: #22c55e;
+    }
+
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border-color: color-mix(in srgb, var(--text-color) 12%, transparent) !important;
         background: linear-gradient(180deg,
@@ -10986,6 +11106,20 @@ st.markdown(
             font-size: 0.66rem !important;
             margin-bottom: 5px !important;
         }
+        .calibration-horizontal-help {
+            font-size: 0.68rem !important;
+            margin-bottom: 7px !important;
+        }
+        .calibration-horizontal-note,
+        .calibration-factor-pill {
+            min-height: 40px !important;
+            padding: 6px 8px !important;
+            font-size: 0.66rem !important;
+        }
+        .preset-live-status {
+            padding: 8px 10px !important;
+            margin-top: 8px !important;
+        }
         .operator-field-label {
             margin-top: 0.38rem !important;
             margin-bottom: 0.20rem !important;
@@ -11257,81 +11391,6 @@ with tab_production:
             render_operator_field_label(t["rit_max"])
             rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked, label_visibility="collapsed")
 
-            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-            st.markdown("**Calibrazione fisica**" if lang == "IT" else "**Physical calibration**")
-            st.markdown(
-                f"""
-                <div class="calibration-compact-caption">
-                    {"Preset sperimentale per allineare simulazione e rotolo reale." if lang == "IT" else "Experimental preset to align simulation and real coil."}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            simulation_mode_options = ["Fattori correzione", "Ideale macchina"]
-            if st.session_state.get("calc_simulation_mode") not in simulation_mode_options:
-                st.session_state["calc_simulation_mode"] = "Fattori correzione"
-
-            st.markdown(
-                f"<div class='operator-field-label calibration-mode-label'>{'Modo simulazione' if lang == 'IT' else 'Simulation mode'}</div>",
-                unsafe_allow_html=True,
-            )
-            simulation_mode = st.radio(
-                "Modo simulazione" if lang == "IT" else "Simulation mode",
-                simulation_mode_options,
-                horizontal=True,
-                key="calc_simulation_mode",
-                disabled=params_locked,
-                label_visibility="collapsed",
-            )
-
-            correction_factors_enabled = st.session_state.get("calc_simulation_mode", "Fattori correzione") == "Fattori correzione"
-            preset_has_correction_factors = bool(st.session_state.get("preset_has_correction_factors", False))
-
-            if correction_factors_enabled:
-                factor_col_a, factor_col_b = st.columns(2, gap="small")
-                with factor_col_a:
-                    render_operator_field_label("Fattore passo" if lang == "IT" else "Pitch factor")
-                    fattore_passo_effettivo = st.number_input(
-                        "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
-                        min_value=0.50,
-                        max_value=1.80,
-                        step=0.01,
-                        format="%.2f",
-                        key="calc_fattore_passo_effettivo",
-                        disabled=params_locked,
-                        label_visibility="collapsed",
-                    )
-                with factor_col_b:
-                    render_operator_field_label("Fattore compattazione" if lang == "IT" else "Compaction factor")
-                    fattore_compattazione_radiale = st.number_input(
-                        "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
-                        min_value=0.50,
-                        max_value=3.00,
-                        step=0.01,
-                        format="%.2f",
-                        key="calc_fattore_compattazione_radiale",
-                        disabled=params_locked,
-                        label_visibility="collapsed",
-                    )
-
-            compact_note_parts = []
-            if not preset_has_correction_factors and not is_prototype:
-                compact_note_parts.append("nessun fattore completo → ideale automatico" if lang == "IT" else "no complete factors → automatic ideal")
-            if not correction_factors_enabled:
-                compact_note_parts.append("fattori non applicati" if lang == "IT" else "factors not applied")
-            compact_note_parts.append("colonne CSV: Fattore passo effettivo · Fattore compattazione radiale" if lang == "IT" else "CSV columns: Fattore passo effettivo · Fattore compattazione radiale")
-            compact_note = " · ".join(compact_note_parts)
-
-            st.markdown(
-                f"""
-                <div class="calibration-note-mini">
-                    {html.escape(compact_note)}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
             restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
             lock_label_inline = "Blocca parametri" if lang == "IT" else "Lock parameters"
 
@@ -11353,6 +11412,131 @@ with tab_production:
                 st.toggle(lock_label_inline, key="params_locked")
 
 
+    # Horizontal simulation calibration section, separate from the "Ritardi e regolazione" card.
+    correction_label = "Fattori correzione" if lang == "IT" else "Correction factors"
+    ideal_label = "Ideale macchina" if lang == "IT" else "Machine ideal"
+    mode_raw = str(st.session_state.get("calc_simulation_mode", "Fattori correzione"))
+    if mode_raw in {"Fattori correzione", "Correction factors"}:
+        st.session_state["calc_simulation_mode"] = correction_label
+    elif mode_raw in {"Ideale macchina", "Machine ideal"}:
+        st.session_state["calc_simulation_mode"] = ideal_label
+    else:
+        st.session_state["calc_simulation_mode"] = correction_label
+
+    correction_factors_enabled = st.session_state.get("calc_simulation_mode") == correction_label
+    preset_has_correction_factors = bool(st.session_state.get("preset_has_correction_factors", False))
+
+    with st.container(border=True):
+        st.markdown("**Calibrazione simulazione**" if lang == "IT" else "**Simulation calibration**")
+        explanation_text = (
+            "1,00 = nessuna correzione. Il fattore passo moltiplica il Passo usato nel render; "
+            "il fattore compattazione moltiplica l’Incremento strato. Sono valori sperimentali salvati nel Presets.csv."
+            if lang == "IT"
+            else
+            "1.00 = no correction. The pitch factor multiplies the Pitch used in the render; "
+            "the compaction factor multiplies the Layer increment. They are experimental values stored in Presets.csv."
+        )
+        st.markdown(
+            f"<div class='calibration-horizontal-help'>{html.escape(explanation_text)}</div>",
+            unsafe_allow_html=True,
+        )
+
+        cal_mode_col, cal_status_col, cal_passo_col, cal_comp_col = st.columns([1.15, 1.45, 0.95, 0.95], gap="small")
+
+        with cal_mode_col:
+            render_operator_field_label("Modo simulazione" if lang == "IT" else "Simulation mode")
+            simulation_mode = st.radio(
+                "Modo simulazione" if lang == "IT" else "Simulation mode",
+                [correction_label, ideal_label],
+                horizontal=True,
+                key="calc_simulation_mode",
+                disabled=params_locked,
+                label_visibility="collapsed",
+            )
+
+        correction_factors_enabled = st.session_state.get("calc_simulation_mode") == correction_label
+
+        with cal_status_col:
+            if not preset_has_correction_factors and not is_prototype:
+                mode_note = "Nessun fattore completo nel preset: avvio automatico in ideale." if lang == "IT" else "No complete factors in preset: starts in ideal mode."
+            elif correction_factors_enabled:
+                mode_note = "Correzione attiva: usa i fattori sperimentali del preset." if lang == "IT" else "Correction active: uses experimental preset factors."
+            else:
+                mode_note = "Ideale attivo: i fattori non vengono applicati." if lang == "IT" else "Ideal active: factors are not applied."
+            st.markdown(
+                f"<div class='calibration-horizontal-note'>{html.escape(mode_note)}</div>",
+                unsafe_allow_html=True,
+            )
+
+        with cal_passo_col:
+            if correction_factors_enabled:
+                render_operator_field_label("Fattore passo" if lang == "IT" else "Pitch factor")
+                fattore_passo_effettivo = st.number_input(
+                    "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
+                    min_value=0.50,
+                    max_value=1.80,
+                    step=0.01,
+                    format="%.2f",
+                    key="calc_fattore_passo_effettivo",
+                    disabled=params_locked,
+                    label_visibility="collapsed",
+                )
+            else:
+                st.markdown(
+                    "<div class='calibration-factor-pill'><span>Passo</span><strong>×1.00</strong></div>",
+                    unsafe_allow_html=True,
+                )
+
+        with cal_comp_col:
+            if correction_factors_enabled:
+                render_operator_field_label("Fattore compattazione" if lang == "IT" else "Compaction factor")
+                fattore_compattazione_radiale = st.number_input(
+                    "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
+                    min_value=0.50,
+                    max_value=3.00,
+                    step=0.01,
+                    format="%.2f",
+                    key="calc_fattore_compattazione_radiale",
+                    disabled=params_locked,
+                    label_visibility="collapsed",
+                )
+            else:
+                st.markdown(
+                    "<div class='calibration-factor-pill'><span>Comp.</span><strong>×1.00</strong></div>",
+                    unsafe_allow_html=True,
+                )
+
+    if is_prototype:
+        status_title = "Prototipo" if lang == "IT" else "Prototype"
+        status_detail = "Valori liberi: non collegati a un preset ufficiale." if lang == "IT" else "Free values: not linked to an official preset."
+        status_badge = "PROTOTIPO" if lang == "IT" else "PROTOTYPE"
+        status_class = "prototype"
+    else:
+        status_title = "Preset modificato" if preset_modified and lang == "IT" else ("Modified preset" if preset_modified else ("Preset originale" if lang == "IT" else "Original preset"))
+        field_list = modified_field_labels(lang)
+        if preset_modified and field_list:
+            status_detail = ("Campi modificati: " if lang == "IT" else "Modified fields: ") + ", ".join(field_list[:5])
+            if len(field_list) > 5:
+                status_detail += f" +{len(field_list) - 5}"
+        else:
+            status_detail = "Valori originali caricati da Presets.csv." if lang == "IT" else "Original values loaded from Presets.csv."
+        status_badge = "MODIFICATO" if preset_modified and lang == "IT" else ("MODIFIED" if preset_modified else ("ORIGINALE" if lang == "IT" else "ORIGINAL"))
+        status_class = "modified" if preset_modified else "original"
+
+    st.markdown(
+        f"""
+        <div class="preset-live-status {status_class}">
+            <div>
+                <strong>{html.escape(status_title)}</strong>
+                <span>{html.escape(status_detail)}</span>
+            </div>
+            <em>{html.escape(status_badge)}</em>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
     z_min_center = None
     z_max_center = None
 
@@ -11372,8 +11556,9 @@ with tab_production:
                 f"(spalla {spalla:.2f} mm, altezza coppia {d_tubo_lower + d_tubo_upper:.2f} mm)."
             )
 
-    simulation_mode = str(st.session_state.get("calc_simulation_mode", "Fattori correzione"))
-    use_correction_factors = simulation_mode == "Fattori correzione"
+    simulation_mode_raw = str(st.session_state.get("calc_simulation_mode", "Fattori correzione"))
+    use_correction_factors = simulation_mode_raw in {"Fattori correzione", "Correction factors"}
+    simulation_mode = "Fattori correzione" if use_correction_factors else "Ideale macchina"
 
     fattore_passo_preset = float(st.session_state.get("calc_fattore_passo_effettivo", DEFAULT_FATTORE_PASSO_EFFETTIVO))
     fattore_compattazione_preset = float(st.session_state.get("calc_fattore_compattazione_radiale", DEFAULT_FATTORE_COMPATTAZIONE_RADIALE))
