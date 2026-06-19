@@ -10443,15 +10443,28 @@ st.markdown(
     }
 
     .calibration-note-mini {
-        margin: 8px 0 8px 0;
-        padding: 9px 11px;
-        border-radius: 12px;
-        border: 1px solid color-mix(in srgb, var(--pdm-accent) 22%, var(--text-color) 8%);
-        background: color-mix(in srgb, var(--pdm-accent) 7%, transparent);
-        color: color-mix(in srgb, var(--text-color) 74%, transparent);
-        font-size: 0.76rem;
-        line-height: 1.30;
-        font-weight: 680;
+        margin: 5px 0 5px 0;
+        padding: 6px 8px;
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--pdm-accent) 16%, var(--text-color) 7%);
+        background: color-mix(in srgb, var(--pdm-accent) 4.5%, transparent);
+        color: color-mix(in srgb, var(--text-color) 66%, transparent);
+        font-size: 0.68rem;
+        line-height: 1.22;
+        font-weight: 620;
+    }
+
+    .calibration-compact-caption {
+        margin: 2px 0 7px 0;
+        color: color-mix(in srgb, var(--text-color) 56%, transparent);
+        font-size: 0.70rem;
+        line-height: 1.18;
+        font-weight: 650;
+    }
+
+    .calibration-mode-label {
+        margin-top: 0.34rem !important;
+        margin-bottom: 0.20rem !important;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -10959,6 +10972,35 @@ st.markdown(
 )
 
 
+
+st.markdown(
+    """
+    <style>
+    @media (max-width: 1180px) {
+        .calibration-note-mini {
+            padding: 5px 7px !important;
+            font-size: 0.64rem !important;
+            line-height: 1.18 !important;
+        }
+        .calibration-compact-caption {
+            font-size: 0.66rem !important;
+            margin-bottom: 5px !important;
+        }
+        .operator-field-label {
+            margin-top: 0.38rem !important;
+            margin-bottom: 0.20rem !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            padding-top: 0.72rem !important;
+            padding-bottom: 0.72rem !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 # =========================
 # UI
 # =========================
@@ -11215,19 +11257,25 @@ with tab_production:
             render_operator_field_label(t["rit_max"])
             rit_t = st.number_input(t["rit_max"], step=1.0, key="calc_rit_t", disabled=params_locked, label_visibility="collapsed")
 
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
             st.markdown("**Calibrazione fisica**" if lang == "IT" else "**Physical calibration**")
-            st.caption(
-                "Regola passo effettivo e compattazione per far coincidere strati e ingombro con la macchina reale."
-                if lang == "IT"
-                else "Adjust effective pitch and compaction to match real machine layers and footprint."
+            st.markdown(
+                f"""
+                <div class="calibration-compact-caption">
+                    {"Preset sperimentale per allineare simulazione e rotolo reale." if lang == "IT" else "Experimental preset to align simulation and real coil."}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
             simulation_mode_options = ["Fattori correzione", "Ideale macchina"]
             if st.session_state.get("calc_simulation_mode") not in simulation_mode_options:
                 st.session_state["calc_simulation_mode"] = "Fattori correzione"
 
-            render_operator_field_label("Modo simulazione" if lang == "IT" else "Simulation mode")
+            st.markdown(
+                f"<div class='operator-field-label calibration-mode-label'>{'Modo simulazione' if lang == 'IT' else 'Simulation mode'}</div>",
+                unsafe_allow_html=True,
+            )
             simulation_mode = st.radio(
                 "Modo simulazione" if lang == "IT" else "Simulation mode",
                 simulation_mode_options,
@@ -11236,26 +11284,14 @@ with tab_production:
                 disabled=params_locked,
                 label_visibility="collapsed",
             )
-            st.caption(
-                "Fattori correzione usa i valori sperimentali del preset. Ideale macchina usa Passo e Incremento strato senza correzioni."
-                if lang == "IT"
-                else "Correction factors use the experimental values from the preset. Machine ideal uses Pitch and Layer increment without corrections."
-            )
 
             correction_factors_enabled = st.session_state.get("calc_simulation_mode", "Fattori correzione") == "Fattori correzione"
             preset_has_correction_factors = bool(st.session_state.get("preset_has_correction_factors", False))
 
-            if not preset_has_correction_factors and not is_prototype:
-                st.caption(
-                    "Nessun fattore completo nel preset: avvio automatico in Ideale macchina."
-                    if lang == "IT"
-                    else "No complete factors in the preset: automatic Machine ideal mode."
-                )
-
             if correction_factors_enabled:
                 factor_col_a, factor_col_b = st.columns(2, gap="small")
                 with factor_col_a:
-                    render_operator_field_label("Fattore passo effettivo" if lang == "IT" else "Effective pitch factor")
+                    render_operator_field_label("Fattore passo" if lang == "IT" else "Pitch factor")
                     fattore_passo_effettivo = st.number_input(
                         "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
                         min_value=0.50,
@@ -11267,7 +11303,7 @@ with tab_production:
                         label_visibility="collapsed",
                     )
                 with factor_col_b:
-                    render_operator_field_label("Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor")
+                    render_operator_field_label("Fattore compattazione" if lang == "IT" else "Compaction factor")
                     fattore_compattazione_radiale = st.number_input(
                         "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
                         min_value=0.50,
@@ -11278,20 +11314,19 @@ with tab_production:
                         disabled=params_locked,
                         label_visibility="collapsed",
                     )
-            else:
-                st.markdown(
-                    f"""
-                    <div class="calibration-note-mini">
-                        {"Modo ideale attivo: i fattori di correzione non vengono applicati al render." if lang == "IT" else "Ideal mode active: correction factors are not applied to the render."}
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+
+            compact_note_parts = []
+            if not preset_has_correction_factors and not is_prototype:
+                compact_note_parts.append("nessun fattore completo → ideale automatico" if lang == "IT" else "no complete factors → automatic ideal")
+            if not correction_factors_enabled:
+                compact_note_parts.append("fattori non applicati" if lang == "IT" else "factors not applied")
+            compact_note_parts.append("colonne CSV: Fattore passo effettivo · Fattore compattazione radiale" if lang == "IT" else "CSV columns: Fattore passo effettivo · Fattore compattazione radiale")
+            compact_note = " · ".join(compact_note_parts)
 
             st.markdown(
                 f"""
                 <div class="calibration-note-mini">
-                    {"Parametri sperimentali raccolti sul prodotto reale per allineare simulazione e rotolo fisico. Colonne Presets.csv: <b>Fattore passo effettivo</b> e <b>Fattore compattazione radiale</b>." if lang == "IT" else "Experimental parameters collected on the real product to align simulation and physical coil. Presets.csv columns: <b>Fattore passo effettivo</b> and <b>Fattore compattazione radiale</b>."}
+                    {html.escape(compact_note)}
                 </div>
                 """,
                 unsafe_allow_html=True,
