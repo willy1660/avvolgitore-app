@@ -4723,9 +4723,6 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
-    texture_rib_density=1.0,
-    texture_bump_strength=1.0,
-    texture_contrast=1.0,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -4744,9 +4741,6 @@ def viewer(
     active_product_name = active_product_name or ("Preset attivo" if language == "IT" else "Active preset")
     active_product_name_json = json.dumps(str(active_product_name))
     active_product_kind_json = json.dumps(str(active_product_kind or "preset"))
-    texture_rib_density_json = json.dumps(float(texture_rib_density))
-    texture_bump_strength_json = json.dumps(float(texture_bump_strength))
-    texture_contrast_json = json.dumps(float(texture_contrast))
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -4905,7 +4899,7 @@ def viewer(
             <div>
                 <div class="panel_label" id="animation_title"></div>
                 <label class="panel_check">
-                    <input type="checkbox" id="animation_check" checked />
+                    <input type="checkbox" id="animation_check" />
                     <span id="animation_label_text"></span>
                 </label>
             </div>
@@ -4949,9 +4943,9 @@ def viewer(
             <div id="spool_block">
                 <div class="panel_label" id="spool_title"></div>
                 <div class="btn_group_vertical btn_grid_3">
-                    <button class="spool_btn viewer_btn_small active_opt" data-spool="visible" id="spool_visible_btn"></button>
+                    <button class="spool_btn viewer_btn_small" data-spool="visible" id="spool_visible_btn"></button>
                     <button class="spool_btn viewer_btn_small" data-spool="transparent" id="spool_transparent_btn"></button>
-                    <button class="spool_btn viewer_btn_small" data-spool="hidden" id="spool_hidden_btn"></button>
+                    <button class="spool_btn viewer_btn_small active_opt" data-spool="hidden" id="spool_hidden_btn"></button>
                 </div>
             </div>
 
@@ -4965,7 +4959,7 @@ def viewer(
 
             <div id="checks_block" class="panel_checks_block">
                 <label class="panel_check">
-                    <input type="checkbox" id="ghost_check" checked />
+                    <input type="checkbox" id="ghost_check" />
                     <span id="ghost_title"></span>
                 </label>
 
@@ -5763,17 +5757,17 @@ def viewer(
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
 
-        let isPlaying = true;
-        let animationEnabled = true;
+        let isPlaying = false;
+        let animationEnabled = false;
         let speed = 1.0;
-        let aspoMode = "visible";
+        let aspoMode = "hidden";
         let tubeMode = "{tube_mode_initial}";
         let currentView = "3d";
         let sceneMode = "{initial_scene}";
         let packagingMode = "{packaging_mode}";
         let containerMode = "{container_mode}";
         let showStudio = false;
-        let showGhost = true;
+        let showGhost = false;
         let showGrid = false;
         let showAxes = false;
         let showSection = false;
@@ -6403,56 +6397,35 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return sprite;
         }}
 
-        const tubeTextureControls = {{
-            ribDensity: {texture_rib_density_json},
-            bumpStrength: {texture_bump_strength_json},
-            contrast: {texture_contrast_json}
-        }};
-
         function makeTubeTexture(size = 256, dark=false) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
             canvas.height = size;
 
             const ctx = canvas.getContext("2d");
-            const base = dark ? 56 : 236;
-            const ribDensity = Math.max(0.35, Math.min(3.5, tubeTextureControls.ribDensity || 1.0));
-            const contrast = Math.max(0.35, Math.min(3.5, tubeTextureControls.contrast || 1.0));
+            const base = dark ? 72 : 232;
+
             ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
             ctx.fillRect(0, 0, size, size);
 
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
-            const ribPeriod = (dark ? 8.0 : 8.5) / ribDensity;
 
             for (let y = 0; y < size; y++) {{
                 for (let x = 0; x < size; x++) {{
                     const i = (y * size + x) * 4;
 
-                    const phase = ((y + Math.sin(x * 0.032) * 0.95) / ribPeriod) % 1;
-                    const ridgeHi = Math.exp(-Math.pow((phase - 0.20) / 0.07, 2));
-                    const ridgeMid = Math.exp(-Math.pow((phase - 0.34) / 0.12, 2));
-                    const ridgeShadow = Math.exp(-Math.pow((phase - 0.62) / 0.11, 2));
-                    const ribShadow2 = Math.exp(-Math.pow((phase - 0.78) / 0.08, 2));
-                    const microGrain = Math.sin((x * 0.07) + (y * 0.14)) * (dark ? 1.2 : 1.8);
-                    const randomGrain = (Math.random() - 0.5) * (dark ? 4.5 : 3.5);
-                    const softBand = Math.exp(-Math.pow((x - size * 0.45) / (size * 0.15), 2)) * (dark ? 8.5 : 12.0);
-                    const lateralFade = Math.exp(-Math.pow((x - size * 0.82) / (size * 0.05), 2)) * (dark ? -2.5 : -3.5);
+                    const fineNoise = (Math.random() - 0.5) * (dark ? 4.0 : 3.0);
+                    const softLongitudinal = Math.sin((x * 0.055) + (y * 0.035)) * (dark ? 1.2 : 1.8);
+                    const subtleBand = Math.exp(-Math.pow((x - size * 0.43) / (size * 0.18), 2)) * (dark ? 5.0 : 8.0);
+                    const faintSeam = Math.exp(-Math.pow((x - size * 0.76) / (size * 0.06), 2)) * (dark ? -1.4 : -2.0);
 
-                    let v = base
-                        + ridgeHi * (dark ? 11.0 : 16.0) * contrast
-                        + ridgeMid * (dark ? 5.5 : 8.0) * contrast
-                        - ridgeShadow * (dark ? 10.0 : 14.0) * contrast
-                        - ribShadow2 * (dark ? 4.0 : 6.0) * contrast
-                        + microGrain
-                        + randomGrain
-                        + softBand
-                        + lateralFade;
+                    let v = base + fineNoise + softLongitudinal + subtleBand + faintSeam;
 
                     if (dark) {{
-                        v = Math.max(38, Math.min(112, v));
+                        v = Math.max(45, Math.min(112, v));
                     }} else {{
-                        v = Math.max(205, Math.min(252, v));
+                        v = Math.max(214, Math.min(252, v));
                     }}
 
                     data[i] = v;
@@ -6464,47 +6437,19 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             ctx.putImageData(img, 0, 0);
 
-            for (let y = 0; y < size; y += ribPeriod) {{
-                const hiY = y + ribPeriod * 0.16;
-                const midY = y + ribPeriod * 0.31;
-                const shY = y + ribPeriod * 0.60;
-
-                ctx.strokeStyle = dark ? `rgba(255,255,255,${{0.14 * contrast}})` : `rgba(255,255,255,${{0.22 * contrast}})`;
-                ctx.lineWidth = 1.3;
-                ctx.beginPath();
-                ctx.moveTo(0, hiY);
-                ctx.lineTo(size, hiY);
-                ctx.stroke();
-
-                ctx.strokeStyle = dark ? `rgba(255,255,255,${{0.05 * contrast}})` : `rgba(255,255,255,${{0.08 * contrast}})`;
-                ctx.lineWidth = 0.8;
-                ctx.beginPath();
-                ctx.moveTo(0, midY);
-                ctx.lineTo(size, midY);
-                ctx.stroke();
-
-                ctx.strokeStyle = dark ? `rgba(0,0,0,${{0.22 * contrast}})` : `rgba(0,0,0,${{0.15 * contrast}})`;
-                ctx.lineWidth = 1.45;
-                ctx.beginPath();
-                ctx.moveTo(0, shY);
-                ctx.lineTo(size, shY);
-                ctx.stroke();
-            }}
-
             const gloss = ctx.createLinearGradient(0, 0, size, 0);
             gloss.addColorStop(0.00, "rgba(255,255,255,0.00)");
-            gloss.addColorStop(0.12, dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)");
-            gloss.addColorStop(0.38, dark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.18)");
-            gloss.addColorStop(0.56, dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.10)");
-            gloss.addColorStop(1.00, "rgba(255,255,255,0.00)");
+            gloss.addColorStop(0.35, dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)");
+            gloss.addColorStop(0.54, dark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.13)");
+            gloss.addColorStop(0.82, "rgba(255,255,255,0.00)");
             ctx.fillStyle = gloss;
             ctx.fillRect(0, 0, size, size);
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(1.55, 44.0 * ribDensity);
-            tex.anisotropy = 16;
+            tex.repeat.set(1.8, 18.0);
+            tex.anisotropy = 12;
             tex.needsUpdate = true;
 
             return tex;
@@ -6598,13 +6543,11 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return new THREE.MeshPhysicalMaterial({{
                 color: chosen,
                 map: tex,
-                bumpMap: tex,
-                bumpScale: (mode === "gelblack" ? 0.85 : 1.25) * Math.max(0.25, Math.min(3.5, tubeTextureControls.bumpStrength || 1.0)),
                 roughness: active ? 0.72 : (free ? 0.84 : 0.78),
                 metalness: 0.01,
-                clearcoat: mode === "gelblack" ? 0.10 : 0.20,
-                clearcoatRoughness: mode === "gelblack" ? 0.20 : 0.12,
-                reflectivity: mode === "gelblack" ? 0.24 : 0.38,
+                clearcoat: mode === "gelblack" ? 0.10 : 0.18,
+                clearcoatRoughness: mode === "gelblack" ? 0.20 : 0.14,
+                reflectivity: mode === "gelblack" ? 0.22 : 0.34,
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
@@ -7672,7 +7615,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         let endMarker = null;
         let endMarkerGlow = null;
 
-        let drawPos = 1.0;
+        let drawPos = Math.max(1.0, localPts.length - 1.0);
         let lastRebuiltCompleted = -1;
 
         function rebuildDepositedMesh(completedIndex, force=false) {{
@@ -11577,6 +11520,149 @@ st.markdown(
 )
 
 
+
+st.markdown(
+    """
+    <style>
+    /* Responsive header and width optimisation */
+    html, body, [data-testid="stAppViewContainer"] {
+        overflow-x: hidden !important;
+    }
+
+    .main .block-container {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    div[data-testid="stIFrame"],
+    div[data-testid="stIFrame"] iframe,
+    iframe {
+        max-width: 100% !important;
+    }
+
+    @media (max-width: 820px) {
+        .main .block-container {
+            max-width: 100vw !important;
+            padding-left: 0.42rem !important;
+            padding-right: 0.42rem !important;
+            padding-top: 0.40rem !important;
+        }
+
+        .top-brand-logo-wrap,
+        .top-brand-title-wrap {
+            min-height: 92px !important;
+            height: 92px !important;
+            max-height: 92px !important;
+            overflow: visible !important;
+            justify-content: center !important;
+            text-align: center !important;
+        }
+
+        .top-brand-logo-img {
+            height: 86px !important;
+            max-height: 86px !important;
+            width: auto !important;
+            margin: 0 auto !important;
+        }
+
+        .top-brand-title {
+            font-size: clamp(40px, 12vw, 54px) !important;
+            line-height: 0.95 !important;
+            letter-spacing: -0.055em !important;
+            max-width: 100% !important;
+            overflow: visible !important;
+            white-space: nowrap !important;
+            text-align: center !important;
+        }
+
+        [data-testid="stTabs"] {
+            margin-top: -70px !important;
+        }
+
+        [data-testid="stTabs"] [role="tablist"] {
+            gap: 20px !important;
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+            padding-bottom: 2px !important;
+        }
+
+        [data-testid="stTabs"] [role="tab"] {
+            flex: 0 0 auto !important;
+            min-width: max-content !important;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .top-brand-logo-wrap,
+        .top-brand-title-wrap {
+            min-height: 78px !important;
+            height: 78px !important;
+            max-height: 78px !important;
+        }
+
+        .top-brand-logo-img {
+            height: 72px !important;
+            max-height: 72px !important;
+        }
+
+        .top-brand-title {
+            font-size: clamp(34px, 10.5vw, 44px) !important;
+        }
+
+        [data-testid="stTabs"] {
+            margin-top: -56px !important;
+        }
+    }
+
+    /* More visible product selector */
+    .preset-selector-card {
+        margin: 2px 0 8px 0;
+        padding: 12px 14px;
+        border-radius: 18px;
+        border: 1px solid color-mix(in srgb, var(--pdm-accent) 30%, var(--text-color) 10%);
+        background: linear-gradient(180deg,
+            color-mix(in srgb, var(--secondary-background-color) 94%, var(--background-color)),
+            color-mix(in srgb, var(--secondary-background-color) 100%, var(--background-color))
+        );
+        box-shadow: 0 8px 22px rgba(0,0,0,0.055);
+    }
+
+    .preset-selector-title {
+        font-size: 0.78rem;
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: 0.065em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--pdm-accent) 78%, var(--text-color));
+        margin-bottom: 5px;
+    }
+
+    .preset-selector-subtitle {
+        font-size: 0.74rem;
+        line-height: 1.18;
+        font-weight: 650;
+        color: color-mix(in srgb, var(--text-color) 58%, transparent);
+    }
+
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+        min-height: 54px !important;
+        border-radius: 16px !important;
+        border-width: 1.5px !important;
+        font-size: 1.03rem !important;
+        font-weight: 760 !important;
+    }
+
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] span,
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] input {
+        font-size: 1.03rem !important;
+        font-weight: 760 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 # =========================
 # UI
 # =========================
@@ -11627,7 +11713,7 @@ with tab_production:
     default_source = st.session_state.get("product_source_mode", "preset")
     source_index = 1 if default_source == "prototype" else 0
 
-    source_col, selector_col, spacer_col = st.columns([0.72, 1.18, 2.10], gap="large")
+    source_col, selector_col, spacer_col = st.columns([0.70, 2.05, 1.25], gap="large")
     with source_col:
         source_label = "Origine dati" if lang == "IT" else "Data source"
         selected_source_label = st.radio(
@@ -11642,6 +11728,15 @@ with tab_production:
     st.session_state["product_source_mode"] = "prototype" if is_prototype else "preset"
 
     with selector_col:
+        st.markdown(
+            f"""
+            <div class="preset-selector-card">
+                <div class="preset-selector-title">{"Preset prodotto" if lang == "IT" else "Product preset"}</div>
+                <div class="preset-selector-subtitle">{"Seleziona il prodotto da simulare." if lang == "IT" else "Select the product to simulate."}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         if is_prototype:
             prototype_default = st.session_state.get("prototype_name", "Nuovo prototipo" if lang == "IT" else "New prototype")
             selected_product = st.text_input(
@@ -12233,47 +12328,6 @@ with tab_production:
                 st.markdown("&nbsp;", unsafe_allow_html=True)
                 st.caption(t["packaging_box_desc"])
 
-    texture_panel_title = "Texture zigrinata" if lang == "IT" else "Embossed texture"
-    texture_panel_help = (
-        "Regola manualmente densità, rilievo e contrasto della texture del tubo nel render."
-        if lang == "IT"
-        else "Manually adjust density, relief and contrast of the tube texture in the render."
-    )
-    texture_density_label = "Densità rigatura" if lang == "IT" else "Rib density"
-    texture_bump_label = "Rilievo texture" if lang == "IT" else "Texture relief"
-    texture_contrast_label = "Contrasto texture" if lang == "IT" else "Texture contrast"
-
-    with st.expander(texture_panel_title, expanded=False):
-        st.caption(texture_panel_help)
-        tx1, tx2, tx3 = st.columns(3)
-        with tx1:
-            texture_rib_density = st.slider(
-                texture_density_label,
-                min_value=0.50,
-                max_value=3.00,
-                value=float(st.session_state.get("texture_rib_density", 1.00)),
-                step=0.05,
-                key="texture_rib_density",
-            )
-        with tx2:
-            texture_bump_strength = st.slider(
-                texture_bump_label,
-                min_value=0.25,
-                max_value=3.00,
-                value=float(st.session_state.get("texture_bump_strength", 1.00)),
-                step=0.05,
-                key="texture_bump_strength",
-            )
-        with tx3:
-            texture_contrast = st.slider(
-                texture_contrast_label,
-                min_value=0.50,
-                max_value=3.00,
-                value=float(st.session_state.get("texture_contrast", 1.00)),
-                step=0.05,
-                key="texture_contrast",
-            )
-
     simulation_print_payload = build_simulation_print_payload(
         selected_product,
         lang,
@@ -12316,9 +12370,6 @@ with tab_production:
             simulation_print_payload=simulation_print_payload,
             active_product_name=selected_product,
             active_product_kind="prototype" if is_prototype else "preset",
-            texture_rib_density=texture_rib_density,
-            texture_bump_strength=texture_bump_strength,
-            texture_contrast=texture_contrast,
         ),
         height=720,
     )
