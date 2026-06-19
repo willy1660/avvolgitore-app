@@ -653,26 +653,31 @@ def render_layer_diagnostics_panel(
     fattore_compattazione_radiale,
     use_correction_factors,
 ):
+    """Native Streamlit layer diagnostics.
+
+    Avoids raw HTML cards here because this block must be robust across
+    desktop, tablet and mobile Streamlit renderers.
+    """
     if language == "IT":
         title = "Diagnostica strati"
-        subtitle = "Lettura sintetica del risultato del render."
+        subtitle = "Sintesi del risultato del render."
         layers_label = "Strati"
         side_label = "Lato finale"
         mode_label = "Modo"
         pitch_label = "Passo usato"
         increment_label = "Incremento usato"
-        factors_label = "Fattori applicati"
+        factors_label = "Fattori"
         mode_value = "Correzione" if use_correction_factors else "Ideale"
         factors_value = f"passo ×{fattore_passo_effettivo:.2f} · comp. ×{fattore_compattazione_radiale:.2f}" if use_correction_factors else "non applicati"
     else:
         title = "Layer diagnostics"
-        subtitle = "Compact reading of the render result."
+        subtitle = "Summary of the render result."
         layers_label = "Layers"
         side_label = "Final side"
         mode_label = "Mode"
         pitch_label = "Used pitch"
         increment_label = "Used increment"
-        factors_label = "Applied factors"
+        factors_label = "Factors"
         mode_value = "Correction" if use_correction_factors else "Ideal"
         factors_value = f"pitch ×{fattore_passo_effettivo:.2f} · comp. ×{fattore_compattazione_radiale:.2f}" if use_correction_factors else "not applied"
 
@@ -680,230 +685,125 @@ def render_layer_diagnostics_panel(
     side_value = str(winding_diagnostics.get("lato_finale", "-"))
     pitch_value = f"{float(passo_effettivo_assiale):.2f} mm"
     increment_value = f"{float(incremento_effettivo_radiale):.2f} mm"
-    mode_class = "correction" if use_correction_factors else "ideal"
 
     st.markdown(
-        f"""
+        """
         <style>
-        .layer-diagnostic-panel {{
-            margin: 12px 0 16px 0;
-            padding: 16px 17px;
+        div[data-testid="stMetric"] {
+            min-height: 104px;
+        }
+        div[data-testid="stMetric"] [data-testid="stMetricLabel"] {
+            font-size: 0.78rem !important;
+            font-weight: 850 !important;
+            color: color-mix(in srgb, var(--text-color) 62%, transparent) !important;
+        }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            font-size: clamp(1.35rem, 2.4vw, 2.25rem) !important;
+            font-weight: 950 !important;
+            letter-spacing: -0.025em !important;
+        }
+        .diagnostic-native-title {
+            margin: 0 0 2px 0;
+            font-size: 1.05rem;
+            line-height: 1.12;
+            font-weight: 950;
+            letter-spacing: -0.015em;
+        }
+        .diagnostic-native-subtitle {
+            margin: 0 0 10px 0;
+            color: color-mix(in srgb, var(--text-color) 58%, transparent);
+            font-size: 0.78rem;
+            line-height: 1.25;
+            font-weight: 650;
+        }
+        .diagnostic-native-detail {
+            min-height: 104px;
+            padding: 13px 14px;
             border-radius: 18px;
             border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
             background: linear-gradient(180deg,
                 color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
                 color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
             );
-            box-shadow: 0 8px 20px rgba(0,0,0,0.055);
-        }}
-        .layer-diagnostic-head {{
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 13px;
-        }}
-        .layer-diagnostic-kicker {{
-            font-size: 11px;
-            line-height: 1.05;
-            font-weight: 950;
-            letter-spacing: 0.07em;
-            text-transform: uppercase;
-            color: color-mix(in srgb, var(--pdm-accent) 78%, var(--text-color));
-        }}
-        .layer-diagnostic-title {{
-            margin-top: 4px;
-            font-size: 19px;
-            line-height: 1.08;
-            font-weight: 950;
-            letter-spacing: -0.018em;
-            color: var(--text-color);
-        }}
-        .layer-diagnostic-subtitle {{
-            margin-top: 4px;
-            font-size: 12px;
-            line-height: 1.25;
-            font-weight: 650;
-            color: color-mix(in srgb, var(--text-color) 56%, transparent);
-        }}
-        .layer-diagnostic-mode {{
-            flex: 0 0 auto;
-            border-radius: 999px;
-            padding: 7px 10px;
-            font-size: 10.5px;
-            line-height: 1;
-            font-weight: 950;
-            letter-spacing: 0.055em;
-            text-transform: uppercase;
-            color: #fff;
-            background: var(--pdm-accent);
-            box-shadow: 0 6px 14px rgba(197,126,90,0.22);
-        }}
-        .layer-diagnostic-mode.ideal {{
-            background: #64748b;
-        }}
-        .layer-diagnostic-mode.correction {{
-            background: #C57E5A;
-        }}
-        .layer-diagnostic-grid {{
-            display: grid;
-            grid-template-columns: 1.10fr 0.92fr 0.92fr 1.20fr;
-            gap: 10px;
-            align-items: stretch;
-        }}
-        .layer-diagnostic-card {{
-            min-width: 0;
-            padding: 12px 13px;
-            border-radius: 15px;
-            border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
-            background: color-mix(in srgb, var(--text-color) 3.2%, transparent);
-        }}
-        .layer-diagnostic-card.main {{
-            background: color-mix(in srgb, var(--pdm-accent) 7%, transparent);
-            border-color: color-mix(in srgb, var(--pdm-accent) 26%, transparent);
-        }}
-        .layer-diagnostic-label {{
-            font-size: 10px;
-            line-height: 1.05;
-            font-weight: 950;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: color-mix(in srgb, var(--text-color) 58%, transparent);
-            margin-bottom: 7px;
-        }}
-        .layer-diagnostic-value {{
-            font-size: 20px;
-            line-height: 1.03;
-            font-weight: 950;
-            letter-spacing: -0.018em;
-            color: var(--text-color);
-            overflow-wrap: anywhere;
-        }}
-        .layer-diagnostic-card.main .layer-diagnostic-value {{
-            font-size: 38px;
-            letter-spacing: -0.04em;
-        }}
-        .layer-diagnostic-mini {{
+            box-shadow: 0 4px 14px rgba(0,0,0,0.055);
             display: flex;
             flex-direction: column;
-            gap: 8px;
-        }}
-        .layer-diagnostic-row {{
+            justify-content: center;
+            gap: 7px;
+        }
+        .diagnostic-native-row {
             display: flex;
             justify-content: space-between;
             gap: 10px;
             align-items: baseline;
-            border-bottom: 1px solid color-mix(in srgb, var(--text-color) 8%, transparent);
-            padding-bottom: 6px;
-        }}
-        .layer-diagnostic-row:last-child {{
-            border-bottom: 0;
-            padding-bottom: 0;
-        }}
-        .layer-diagnostic-row span {{
-            font-size: 10px;
+        }
+        .diagnostic-native-row span {
+            font-size: 0.68rem;
             line-height: 1.05;
             font-weight: 900;
             letter-spacing: 0.045em;
             text-transform: uppercase;
             color: color-mix(in srgb, var(--text-color) 55%, transparent);
-        }}
-        .layer-diagnostic-row strong {{
-            font-size: 15px;
+        }
+        .diagnostic-native-row strong {
+            text-align: right;
+            font-size: 0.92rem;
             line-height: 1.05;
             font-weight: 950;
             color: var(--text-color);
-            text-align: right;
             overflow-wrap: anywhere;
-        }}
-        .layer-diagnostic-footnote {{
-            margin-top: 10px;
-            font-size: 11px;
-            line-height: 1.25;
-            font-weight: 650;
-            color: color-mix(in srgb, var(--text-color) 52%, transparent);
-        }}
-        @media (max-width: 1180px) {{
-            .layer-diagnostic-panel {{
-                padding: 14px 15px;
-            }}
-            .layer-diagnostic-grid {{
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }}
-            .layer-diagnostic-card.main .layer-diagnostic-value {{
-                font-size: 34px;
-            }}
-        }}
-        @media (max-width: 560px) {{
-            .layer-diagnostic-panel {{
-                padding: 12px 13px;
+        }
+        @media (max-width: 820px) {
+            div[data-testid="stMetric"] {
+                min-height: 92px;
+            }
+            .diagnostic-native-detail {
+                min-height: 92px;
+                padding: 11px 12px;
                 border-radius: 15px;
-            }}
-            .layer-diagnostic-head {{
-                flex-direction: column;
-                gap: 8px;
-            }}
-            .layer-diagnostic-grid {{
-                grid-template-columns: 1fr;
-                gap: 8px;
-            }}
-            .layer-diagnostic-card {{
-                padding: 10px 11px;
-                border-radius: 13px;
-            }}
-            .layer-diagnostic-card.main .layer-diagnostic-value {{
-                font-size: 31px;
-            }}
-            .layer-diagnostic-title {{
-                font-size: 17px;
-            }}
-        }}
+            }
+        }
         </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-        <section class="layer-diagnostic-panel">
-            <div class="layer-diagnostic-head">
-                <div>
-                    <div class="layer-diagnostic-kicker">{html.escape(title)}</div>
-                    <div class="layer-diagnostic-title">{html.escape(subtitle)}</div>
-                </div>
-                <div class="layer-diagnostic-mode {html.escape(mode_class)}">{html.escape(mode_value)}</div>
-            </div>
+    with st.container(border=True):
+        st.markdown(f"<div class='diagnostic-native-title'>{html.escape(title)}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='diagnostic-native-subtitle'>{html.escape(subtitle)}</div>", unsafe_allow_html=True)
 
-            <div class="layer-diagnostic-grid">
-                <div class="layer-diagnostic-card main">
-                    <div class="layer-diagnostic-label">{html.escape(layers_label)}</div>
-                    <div class="layer-diagnostic-value">{html.escape(layers_value)}</div>
-                </div>
+        col_layers, col_side, col_mode, col_values = st.columns([0.85, 1.05, 0.90, 1.65], gap="small")
 
-                <div class="layer-diagnostic-card">
-                    <div class="layer-diagnostic-label">{html.escape(side_label)}</div>
-                    <div class="layer-diagnostic-value">{html.escape(side_value)}</div>
-                </div>
+        with col_layers:
+            st.metric(layers_label, layers_value)
 
-                <div class="layer-diagnostic-card">
-                    <div class="layer-diagnostic-label">{html.escape(mode_label)}</div>
-                    <div class="layer-diagnostic-value">{html.escape(mode_value)}</div>
-                </div>
+        with col_side:
+            st.metric(side_label, side_value)
 
-                <div class="layer-diagnostic-card layer-diagnostic-mini">
-                    <div class="layer-diagnostic-row">
+        with col_mode:
+            st.metric(mode_label, mode_value)
+
+        with col_values:
+            st.markdown(
+                f"""
+                <div class="diagnostic-native-detail">
+                    <div class="diagnostic-native-row">
                         <span>{html.escape(pitch_label)}</span>
                         <strong>{html.escape(pitch_value)}</strong>
                     </div>
-                    <div class="layer-diagnostic-row">
+                    <div class="diagnostic-native-row">
                         <span>{html.escape(increment_label)}</span>
                         <strong>{html.escape(increment_value)}</strong>
                     </div>
-                    <div class="layer-diagnostic-row">
+                    <div class="diagnostic-native-row">
                         <span>{html.escape(factors_label)}</span>
                         <strong>{html.escape(factors_value)}</strong>
                     </div>
                 </div>
-            </div>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
+                """,
+                unsafe_allow_html=True,
+            )
+
 
 
 def make_pallet_visual(coil_diameter_mm, pallet_size_mm, language):
