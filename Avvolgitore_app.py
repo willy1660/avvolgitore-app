@@ -317,6 +317,7 @@ PARAM_LABELS = {
         "Incremento strato (mm)": "Incremento strato (mm)",
         "Fattore passo effettivo": "Fattore passo effettivo",
         "Fattore compattazione radiale": "Fattore compattazione radiale",
+        "Fattore compatazione radiale": "Fattore compattazione radiale",
         "Coppia lavoro (%)": "Coppia lavoro (%)",
         "Riduzione coppia (%)": "Riduzione coppia (%)",
         "Coppia recupero (%)": "Coppia recupero (%)",
@@ -360,6 +361,7 @@ PARAM_LABELS = {
         "Incremento strato (mm)": "Layer increment (mm)",
         "Fattore passo effettivo": "Effective pitch factor",
         "Fattore compattazione radiale": "Radial compaction factor",
+        "Fattore compatazione radiale": "Radial compaction factor",
         "Coppia lavoro (%)": "Working torque (%)",
         "Riduzione coppia (%)": "Torque reduction (%)",
         "Coppia recupero (%)": "Recovery torque (%)",
@@ -980,6 +982,28 @@ def load_presets(path="Presets.csv"):
 
     # Clean column names exported by Excel
     df.columns = df.columns.astype(str).str.strip()
+
+    # Normalize known calibration column aliases from Presets.csv.
+    # Accept both the corrected Italian name and the common typo "compatazione".
+    calibration_column_aliases = {
+        "Fattore compatazione radiale": "Fattore compattazione radiale",
+        "Fattore Compatazione Radiale": "Fattore compattazione radiale",
+        "Fattore compatazione": "Fattore compattazione radiale",
+        "Fattore Compatazione": "Fattore compattazione radiale",
+        "Fattore modello compatazione": "Fattore compattazione radiale",
+        "Fattore Modello Compatazione": "Fattore compattazione radiale",
+        "Compatazione radiale fattore": "Fattore compattazione radiale",
+        "Fattore Passo Effettivo": "Fattore passo effettivo",
+        "Fattore modello passo": "Fattore passo effettivo",
+        "Fattore Modello Passo": "Fattore passo effettivo",
+        "Passo effettivo fattore": "Fattore passo effettivo",
+    }
+    rename_map = {}
+    for alias, canonical in calibration_column_aliases.items():
+        if alias in df.columns and canonical not in df.columns:
+            rename_map[alias] = canonical
+    if rename_map:
+        df = df.rename(columns=rename_map)
 
     # Remove empty columns exported by Excel
     df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
@@ -1734,9 +1758,16 @@ def apply_preset_to_calculator(row):
             [
                 "Fattore compattazione radiale",
                 "Fattore Compattazione Radiale",
+                "Fattore compatazione radiale",
+                "Fattore Compatazione Radiale",
+                "Fattore compatazione",
+                "Fattore Compatazione",
                 "Fattore modello compattazione",
                 "Fattore Modello Compattazione",
+                "Fattore modello compatazione",
+                "Fattore Modello Compatazione",
                 "Compattazione radiale fattore",
+                "Compatazione radiale fattore",
             ],
             DEFAULT_FATTORE_COMPATTAZIONE_RADIALE,
         ),
@@ -2282,6 +2313,7 @@ def init_calculator_state():
         "calc_incremento_visuale": 20.0,
         "calc_rit_b": 360.0,
         "calc_rit_t": 360.0,
+        "calc_simulation_mode": "Fattori correzione",
         "calc_fattore_passo_effettivo": DEFAULT_FATTORE_PASSO_EFFETTIVO,
         "calc_fattore_compattazione_radiale": DEFAULT_FATTORE_COMPATTAZIONE_RADIALE,
         "calc_tube_layout": "Singolo",
@@ -11148,6 +11180,27 @@ with tab_production:
                 else "Adjust effective pitch and compaction to match real machine layers and footprint."
             )
 
+            simulation_mode_options = ["Fattori correzione", "Ideale macchina"]
+            if st.session_state.get("calc_simulation_mode") not in simulation_mode_options:
+                st.session_state["calc_simulation_mode"] = "Fattori correzione"
+
+            render_operator_field_label("Modo simulazione" if lang == "IT" else "Simulation mode")
+            simulation_mode = st.radio(
+                "Modo simulazione" if lang == "IT" else "Simulation mode",
+                simulation_mode_options,
+                horizontal=True,
+                key="calc_simulation_mode",
+                disabled=params_locked,
+                label_visibility="collapsed",
+            )
+            st.caption(
+                "Fattori correzione usa i valori sperimentali del preset. Ideale macchina usa Passo e Incremento strato senza correzioni."
+                if lang == "IT"
+                else "Correction factors use the experimental values from the preset. Machine ideal uses Pitch and Layer increment without corrections."
+            )
+
+            correction_factors_enabled = st.session_state.get("calc_simulation_mode", "Fattori correzione") == "Fattori correzione"
+
             render_operator_field_label("Fattore passo effettivo" if lang == "IT" else "Effective pitch factor")
             fattore_passo_effettivo = st.number_input(
                 "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
@@ -11156,7 +11209,7 @@ with tab_production:
                 step=0.01,
                 format="%.2f",
                 key="calc_fattore_passo_effettivo",
-                disabled=params_locked,
+                disabled=params_locked or not correction_factors_enabled,
                 label_visibility="collapsed",
             )
 
@@ -11168,14 +11221,14 @@ with tab_production:
                 step=0.01,
                 format="%.2f",
                 key="calc_fattore_compattazione_radiale",
-                disabled=params_locked,
+                disabled=params_locked or not correction_factors_enabled,
                 label_visibility="collapsed",
             )
 
             st.info(
-                "Questi non sono parametri macchina: sono parametri di calibrazione raccolti sperimentalmente sul prodotto reale per far coincidere il prodotto fisico con la simulazione. Inseriscili nel file Presets.csv nelle colonne: 'Fattore passo effettivo' e 'Fattore compattazione radiale'."
+                "Questi non sono parametri macchina: sono parametri di calibrazione raccolti sperimentalmente sul prodotto reale per far coincidere il prodotto fisico con la simulazione. Inseriscili nel file Presets.csv nelle colonne: 'Fattore passo effettivo' e 'Fattore compattazione radiale'. Il codice accetta anche la variante scritta 'Fattore compatazione radiale'."
                 if lang == "IT"
-                else "These are not machine parameters: they are calibration parameters collected experimentally on the real product to align the physical product with the simulation. Store them in Presets.csv using the columns: 'Fattore passo effettivo' and 'Fattore compattazione radiale'."
+                else "These are not machine parameters: they are calibration parameters collected experimentally on the real product to align the physical product with the simulation. Store them in Presets.csv using the columns: 'Fattore passo effettivo' and 'Fattore compattazione radiale'. The code also accepts the variant 'Fattore compatazione radiale'."
             )
 
             restore_label_inline = "Ripristina preset" if lang == "IT" else "Restore preset"
@@ -11218,8 +11271,14 @@ with tab_production:
                 f"(spalla {spalla:.2f} mm, altezza coppia {d_tubo_lower + d_tubo_upper:.2f} mm)."
             )
 
-    fattore_passo_effettivo = float(st.session_state.get("calc_fattore_passo_effettivo", DEFAULT_FATTORE_PASSO_EFFETTIVO))
-    fattore_compattazione_radiale = float(st.session_state.get("calc_fattore_compattazione_radiale", DEFAULT_FATTORE_COMPATTAZIONE_RADIALE))
+    simulation_mode = str(st.session_state.get("calc_simulation_mode", "Fattori correzione"))
+    use_correction_factors = simulation_mode == "Fattori correzione"
+
+    fattore_passo_preset = float(st.session_state.get("calc_fattore_passo_effettivo", DEFAULT_FATTORE_PASSO_EFFETTIVO))
+    fattore_compattazione_preset = float(st.session_state.get("calc_fattore_compattazione_radiale", DEFAULT_FATTORE_COMPATTAZIONE_RADIALE))
+
+    fattore_passo_effettivo = fattore_passo_preset if use_correction_factors else 1.0
+    fattore_compattazione_radiale = fattore_compattazione_preset if use_correction_factors else 1.0
 
     passo_effettivo_assiale = max(0.0, float(passo_visuale) * fattore_passo_effettivo)
     incremento_effettivo_radiale = max(0.0, float(incremento_visuale) * fattore_compattazione_radiale)
@@ -11479,6 +11538,7 @@ with tab_production:
     coil_footprint_mm = float(coil_footprint_for_status)
 
     result_cards = [
+        {"label": "Modo" if lang == "IT" else "Mode", "value": ("Correzione" if use_correction_factors and lang == "IT" else ("Correction" if use_correction_factors else ("Ideale" if lang == "IT" else "Ideal")))},
         {"label": "Ø esterno tubo" if lang == "IT" else "Tube outer Ø", "value": str(tube_diameter_label)},
         {"label": t["metric2"], "value": f"{passo_visuale:.2f} mm"},
         {"label": t["metric3"], "value": f"{incremento_visuale:.2f} mm"},
@@ -11535,8 +11595,9 @@ with tab_production:
             {"label": "Strati simulati", "value": str(winding_diagnostics["strati_simulati"])},
             {"label": "Strato finale", "value": str(winding_diagnostics["strato_finale"])},
             {"label": "Lato finale", "value": winding_diagnostics["lato_finale"]},
-            {"label": "Passo effettivo", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"fattore {fattore_passo_effettivo:.2f}"},
-            {"label": "Incremento effettivo", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"fattore {fattore_compattazione_radiale:.2f}"},
+            {"label": "Modo simulazione", "value": "Fattori correzione" if use_correction_factors else "Ideale macchina"},
+            {"label": "Passo effettivo", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"fattore usato {fattore_passo_effettivo:.2f} · preset {fattore_passo_preset:.2f}"},
+            {"label": "Incremento effettivo", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"fattore usato {fattore_compattazione_radiale:.2f} · preset {fattore_compattazione_preset:.2f}"},
             {"label": "Direzione finale", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Quota finale", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
             {"label": "Inversioni", "value": str(winding_diagnostics["inversioni"])},
@@ -11547,8 +11608,9 @@ with tab_production:
             {"label": "Simulated layers", "value": str(winding_diagnostics["strati_simulati"])},
             {"label": "Final layer", "value": str(winding_diagnostics["strato_finale"])},
             {"label": "Final side", "value": winding_diagnostics["lato_finale"]},
-            {"label": "Effective pitch", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"factor {fattore_passo_effettivo:.2f}"},
-            {"label": "Effective increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"factor {fattore_compattazione_radiale:.2f}"},
+            {"label": "Simulation mode", "value": "Correction factors" if use_correction_factors else "Machine ideal"},
+            {"label": "Effective pitch", "value": f"{passo_effettivo_assiale:.2f} mm", "note": f"used factor {fattore_passo_effettivo:.2f} · preset {fattore_passo_preset:.2f}"},
+            {"label": "Effective increment", "value": f"{incremento_effettivo_radiale:.2f} mm", "note": f"used factor {fattore_compattazione_radiale:.2f} · preset {fattore_compattazione_preset:.2f}"},
             {"label": "Final direction", "value": winding_diagnostics["direzione_finale"]},
             {"label": "Final position", "value": f"{winding_diagnostics['quota_finale']:.1f} mm"},
             {"label": "Inversions", "value": str(winding_diagnostics["inversioni"])},
