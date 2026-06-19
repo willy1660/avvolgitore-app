@@ -7567,13 +7567,14 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         function makeSingleRealisticTubeTip(point, tangentDir, outerRadius, sleeveMaterial, markerMaterial, outwardSign=1) {{
             if (!tangentDir || tangentDir.length() < 1e-6) return null;
 
-            const dir = computeTubeSurfaceNormal(point, tangentDir);
+            // The copper tail must follow the local spiral direction.
+            // The cut face of the tube stays normal to this axis automatically.
+            const dir = tangentDir.clone().normalize().multiplyScalar(outwardSign >= 0 ? 1 : -1);
             const group = new THREE.Group();
 
             const sleeveLen = Math.max(8.0, outerRadius * 0.95);
             const copperLen = Math.max(12.0, outerRadius * 1.55);
             const copperRadius = Math.max(1.8, Math.min(outerRadius * 0.34, outerRadius - 1.1));
-            const collarLen = Math.max(2.8, outerRadius * 0.26);
 
             const sleeveStart = point.clone().addScaledVector(dir, -sleeveLen);
             const sleeveEnd = point.clone();
@@ -7593,18 +7594,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
             if (copperCap) group.add(copperCap);
 
-            if (markerMaterial) {{
-                const collar = new THREE.Mesh(
-                    new THREE.CylinderGeometry(outerRadius * 1.01, outerRadius * 1.01, collarLen, 22),
-                    markerMaterial
-                );
-                collar.position.copy(point.clone().addScaledVector(dir, -collarLen * 0.40));
-                orientAlongDir(collar, dir);
-                collar.castShadow = false;
-                collar.receiveShadow = true;
-                group.add(collar);
-            }}
-
+            // No colored end collars: keep only the tube sleeve + exposed copper.
             return group;
         }}
 
@@ -7773,7 +7763,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 startWorld,
                 startTangentWorld,
                 tubeMat,
-                markerStartMat,
+                null,
                 -1
             );
 
@@ -7781,7 +7771,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 endWorld,
                 endTangentWorld.length() > 1e-6 ? endTangentWorld : startTangentWorld,
                 tubeMat,
-                markerEndMat,
+                null,
                 1
             );
 
