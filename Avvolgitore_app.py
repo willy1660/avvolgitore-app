@@ -2587,10 +2587,10 @@ st.markdown(
     .pdm-card-title {
         width: 100%;
         text-align: center;
-        font-size: clamp(42px, 4.8vw, 78px);
-        line-height: 0.95;
+        font-size: clamp(34px, 3.6vw, 58px);
+        line-height: 0.98;
         font-weight: 520;
-        letter-spacing: -0.052em;
+        letter-spacing: -0.048em;
         color: var(--pdm-popup-text, var(--text-color));
         white-space: nowrap;
         overflow: hidden;
@@ -2617,8 +2617,8 @@ st.markdown(
 
     @media (max-width: 900px) {
         .pdm-card-title {
-            font-size: clamp(32px, 7.5vw, 44px);
-            margin-top: -4px;
+            font-size: clamp(28px, 7.0vw, 38px);
+            margin-top: -2px;
             margin-bottom: -2px;
         }
     }
@@ -2628,12 +2628,12 @@ st.markdown(
 )
 
 with st.container(border=True):
-    h_logo_col, h_title_col, h_lang_col = st.columns([1.05, 5.8, 1.55], gap="large")
+    h_logo_col, h_title_col, h_lang_col = st.columns([0.85, 5.95, 1.55], gap="medium")
 
     with h_logo_col:
         if logo_path:
             try:
-                st.image(logo_path, width=105)
+                st.image(logo_path, width=82)
             except Exception:
                 st.markdown(
                     '<div class="pdm-card-logo-fallback">PDM<div class="pdm-card-logo-sub">try it, love it</div></div>',
@@ -11843,18 +11843,28 @@ st.markdown(
 st.markdown(
     """
     <style>
-    /* Final spacing for the card header */
+    /* Final spacing for the compact card header */
     .main .block-container {
-        padding-top: 0.65rem !important;
+        padding-top: 0.55rem !important;
     }
 
+    /*
+    The old header system left vertical flow space before the tabs.
+    Pull the main tabs up so the card behaves like a normal compact header.
+    */
     div[data-testid="stTabs"] {
-        margin-top: 0.55rem !important;
+        margin-top: -285px !important;
     }
 
     div[data-testid="stTabs"] [role="tablist"] {
         margin-top: 0 !important;
         margin-bottom: 14px !important;
+    }
+
+    @media (max-width: 1180px) {
+        div[data-testid="stTabs"] {
+            margin-top: -230px !important;
+        }
     }
 
     @media (max-width: 900px) {
@@ -11864,7 +11874,13 @@ st.markdown(
         }
 
         div[data-testid="stTabs"] {
-            margin-top: 0.45rem !important;
+            margin-top: -170px !important;
+        }
+    }
+
+    @media (max-width: 520px) {
+        div[data-testid="stTabs"] {
+            margin-top: -145px !important;
         }
     }
     </style>
