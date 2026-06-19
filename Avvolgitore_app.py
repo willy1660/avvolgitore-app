@@ -7531,10 +7531,43 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             obj.setRotationFromQuaternion(quat);
         }}
 
+        function computeTubeSurfaceNormal(point, tangentDir) {{
+            const tangent = (tangentDir && tangentDir.length() > 1e-6)
+                ? tangentDir.clone().normalize()
+                : new THREE.Vector3(0, 1, 0);
+
+            let radial = new THREE.Vector3(point.x, point.y, 0);
+            if (radial.length() < 1e-6) radial = new THREE.Vector3(1, 0, 0);
+            radial.normalize();
+
+            // Remove any component along the tube axis so the result is really a surface normal.
+            let normal = radial.clone().sub(tangent.clone().multiplyScalar(radial.dot(tangent)));
+
+            if (normal.length() < 1e-6) {{
+                normal = new THREE.Vector3(0, 0, 1).cross(tangent);
+            }}
+            if (normal.length() < 1e-6) {{
+                normal = new THREE.Vector3(1, 0, 0).cross(tangent);
+            }}
+            if (normal.length() < 1e-6) {{
+                normal = new THREE.Vector3(1, 0, 0);
+            }}
+
+            normal.normalize();
+
+            // Keep the normal pointing outward from the coil center.
+            const outwardRef = new THREE.Vector3(point.x, point.y, 0);
+            if (outwardRef.length() > 1e-6 && normal.dot(outwardRef.normalize()) < 0) {{
+                normal.multiplyScalar(-1);
+            }}
+
+            return normal;
+        }}
+
         function makeSingleRealisticTubeTip(point, tangentDir, outerRadius, sleeveMaterial, markerMaterial, outwardSign=1) {{
             if (!tangentDir || tangentDir.length() < 1e-6) return null;
 
-            const dir = tangentDir.clone().normalize().multiplyScalar(outwardSign);
+            const dir = computeTubeSurfaceNormal(point, tangentDir);
             const group = new THREE.Group();
 
             const sleeveLen = Math.max(8.0, outerRadius * 0.95);
