@@ -9584,11 +9584,18 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         .machine-card-native:nth-child(2n) {{ border-right:0; }}
     }}
     @media (max-width:720px) {{
-        .machine-grid-native {{ grid-template-columns:1fr; }}
+        /* Manté 2 columnes també en mòbil per evitar tallar el contingut:
+           l'altura del component està calculada sense scroll intern. */
+        .machine-grid-native {{ grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }}
         .machine-card-native,
         .machine-card-native:nth-child(2n),
-        .machine-card-native:nth-child(4n) {{ border-right:0; }}
-        .machine-card-native {{ min-height:88px; }}
+        .machine-card-native:nth-child(4n) {{ border-right:1px solid var(--line); }}
+        .machine-card-native {{ min-height:96px; padding:12px 11px; border-radius:14px; gap:9px; }}
+        .machine-card-label-native {{ font-size:9px; min-height:20px; letter-spacing:0.045em; }}
+        .machine-card-value-native {{ font-size:clamp(15px, 4.6vw, 20px); min-height:24px; }}
+        .machine-group-head-native {{ padding:12px 13px; border-radius:15px 15px 0 0; }}
+        .machine-group-title-native {{ font-size:12px; }}
+        .machine-group-subtitle-native {{ font-size:10.5px; }}
     }}
     </style>
     </head>
@@ -10511,6 +10518,365 @@ st.markdown(
     .pack_stat:hover::after {
         opacity: 0 !important;
         animation: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+
+st.markdown(
+    """
+    <style>
+    /*
+    Responsive layout pass · desktop / iPad / mobile.
+    Manté l'estètica actual, però evita columnes massa estretes i tabs tallats.
+    */
+
+    html, body, [data-testid="stAppViewContainer"] {
+        overflow-x: hidden !important;
+    }
+
+    .main .block-container {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    div[data-testid="column"] {
+        min-width: 0 !important;
+    }
+
+    div[data-testid="stIFrame"],
+    div[data-testid="stIFrame"] iframe,
+    iframe {
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .summary-card-value,
+    .preset-param-value,
+    .machine-card-value-native,
+    .tech-mini-value,
+    .summary-strip-value,
+    .preview-metric-value,
+    .preset-chip strong {
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
+    }
+
+    /* TABLET · iPad horitzontal/vertical */
+    @media (max-width: 1180px) {
+        .main .block-container {
+            max-width: 100% !important;
+            padding-left: 0.72rem !important;
+            padding-right: 0.72rem !important;
+            padding-top: 0.70rem !important;
+        }
+
+        [data-testid="stTabs"] {
+            margin-top: 0 !important;
+        }
+
+        [data-testid="stTabs"] [role="tablist"] {
+            gap: 18px !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            flex-wrap: nowrap !important;
+            scrollbar-width: thin;
+            padding-bottom: 2px !important;
+            margin-bottom: 14px !important;
+        }
+
+        [data-testid="stTabs"] [role="tab"] {
+            flex: 0 0 auto !important;
+            min-width: max-content !important;
+            min-height: 46px !important;
+            padding-left: 0.28rem !important;
+            padding-right: 0.28rem !important;
+        }
+
+        [data-testid="stTabs"] [role="tab"] p {
+            white-space: nowrap !important;
+            font-size: 0.98rem !important;
+        }
+
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+            gap: 0.78rem !important;
+        }
+
+        div[data-testid="column"] {
+            flex: 1 1 calc(50% - 0.78rem) !important;
+            width: calc(50% - 0.78rem) !important;
+            min-width: 300px !important;
+        }
+
+        .page-title-text {
+            font-size: clamp(24px, 3.2vw, 30px) !important;
+        }
+
+        .section-header {
+            padding: 14px 15px !important;
+            margin-top: 12px !important;
+            margin-bottom: 10px !important;
+        }
+
+        .section-title {
+            font-size: clamp(17px, 2.25vw, 21px) !important;
+        }
+
+        .section-subtitle {
+            font-size: 0.88rem !important;
+            line-height: 1.35 !important;
+        }
+
+        .summary-card,
+        .preset-param-card,
+        .quick-card-v2,
+        .semaphore-card,
+        .tech-mini-card,
+        .preview-metric,
+        .preset-chip,
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 16px !important;
+        }
+
+        .summary-card {
+            min-height: 112px !important;
+            padding: 14px 15px !important;
+        }
+
+        .summary-card-value {
+            font-size: clamp(24px, 3.2vw, 32px) !important;
+        }
+
+        .summary-card-label,
+        .summary-card-note {
+            font-size: 12.5px !important;
+        }
+
+        .preset-chip-row,
+        .preset-hero-chips {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        div[data-testid="stNumberInput"] input,
+        div[data-testid="stTextInput"] input,
+        div[data-baseweb="select"] * {
+            font-size: 0.98rem !important;
+        }
+
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="select"] > div,
+        div[data-testid="stNumberInput"] button {
+            min-height: 44px !important;
+        }
+
+        .operator-field-label {
+            font-size: 0.78rem !important;
+            margin-top: 0.48rem !important;
+        }
+    }
+
+    /* TABLET PETITA / MÒBIL GRAN */
+    @media (max-width: 820px) {
+        .main .block-container {
+            padding-left: 0.58rem !important;
+            padding-right: 0.58rem !important;
+        }
+
+        div[data-testid="column"] {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        .preset-status-top,
+        .preset-hero-top,
+        .section-header-row {
+            gap: 10px !important;
+        }
+
+        .preset-badges,
+        .preset-hero-badges {
+            justify-content: flex-start !important;
+        }
+
+        .preset-chip-row,
+        .preset-hero-chips,
+        .statusgrid {
+            grid-template-columns: 1fr !important;
+        }
+
+        .summary-card {
+            min-height: 96px !important;
+        }
+
+        .summary-card-value {
+            font-size: clamp(22px, 6.2vw, 28px) !important;
+        }
+
+        .preset-param-value {
+            font-size: clamp(22px, 6.2vw, 29px) !important;
+        }
+
+        .pdm-app-footer {
+            margin-top: 26px !important;
+            font-size: 10px !important;
+            letter-spacing: 0.055em !important;
+        }
+    }
+
+    /* MÒBIL */
+    @media (max-width: 560px) {
+        .main .block-container {
+            padding-left: 0.42rem !important;
+            padding-right: 0.42rem !important;
+            padding-bottom: 1.10rem !important;
+        }
+
+        [data-testid="stTabs"] [role="tablist"] {
+            gap: 12px !important;
+            margin-bottom: 10px !important;
+        }
+
+        [data-testid="stTabs"] [role="tab"] {
+            min-height: 42px !important;
+            padding-top: 0.42rem !important;
+            padding-bottom: 0.56rem !important;
+        }
+
+        [data-testid="stTabs"] [role="tab"] p {
+            font-size: 0.90rem !important;
+        }
+
+        .page-title-shell {
+            margin-bottom: 9px !important;
+        }
+
+        .page-title-text {
+            font-size: 23px !important;
+            line-height: 1.08 !important;
+        }
+
+        .section-header {
+            padding: 12px 13px !important;
+            border-radius: 14px !important;
+        }
+
+        .section-header-row {
+            align-items: flex-start !important;
+        }
+
+        .section-badge {
+            width: 27px !important;
+            height: 27px !important;
+            min-width: 27px !important;
+            font-size: 12px !important;
+        }
+
+        .section-title {
+            font-size: 17px !important;
+        }
+
+        .section-subtitle {
+            font-size: 0.82rem !important;
+        }
+
+        .summary-card,
+        .preset-param-card,
+        .quick-card-v2,
+        .semaphore-card,
+        .tech-mini-card,
+        .preview-metric,
+        .preset-chip,
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 14px !important;
+        }
+
+        .summary-card {
+            padding: 12px 13px !important;
+            min-height: 88px !important;
+            margin-bottom: 8px !important;
+        }
+
+        .summary-card::before,
+        .preset-param-card::before {
+            width: 4px !important;
+        }
+
+        .summary-card-label {
+            font-size: 11.5px !important;
+            margin-bottom: 8px !important;
+        }
+
+        .summary-card-note {
+            font-size: 11.5px !important;
+            margin-top: 6px !important;
+        }
+
+        .summary-card-value {
+            font-size: 23px !important;
+            line-height: 1.05 !important;
+        }
+
+        .preset-status-strip,
+        .preset-hero,
+        .tech-sheet-preset-card {
+            padding: 13px 14px !important;
+            border-radius: 15px !important;
+        }
+
+        .preset-status-title,
+        .preset-hero-title {
+            font-size: 20px !important;
+            line-height: 1.08 !important;
+        }
+
+        .preset-chip {
+            min-height: 52px !important;
+            padding: 9px 10px !important;
+        }
+
+        .preset-chip strong {
+            font-size: 16px !important;
+        }
+
+        div[role="radiogroup"] {
+            gap: 7px !important;
+            row-gap: 7px !important;
+        }
+
+        div[role="radiogroup"] label {
+            min-height: 44px !important;
+            min-width: 0 !important;
+            padding: 0.50rem 0.70rem !important;
+        }
+
+        div[role="radiogroup"] label p {
+            font-size: 0.88rem !important;
+        }
+
+        .stButton > button,
+        div[data-testid="stDownloadButton"] > button {
+            min-height: 44px !important;
+            border-radius: 12px !important;
+            font-size: 0.92rem !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+        }
+
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="select"] > div {
+            min-height: 42px !important;
+            border-radius: 11px !important;
+        }
+
+        iframe {
+            border-radius: 14px !important;
+        }
     }
     </style>
     """,
