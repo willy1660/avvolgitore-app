@@ -5310,6 +5310,7 @@ def viewer(
             font-family:Arial, sans-serif;
             user-select:none;
             pointer-events:auto;
+            overflow:visible !important;
         }}
 
         .viewer_tools_group {{
@@ -5396,6 +5397,7 @@ def viewer(
             font-family:Arial, sans-serif;
             user-select:none;
             pointer-events:auto;
+            overflow:visible !important;
         }}
 
         .render_tools_toggle {{
@@ -5580,8 +5582,11 @@ def viewer(
         .render_tools_panel {{
             width: 370px !important;
             max-width: min(370px, calc(100vw - 28px)) !important;
-            max-height: min(500px, calc(100% - 76px)) !important;
+            height: auto !important;
+            min-height: 280px !important;
+            max-height: min(72vh, 560px) !important;
             overflow-y: auto !important;
+            overflow-x: hidden !important;
             overscroll-behavior: contain !important;
             gap: 8px !important;
             padding: 11px !important;
@@ -5734,11 +5739,14 @@ def viewer(
                 right: 10px !important;
                 top: 10px !important;
                 bottom: auto !important;
+                max-width: calc(100vw - 20px) !important;
             }}
             .render_tools_panel {{
                 width: calc(100vw - 20px) !important;
                 max-width: calc(100vw - 20px) !important;
-                max-height: min(62vh, calc(100% - 64px)) !important;
+                height: auto !important;
+                min-height: 300px !important;
+                max-height: min(76vh, 620px) !important;
                 top: 48px !important;
                 bottom: auto !important;
                 padding: 10px !important;
@@ -6564,6 +6572,19 @@ def viewer(
         if (renderToolsClose) {{
             renderToolsClose.addEventListener("click", () => setRenderToolsOpen(false));
         }}
+
+        function enforceRenderPanelSize() {{
+            const panel = document.getElementById("render_tools_panel");
+            if (!panel) return;
+            const isMobile = window.innerWidth <= 680;
+            panel.style.height = 'auto';
+            panel.style.minHeight = isMobile ? '300px' : '280px';
+            panel.style.maxHeight = isMobile ? Math.min(window.innerHeight * 0.76, 620) + 'px' : Math.min(window.innerHeight * 0.72, 560) + 'px';
+            panel.style.overflowY = 'auto';
+            panel.style.overflowX = 'hidden';
+        }}
+        enforceRenderPanelSize();
+        window.addEventListener('resize', enforceRenderPanelSize);
 
         document.getElementById("hud_length_label").textContent = T.hud_length;
         document.getElementById("hud_layer_label").textContent = T.hud_layer;
