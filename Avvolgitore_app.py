@@ -2578,31 +2578,7 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-# Native Streamlit header, simple and robust.
-# No fixed hero, no custom card, no negative offsets.
-current_lang = st.session_state.lang
-
-if logo_path:
-    try:
-        st.image(logo_path, width=76)
-    except Exception:
-        st.markdown("**PDM**")
-else:
-    st.markdown("**PDM**")
-
-lang_option = st.selectbox(
-    TEXTS[current_lang]["language"],
-    ["Italiano", "English (US)"],
-    index=0 if current_lang == "IT" else 1,
-    key="lang_selector_top",
-    label_visibility="collapsed",
-)
-
-new_lang = "IT" if "Italiano" in lang_option else "EN"
-if new_lang != st.session_state.lang:
-    st.session_state.lang = new_lang
-    st.rerun()
-
+# Minimal native header. No logo, no language selector, no custom hero/card.
 lang = st.session_state.lang
 t = TEXTS[lang]
 
@@ -2611,25 +2587,17 @@ st.title(t["title"])
 st.markdown(
     """
     <style>
-    /* Native header cleanup */
+    /* Minimal header reset */
     .main .block-container {
-        padding-top: 0.65rem !important;
+        padding-top: 0.70rem !important;
     }
 
     h1 {
-        margin-top: 0.15rem !important;
-        margin-bottom: 0.45rem !important;
+        margin-top: 0 !important;
+        margin-bottom: 0.55rem !important;
+        line-height: 1.08 !important;
         letter-spacing: -0.035em;
-        font-weight: 600;
-        line-height: 1.02 !important;
-    }
-
-    div[data-testid="stImage"] {
-        margin-bottom: 0.25rem !important;
-    }
-
-    div[data-testid="stSelectbox"] {
-        margin-bottom: 0.35rem !important;
+        font-weight: 650;
     }
 
     div[data-testid="stTabs"] {
@@ -2638,20 +2606,19 @@ st.markdown(
 
     div[data-testid="stTabs"] [role="tablist"] {
         margin-top: 0 !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 14px !important;
     }
 
     @media (max-width: 900px) {
         .main .block-container {
-            padding-left: 0.70rem !important;
-            padding-right: 0.70rem !important;
-            padding-top: 0.45rem !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+            padding-top: 0.55rem !important;
         }
 
         h1 {
             font-size: 2.05rem !important;
-            margin-top: 0.10rem !important;
-            margin-bottom: 0.35rem !important;
+            margin-bottom: 0.45rem !important;
         }
     }
     </style>
@@ -2671,7 +2638,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: 0.15rem !important;
+        margin-top: 0 !important;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -11584,10 +11551,11 @@ st.markdown(
 
 
 
+
 st.markdown(
     """
     <style>
-    /* Final tab/header override: keep tabs close to native title */
+    /* Final override for title-only header */
     div[data-testid="stTabs"] {
         margin-top: 0 !important;
     }
@@ -11601,32 +11569,6 @@ st.markdown(
         div[data-testid="stTabs"] {
             margin-top: 0 !important;
         }
-    }
-
-    /* Keep preset selector visible without touching header */
-    .preset-selector-card {
-        margin: 2px 0 8px 0;
-        padding: 12px 14px;
-        border-radius: 18px;
-        border: 1px solid color-mix(in srgb, var(--pdm-accent) 30%, var(--text-color) 10%);
-        background: color-mix(in srgb, var(--secondary-background-color) 96%, var(--background-color));
-    }
-
-    .preset-selector-title {
-        font-size: 0.78rem;
-        line-height: 1;
-        font-weight: 950;
-        letter-spacing: 0.065em;
-        text-transform: uppercase;
-        color: color-mix(in srgb, var(--pdm-accent) 78%, var(--text-color));
-        margin-bottom: 5px;
-    }
-
-    .preset-selector-subtitle {
-        font-size: 0.74rem;
-        line-height: 1.18;
-        font-weight: 650;
-        color: color-mix(in srgb, var(--text-color) 58%, transparent);
     }
     </style>
     """,
