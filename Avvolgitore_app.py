@@ -4975,18 +4975,40 @@ def viewer(
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
         </div>
 
-        <div id="viewer_render_tools_overlay" class="viewer_render_tools_overlay">
-            <div class="viewer_tools_group viewer_tools_group_camera">
-                <span class="viewer_tools_label" id="camera_tools_title">Camera</span>
-                <button class="viewer_tool_chip" id="zoom_out_btn" type="button">−</button>
-                <button class="viewer_tool_chip viewer_tool_chip_main" id="fit_view_btn" type="button">Fit</button>
-                <button class="viewer_tool_chip" id="zoom_in_btn" type="button">+</button>
-            </div>
-            <div class="viewer_tools_group viewer_tools_group_quality">
-                <span class="viewer_tools_label" id="quality_title">Qualità</span>
-                <button class="quality_btn viewer_tool_chip" data-quality="eco" type="button">Eco</button>
-                <button class="quality_btn viewer_tool_chip active_opt" data-quality="alta" type="button">Alta</button>
-                <button class="quality_btn viewer_tool_chip" data-quality="ultra" type="button">Ultra</button>
+        <div id="viewer_render_tools_overlay" class="viewer_render_tools_overlay collapsed">
+            <button id="render_tools_toggle" class="render_tools_toggle" type="button" aria-expanded="false">
+                <span class="render_tools_toggle_dot"></span>
+                <span id="render_tools_toggle_text">Render</span>
+                <span class="render_tools_toggle_icon">⌃</span>
+            </button>
+            <div id="render_tools_panel" class="render_tools_panel">
+                <div class="render_tools_panel_head">
+                    <div>
+                        <div class="render_tools_kicker">PDM</div>
+                        <div class="render_tools_title" id="render_tools_title">Opzioni render</div>
+                    </div>
+                    <button id="render_tools_close" class="render_tools_close" type="button">×</button>
+                </div>
+
+                <div class="viewer_tools_group viewer_tools_group_camera">
+                    <span class="viewer_tools_label" id="camera_tools_title">Camera</span>
+                    <button class="viewer_tool_chip" id="zoom_out_btn" type="button">−</button>
+                    <button class="viewer_tool_chip viewer_tool_chip_main" id="fit_view_btn" type="button">Fit</button>
+                    <button class="viewer_tool_chip" id="zoom_in_btn" type="button">+</button>
+                </div>
+
+                <div class="viewer_tools_group viewer_tools_group_quality">
+                    <span class="viewer_tools_label" id="quality_title">Qualità</span>
+                    <button class="quality_btn viewer_tool_chip" data-quality="eco" type="button">Eco</button>
+                    <button class="quality_btn viewer_tool_chip active_opt" data-quality="alta" type="button">Alta</button>
+                    <button class="quality_btn viewer_tool_chip" data-quality="ultra" type="button">Ultra</button>
+                </div>
+
+                <div class="viewer_tools_group viewer_tools_group_finish">
+                    <span class="viewer_tools_label" id="finish_tools_title">Finitura</span>
+                    <button class="tube_finish_btn viewer_tool_chip active_opt" data-finish="liscio" type="button">Liscio</button>
+                    <button class="tube_finish_btn viewer_tool_chip" data-finish="zigrinata" type="button">Zigrinata</button>
+                </div>
             </div>
         </div>
 
@@ -5385,26 +5407,10 @@ def viewer(
         }}
 
         @media (max-width: 920px) {{
-            .viewer_render_tools_overlay {{
-                top:auto;
-                right:10px;
-                left:10px;
-                bottom:68px;
-                max-width:none;
-                justify-content:center;
-                flex-wrap:wrap;
-                gap:7px;
-                z-index:28;
-            }}
-
             .viewer_tools_group {{
                 min-height:34px;
                 padding:5px;
                 gap:5px;
-            }}
-
-            .viewer_tools_label {{
-                display:none;
             }}
 
             .viewer_tool_chip {{
@@ -5412,6 +5418,195 @@ def viewer(
                 height:30px;
                 padding:0 9px;
                 font-size:11px;
+            }}
+        }}
+
+        /* v19 · collapsible render options card: avoids camera/quality overlap */
+        .viewer_render_tools_overlay {{
+            position:absolute !important;
+            right:14px !important;
+            bottom:14px !important;
+            left:auto !important;
+            top:auto !important;
+            z-index:36 !important;
+            display:block !important;
+            width:auto !important;
+            max-width:min(350px, calc(100% - 28px)) !important;
+            font-family:Arial, sans-serif;
+            user-select:none;
+            pointer-events:auto;
+        }}
+
+        .render_tools_toggle {{
+            min-width:112px;
+            height:42px;
+            border:1px solid rgba(255,255,255,0.13);
+            border-radius:999px;
+            padding:0 13px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            gap:8px;
+            background:rgba(18,22,27,0.78);
+            color:#f8fafc;
+            font-size:12px;
+            line-height:1;
+            font-weight:950;
+            letter-spacing:0.035em;
+            text-transform:uppercase;
+            cursor:pointer;
+            backdrop-filter:blur(10px);
+            box-shadow:0 12px 26px rgba(0,0,0,0.24);
+        }}
+
+        .render_tools_toggle_dot {{
+            width:8px;
+            height:8px;
+            border-radius:999px;
+            background:#C57E5A;
+            box-shadow:0 0 0 4px rgba(197,126,90,0.16);
+        }}
+
+        .render_tools_toggle_icon {{
+            font-size:13px;
+            opacity:0.72;
+            transform:translateY(-1px);
+        }}
+
+        .render_tools_panel {{
+            position:absolute;
+            right:0;
+            bottom:50px;
+            width:334px;
+            max-width:calc(100vw - 28px);
+            padding:12px;
+            border-radius:18px;
+            background:rgba(18,22,27,0.82);
+            color:#f8fafc;
+            border:1px solid rgba(255,255,255,0.13);
+            backdrop-filter:blur(12px);
+            box-shadow:0 18px 42px rgba(0,0,0,0.32);
+            display:flex;
+            flex-direction:column;
+            gap:9px;
+            transform-origin:bottom right;
+            transform:translateY(8px) scale(0.985);
+            opacity:0;
+            visibility:hidden;
+            pointer-events:none;
+            transition:opacity .16s ease, transform .16s ease, visibility .16s ease;
+        }}
+
+        .viewer_render_tools_overlay:not(.collapsed) .render_tools_panel {{
+            opacity:1;
+            visibility:visible;
+            pointer-events:auto;
+            transform:translateY(0) scale(1);
+        }}
+
+        .viewer_render_tools_overlay:not(.collapsed) .render_tools_toggle_icon {{
+            transform:rotate(180deg) translateY(1px);
+        }}
+
+        .render_tools_panel_head {{
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:12px;
+            padding:2px 2px 5px 2px;
+        }}
+
+        .render_tools_kicker {{
+            font-size:9px;
+            line-height:1;
+            font-weight:950;
+            letter-spacing:.11em;
+            text-transform:uppercase;
+            color:#C57E5A;
+            margin-bottom:5px;
+        }}
+
+        .render_tools_title {{
+            font-size:15px;
+            line-height:1.05;
+            font-weight:950;
+            letter-spacing:-.018em;
+        }}
+
+        .render_tools_close {{
+            width:28px;
+            height:28px;
+            border:0;
+            border-radius:999px;
+            background:rgba(255,255,255,0.10);
+            color:#f8fafc;
+            font-size:18px;
+            line-height:1;
+            font-weight:900;
+            cursor:pointer;
+        }}
+
+        .render_tools_panel .viewer_tools_group {{
+            width:100%;
+            min-height:40px;
+            border-radius:14px;
+            box-sizing:border-box;
+            justify-content:flex-start;
+            background:rgba(255,255,255,0.06);
+            box-shadow:none;
+        }}
+
+        .render_tools_panel .viewer_tools_label {{
+            display:inline-flex;
+            min-width:72px;
+            color:rgba(248,250,252,0.70);
+        }}
+
+        .render_tools_panel .viewer_tool_chip {{
+            flex:1 1 0;
+            min-width:0;
+        }}
+
+        .render_tools_panel .viewer_tools_group_camera .viewer_tool_chip {{
+            flex:0 0 auto;
+            min-width:52px;
+        }}
+
+        .render_tools_panel .viewer_tools_group_camera .viewer_tool_chip_main {{
+            min-width:70px;
+        }}
+
+        @media (max-width: 680px) {{
+            .viewer_render_tools_overlay {{
+                right:10px !important;
+                bottom:10px !important;
+                max-width:calc(100% - 20px) !important;
+            }}
+
+            .render_tools_panel {{
+                width:calc(100vw - 20px);
+                right:0;
+                bottom:48px;
+                padding:11px;
+                border-radius:16px;
+            }}
+
+            .render_tools_panel .viewer_tools_group {{
+                min-height:38px;
+                padding:5px;
+                gap:5px;
+            }}
+
+            .render_tools_panel .viewer_tools_label {{
+                min-width:62px;
+                padding-left:6px;
+                font-size:9px;
+            }}
+
+            .render_tools_toggle {{
+                min-width:104px;
+                height:40px;
+                margin-left:auto;
             }}
         }}
 
@@ -6029,22 +6224,9 @@ def viewer(
         }}
 
         @media (max-width: 680px) {{
-            .viewer_render_tools_overlay {{
-                top:auto !important;
-                bottom:64px !important;
-                left:8px !important;
-                right:8px !important;
-                max-width:calc(100% - 16px) !important;
-                justify-content:center !important;
-            }}
-            .viewer_tools_group {{
-                background:rgba(18,22,27,0.66) !important;
-                padding:4px !important;
-                gap:4px !important;
-            }}
-            .viewer_tool_chip {{
+            .render_tools_panel .viewer_tool_chip {{
                 height:28px !important;
-                min-width:34px !important;
+                min-width:0 !important;
                 padding:0 8px !important;
                 font-size:10.5px !important;
             }}
@@ -6079,6 +6261,12 @@ def viewer(
         const tubeFinishBtns = [...document.querySelectorAll(".tube_finish_btn")];
         const viewBtns = [...document.querySelectorAll(".view_btn")];
         const qualityBtns = [...document.querySelectorAll(".quality_btn")];
+        const renderToolsOverlay = document.getElementById("viewer_render_tools_overlay");
+        const renderToolsToggle = document.getElementById("render_tools_toggle");
+        const renderToolsClose = document.getElementById("render_tools_close");
+        const renderToolsTitle = document.getElementById("render_tools_title");
+        const renderToolsToggleText = document.getElementById("render_tools_toggle_text");
+        const finishToolsTitle = document.getElementById("finish_tools_title");
         const zoomInBtn = document.getElementById("zoom_in_btn");
         const zoomOutBtn = document.getElementById("zoom_out_btn");
         const fitViewBtn = document.getElementById("fit_view_btn");
@@ -6121,7 +6309,10 @@ def viewer(
         const cameraToolsTitle = document.getElementById("camera_tools_title");
         const qualityTitle = document.getElementById("quality_title");
         if (cameraToolsTitle) cameraToolsTitle.textContent = (T.language === "Language") ? "Camera" : "Camera";
-        if (qualityTitle) qualityTitle.textContent = (T.language === "Language") ? "Render quality" : "Qualità render";
+        if (qualityTitle) qualityTitle.textContent = (T.language === "Language") ? "Quality" : "Qualità";
+        if (renderToolsTitle) renderToolsTitle.textContent = (T.language === "Language") ? "Render options" : "Opzioni render";
+        if (renderToolsToggleText) renderToolsToggleText.textContent = (T.language === "Language") ? "Render" : "Render";
+        if (finishToolsTitle) finishToolsTitle.textContent = (T.language === "Language") ? "Finish" : "Finitura";
         if (fitViewBtn) fitViewBtn.textContent = (T.language === "Language") ? "Fit" : "Fit";
         document.getElementById("scene_title").textContent = T.packaging_title || "Packaging";
         document.getElementById("scene_winding_btn").textContent = T.title || "Avvolgimento";
@@ -6190,6 +6381,22 @@ def viewer(
 
         updateSidepanelToggle();
 
+        function setRenderToolsOpen(open) {{
+            if (!renderToolsOverlay) return;
+            renderToolsOverlay.classList.toggle("collapsed", !open);
+            if (renderToolsToggle) renderToolsToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        }}
+
+        if (renderToolsToggle) {{
+            renderToolsToggle.addEventListener("click", () => {{
+                setRenderToolsOpen(renderToolsOverlay ? renderToolsOverlay.classList.contains("collapsed") : true);
+            }});
+        }}
+
+        if (renderToolsClose) {{
+            renderToolsClose.addEventListener("click", () => setRenderToolsOpen(false));
+        }}
+
         document.getElementById("hud_length_label").textContent = T.hud_length;
         document.getElementById("hud_layer_label").textContent = T.hud_layer;
         document.getElementById("hud_diameter_label").textContent = T.hud_diameter;
@@ -6251,8 +6458,10 @@ def viewer(
                     anisotropy: 2,
                     shadows: false,
                     clearcoatBoost: 0.00,
-                    bumpScale: 0.018,
-                    ribbedBumpScale: 0.050,
+                    bumpScale: 0.012,
+                    ribbedBumpScale: 0.035,
+                    ribGeometryScale: 0.030,
+                    ribPitchMm: 8.8,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6274,8 +6483,10 @@ def viewer(
                     anisotropy: 12,
                     shadows: true,
                     clearcoatBoost: 0.10,
-                    bumpScale: 0.095,
-                    ribbedBumpScale: 0.145,
+                    bumpScale: 0.040,
+                    ribbedBumpScale: 0.075,
+                    ribGeometryScale: 0.060,
+                    ribPitchMm: 7.2,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6296,8 +6507,10 @@ def viewer(
                 anisotropy: 6,
                 shadows: true,
                 clearcoatBoost: 0.045,
-                bumpScale: 0.055,
-                ribbedBumpScale: 0.095,
+                bumpScale: 0.026,
+                ribbedBumpScale: 0.055,
+                ribGeometryScale: 0.047,
+                ribPitchMm: 7.8,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -8153,6 +8366,61 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
+        function applyRibbedGeometry(geo, totalLen, radius) {{
+            const profile = getQualityProfile();
+
+            if (tubeFinishMode !== "zigrinata") {{
+                geo.computeVertexNormals();
+                return;
+            }}
+
+            const pos = geo.attributes.position;
+            const normal = geo.attributes.normal;
+            const uv = geo.attributes.uv;
+            if (!pos || !normal || !uv) {{
+                geo.computeVertexNormals();
+                return;
+            }}
+
+            // Real zigrinata: actual geometric ribs, not only bump-map.
+            // u follows the tube length, v follows the tube circumference.
+            const pitch = Math.max(4.8, profile.ribPitchMm || 7.8);
+            const repeats = Math.max(6.0, totalLen / pitch);
+            const amp = Math.max(0.10, radius * (profile.ribGeometryScale || 0.045));
+            const twoPi = Math.PI * 2.0;
+
+            for (let i = 0; i < pos.count; i++) {{
+                const u = uv.getX(i);
+                const v = uv.getY(i);
+                const phase = u * repeats;
+                const frac = phase - Math.floor(phase);
+
+                // Raised rounded band + narrow valley: closer to the real rolled foam texture.
+                const ridgeWave = Math.max(0.0, Math.sin(twoPi * frac - Math.PI * 0.52));
+                const ridge = Math.pow(ridgeWave, 2.15);
+                const shoulder = Math.pow(Math.max(0.0, Math.sin(twoPi * frac + Math.PI * 0.08)), 5.0) * 0.24;
+                const valley = Math.pow(Math.max(0.0, -Math.sin(twoPi * frac - Math.PI * 0.44)), 2.4) * 0.24;
+
+                // Not perfectly machined: tiny circumferential deformation and pitch modulation.
+                const angularIrregularity = 1.0
+                    + 0.080 * Math.sin(twoPi * v * 3.0 + phase * 0.41)
+                    + 0.045 * Math.sin(twoPi * v * 7.0 - phase * 0.19);
+                const longitudinalIrregularity = 0.040 * Math.sin(phase * 0.77) + 0.026 * Math.sin(phase * 1.73 + v * 5.0);
+
+                const displacement = amp * ((ridge + shoulder - valley) * angularIrregularity + longitudinalIrregularity);
+
+                pos.setXYZ(
+                    i,
+                    pos.getX(i) + normal.getX(i) * displacement,
+                    pos.getY(i) + normal.getY(i) * displacement,
+                    pos.getZ(i) + normal.getZ(i) * displacement
+                );
+            }}
+
+            pos.needsUpdate = true;
+            geo.computeVertexNormals();
+        }}
+
         function makeTubeMeshFromPoints(points, radius, material) {{
             if (!points || points.length < 2) return null;
 
@@ -8171,7 +8439,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, profile.radialSegments, false);
-            geo.computeVertexNormals();
+            applyRibbedGeometry(geo, totalLen, radius);
+            geo.computeBoundingSphere();
+            geo.computeBoundingBox();
 
             const body = new THREE.Mesh(geo, material);
             body.castShadow = renderQuality === "ultra";
