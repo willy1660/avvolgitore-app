@@ -12416,6 +12416,219 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+
+# FINAL HEADER V9 PATCH - hard mobile layout: fixed header height, language at right, tabs attached
+st.markdown(
+    """
+    <style>
+    /* V9: override final només per arreglar header/tabs en desktop i mòbil */
+    div[data-testid="stElementContainer"]:has(.pdm-header-shell) {
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    .pdm-header-shell {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: clamp(142px, 10.8vw, 210px) !important;
+        min-height: clamp(142px, 10.8vw, 210px) !important;
+        max-height: clamp(142px, 10.8vw, 210px) !important;
+        margin: 0 0 -0.18rem 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+    }
+
+    .pdm-header-logo-wrap {
+        position: static !important;
+        width: auto !important;
+        max-width: none !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        line-height: 0 !important;
+    }
+
+    .pdm-header-logo {
+        height: clamp(138px, 10.2vw, 198px) !important;
+        max-height: 100% !important;
+        max-width: min(520px, 50vw) !important;
+        width: auto !important;
+        object-fit: contain !important;
+    }
+
+    .pdm-lang-mini {
+        position: absolute !important;
+        right: max(0.90rem, calc((100vw - 1800px) / 2 + 0.90rem)) !important;
+        left: auto !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        z-index: 80 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 6px !important;
+        width: auto !important;
+        max-width: 140px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        white-space: nowrap !important;
+    }
+
+    .pdm-lang-mini a {
+        width: 38px !important;
+        min-width: 38px !important;
+        height: 30px !important;
+        min-height: 30px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 999px !important;
+        font-size: 0.66rem !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.015em !important;
+        box-sizing: border-box !important;
+    }
+
+    div[data-testid="stTabs"] {
+        margin-top: -0.55rem !important;
+        padding-top: 0 !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-top: 0 !important;
+        margin-bottom: 0.48rem !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        min-height: 2.10rem !important;
+        gap: clamp(14px, 1.45vw, 26px) !important;
+        overflow-x: hidden !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"] {
+        min-height: 2.05rem !important;
+        padding-top: 0.26rem !important;
+        padding-bottom: 0.44rem !important;
+    }
+
+    @media (max-width: 760px) {
+        div[data-testid="stElementContainer"]:has(.pdm-header-shell) {
+            height: 132px !important;
+            min-height: 132px !important;
+            max-height: 132px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+        }
+
+        .pdm-header-shell {
+            height: 132px !important;
+            min-height: 132px !important;
+            max-height: 132px !important;
+            margin: 0 0 -1.10rem 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            overflow: visible !important;
+        }
+
+        .pdm-header-logo {
+            height: 122px !important;
+            max-height: 122px !important;
+            max-width: 52vw !important;
+            width: auto !important;
+        }
+
+        .pdm-lang-mini {
+            right: 0.10rem !important;
+            left: auto !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            gap: 4px !important;
+            max-width: 84px !important;
+        }
+
+        .pdm-lang-mini a {
+            width: 31px !important;
+            min-width: 31px !important;
+            height: 28px !important;
+            min-height: 28px !important;
+            font-size: 0.58rem !important;
+            box-shadow: none !important;
+        }
+
+        .main .block-container {
+            padding-top: 0 !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            overflow-x: hidden !important;
+            max-width: 100vw !important;
+        }
+
+        div[data-testid="stTabs"] {
+            margin-top: -1.18rem !important;
+            padding-top: 0 !important;
+            overflow-x: hidden !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 1.78rem !important;
+            gap: 0 !important;
+            margin-top: 0 !important;
+            margin-bottom: 0.22rem !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            min-height: 1.72rem !important;
+            padding: 0.16rem 0.02rem 0.30rem 0.02rem !important;
+            overflow: hidden !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] p {
+            font-size: clamp(0.60rem, 2.75vw, 0.76rem) !important;
+            line-height: 1.02 !important;
+            text-align: center !important;
+            white-space: normal !important;
+            overflow-wrap: normal !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
+            left: 0.10rem !important;
+            right: 0.10rem !important;
+            bottom: 0 !important;
+            height: 2px !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 tab_production, tab_tech_sheet, tab_checklist = st.tabs([
     production_label,
     tech_sheet_label,
