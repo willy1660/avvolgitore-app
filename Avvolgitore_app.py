@@ -12629,6 +12629,221 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+
+# =========================
+# FINAL NO INTERNAL CARD SCROLL PATCH
+# =========================
+# Keep cards/cards-like panels tall enough for their content. This avoids small
+# internal scrollbars without changing the global size of buttons, inputs or the viewer.
+st.markdown(
+    """
+    <style>
+    /* No internal vertical scroll inside app cards / bordered panels */
+    .summary-card,
+    .preset-param-card,
+    .quick-card-v2,
+    .semaphore-card,
+    .tech-mini-card,
+    .machine-card-native,
+    .preview-metric,
+    .summary-strip,
+    .summary-strip-item,
+    .section-header,
+    .workflow-step,
+    .elegant-panel,
+    .checklist-hero,
+    .pdm-action-bar,
+    .preset-status-strip,
+    .preset-chip,
+    .preset-hero,
+    .preset-hero-chip,
+    .preset-hero-badge,
+    .pack_stat,
+    .tech-sheet-preset-card,
+    .premium-sweep-card,
+    .csv-print-row,
+    div[data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    div[data-testid="stMetric"] {
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
+        overscroll-behavior: auto !important;
+    }
+
+    /* Text inside cards must wrap and grow the card instead of creating a scroll area. */
+    .summary-card *,
+    .preset-param-card *,
+    .quick-card-v2 *,
+    .semaphore-card *,
+    .tech-mini-card *,
+    .machine-card-native *,
+    .summary-strip *,
+    .section-header *,
+    .workflow-step *,
+    .elegant-panel *,
+    .checklist-hero *,
+    .pdm-action-bar *,
+    .preset-status-strip *,
+    .preset-chip *,
+    .preset-hero *,
+    .tech-sheet-preset-card *,
+    .premium-sweep-card *,
+    .csv-print-row *,
+    div[data-testid="stVerticalBlockBorderWrapper"] * {
+        max-height: none !important;
+        overflow-y: visible !important;
+    }
+
+    /* Preserve mobile safety: vertical growth is allowed, horizontal overflow is not. */
+    .summary-card,
+    .preset-param-card,
+    .quick-card-v2,
+    .semaphore-card,
+    .tech-mini-card,
+    .machine-card-native,
+    .summary-strip,
+    .summary-strip-item,
+    .section-header,
+    .workflow-step,
+    .elegant-panel,
+    .checklist-hero,
+    .pdm-action-bar,
+    .preset-status-strip,
+    .preset-chip,
+    .preset-hero,
+    .pack_stat,
+    .tech-sheet-preset-card,
+    .premium-sweep-card,
+    .csv-print-row {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .summary-card-value,
+    .preset-param-value,
+    .quick-value-v2,
+    .semaphore-value,
+    .tech-mini-value,
+    .machine-card-value-native,
+    .summary-strip-value,
+    .preset-chip strong,
+    .preset-status-title,
+    .preset-status-sub,
+    .section-title,
+    .section-subtitle {
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-break: normal !important;
+        text-overflow: initial !important;
+    }
+
+    /* If Streamlit adds its own scroll container around a bordered card, let it expand. */
+    div[data-testid="stVerticalBlockBorderWrapper"] [style*="overflow: auto"],
+    div[data-testid="stVerticalBlockBorderWrapper"] [style*="overflow-y: auto"],
+    div[data-testid="stVerticalBlockBorderWrapper"] [style*="overflow: scroll"],
+    div[data-testid="stVerticalBlockBorderWrapper"] [style*="overflow-y: scroll"] {
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Runtime cleanup for scrollbars created by dynamic Streamlit wrappers after render.
+# It only touches known card/panel selectors, not the viewer side panel or the page scroll.
+components.html(
+    """
+    <script>
+    (function () {
+        const CARD_SELECTOR = [
+            '.summary-card',
+            '.preset-param-card',
+            '.quick-card-v2',
+            '.semaphore-card',
+            '.tech-mini-card',
+            '.machine-card-native',
+            '.preview-metric',
+            '.summary-strip',
+            '.summary-strip-item',
+            '.section-header',
+            '.workflow-step',
+            '.elegant-panel',
+            '.checklist-hero',
+            '.pdm-action-bar',
+            '.preset-status-strip',
+            '.preset-chip',
+            '.preset-hero',
+            '.preset-hero-chip',
+            '.preset-hero-badge',
+            '.pack_stat',
+            '.tech-sheet-preset-card',
+            '.premium-sweep-card',
+            '.csv-print-row',
+            'div[data-testid="stVerticalBlockBorderWrapper"]'
+        ].join(',');
+
+        function getDoc() {
+            try {
+                return window.parent && window.parent.document ? window.parent.document : document;
+            } catch (error) {
+                return document;
+            }
+        }
+
+        function isScrollableY(el) {
+            const style = window.getComputedStyle(el);
+            return (style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 2;
+        }
+
+        function expandCardScrollAreas() {
+            const doc = getDoc();
+            const cards = Array.from(doc.querySelectorAll(CARD_SELECTOR));
+
+            cards.forEach(function (card) {
+                card.style.setProperty('height', 'auto', 'important');
+                card.style.setProperty('max-height', 'none', 'important');
+                card.style.setProperty('overflow-y', 'visible', 'important');
+                card.style.setProperty('overscroll-behavior', 'auto', 'important');
+                card.style.setProperty('box-sizing', 'border-box', 'important');
+
+                const inner = Array.from(card.querySelectorAll('*'));
+                inner.forEach(function (el) {
+                    if (isScrollableY(el)) {
+                        el.style.setProperty('height', 'auto', 'important');
+                        el.style.setProperty('max-height', 'none', 'important');
+                        el.style.setProperty('overflow-y', 'visible', 'important');
+                    }
+                });
+            });
+        }
+
+        function schedule() {
+            expandCardScrollAreas();
+            window.requestAnimationFrame(expandCardScrollAreas);
+            setTimeout(expandCardScrollAreas, 160);
+            setTimeout(expandCardScrollAreas, 500);
+            setTimeout(expandCardScrollAreas, 1100);
+        }
+
+        schedule();
+        window.addEventListener('resize', schedule, { passive: true });
+
+        try {
+            const doc = getDoc();
+            const observer = new MutationObserver(schedule);
+            observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+            setTimeout(function () { observer.disconnect(); }, 9000);
+        } catch (error) {}
+    })();
+    </script>
+    """,
+    height=0,
+)
+
 tab_production, tab_tech_sheet, tab_checklist = st.tabs([
     production_label,
     tech_sheet_label,
