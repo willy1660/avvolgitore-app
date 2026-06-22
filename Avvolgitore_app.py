@@ -2627,8 +2627,8 @@ st.markdown(
     <style>
     :root {
         --pdm-accent: #C57E5A;
-        --pdm-header-gap-desktop: 0.34rem;
-        --pdm-header-gap-mobile: 0.16rem;
+        --pdm-header-gap-desktop: 0.08rem;
+        --pdm-header-gap-mobile: 0.04rem;
     }
 
     .main .block-container {
@@ -2637,23 +2637,23 @@ st.markdown(
 
     .pdm-header-logo-wrap {
         width: 100%;
-        min-height: clamp(116px, 10.5vw, 178px);
+        min-height: clamp(148px, 12.4vw, 224px);
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0;
-        padding: 0.08rem 0 0.02rem 0;
+        padding: 0.02rem 0 0 0;
         pointer-events: none;
     }
 
     .pdm-header-logo {
         display: block;
         width: auto;
-        height: clamp(108px, 9.8vw, 168px);
-        max-width: min(560px, 54vw);
+        height: clamp(142px, 11.8vw, 218px);
+        max-width: min(680px, 58vw);
         object-fit: contain;
         filter: drop-shadow(0 10px 22px rgba(0,0,0,0.10));
-        transform: translateY(1px);
+        transform: translateY(0);
     }
 
     .pdm-header-spacer,
@@ -2730,18 +2730,18 @@ st.markdown(
         }
 
         .pdm-header-logo-wrap {
-            min-height: clamp(98px, 14vw, 150px);
-            padding-top: 0.02rem;
+            min-height: clamp(124px, 16vw, 176px);
+            padding-top: 0;
         }
 
         .pdm-header-logo {
-            height: clamp(92px, 13vw, 140px);
-            max-width: min(460px, 58vw);
+            height: clamp(118px, 15vw, 168px);
+            max-width: min(540px, 62vw);
         }
 
         div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
             gap: 0.42rem !important;
-            margin-bottom: 0.22rem !important;
+            margin-bottom: 0.06rem !important;
         }
 
         div[data-testid="column"]:has(.pdm-lang-slot) {
@@ -2778,12 +2778,12 @@ st.markdown(
         }
 
         .pdm-header-logo-wrap {
-            min-height: clamp(82px, 22vw, 116px);
+            min-height: clamp(94px, 25vw, 128px);
         }
 
         .pdm-header-logo {
-            height: clamp(78px, 21vw, 108px);
-            max-width: min(300px, 62vw);
+            height: clamp(90px, 24vw, 122px);
+            max-width: min(330px, 66vw);
             filter: drop-shadow(0 7px 15px rgba(0,0,0,0.09));
         }
 
@@ -2820,11 +2820,12 @@ with header_logo:
 
 with header_lang:
     st.markdown('<div class="pdm-lang-slot"></div>', unsafe_allow_html=True)
-    lang_option = st.selectbox(
+    lang_option = st.radio(
         TEXTS[current_lang]["language"],
         ["IT", "EN"],
         index=0 if current_lang == "IT" else 1,
         key="lang_selector_header",
+        horizontal=True,
         label_visibility="collapsed",
     )
 
@@ -11854,6 +11855,366 @@ st.markdown(
         div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
             bottom: 0.10rem !important;
             height: 2px !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+
+st.markdown(
+    """
+    <style>
+    /* vFinal · header amb més presència + zero scroll lateral en mòbil */
+    html,
+    body,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewBlockContainer"],
+    .main,
+    .main .block-container {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .main .block-container {
+        padding-top: 0.26rem !important;
+    }
+
+    /* Header: logo dominant, selector petit, sense espai mort abans de les pestanyes */
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-start !important;
+        gap: 0.35rem !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"] {
+        min-width: 0 !important;
+        padding: 0 !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1),
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
+        flex: 0 0 clamp(88px, 14vw, 190px) !important;
+        width: clamp(88px, 14vw, 190px) !important;
+        min-width: 0 !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(2) {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .pdm-header-logo-wrap {
+        min-height: 0 !important;
+        height: clamp(150px, 12.5vw, 230px) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .pdm-header-logo {
+        height: clamp(148px, 12.1vw, 224px) !important;
+        max-width: min(720px, 60vw) !important;
+        object-fit: contain !important;
+        transform: none !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        padding-top: clamp(18px, 2.2vw, 34px) !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {
+        width: auto !important;
+        max-width: 128px !important;
+        margin: 0 !important;
+        margin-left: auto !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 5px !important;
+        justify-content: flex-end !important;
+        width: auto !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
+        min-width: 42px !important;
+        width: 42px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 !important;
+        border-radius: 999px !important;
+        background: color-mix(in srgb, var(--secondary-background-color) 92%, var(--background-color)) !important;
+        border: 1px solid color-mix(in srgb, var(--text-color) 13%, transparent) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.055) !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label:has(input:checked) {
+        background: #C57E5A !important;
+        border-color: #C57E5A !important;
+        box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
+        font-size: 0.70rem !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.035em !important;
+        text-align: center !important;
+        margin: 0 !important;
+    }
+
+    /* Tabs: sense scroll horitzontal. En mòbil caben sempre dins l'amplada. */
+    div[data-testid="stTabs"] {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        margin-top: 0 !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        overflow-y: hidden !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: clamp(10px, 1.5vw, 26px) !important;
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
+        padding-bottom: 0.22rem !important;
+        box-sizing: border-box !important;
+        scrollbar-width: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"] {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        flex: 0 1 auto !important;
+        padding-left: 0.24rem !important;
+        padding-right: 0.24rem !important;
+        min-height: 2.22rem !important;
+        box-sizing: border-box !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"] p {
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    /* Botons d'acció: el Ripristina/Reset queda coure, llegible i sense tallar-se. */
+    div[data-testid="stButton"] > button,
+    .stButton > button,
+    button[kind="secondary"] {
+        min-height: 48px !important;
+        height: auto !important;
+        padding: 0.72rem 1.05rem !important;
+        border-radius: 999px !important;
+        background: #C57E5A !important;
+        border: 1px solid color-mix(in srgb, #C57E5A 78%, var(--text-color)) !important;
+        color: #FFFFFF !important;
+        font-weight: 900 !important;
+        line-height: 1.12 !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        box-shadow: 0 8px 18px rgba(197,126,90,0.24) !important;
+    }
+
+    div[data-testid="stButton"] > button *,
+    .stButton > button *,
+    button[kind="secondary"] * {
+        color: #FFFFFF !important;
+        white-space: normal !important;
+        line-height: 1.12 !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    @media (max-width: 1180px) {
+        .main .block-container {
+            padding-top: 0.18rem !important;
+            padding-left: 0.62rem !important;
+            padding-right: 0.62rem !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            flex-wrap: nowrap !important;
+            gap: 0.24rem !important;
+            margin-bottom: 0 !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1),
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
+            flex: 0 0 clamp(64px, 12vw, 130px) !important;
+            width: clamp(64px, 12vw, 130px) !important;
+        }
+
+        .pdm-header-logo-wrap {
+            height: clamp(118px, 16vw, 174px) !important;
+        }
+
+        .pdm-header-logo {
+            height: clamp(116px, 15.4vw, 168px) !important;
+            max-width: min(560px, 64vw) !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) {
+            padding-top: clamp(12px, 2.5vw, 24px) !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            gap: 14px !important;
+            margin-bottom: 7px !important;
+        }
+    }
+
+    @media (max-width: 700px) {
+        html,
+        body,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stAppViewBlockContainer"],
+        .main,
+        .main .block-container {
+            width: 100% !important;
+            max-width: 100vw !important;
+            overflow-x: hidden !important;
+        }
+
+        .main .block-container {
+            padding-left: 0.48rem !important;
+            padding-right: 0.48rem !important;
+            padding-top: 0.12rem !important;
+        }
+
+        /* totes les columnes normals passen a una sola columna per evitar desbordaments */
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+
+        div[data-testid="column"] {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        /* excepció: el header conserva proporció logo-centre / idioma-dreta */
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            flex-wrap: nowrap !important;
+            align-items: flex-start !important;
+            gap: 0.10rem !important;
+            overflow: visible !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1) {
+            flex: 0 0 42px !important;
+            width: 42px !important;
+            max-width: 42px !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(2) {
+            flex: 1 1 auto !important;
+            width: auto !important;
+            max-width: calc(100% - 98px) !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
+            flex: 0 0 56px !important;
+            width: 56px !important;
+            max-width: 56px !important;
+        }
+
+        .pdm-header-logo-wrap {
+            height: clamp(86px, 25vw, 116px) !important;
+        }
+
+        .pdm-header-logo {
+            height: clamp(84px, 24vw, 112px) !important;
+            max-width: 100% !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) {
+            padding-top: 8px !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
+            gap: 3px !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
+            min-width: 25px !important;
+            width: 25px !important;
+            height: 28px !important;
+            min-height: 28px !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
+            font-size: 0.62rem !important;
+            letter-spacing: 0 !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            gap: 0 !important;
+            justify-content: stretch !important;
+            margin-bottom: 6px !important;
+            padding-bottom: 0.16rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] {
+            flex: 1 1 0 !important;
+            width: 33.333% !important;
+            min-width: 0 !important;
+            padding: 0.36rem 0.08rem 0.52rem 0.08rem !important;
+            min-height: 2.04rem !important;
+            overflow: hidden !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] p {
+            font-size: clamp(0.70rem, 3vw, 0.84rem) !important;
+            line-height: 1.05 !important;
+            text-align: center !important;
+            white-space: normal !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
+            left: 0.28rem !important;
+            right: 0.28rem !important;
+            bottom: 0.08rem !important;
+            height: 2px !important;
+        }
+
+        div[data-testid="stButton"] > button,
+        .stButton > button,
+        button[kind="secondary"] {
+            min-height: 46px !important;
+            padding: 0.64rem 0.74rem !important;
+            font-size: 0.84rem !important;
+            line-height: 1.10 !important;
         }
     }
     </style>
