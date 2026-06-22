@@ -6648,10 +6648,10 @@ def viewer(
                     shadows: false,
                     clearcoatBoost: 0.00,
                     bumpScale: 0.012,
-                    ribbedBumpScale: 0.026,
-                    ribGeometryScale: 0.046,
-                    ribPitchMm: 12.5,
-                    ribMaxTubularSegments: 3200,
+                    ribbedBumpScale: 0.040,
+                    ribGeometryScale: 0.070,
+                    ribPitchMm: 11.8,
+                    ribMaxTubularSegments: 3600,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6674,10 +6674,10 @@ def viewer(
                     shadows: true,
                     clearcoatBoost: 0.10,
                     bumpScale: 0.040,
-                    ribbedBumpScale: 0.048,
-                    ribGeometryScale: 0.066,
-                    ribPitchMm: 11.5,
-                    ribMaxTubularSegments: 8800,
+                    ribbedBumpScale: 0.078,
+                    ribGeometryScale: 0.102,
+                    ribPitchMm: 10.8,
+                    ribMaxTubularSegments: 9800,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6699,10 +6699,10 @@ def viewer(
                 shadows: true,
                 clearcoatBoost: 0.045,
                 bumpScale: 0.026,
-                ribbedBumpScale: 0.036,
-                ribGeometryScale: 0.056,
-                ribPitchMm: 12.0,
-                ribMaxTubularSegments: 6200,
+                ribbedBumpScale: 0.060,
+                ribGeometryScale: 0.086,
+                ribPitchMm: 11.2,
+                ribMaxTubularSegments: 6800,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -7542,37 +7542,38 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                     const xx = x / size;
                     const i = (y * size + x) * 4;
 
-                    const phase = (xx * 28.0 + Math.sin(xx * 5.7 + yy * 1.9) * 0.065) % 1.0;
-                    const rise = smoothstep(0.08, 0.24, phase);
-                    const fall = 1.0 - smoothstep(0.74, 0.90, phase);
+                    const phase = (xx * 30.0 + Math.sin(xx * 4.4 + yy * 1.8) * 0.050) % 1.0;
+                    const rise = smoothstep(0.07, 0.19, phase);
+                    const fall = 1.0 - smoothstep(0.80, 0.92, phase);
                     const band = rise * fall;
-                    const crown = Math.exp(-Math.pow((phase - 0.50) / 0.26, 4.0)) * 0.18;
-                    const edgeGroove = -Math.exp(-Math.pow((phase - 0.06) / 0.060, 2.0)) * 0.34
-                                     - Math.exp(-Math.pow((phase - 0.94) / 0.060, 2.0)) * 0.26;
+                    const crown = Math.exp(-Math.pow((phase - 0.50) / 0.31, 4.0)) * 0.24;
+                    const grooveL = -Math.exp(-Math.pow((phase - 0.055) / 0.040, 2.0)) * 0.48;
+                    const grooveR = -Math.exp(-Math.pow((phase - 0.945) / 0.046, 2.0)) * 0.36;
 
                     const verticalSeams = (
-                        Math.exp(-Math.pow((yy - 0.12) / 0.018, 2.0))
-                      + Math.exp(-Math.pow((yy - 0.47) / 0.020, 2.0))
-                      + Math.exp(-Math.pow((yy - 0.81) / 0.018, 2.0))
-                    ) * 0.11;
+                        Math.exp(-Math.pow((yy - 0.14) / 0.014, 2.0))
+                      + Math.exp(-Math.pow((yy - 0.49) / 0.016, 2.0))
+                      + Math.exp(-Math.pow((yy - 0.83) / 0.014, 2.0))
+                    ) * 0.16;
 
-                    const softDents = Math.sin(xx * 21.0 + yy * 10.0) * 1.2 + Math.sin(xx * 9.0 - yy * 17.0) * 0.9;
-                    const longitudinalNoise = Math.sin(xx * 63.0 + yy * 5.0) * 0.9 + (Math.random() - 0.5) * 1.1;
-                    const dirtSpeck = Math.random() > 0.9975 ? (dark ? 9 : -11) : 0;
+                    const dents = Math.sin(xx * 16.0 + yy * 7.0) * 1.0 + Math.sin(xx * 8.5 - yy * 13.0) * 0.8;
+                    const smallNoise = Math.sin(xx * 61.0 + yy * 5.0) * 0.7 + (Math.random() - 0.5) * 0.9;
+                    const dirtSpeck = Math.random() > 0.9977 ? (dark ? 10 : -12) : 0;
 
                     let v = base
-                        + band * (dark ? 18.0 : 21.0)
-                        + crown * (dark ? 8.0 : 10.0)
-                        + edgeGroove * (dark ? 18.0 : 22.0)
-                        - verticalSeams * (dark ? 14.0 : 17.0)
-                        + softDents
-                        + longitudinalNoise
+                        + band * (dark ? 23.0 : 28.0)
+                        + crown * (dark ? 10.0 : 13.0)
+                        + grooveL * (dark ? 16.0 : 21.0)
+                        + grooveR * (dark ? 14.0 : 18.0)
+                        - verticalSeams * (dark ? 13.0 : 18.0)
+                        + dents
+                        + smallNoise
                         + dirtSpeck;
 
                     if (dark) {{
-                        v = Math.max(62, Math.min(142, v));
+                        v = Math.max(62, Math.min(145, v));
                     }} else {{
-                        v = Math.max(204, Math.min(252, v));
+                        v = Math.max(202, Math.min(253, v));
                     }}
 
                     data[i] = v;
@@ -7587,7 +7588,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(14.0, 1.0);
+            tex.repeat.set(18.0, 1.0);
             tex.anisotropy = 12;
             tex.needsUpdate = true;
 
@@ -8594,9 +8595,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const pitch = Math.max(10.5, profile.ribPitchMm || 12.0);
+            const pitch = Math.max(10.2, profile.ribPitchMm || 11.2);
             const repeats = Math.max(3.0, totalLen / pitch);
-            const amp = Math.min(radius * 0.11, Math.max(0.34, radius * (profile.ribGeometryScale || 0.056)));
+            const amp = Math.min(radius * 0.15, Math.max(0.50, radius * (profile.ribGeometryScale || 0.086)));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
                 return t * t * (3 - 2 * t);
@@ -8608,24 +8609,24 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 const phase = u * repeats;
                 const frac = phase - Math.floor(phase);
 
-                const rise = smoothstep(0.08, 0.24, frac);
-                const fall = 1.0 - smoothstep(0.74, 0.90, frac);
+                const rise = smoothstep(0.07, 0.19, frac);
+                const fall = 1.0 - smoothstep(0.80, 0.92, frac);
                 const band = rise * fall;
-                const crown = Math.exp(-Math.pow((frac - 0.50) / 0.27, 4.0)) * 0.16;
-                const groove = -Math.exp(-Math.pow((frac - 0.05) / 0.060, 2.0)) * 0.24
-                             - Math.exp(-Math.pow((frac - 0.95) / 0.060, 2.0)) * 0.18;
+                const crown = Math.exp(-Math.pow((frac - 0.50) / 0.33, 4.0)) * 0.16;
+                const grooveL = -Math.exp(-Math.pow((frac - 0.055) / 0.040, 2.0)) * 0.30;
+                const grooveR = -Math.exp(-Math.pow((frac - 0.945) / 0.046, 2.0)) * 0.24;
 
                 const seamImprint = (
-                    Math.exp(-Math.pow((v - 0.12) / 0.028, 2.0))
-                  + Math.exp(-Math.pow((v - 0.48) / 0.030, 2.0))
-                  + Math.exp(-Math.pow((v - 0.82) / 0.026, 2.0))
-                ) * 0.055;
+                    Math.exp(-Math.pow((v - 0.14) / 0.022, 2.0))
+                  + Math.exp(-Math.pow((v - 0.49) / 0.024, 2.0))
+                  + Math.exp(-Math.pow((v - 0.83) / 0.022, 2.0))
+                ) * 0.11;
 
-                const longNoise = 0.018 * Math.sin(phase * 0.45 + v * 5.0)
-                                + 0.012 * Math.sin(phase * 1.35 - v * 9.0);
-                const angularSoft = 1.0 + 0.010 * Math.sin(v * Math.PI * 2.0 * 2.0 + phase * 0.06);
+                const longNoise = 0.015 * Math.sin(phase * 0.42 + v * 4.2)
+                                + 0.010 * Math.sin(phase * 1.18 - v * 8.5);
+                const angularSoft = 1.0 + 0.015 * Math.sin(v * Math.PI * 2.0 * 2.0 + phase * 0.05);
 
-                const ribShape = (band * 0.92 + crown + groove + longNoise) * (1.0 - seamImprint) * angularSoft;
+                const ribShape = (band * 1.08 + crown + grooveL + grooveR + longNoise) * (1.0 - seamImprint) * angularSoft;
                 const displacement = amp * ribShape;
 
                 pos.setXYZ(
@@ -8660,7 +8661,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode === "zigrinata") {{
                 const ribPitch = Math.max(12.0, profile.ribPitchMm || 16.5);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
-                const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 3.0 : (renderQuality === "ultra" ? 5.2 : 4.1)));
+                const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 3.6 : (renderQuality === "ultra" ? 6.2 : 4.9)));
                 tubularSegments = Math.max(
                     tubularSegments,
                     Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
