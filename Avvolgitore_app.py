@@ -2578,29 +2578,25 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-# Native Streamlit header: no custom hero/card layout.
-# This avoids mobile/iPad spacing issues caused by fixed CSS and complex columns.
+# Native Streamlit header, simple and robust.
+# No fixed hero, no custom card, no negative offsets.
 current_lang = st.session_state.lang
 
-logo_col, lang_col = st.columns([1.0, 1.0], gap="large")
-
-with logo_col:
-    if logo_path:
-        try:
-            st.image(logo_path, width=90)
-        except Exception:
-            st.markdown("**PDM**")
-    else:
+if logo_path:
+    try:
+        st.image(logo_path, width=76)
+    except Exception:
         st.markdown("**PDM**")
+else:
+    st.markdown("**PDM**")
 
-with lang_col:
-    lang_option = st.selectbox(
-        TEXTS[current_lang]["language"],
-        ["Italiano", "English (US)"],
-        index=0 if current_lang == "IT" else 1,
-        key="lang_selector_top",
-        label_visibility="collapsed",
-    )
+lang_option = st.selectbox(
+    TEXTS[current_lang]["language"],
+    ["Italiano", "English (US)"],
+    index=0 if current_lang == "IT" else 1,
+    key="lang_selector_top",
+    label_visibility="collapsed",
+)
 
 new_lang = "IT" if "Italiano" in lang_option else "EN"
 if new_lang != st.session_state.lang:
@@ -2615,35 +2611,47 @@ st.title(t["title"])
 st.markdown(
     """
     <style>
-    /* Native Streamlit title spacing */
+    /* Native header cleanup */
     .main .block-container {
-        padding-top: 0.75rem !important;
+        padding-top: 0.65rem !important;
     }
 
     h1 {
-        margin-top: 0.10rem !important;
-        margin-bottom: 0.60rem !important;
+        margin-top: 0.15rem !important;
+        margin-bottom: 0.45rem !important;
         letter-spacing: -0.035em;
         font-weight: 600;
+        line-height: 1.02 !important;
+    }
+
+    div[data-testid="stImage"] {
+        margin-bottom: 0.25rem !important;
+    }
+
+    div[data-testid="stSelectbox"] {
+        margin-bottom: 0.35rem !important;
     }
 
     div[data-testid="stTabs"] {
-        margin-top: 0.15rem !important;
+        margin-top: 0 !important;
     }
 
     div[data-testid="stTabs"] [role="tablist"] {
-        margin-bottom: 14px !important;
+        margin-top: 0 !important;
+        margin-bottom: 12px !important;
     }
 
     @media (max-width: 900px) {
         .main .block-container {
             padding-left: 0.70rem !important;
             padding-right: 0.70rem !important;
+            padding-top: 0.45rem !important;
         }
 
         h1 {
-            font-size: 2.15rem !important;
-            margin-bottom: 0.45rem !important;
+            font-size: 2.05rem !important;
+            margin-top: 0.10rem !important;
+            margin-bottom: 0.35rem !important;
         }
     }
     </style>
@@ -11579,107 +11587,29 @@ st.markdown(
 st.markdown(
     """
     <style>
-    /* Responsive header and width optimisation */
-    html, body, [data-testid="stAppViewContainer"] {
-        overflow-x: hidden !important;
+    /* Final tab/header override: keep tabs close to native title */
+    div[data-testid="stTabs"] {
+        margin-top: 0 !important;
     }
 
-    .main .block-container {
-        width: 100% !important;
-        box-sizing: border-box !important;
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-top: 0 !important;
+        margin-bottom: 12px !important;
     }
 
-    div[data-testid="stIFrame"],
-    div[data-testid="stIFrame"] iframe,
-    iframe {
-        max-width: 100% !important;
-    }
-
-    @media (max-width: 820px) {
-        .main .block-container {
-            max-width: 100vw !important;
-            padding-left: 0.42rem !important;
-            padding-right: 0.42rem !important;
-            padding-top: 0.40rem !important;
-        }
-
-        .top-brand-logo-wrap,
-        .top-brand-title-wrap {
-            min-height: 92px !important;
-            height: 92px !important;
-            max-height: 92px !important;
-            overflow: visible !important;
-            justify-content: center !important;
-            text-align: center !important;
-        }
-
-        .top-brand-logo-img {
-            height: 86px !important;
-            max-height: 86px !important;
-            width: auto !important;
-            margin: 0 auto !important;
-        }
-
-        .top-brand-title {
-            font-size: clamp(40px, 12vw, 54px) !important;
-            line-height: 0.95 !important;
-            letter-spacing: -0.055em !important;
-            max-width: 100% !important;
-            overflow: visible !important;
-            white-space: nowrap !important;
-            text-align: center !important;
-        }
-
-        [data-testid="stTabs"] {
-            margin-top: -70px !important;
-        }
-
-        [data-testid="stTabs"] [role="tablist"] {
-            gap: 20px !important;
-            overflow-x: auto !important;
-            flex-wrap: nowrap !important;
-            padding-bottom: 2px !important;
-        }
-
-        [data-testid="stTabs"] [role="tab"] {
-            flex: 0 0 auto !important;
-            min-width: max-content !important;
+    @media (max-width: 900px) {
+        div[data-testid="stTabs"] {
+            margin-top: 0 !important;
         }
     }
 
-    @media (max-width: 520px) {
-        .top-brand-logo-wrap,
-        .top-brand-title-wrap {
-            min-height: 78px !important;
-            height: 78px !important;
-            max-height: 78px !important;
-        }
-
-        .top-brand-logo-img {
-            height: 72px !important;
-            max-height: 72px !important;
-        }
-
-        .top-brand-title {
-            font-size: clamp(34px, 10.5vw, 44px) !important;
-        }
-
-        [data-testid="stTabs"] {
-            margin-top: -56px !important;
-        }
-    }
-
-    /* More visible product selector */
+    /* Keep preset selector visible without touching header */
     .preset-selector-card {
         margin: 2px 0 8px 0;
         padding: 12px 14px;
         border-radius: 18px;
         border: 1px solid color-mix(in srgb, var(--pdm-accent) 30%, var(--text-color) 10%);
-        background: linear-gradient(180deg,
-            color-mix(in srgb, var(--secondary-background-color) 94%, var(--background-color)),
-            color-mix(in srgb, var(--secondary-background-color) 100%, var(--background-color))
-        );
-        box-shadow: 0 8px 22px rgba(0,0,0,0.055);
+        background: color-mix(in srgb, var(--secondary-background-color) 96%, var(--background-color));
     }
 
     .preset-selector-title {
@@ -11697,87 +11627,6 @@ st.markdown(
         line-height: 1.18;
         font-weight: 650;
         color: color-mix(in srgb, var(--text-color) 58%, transparent);
-    }
-
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
-        min-height: 54px !important;
-        border-radius: 16px !important;
-        border-width: 1.5px !important;
-        font-size: 1.03rem !important;
-        font-weight: 760 !important;
-    }
-
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] span,
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] input {
-        font-size: 1.03rem !important;
-        font-weight: 760 !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-st.markdown(
-    """
-    <style>
-    /* Final mobile header tune: keep logo and title visually centred without breaking desktop */
-    @media (max-width: 820px) {
-        .top-brand-logo-wrap {
-            justify-content: center !important;
-            align-items: center !important;
-            text-align: center !important;
-            padding: 0 !important;
-            margin-bottom: 0 !important;
-        }
-
-        .top-brand-title-wrap {
-            justify-content: center !important;
-            align-items: center !important;
-            text-align: center !important;
-            padding: 0 !important;
-            margin-top: -2px !important;
-            min-height: 70px !important;
-            height: auto !important;
-            max-height: none !important;
-        }
-
-        .top-brand-logo-img {
-            display: block !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
-
-        .top-brand-title {
-            display: inline-block !important;
-            width: 100% !important;
-            text-align: center !important;
-            font-size: clamp(36px, 9.2vw, 48px) !important;
-            line-height: 0.96 !important;
-            letter-spacing: -0.050em !important;
-            margin: 0 auto !important;
-        }
-    }
-
-    @media (max-width: 560px) {
-        .top-brand-logo-wrap {
-            min-height: 86px !important;
-            height: 86px !important;
-            max-height: 86px !important;
-        }
-
-        .top-brand-title-wrap {
-            min-height: 60px !important;
-        }
-
-        .top-brand-logo-img {
-            height: 78px !important;
-            max-height: 78px !important;
-        }
-
-        .top-brand-title {
-            font-size: clamp(34px, 8.8vw, 44px) !important;
-        }
     }
     </style>
     """,
