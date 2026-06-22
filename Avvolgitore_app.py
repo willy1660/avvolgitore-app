@@ -14315,17 +14315,114 @@ with tab_production:
         status_items,
     )
 
-    with st.expander("Regolazione temporanea zigrinatura" if lang == "IT" else "Temporary ribbed finish tuning", expanded=False):
-        st.caption("Debug temporaneo: questi slider servono solo per trovare la zigrinatura giusta." if lang == "IT" else "Temporary debug: use these sliders to tune the ribbed finish.")
-        zg1, zg2, zg3, zg4 = st.columns(4)
+    with st.expander("Zigrinatura temporanea" if lang == "IT" else "Temporary ribbed finish", expanded=False):
+        st.markdown(
+            """
+            <style>
+            .zigrinatura-debug-card {
+                margin: 4px 0 14px 0;
+                padding: 14px 16px;
+                border-radius: 16px;
+                border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+                background: linear-gradient(180deg,
+                    color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
+                    color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
+                );
+            }
+            .zigrinatura-debug-title {
+                font-size: 0.98rem;
+                line-height: 1.15;
+                font-weight: 900;
+                letter-spacing: -0.015em;
+                margin-bottom: 4px;
+            }
+            .zigrinatura-debug-text {
+                font-size: 0.78rem;
+                line-height: 1.35;
+                color: color-mix(in srgb, var(--text-color) 66%, transparent);
+                font-weight: 650;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f"""
+            <div class="zigrinatura-debug-card">
+                <div class="zigrinatura-debug-title">{"Regolazione zigrinatura" if lang == "IT" else "Ribbed finish tuning"}</div>
+                <div class="zigrinatura-debug-text">
+                    {"Slider temporanei per trovare il disegno corretto della finitura zigrinata. I valori influenzano solo la finitura Zigrinata, non Liscio." if lang == "IT" else "Temporary sliders to find the correct ribbed finish. These values affect only the Ribbed finish, not Smooth."}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        zg1, zg2 = st.columns(2, gap="large")
         with zg1:
-            rib_pitch_mm = st.slider("Passo (mm)" if lang == "IT" else "Pitch (mm)", min_value=2.0, max_value=12.0, value=float(st.session_state.get("tmp_rib_pitch_mm", 4.5)), step=0.1, key="tmp_rib_pitch_mm")
+            rib_pitch_mm = st.slider(
+                "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
+                min_value=2.0,
+                max_value=12.0,
+                value=float(st.session_state.get("tmp_rib_pitch_mm", 4.5)),
+                step=0.1,
+                key="tmp_rib_pitch_mm",
+                help=(
+                    "Distanza tra una nervatura e la successiva. Più basso = più anelli e zigrinatura più ripetitiva."
+                    if lang == "IT"
+                    else "Distance between one rib and the next. Lower value = more rings and denser pattern."
+                ),
+            )
+            rib_geometry_scale = st.slider(
+                "Rilievo geometrico" if lang == "IT" else "Geometric relief",
+                min_value=0.02,
+                max_value=0.16,
+                value=float(st.session_state.get("tmp_rib_geometry_scale", 0.076)),
+                step=0.002,
+                key="tmp_rib_geometry_scale",
+                help=(
+                    "Deformazione reale del tubo in 3D. Più alto = rilievo più marcato; troppo alto può creare effetto punte."
+                    if lang == "IT"
+                    else "Real 3D deformation of the tube. Higher value = stronger relief; too high may create spikes."
+                ),
+            )
+
         with zg2:
-            rib_geometry_scale = st.slider("Rilievo geo" if lang == "IT" else "Geometry relief", min_value=0.02, max_value=0.16, value=float(st.session_state.get("tmp_rib_geometry_scale", 0.076)), step=0.002, key="tmp_rib_geometry_scale")
-        with zg3:
-            rib_bump_scale = st.slider("Bump" if lang == "IT" else "Bump", min_value=0.0, max_value=0.12, value=float(st.session_state.get("tmp_rib_bump_scale", 0.054)), step=0.002, key="tmp_rib_bump_scale")
-        with zg4:
-            rib_texture_repeat = st.slider("Ripetizione tex" if lang == "IT" else "Texture repeat", min_value=10.0, max_value=100.0, value=float(st.session_state.get("tmp_rib_texture_repeat", 58.0)), step=1.0, key="tmp_rib_texture_repeat")
+            rib_bump_scale = st.slider(
+                "Dettaglio bump superficiale" if lang == "IT" else "Surface bump detail",
+                min_value=0.0,
+                max_value=0.12,
+                value=float(st.session_state.get("tmp_rib_bump_scale", 0.054)),
+                step=0.002,
+                key="tmp_rib_bump_scale",
+                help=(
+                    "Rilievo visivo del materiale senza cambiare troppo la geometria. Aggiunge micro-dettaglio e realismo."
+                    if lang == "IT"
+                    else "Visual material relief without heavily changing geometry. Adds micro-detail and realism."
+                ),
+            )
+            rib_texture_repeat = st.slider(
+                "Ripetizione texture" if lang == "IT" else "Texture repetition",
+                min_value=10.0,
+                max_value=100.0,
+                value=float(st.session_state.get("tmp_rib_texture_repeat", 58.0)),
+                step=1.0,
+                key="tmp_rib_texture_repeat",
+                help=(
+                    "Densità della texture visiva. Più alto = pattern più fitto; deve restare coerente con il passo tra anelli."
+                    if lang == "IT"
+                    else "Visual texture density. Higher value = denser pattern; should stay coherent with ring distance."
+                ),
+            )
+
+        st.caption(
+            (
+                f"Valori attuali · Passo: {rib_pitch_mm:.1f} mm · Rilievo: {rib_geometry_scale:.3f} · Bump: {rib_bump_scale:.3f} · Texture: {rib_texture_repeat:.0f}"
+                if lang == "IT"
+                else f"Current values · Pitch: {rib_pitch_mm:.1f} mm · Relief: {rib_geometry_scale:.3f} · Bump: {rib_bump_scale:.3f} · Texture: {rib_texture_repeat:.0f}"
+            )
+        )
 
     components.html(
         viewer(
