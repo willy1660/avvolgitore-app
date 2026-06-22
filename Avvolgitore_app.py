@@ -7740,13 +7740,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode !== "zigrinata" || !material) return material;
 
             const profile = getQualityProfile();
-
-            // TubeGeometry maps U from 0 to 1 across the whole tube curve.
-            // So repeat must scale with real tube length; otherwise 15 / 25 / 50 m stretch differently.
-            const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
-            const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
-            const lengthMetres = Math.max(0.001, totalLen / 1000.0);
-            const visualRepeat = Math.max(1.0, lengthMetres * ribsPerMetre * fineFactor);
+            const visualRepeat = Math.max(1.0, (profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0) * (profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0));
 
             const mat = material.clone();
 
@@ -7764,6 +7758,111 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             mat.needsUpdate = true;
             return mat;
+        }}
+
+        const markerStartMat = new THREE.MeshStandardMaterial({{
+            color: 0x23a55a,
+            roughness: 0.45,
+            metalness: 0.02,
+            emissive: 0x0b2013,
+            emissiveIntensity: 0.12
+        }});
+
+        const markerEndMat = new THREE.MeshStandardMaterial({{
+            color: 0xffb020,
+            roughness: 0.40,
+            metalness: 0.02,
+            emissive: 0x2a1800,
+            emissiveIntensity: 0.42
+        }});
+
+        // ==========================================
+        // LIGHTING
+        // ==========================================
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.22);
+        scene.add(ambient);
+
+        const hemi = new THREE.HemisphereLight(0xd7dfe7, 0x1a1d20, 0.34);
+        scene.add(hemi);
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.30);
+        keyLight.position.set(420, -520, 780);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
+        keyLight.shadow.camera.near = 50;
+        keyLight.shadow.camera.far = 3600;
+        keyLight.shadow.camera.left = -1400;
+        keyLight.shadow.camera.right = 1400;
+        keyLight.shadow.camera.top = 1400;
+        keyLight.shadow.camera.bottom = -1400;
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.52);
+        fillLight.position.set(-700, 340, 360);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.82);
+        rimLight.position.set(-180, 760, 580);
+        scene.add(rimLight);
+
+        const softTopLight = new THREE.PointLight(0xffffff, 0.32, 2200);
+        softTopLight.position.set(0, 0, 900);
+        scene.add(softTopLight);
+
+        // ==========================================
+        // SCENE GROUPS
+        // ==========================================
+
+        const studioGroup = new THREE.Group();
+        scene.add(studioGroup);
+
+        const machine = new THREE.Group();
+        scene.add(machine);
+
+        const depositedGroup = new THREE.Group();
+        machine.add(depositedGroup);
+
+        const overlayGroup = new THREE.Group();
+        scene.add(overlayGroup);
+
+        const packagingGroup = new THREE.Group();
+        scene.add(packagingGroup);
+        packagingGroup.visible = false;
+
+        const spoolParts = [];
+
+        // ==========================================
+        // STUDIO FLOOR ONLY
+        // ==========================================
+
+        function rebuildStudio() {{
+            if (floor) {{
+                studioGroup.remove(floor);
+                floor.geometry.dispose();
+                floor.material.dispose();
+                floor = null;
+            }}
+
+            if (!showStudio) return;
+
+            const theme = getTheme();
+
+            const floorMat = new THREE.MeshStandardMaterial({{
+                color: theme.floor,
+                roughness: 0.88,
+                metalness: 0.0
+            }});
+
+            floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(2600, 2600),
+                floorMat
+            );
+
+            floor.position.set(0, 0, -38);
+            floor.receiveShadow = true;
+            studioGroup.add(floor);
         }}
 
         // ==========================================
@@ -8536,9 +8635,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
-            const lengthMetres = Math.max(0.001, totalLen / 1000.0);
-            const repeats = Math.max(3.0, Math.min(2200.0, lengthMetres * ribsPerMetre));
+            const repeats = Math.max(3.0, Math.min(2200.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0));
             const amp = Math.min(radius * 0.125, Math.max(0.38, radius * (profile.ribGeometryScale || 0.076)));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
@@ -8601,9 +8698,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
-                const lengthMetres = Math.max(0.001, totalLen / 1000.0);
-                const ribRepeats = Math.max(1, lengthMetres * ribsPerMetre);
+                const ribRepeats = Math.max(1, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
                 const ribTargetSegments = Math.ceil(Math.min(ribRepeats, 2200.0) * 8.0);
                 tubularSegments = Math.max(
                     tubularSegments,
@@ -14295,7 +14390,7 @@ with tab_production:
             <div class="zigrinatura-debug-card">
                 <div class="zigrinatura-debug-title">{"Regolazione zigrinatura" if lang == "IT" else "Ribbed finish tuning"}</div>
                 <div class="zigrinatura-debug-text">
-                    {"Solo modalità manuale. Qui regoli la densità visiva per metro: così la texture mantiene la stessa scala quando cambi la lunghezza del tubo." if lang == "IT" else "Manual mode only. You are tuning visual rib density per metre, so the texture keeps the same scale when tube length changes."}
+                    {"Solo modalità manuale. Qui non lavori più con un passo fisico reale, ma con una densità visiva: così l'effetto resta leggibile e stabile anche se cambi i metri del tubo." if lang == "IT" else "Manual mode only. Here you are no longer tuning a real physical pitch, but a visual density, so the effect stays readable and stable even if tube length changes."}
                 </div>
             </div>
             """,
@@ -14305,16 +14400,16 @@ with tab_production:
         zg1, zg2 = st.columns(2, gap="large")
         with zg1:
             rib_visual_density = st.slider(
-                "Densità zigrinatura / metro" if lang == "IT" else "Rib density / metre",
+                "Densità zigrinatura" if lang == "IT" else "Rib density",
                 min_value=5.0,
                 max_value=600.0,
                 value=float(st.session_state.get("tmp_rib_visual_density", 120.0)),
                 step=1.0,
                 key="tmp_rib_visual_density",
                 help=(
-                    "Controlla quante nervature visibili ci sono ogni metro di tubo renderizzato. Più alto = zigrinatura più fitta. Ora non viene più stirata quando cambi 15 / 25 / 50 m."
+                    "Controlla quante nervature visibili vedi sul tubo nel render. Più alto = zigrinatura più fitta e più ripetitiva."
                     if lang == "IT"
-                    else "Controls how many visible ribs appear per metre of rendered tube. Higher = denser ribbing. It is no longer stretched when changing 15 / 25 / 50 m."
+                    else "Controls how many visible ribs appear on the tube in the render. Higher = denser and more repetitive ribbing."
                 ),
             )
             rib_geometry_scale = st.slider(
@@ -14363,7 +14458,7 @@ with tab_production:
             f"""
             <div class="zigrinatura-values">
                 <b>{"Valori manuali attuali" if lang == "IT" else "Current manual values"}</b><br>
-                {"Densità zigrinatura / metro" if lang == "IT" else "Rib density / metre"}: {rib_visual_density:.0f}<br>
+                {"Densità zigrinatura" if lang == "IT" else "Rib density"}: {rib_visual_density:.0f}<br>
                 {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
                 Bump: {rib_bump_scale:.3f} ·
                 {"Texture fine" if lang == "IT" else "Fine texture"}: × {rib_texture_factor:.2f}
