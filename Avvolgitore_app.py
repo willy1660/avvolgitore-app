@@ -6648,9 +6648,9 @@ def viewer(
                     shadows: false,
                     clearcoatBoost: 0.00,
                     bumpScale: 0.012,
-                    ribbedBumpScale: 0.038,
-                    ribGeometryScale: 0.062,
-                    ribPitchMm: 4.8,
+                    ribbedBumpScale: 0.054,
+                    ribGeometryScale: 0.076,
+                    ribPitchMm: 4.5,
                     ribMaxTubularSegments: 6200,
                     exposure: 1.00,
                     ambientBoost: 0.05,
@@ -6674,9 +6674,9 @@ def viewer(
                     shadows: true,
                     clearcoatBoost: 0.10,
                     bumpScale: 0.040,
-                    ribbedBumpScale: 0.070,
-                    ribGeometryScale: 0.088,
-                    ribPitchMm: 4.2,
+                    ribbedBumpScale: 0.054,
+                    ribGeometryScale: 0.076,
+                    ribPitchMm: 4.5,
                     ribMaxTubularSegments: 16000,
                     exposure: 1.08,
                     ambientBoost: -0.01,
@@ -8659,7 +8659,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribPitch = Math.max(12.0, profile.ribPitchMm || 16.5);
+                const ribPitch = Math.max(3.8, profile.ribPitchMm || 4.5);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
                 const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 4.8 : (renderQuality === "ultra" ? 7.4 : 6.2)));
                 tubularSegments = Math.max(
