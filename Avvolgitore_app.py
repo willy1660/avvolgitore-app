@@ -4904,10 +4904,10 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
-    rib_pitch_mm=1.0,
+    rib_pitch_mm=0.35,
     rib_geometry_scale=0.076,
     rib_bump_scale=0.054,
-    rib_texture_repeat=180.0,
+    rib_texture_repeat=420.0,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -6665,7 +6665,7 @@ def viewer(
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribPitchMm: CUSTOM_RIB.pitchMm,
-                    ribMaxTubularSegments: 22000,
+                    ribMaxTubularSegments: 52000,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6691,7 +6691,7 @@ def viewer(
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribPitchMm: CUSTOM_RIB.pitchMm,
-                    ribMaxTubularSegments: 22000,
+                    ribMaxTubularSegments: 52000,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6716,7 +6716,7 @@ def viewer(
                 ribbedBumpScale: CUSTOM_RIB.bumpScale,
                 ribGeometryScale: CUSTOM_RIB.geometryScale,
                 ribPitchMm: CUSTOM_RIB.pitchMm,
-                ribMaxTubularSegments: 22000,
+                ribMaxTubularSegments: 52000,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -7556,7 +7556,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                     const xx = x / size;
                     const i = (y * size + x) * 4;
 
-                    const phase = (xx * 140.0 + Math.sin(xx * 5.0 + yy * 1.2) * 0.010) % 1.0;
+                    const phase = (xx * 320.0 + Math.sin(xx * 5.0 + yy * 1.2) * 0.006) % 1.0;
                     const rise = smoothstep(0.07, 0.19, phase);
                     const fall = 1.0 - smoothstep(0.80, 0.92, phase);
                     const band = rise * fall;
@@ -7602,7 +7602,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(CUSTOM_RIB.textureRepeat, 1.0);
+            tex.repeat.set(1.0, 1.0);
             tex.anisotropy = 12;
             tex.needsUpdate = true;
 
@@ -7733,6 +7733,36 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
         let copperMat = makeCopperMat(false);
         let copperBrightMat = makeCopperMat(true);
+
+        function makeLengthInvariantTubeMaterial(material, totalLen) {{
+            if (tubeFinishMode !== "zigrinata" || !material) return material;
+
+            const profile = getQualityProfile();
+            const pitch = Math.max(0.001, profile.ribPitchMm || CUSTOM_RIB.pitchMm || 0.35);
+            const ribRepeats = Math.max(1.0, totalLen / pitch);
+
+            // Important: do not use a fixed texture repeat for the whole roll.
+            // A fixed repeat makes the zigrinatura look different on 15 / 25 / 50 m.
+            // This keeps the visible distance between rings constant with tube length.
+            const visualRepeat = Math.max(1.0, Math.min(52000.0, ribRepeats));
+
+            const mat = material.clone();
+
+            if (material.map) {{
+                mat.map = material.map.clone();
+                mat.map.repeat.set(1.8, 18.0);
+                mat.map.needsUpdate = true;
+            }}
+
+            if (material.bumpMap) {{
+                mat.bumpMap = material.bumpMap.clone();
+                mat.bumpMap.repeat.set(visualRepeat, 1.0);
+                mat.bumpMap.needsUpdate = true;
+            }}
+
+            mat.needsUpdate = true;
+            return mat;
+        }}
 
         const markerStartMat = new THREE.MeshStandardMaterial({{
             color: 0x23a55a,
@@ -8609,7 +8639,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const pitch = Math.max(0.01, profile.ribPitchMm || 1.0);
+            const pitch = Math.max(0.001, profile.ribPitchMm || 0.35);
             const repeats = Math.max(3.0, totalLen / pitch);
             const amp = Math.min(radius * 0.125, Math.max(0.38, radius * (profile.ribGeometryScale || 0.076)));
             const smoothstep = (a, b, x) => {{
@@ -8673,9 +8703,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribPitch = Math.max(0.01, profile.ribPitchMm || 1.0);
+                const ribPitch = Math.max(0.001, profile.ribPitchMm || 0.35);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
-                const ribTargetSegments = Math.ceil(ribRepeats * 12.0);
+                const ribTargetSegments = Math.ceil(ribRepeats * 22.0);
                 tubularSegments = Math.max(
                     tubularSegments,
                     Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
@@ -8690,7 +8720,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             geo.computeBoundingSphere();
             geo.computeBoundingBox();
 
-            const body = new THREE.Mesh(geo, material);
+            const lengthAwareMaterial = makeLengthInvariantTubeMaterial(material, totalLen);
+
+            const body = new THREE.Mesh(geo, lengthAwareMaterial);
             body.castShadow = renderQuality === "ultra";
             body.receiveShadow = renderQuality !== "eco";
 
@@ -8703,12 +8735,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const endDir = new THREE.Vector3().subVectors(points[points.length - 1], points[points.length - 2]);
 
             if (startDir.length() > 1e-6) {{
-                const startCap = makeTubeEndCap(startPoint, startDir, radius, material);
+                const startCap = makeTubeEndCap(startPoint, startDir, radius, lengthAwareMaterial);
                 group.add(startCap);
             }}
 
             if (endDir.length() > 1e-6) {{
-                const endCap = makeTubeEndCap(endPoint, endDir, radius, material);
+                const endCap = makeTubeEndCap(endPoint, endDir, radius, lengthAwareMaterial);
                 group.add(endCap);
             }}
 
@@ -14342,6 +14374,18 @@ with tab_production:
                 color: color-mix(in srgb, var(--text-color) 66%, transparent);
                 font-weight: 650;
             }
+            .zigrinatura-values {
+                margin-top: 8px;
+                padding: 10px 12px;
+                border-radius: 13px;
+                background: color-mix(in srgb, var(--secondary-background-color) 75%, transparent);
+                border: 1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
+                font-size: 0.76rem;
+                line-height: 1.45;
+            }
+            .zigrinatura-values b {
+                font-weight: 900;
+            }
             </style>
             """,
             unsafe_allow_html=True,
@@ -14352,77 +14396,172 @@ with tab_production:
             <div class="zigrinatura-debug-card">
                 <div class="zigrinatura-debug-title">{"Regolazione zigrinatura" if lang == "IT" else "Ribbed finish tuning"}</div>
                 <div class="zigrinatura-debug-text">
-                    {"Slider temporanei per trovare il disegno corretto della finitura zigrinata. I valori influenzano solo la finitura Zigrinata, non Liscio." if lang == "IT" else "Temporary sliders to find the correct ribbed finish. These values affect only the Ribbed finish, not Smooth."}
+                    {"Prima troviamo i valori giusti in manuale per ogni diametro. Poi useremo quei valori per costruire una regola automatica proporzionale al diametro tubo." if lang == "IT" else "First tune the values manually for each diameter. Then those values will be used to build an automatic rule proportional to the tube diameter."}
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        zg1, zg2 = st.columns(2, gap="large")
-        with zg1:
-            rib_pitch_mm = st.slider(
-                "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
-                min_value=0.01,
-                max_value=12.0,
-                value=float(st.session_state.get("tmp_rib_pitch_mm", 1.0)),
-                step=0.01,
-                key="tmp_rib_pitch_mm",
-                help=(
-                    "Distanza tra una nervatura e la successiva. Ora puoi scendere fino a 0,01 mm per una zigrinatura molto più fitta. Più basso = più anelli e zigrinatura più ripetitiva."
-                    if lang == "IT"
-                    else "Distance between one rib and the next. You can now go down to 0.01 mm for a much denser rib pattern. Lower value = more rings and denser pattern."
-                ),
-            )
-            rib_geometry_scale = st.slider(
-                "Rilievo geometrico" if lang == "IT" else "Geometric relief",
-                min_value=0.02,
-                max_value=0.16,
-                value=float(st.session_state.get("tmp_rib_geometry_scale", 0.076)),
-                step=0.002,
-                key="tmp_rib_geometry_scale",
-                help=(
-                    "Deformazione reale del tubo in 3D. Più alto = rilievo più marcato; troppo alto può creare effetto punte."
-                    if lang == "IT"
-                    else "Real 3D deformation of the tube. Higher value = stronger relief; too high may create spikes."
-                ),
-            )
-
-        with zg2:
-            rib_bump_scale = st.slider(
-                "Dettaglio bump superficiale" if lang == "IT" else "Surface bump detail",
-                min_value=0.0,
-                max_value=0.12,
-                value=float(st.session_state.get("tmp_rib_bump_scale", 0.054)),
-                step=0.002,
-                key="tmp_rib_bump_scale",
-                help=(
-                    "Rilievo visivo del materiale senza cambiare troppo la geometria. Aggiunge micro-dettaglio e realismo."
-                    if lang == "IT"
-                    else "Visual material relief without heavily changing geometry. Adds micro-detail and realism."
-                ),
-            )
-            rib_texture_repeat = st.slider(
-                "Ripetizione texture" if lang == "IT" else "Texture repetition",
-                min_value=10.0,
-                max_value=600.0,
-                value=float(st.session_state.get("tmp_rib_texture_repeat", 180.0)),
-                step=1.0,
-                key="tmp_rib_texture_repeat",
-                help=(
-                    "Densità della texture visiva. Molto più alto = pattern molto più fitto; deve restare coerente con il passo tra anelli."
-                    if lang == "IT"
-                    else "Visual texture density. Much higher = much denser pattern; should stay coherent with ring distance."
-                ),
-            )
-
-        st.caption(
-            (
-                f"Valori attuali · Passo: {rib_pitch_mm:.1f} mm · Rilievo: {rib_geometry_scale:.3f} · Bump: {rib_bump_scale:.3f} · Texture: {rib_texture_repeat:.0f}"
+        rib_reference_diameter = max(0.1, float(d_tubo_sim))
+        zigrinatura_mode_label = st.radio(
+            "Modo zigrinatura" if lang == "IT" else "Ribbed finish mode",
+            ["Manuale", "Automatico per diametro tubo"] if lang == "IT" else ["Manual", "Automatic by tube diameter"],
+            horizontal=True,
+            key="tmp_rib_mode",
+            help=(
+                "Usa Manuale per trovare i valori corretti. Quando hai trovato un buon valore, passa ad Automatico per verificare la regola."
                 if lang == "IT"
-                else f"Current values · Pitch: {rib_pitch_mm:.1f} mm · Relief: {rib_geometry_scale:.3f} · Bump: {rib_bump_scale:.3f} · Texture: {rib_texture_repeat:.0f}"
-            )
+                else "Use Manual to find the right values. Once they work, switch to Automatic to test the rule."
+            ),
         )
+
+        manual_mode = zigrinatura_mode_label in {"Manuale", "Manual"}
+
+        if manual_mode:
+            zg1, zg2 = st.columns(2, gap="large")
+            with zg1:
+                rib_pitch_mm = st.slider(
+                    "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
+                    min_value=0.001,
+                    max_value=12.0,
+                    value=float(st.session_state.get("tmp_rib_pitch_mm", 0.35)),
+                    step=0.001,
+                    key="tmp_rib_pitch_mm",
+                    help=(
+                        "Distanza reale tra una nervatura e la successiva. Più basso = più anelli e zigrinatura più fitta."
+                        if lang == "IT"
+                        else "Real distance between one rib and the next. Lower value = more rings and denser pattern."
+                    ),
+                )
+                rib_geometry_scale = st.slider(
+                    "Rilievo geometrico" if lang == "IT" else "Geometric relief",
+                    min_value=0.02,
+                    max_value=0.16,
+                    value=float(st.session_state.get("tmp_rib_geometry_scale", 0.076)),
+                    step=0.002,
+                    key="tmp_rib_geometry_scale",
+                    help=(
+                        "Deformazione reale del tubo in 3D. Più alto = rilievo più marcato; troppo alto può creare effetto punte."
+                        if lang == "IT"
+                        else "Real 3D deformation of the tube. Higher value = stronger relief; too high may create spikes."
+                    ),
+                )
+
+            with zg2:
+                rib_bump_scale = st.slider(
+                    "Dettaglio bump superficiale" if lang == "IT" else "Surface bump detail",
+                    min_value=0.0,
+                    max_value=0.12,
+                    value=float(st.session_state.get("tmp_rib_bump_scale", 0.054)),
+                    step=0.002,
+                    key="tmp_rib_bump_scale",
+                    help=(
+                        "Rilievo visivo del materiale senza cambiare troppo la geometria. Aggiunge micro-dettaglio e realismo."
+                        if lang == "IT"
+                        else "Visual material relief without heavily changing geometry. Adds micro-detail and realism."
+                    ),
+                )
+                rib_texture_repeat = st.slider(
+                    "Ripetizione texture" if lang == "IT" else "Texture repetition",
+                    min_value=10.0,
+                    max_value=1500.0,
+                    value=float(st.session_state.get("tmp_rib_texture_repeat", 420.0)),
+                    step=1.0,
+                    key="tmp_rib_texture_repeat",
+                    help=(
+                        "Densità della texture visiva. In questa versione il render la ricalcola anche sulla lunghezza per mantenere costante la proporzione tra 15 / 25 / 50 m."
+                        if lang == "IT"
+                        else "Visual texture density. In this version the render also recalculates it from tube length to keep the proportion stable across 15 / 25 / 50 m."
+                    ),
+                )
+
+            rib_pitch_factor_current = rib_pitch_mm / rib_reference_diameter
+            rib_texture_factor_current = rib_texture_repeat * rib_pitch_mm
+
+            st.markdown(
+                f"""
+                <div class="zigrinatura-values">
+                    <b>{"Valori manuali attuali" if lang == "IT" else "Current manual values"}</b><br>
+                    {"Diametro tubo usato" if lang == "IT" else "Tube diameter used"}: {rib_reference_diameter:.2f} mm<br>
+                    {"Passo" if lang == "IT" else "Pitch"}: {rib_pitch_mm:.3f} mm ·
+                    {"Fattore passo" if lang == "IT" else "Pitch factor"}: {rib_pitch_factor_current:.5f} × Ø tubo<br>
+                    {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
+                    Bump: {rib_bump_scale:.3f} ·
+                    Texture: {rib_texture_repeat:.0f}<br>
+                    {"Fattore texture suggerito" if lang == "IT" else "Suggested texture factor"}: {rib_texture_factor_current:.1f}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        else:
+            auto1, auto2 = st.columns(2, gap="large")
+            with auto1:
+                rib_pitch_factor = st.slider(
+                    "Fattore passo × Ø tubo" if lang == "IT" else "Pitch factor × tube Ø",
+                    min_value=0.0001,
+                    max_value=0.2000,
+                    value=float(st.session_state.get("tmp_rib_pitch_factor", 0.0100)),
+                    step=0.0001,
+                    format="%.4f",
+                    key="tmp_rib_pitch_factor",
+                    help=(
+                        "Formula: passo = diametro tubo × fattore. Serve per mantenere proporzioni simili tra tubi diversi."
+                        if lang == "IT"
+                        else "Formula: pitch = tube diameter × factor. Keeps similar proportions across different tube diameters."
+                    ),
+                )
+                rib_geometry_scale = st.slider(
+                    "Rilievo geometrico" if lang == "IT" else "Geometric relief",
+                    min_value=0.02,
+                    max_value=0.16,
+                    value=float(st.session_state.get("tmp_rib_geometry_scale_auto", 0.076)),
+                    step=0.002,
+                    key="tmp_rib_geometry_scale_auto",
+                )
+
+            with auto2:
+                rib_bump_scale = st.slider(
+                    "Dettaglio bump superficiale" if lang == "IT" else "Surface bump detail",
+                    min_value=0.0,
+                    max_value=0.12,
+                    value=float(st.session_state.get("tmp_rib_bump_scale_auto", 0.054)),
+                    step=0.002,
+                    key="tmp_rib_bump_scale_auto",
+                )
+                rib_texture_factor = st.slider(
+                    "Fattore ripetizione texture" if lang == "IT" else "Texture repetition factor",
+                    min_value=5.0,
+                    max_value=300.0,
+                    value=float(st.session_state.get("tmp_rib_texture_factor", 150.0)),
+                    step=1.0,
+                    key="tmp_rib_texture_factor",
+                    help=(
+                        "Formula: ripetizione texture = fattore / passo. Così se il passo è piccolo la texture diventa automaticamente più fitta."
+                        if lang == "IT"
+                        else "Formula: texture repetition = factor / pitch. If pitch is smaller, texture becomes denser automatically."
+                    ),
+                )
+
+            rib_pitch_mm = max(0.001, rib_reference_diameter * rib_pitch_factor)
+            rib_texture_repeat = max(10.0, min(1500.0, rib_texture_factor / max(rib_pitch_mm, 0.001)))
+
+            st.markdown(
+                f"""
+                <div class="zigrinatura-values">
+                    <b>{"Valori automatici calcolati" if lang == "IT" else "Calculated automatic values"}</b><br>
+                    {"Diametro tubo usato" if lang == "IT" else "Tube diameter used"}: {rib_reference_diameter:.2f} mm<br>
+                    {"Passo calcolato" if lang == "IT" else "Calculated pitch"}: {rib_pitch_mm:.3f} mm =
+                    {rib_reference_diameter:.2f} × {rib_pitch_factor:.4f}<br>
+                    {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
+                    Bump: {rib_bump_scale:.3f} ·
+                    Texture: {rib_texture_repeat:.0f}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
 
     components.html(
         viewer(
