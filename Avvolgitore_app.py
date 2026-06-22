@@ -7740,7 +7740,10 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode !== "zigrinata" || !material) return material;
 
             const profile = getQualityProfile();
-            const visualRepeat = Math.max(1.0, (profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0) * (profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0));
+            const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
+            const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
+            const lengthMetres = Math.max(0.001, totalLen / 1000.0);
+            const visualRepeat = Math.max(1.0, lengthMetres * ribsPerMetre * fineFactor);
 
             const mat = material.clone();
 
@@ -8635,7 +8638,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const repeats = Math.max(3.0, Math.min(2200.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0));
+            const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
+            const lengthMetres = Math.max(0.001, totalLen / 1000.0);
+            const repeats = Math.max(3.0, Math.min(2200.0, lengthMetres * ribsPerMetre));
             const amp = Math.min(radius * 0.125, Math.max(0.38, radius * (profile.ribGeometryScale || 0.076)));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
@@ -8698,7 +8703,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribRepeats = Math.max(1, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
+                const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
+                const lengthMetres = Math.max(0.001, totalLen / 1000.0);
+                const ribRepeats = Math.max(1, lengthMetres * ribsPerMetre);
                 const ribTargetSegments = Math.ceil(Math.min(ribRepeats, 2200.0) * 8.0);
                 tubularSegments = Math.max(
                     tubularSegments,
@@ -14390,7 +14397,7 @@ with tab_production:
             <div class="zigrinatura-debug-card">
                 <div class="zigrinatura-debug-title">{"Regolazione zigrinatura" if lang == "IT" else "Ribbed finish tuning"}</div>
                 <div class="zigrinatura-debug-text">
-                    {"Solo modalità manuale. Qui non lavori più con un passo fisico reale, ma con una densità visiva: così l'effetto resta leggibile e stabile anche se cambi i metri del tubo." if lang == "IT" else "Manual mode only. Here you are no longer tuning a real physical pitch, but a visual density, so the effect stays readable and stable even if tube length changes."}
+                    {"Solo modalità manuale. Qui regoli la densità visiva per metro: così la texture mantiene la stessa scala anche se cambi la lunghezza del tubo." if lang == "IT" else "Manual mode only. Here you tune visual density per metre, so the texture keeps the same scale even if tube length changes."}
                 </div>
             </div>
             """,
@@ -14400,16 +14407,16 @@ with tab_production:
         zg1, zg2 = st.columns(2, gap="large")
         with zg1:
             rib_visual_density = st.slider(
-                "Densità zigrinatura" if lang == "IT" else "Rib density",
+                "Densità zigrinatura / metro" if lang == "IT" else "Rib density / metre",
                 min_value=5.0,
                 max_value=600.0,
                 value=float(st.session_state.get("tmp_rib_visual_density", 120.0)),
                 step=1.0,
                 key="tmp_rib_visual_density",
                 help=(
-                    "Controlla quante nervature visibili vedi sul tubo nel render. Più alto = zigrinatura più fitta e più ripetitiva."
+                    "Controlla quante nervature visibili ci sono ogni metro di tubo renderizzato. Più alto = zigrinatura più fitta. La scala non dovrebbe più cambiare passando da 15 a 25 o 50 m."
                     if lang == "IT"
-                    else "Controls how many visible ribs appear on the tube in the render. Higher = denser and more repetitive ribbing."
+                    else "Controls how many visible ribs appear per metre of rendered tube. Higher = denser ribbing. The scale should no longer change when switching from 15 to 25 or 50 m."
                 ),
             )
             rib_geometry_scale = st.slider(
@@ -14458,7 +14465,7 @@ with tab_production:
             f"""
             <div class="zigrinatura-values">
                 <b>{"Valori manuali attuali" if lang == "IT" else "Current manual values"}</b><br>
-                {"Densità zigrinatura" if lang == "IT" else "Rib density"}: {rib_visual_density:.0f}<br>
+                {"Densità zigrinatura / metro" if lang == "IT" else "Rib density / metre"}: {rib_visual_density:.0f}<br>
                 {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
                 Bump: {rib_bump_scale:.3f} ·
                 {"Texture fine" if lang == "IT" else "Fine texture"}: × {rib_texture_factor:.2f}
