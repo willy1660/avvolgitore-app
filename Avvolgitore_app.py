@@ -12222,6 +12222,201 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+
+st.markdown(
+    """
+    <style>
+    /* v3 · header compacte: les pestanyes queden just sota el logo.
+       El problema venia del contenidor del header, que podia reservar massa alçada.
+       Aquí es fixa l'alçada real del bloc header i també del wrapper Streamlit. */
+
+    section[data-testid="stMain"] > div,
+    div[data-testid="stAppViewBlockContainer"],
+    div[data-testid="stMainBlockContainer"],
+    .main .block-container {
+        padding-top: 0.18rem !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Contenidor Streamlit que envolta el header */
+    div[data-testid="stElementContainer"]:has(.pdm-header-logo-wrap),
+    div[data-testid="stVerticalBlock"] > div:has(.pdm-header-logo-wrap) {
+        height: clamp(156px, 12.4vw, 230px) !important;
+        min-height: clamp(156px, 12.4vw, 230px) !important;
+        max-height: clamp(156px, 12.4vw, 230px) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+        height: clamp(156px, 12.4vw, 230px) !important;
+        min-height: clamp(156px, 12.4vw, 230px) !important;
+        max-height: clamp(156px, 12.4vw, 230px) !important;
+        align-items: flex-start !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    .pdm-header-logo-wrap {
+        height: clamp(152px, 12.0vw, 224px) !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        align-items: center !important;
+    }
+
+    .pdm-header-logo {
+        height: clamp(150px, 11.7vw, 218px) !important;
+        max-width: min(720px, 60vw) !important;
+    }
+
+    /* Selector idioma: versió discreta i estable dins el header */
+    div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[data-testid="stRadio"],
+    div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {
+        width: auto !important;
+        max-width: 118px !important;
+        margin: 0 !important;
+        margin-left: auto !important;
+        transform: scale(0.88);
+        transform-origin: top right;
+    }
+
+    div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"],
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 5px !important;
+        justify-content: flex-end !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"] label,
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
+        min-width: 42px !important;
+        width: 42px !important;
+        height: 31px !important;
+        min-height: 31px !important;
+        padding: 0 !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"] label p,
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
+        font-size: 0.68rem !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.025em !important;
+        margin: 0 !important;
+        text-align: center !important;
+    }
+
+    /* Pestanyes enganxades sota el header */
+    div[data-testid="stTabs"] {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
+        padding-top: 0 !important;
+    }
+
+    @media (max-width: 1180px) {
+        div[data-testid="stElementContainer"]:has(.pdm-header-logo-wrap),
+        div[data-testid="stVerticalBlock"] > div:has(.pdm-header-logo-wrap),
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            height: clamp(116px, 15.6vw, 170px) !important;
+            min-height: clamp(116px, 15.6vw, 170px) !important;
+            max-height: clamp(116px, 15.6vw, 170px) !important;
+        }
+
+        .pdm-header-logo-wrap {
+            height: clamp(112px, 15.1vw, 164px) !important;
+        }
+
+        .pdm-header-logo {
+            height: clamp(110px, 14.7vw, 160px) !important;
+            max-width: min(560px, 64vw) !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            margin-bottom: 7px !important;
+        }
+    }
+
+    @media (max-width: 700px) {
+        section[data-testid="stMain"] > div,
+        div[data-testid="stAppViewBlockContainer"],
+        div[data-testid="stMainBlockContainer"],
+        .main .block-container {
+            padding-top: 0.10rem !important;
+            padding-left: 0.46rem !important;
+            padding-right: 0.46rem !important;
+            width: 100% !important;
+            max-width: 100vw !important;
+            overflow-x: hidden !important;
+        }
+
+        div[data-testid="stElementContainer"]:has(.pdm-header-logo-wrap),
+        div[data-testid="stVerticalBlock"] > div:has(.pdm-header-logo-wrap),
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            height: clamp(86px, 24vw, 116px) !important;
+            min-height: clamp(86px, 24vw, 116px) !important;
+            max-height: clamp(86px, 24vw, 116px) !important;
+            overflow: visible !important;
+        }
+
+        .pdm-header-logo-wrap {
+            height: clamp(84px, 23vw, 112px) !important;
+        }
+
+        .pdm-header-logo {
+            height: clamp(82px, 22vw, 108px) !important;
+            max-width: 100% !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[data-testid="stRadio"],
+        div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {
+            transform: scale(0.80);
+            max-width: 62px !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"] label,
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
+            min-width: 25px !important;
+            width: 25px !important;
+            height: 27px !important;
+            min-height: 27px !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"] label p,
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
+            font-size: 0.61rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            margin-top: 0 !important;
+            margin-bottom: 6px !important;
+            overflow-x: hidden !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # =========================
 # UI
 # =========================
