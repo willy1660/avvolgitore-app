@@ -11896,6 +11896,305 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+# =========================
+# FINAL MOBILE HEADER / NO HORIZONTAL SCROLL PATCH
+# =========================
+
+st.markdown(
+    """
+    <style>
+    /*
+    v6 · Fix final:
+    - elimina el scroll lateral en mòbil
+    - anul·la els marges negatius antics de les pestanyes
+    - deixa les pestanyes enganxades al header sense tocar la mida global dels botons
+    */
+
+    :root {
+        --pdm-accent: #C57E5A;
+    }
+
+    html,
+    body,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewBlockContainer"],
+    .main,
+    .main .block-container {
+        max-width: 100% !important;
+        overflow-x: clip !important;
+        box-sizing: border-box !important;
+    }
+
+    @supports not (overflow-x: clip) {
+        html,
+        body,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stAppViewBlockContainer"],
+        .main,
+        .main .block-container {
+            overflow-x: hidden !important;
+        }
+    }
+
+    .main .block-container {
+        padding-top: 0.18rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"],
+    div[data-testid="column"],
+    div[data-testid="stVerticalBlock"],
+    div[data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stElementContainer"],
+    div[data-testid="stMarkdownContainer"],
+    div[data-testid="stSelectbox"],
+    div[data-testid="stRadio"],
+    div[data-testid="stNumberInput"],
+    div[data-testid="stTextInput"],
+    div[data-testid="stButton"],
+    div[data-testid="stDownloadButton"],
+    div[data-baseweb="select"],
+    div[data-baseweb="input"] {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    div[data-testid="column"] {
+        min-width: 0 !important;
+    }
+
+    img,
+    svg,
+    canvas,
+    iframe,
+    video {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Header estable: logo centrat + idioma a la dreta */
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-start !important;
+        gap: 0.25rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 0 0.02rem 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"] {
+        min-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
+
+    .pdm-header-logo-wrap {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+    }
+
+    .pdm-header-logo {
+        height: clamp(170px, 10.6vw, 215px) !important;
+        max-width: min(500px, 52vw) !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) {
+        padding-top: clamp(14px, 1.35vw, 22px) !important;
+    }
+
+    /* Tabs: sense marge fantasma ni scroll lateral */
+    div[data-testid="stTabs"] {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        max-width: 100% !important;
+        overflow-x: clip !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-top: 0 !important;
+        margin-bottom: 10px !important;
+        padding-top: 0 !important;
+        padding-bottom: 0.20rem !important;
+        max-width: 100% !important;
+        overflow-x: clip !important;
+        overflow-y: visible !important;
+        scrollbar-width: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"] {
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    @supports not (overflow-x: clip) {
+        div[data-testid="stTabs"],
+        div[data-testid="stTabs"] [role="tablist"] {
+            overflow-x: hidden !important;
+        }
+    }
+
+    @media (max-width: 760px) {
+        html,
+        body,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stAppViewBlockContainer"],
+        .main,
+        .main .block-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+
+        .main .block-container {
+            padding-left: 0.42rem !important;
+            padding-right: 0.42rem !important;
+            padding-top: 0.08rem !important;
+        }
+
+        /* Header en una sola línia, però sense sumar més de 100vw */
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            flex-wrap: nowrap !important;
+            gap: 0 !important;
+            margin-bottom: 0 !important;
+            overflow: hidden !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1) {
+            flex: 0 0 20px !important;
+            width: 20px !important;
+            max-width: 20px !important;
+            min-width: 0 !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(2) {
+            flex: 1 1 auto !important;
+            width: auto !important;
+            max-width: calc(100% - 76px) !important;
+            min-width: 0 !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
+            flex: 0 0 56px !important;
+            width: 56px !important;
+            max-width: 56px !important;
+            min-width: 0 !important;
+        }
+
+        .pdm-header-logo {
+            height: clamp(92px, 26vw, 122px) !important;
+            max-width: 100% !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) {
+            padding-top: 6px !important;
+            align-items: flex-end !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {
+            width: 52px !important;
+            max-width: 52px !important;
+            overflow: hidden !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
+            width: 52px !important;
+            max-width: 52px !important;
+            gap: 2px !important;
+            overflow: hidden !important;
+            flex-wrap: nowrap !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
+            flex: 0 0 25px !important;
+            width: 25px !important;
+            min-width: 25px !important;
+            max-width: 25px !important;
+            height: 26px !important;
+            min-height: 26px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
+            font-size: 0.58rem !important;
+            line-height: 1 !important;
+            letter-spacing: 0 !important;
+        }
+
+        /* La resta de blocs passen a una columna real: no poden crear amplada lateral */
+        div[data-testid="stHorizontalBlock"]:not(:has(.pdm-header-logo-wrap)) {
+            flex-wrap: wrap !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            gap: 0.58rem !important;
+            overflow-x: hidden !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:not(:has(.pdm-header-logo-wrap)) > div[data-testid="column"] {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        /* Pestanyes encaixades a l'ample del mòbil, sense scroll horitzontal */
+        div[data-testid="stTabs"] {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            overflow-x: hidden !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-top: -0.10rem !important;
+            margin-bottom: 7px !important;
+            padding-bottom: 0.12rem !important;
+            overflow: hidden !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            min-height: 1.96rem !important;
+            padding: 0.30rem 0.03rem 0.47rem 0.03rem !important;
+            overflow: hidden !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] p {
+            font-size: clamp(0.62rem, 2.85vw, 0.78rem) !important;
+            line-height: 1.05 !important;
+            text-align: center !important;
+            white-space: normal !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
+            left: 0.18rem !important;
+            right: 0.18rem !important;
+            bottom: 0.05rem !important;
+            height: 2px !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # =========================
 # UI
 # =========================
