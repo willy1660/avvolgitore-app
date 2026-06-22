@@ -11555,7 +11555,7 @@ st.markdown(
 st.markdown(
     """
     <style>
-    /* Final override for title-only header */
+    /* Title-only header: reduce the blank gap between title and main tabs */
     div[data-testid="stTabs"] {
         margin-top: 0 !important;
     }
@@ -11565,9 +11565,21 @@ st.markdown(
         margin-bottom: 12px !important;
     }
 
+    @media (max-width: 1180px) {
+        div[data-testid="stTabs"] {
+            margin-top: -260px !important;
+        }
+    }
+
     @media (max-width: 900px) {
         div[data-testid="stTabs"] {
-            margin-top: 0 !important;
+            margin-top: -430px !important;
+        }
+    }
+
+    @media (max-width: 520px) {
+        div[data-testid="stTabs"] {
+            margin-top: -470px !important;
         }
     }
     </style>
