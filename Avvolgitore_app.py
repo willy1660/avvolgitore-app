@@ -4904,6 +4904,10 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
+    rib_pitch_mm=4.5,
+    rib_geometry_scale=0.076,
+    rib_bump_scale=0.054,
+    rib_texture_repeat=58.0,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -4922,6 +4926,10 @@ def viewer(
     active_product_name = active_product_name or ("Preset attivo" if language == "IT" else "Active preset")
     active_product_name_json = json.dumps(str(active_product_name))
     active_product_kind_json = json.dumps(str(active_product_kind or "preset"))
+    rib_pitch_mm_json = json.dumps(float(rib_pitch_mm))
+    rib_geometry_scale_json = json.dumps(float(rib_geometry_scale))
+    rib_bump_scale_json = json.dumps(float(rib_bump_scale))
+    rib_texture_repeat_json = json.dumps(float(rib_texture_repeat))
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -6420,6 +6428,12 @@ def viewer(
         const SIM_PRINT = {simulation_print_payload_json};
         const ACTIVE_PRODUCT_NAME = {active_product_name_json};
         const ACTIVE_PRODUCT_KIND = {active_product_kind_json};
+        const CUSTOM_RIB = {{
+            pitchMm: {rib_pitch_mm_json},
+            geometryScale: {rib_geometry_scale_json},
+            bumpScale: {rib_bump_scale_json},
+            textureRepeat: {rib_texture_repeat_json}
+        }};
 
         const host = document.getElementById("viewer_root");
         const loadingOverlay = document.getElementById("viewer_loading_overlay");
@@ -6648,10 +6662,10 @@ def viewer(
                     shadows: false,
                     clearcoatBoost: 0.00,
                     bumpScale: 0.012,
-                    ribbedBumpScale: 0.054,
-                    ribGeometryScale: 0.076,
-                    ribPitchMm: 4.5,
-                    ribMaxTubularSegments: 6200,
+                    ribbedBumpScale: CUSTOM_RIB.bumpScale,
+                    ribGeometryScale: CUSTOM_RIB.geometryScale,
+                    ribPitchMm: CUSTOM_RIB.pitchMm,
+                    ribMaxTubularSegments: 7600,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6674,10 +6688,10 @@ def viewer(
                     shadows: true,
                     clearcoatBoost: 0.10,
                     bumpScale: 0.040,
-                    ribbedBumpScale: 0.054,
-                    ribGeometryScale: 0.076,
-                    ribPitchMm: 4.5,
-                    ribMaxTubularSegments: 16000,
+                    ribbedBumpScale: CUSTOM_RIB.bumpScale,
+                    ribGeometryScale: CUSTOM_RIB.geometryScale,
+                    ribPitchMm: CUSTOM_RIB.pitchMm,
+                    ribMaxTubularSegments: 7600,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6699,10 +6713,10 @@ def viewer(
                 shadows: true,
                 clearcoatBoost: 0.045,
                 bumpScale: 0.026,
-                ribbedBumpScale: 0.054,
-                ribGeometryScale: 0.076,
-                ribPitchMm: 4.5,
-                ribMaxTubularSegments: 11500,
+                ribbedBumpScale: CUSTOM_RIB.bumpScale,
+                ribGeometryScale: CUSTOM_RIB.geometryScale,
+                ribPitchMm: CUSTOM_RIB.pitchMm,
+                ribMaxTubularSegments: 7600,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -7588,7 +7602,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(58.0, 1.0);
+            tex.repeat.set(CUSTOM_RIB.textureRepeat, 1.0);
             tex.anisotropy = 12;
             tex.needsUpdate = true;
 
@@ -8661,7 +8675,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode === "zigrinata") {{
                 const ribPitch = Math.max(3.8, profile.ribPitchMm || 4.5);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
-                const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 4.8 : (renderQuality === "ultra" ? 7.4 : 6.2)));
+                const ribTargetSegments = Math.ceil(ribRepeats * 6.2);
                 tubularSegments = Math.max(
                     tubularSegments,
                     Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
@@ -8669,7 +8683,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }}
 
             const ribbedRadialSegments = tubeFinishMode === "zigrinata"
-                ? Math.max(profile.radialSegments, renderQuality === "eco" ? 22 : (renderQuality === "ultra" ? 38 : 30))
+                ? Math.max(profile.radialSegments, 32)
                 : profile.radialSegments;
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, ribbedRadialSegments, false);
             applyRibbedGeometry(geo, totalLen, radius);
@@ -14301,6 +14315,18 @@ with tab_production:
         status_items,
     )
 
+    with st.expander("Regolazione temporanea zigrinatura" if lang == "IT" else "Temporary ribbed finish tuning", expanded=False):
+        st.caption("Debug temporaneo: questi slider servono solo per trovare la zigrinatura giusta." if lang == "IT" else "Temporary debug: use these sliders to tune the ribbed finish.")
+        zg1, zg2, zg3, zg4 = st.columns(4)
+        with zg1:
+            rib_pitch_mm = st.slider("Passo (mm)" if lang == "IT" else "Pitch (mm)", min_value=2.0, max_value=12.0, value=float(st.session_state.get("tmp_rib_pitch_mm", 4.5)), step=0.1, key="tmp_rib_pitch_mm")
+        with zg2:
+            rib_geometry_scale = st.slider("Rilievo geo" if lang == "IT" else "Geometry relief", min_value=0.02, max_value=0.16, value=float(st.session_state.get("tmp_rib_geometry_scale", 0.076)), step=0.002, key="tmp_rib_geometry_scale")
+        with zg3:
+            rib_bump_scale = st.slider("Bump" if lang == "IT" else "Bump", min_value=0.0, max_value=0.12, value=float(st.session_state.get("tmp_rib_bump_scale", 0.054)), step=0.002, key="tmp_rib_bump_scale")
+        with zg4:
+            rib_texture_repeat = st.slider("Ripetizione tex" if lang == "IT" else "Texture repeat", min_value=10.0, max_value=100.0, value=float(st.session_state.get("tmp_rib_texture_repeat", 58.0)), step=1.0, key="tmp_rib_texture_repeat")
+
     components.html(
         viewer(
             diametro_aspo,
@@ -14328,6 +14354,10 @@ with tab_production:
             simulation_print_payload=simulation_print_payload,
             active_product_name=selected_product,
             active_product_kind="prototype" if is_prototype else "preset",
+            rib_pitch_mm=rib_pitch_mm,
+            rib_geometry_scale=rib_geometry_scale,
+            rib_bump_scale=rib_bump_scale,
+            rib_texture_repeat=rib_texture_repeat,
         ),
         height=720,
     )
