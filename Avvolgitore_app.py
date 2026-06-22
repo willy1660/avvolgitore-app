@@ -5300,15 +5300,13 @@ def viewer(
 
         .viewer_render_tools_overlay {{
             position:absolute;
-            top:auto;
+            top:14px;
             right:14px;
-            bottom:14px;
+            bottom:auto;
             z-index:24;
-            display:flex;
-            align-items:center;
-            justify-content:flex-end;
-            gap:8px;
-            max-width:calc(100% - 430px);
+            display:block;
+            width:auto;
+            max-width:min(380px, calc(100% - 28px));
             font-family:Arial, sans-serif;
             user-select:none;
             pointer-events:auto;
@@ -5388,13 +5386,13 @@ def viewer(
         .viewer_render_tools_overlay {{
             position:absolute !important;
             right:14px !important;
-            bottom:14px !important;
+            top:14px !important;
+            bottom:auto !important;
             left:auto !important;
-            top:auto !important;
             z-index:36 !important;
             display:block !important;
             width:auto !important;
-            max-width:min(350px, calc(100% - 28px)) !important;
+            max-width:min(380px, calc(100% - 28px)) !important;
             font-family:Arial, sans-serif;
             user-select:none;
             pointer-events:auto;
@@ -5439,7 +5437,8 @@ def viewer(
         .render_tools_panel {{
             position:absolute;
             right:0;
-            bottom:50px;
+            top:50px;
+            bottom:auto;
             width:334px;
             max-width:calc(100vw - 28px);
             padding:12px;
@@ -5452,8 +5451,8 @@ def viewer(
             display:flex;
             flex-direction:column;
             gap:9px;
-            transform-origin:bottom right;
-            transform:translateY(8px) scale(0.985);
+            transform-origin:top right;
+            transform:translateY(-8px) scale(0.985);
             opacity:0;
             visibility:hidden;
             pointer-events:none;
@@ -5542,14 +5541,16 @@ def viewer(
         @media (max-width: 680px) {{
             .viewer_render_tools_overlay {{
                 right:10px !important;
-                bottom:10px !important;
+                top:10px !important;
+                bottom:auto !important;
                 max-width:calc(100% - 20px) !important;
             }}
 
             .render_tools_panel {{
                 width:calc(100vw - 20px);
                 right:0;
-                bottom:48px;
+                top:48px;
+                bottom:auto;
                 padding:11px;
                 border-radius:16px;
             }}
@@ -5579,7 +5580,7 @@ def viewer(
         .render_tools_panel {{
             width: 370px !important;
             max-width: min(370px, calc(100vw - 28px)) !important;
-            max-height: calc(100% - 82px) !important;
+            max-height: min(500px, calc(100% - 76px)) !important;
             overflow-y: auto !important;
             overscroll-behavior: contain !important;
             gap: 8px !important;
@@ -5731,13 +5732,15 @@ def viewer(
         @media (max-width: 680px) {{
             .viewer_render_tools_overlay {{
                 right: 10px !important;
-                bottom: 10px !important;
+                top: 10px !important;
+                bottom: auto !important;
             }}
             .render_tools_panel {{
                 width: calc(100vw - 20px) !important;
                 max-width: calc(100vw - 20px) !important;
-                max-height: min(58vh, 430px) !important;
-                bottom: 48px !important;
+                max-height: min(62vh, calc(100% - 64px)) !important;
+                top: 48px !important;
+                bottom: auto !important;
                 padding: 10px !important;
                 gap: 7px !important;
             }}
