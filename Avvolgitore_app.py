@@ -10152,12 +10152,12 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
     # iPad-friendly height: avoid internal iframe scrolling in "Scheda tecnica > Parametri macchina".
     # The HTML grid becomes 2 columns on iPad, so height is estimated using 2 columns.
     # This makes the Streamlit page itself scroll instead of the component.
-    height_columns = 1
-    estimated_height = 110  # operator note + breathing room; conservative to avoid mobile iframe/card scroll
+    height_columns = 2
+    estimated_height = 86  # operator note + breathing room
     for _, _, _, group_pairs in groups:
         row_count = max(1, (len(group_pairs) + height_columns - 1) // height_columns)
         estimated_height += 18 + 78 + (row_count * 124) + max(0, row_count - 1) * 12 + 18
-    board_height = max(760, min(12000, estimated_height + 180))
+    board_height = max(680, min(7200, estimated_height + 40))
 
 
     board_html = f"""
@@ -10282,7 +10282,7 @@ def render_machine_parameter_groups(selected_row, language, key_suffix=""):
         box-sizing:border-box;
         min-width:0;
         position:relative;
-        overflow:visible;
+        overflow:hidden;
         isolation:isolate;
     }}
     .machine-card-native:nth-child(4n) {{
@@ -12629,221 +12629,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
-
-# =========================
-# FINAL NO INTERNAL CARD SCROLL PATCH
-# =========================
-# Keep cards/cards-like panels tall enough for their content. This avoids small
-# internal scrollbars without changing the global size of buttons, inputs or the viewer.
-st.markdown(
-    """
-    <style>
-    /* No internal vertical scroll inside app cards / bordered panels */
-    .summary-card,
-    .preset-param-card,
-    .quick-card-v2,
-    .semaphore-card,
-    .tech-mini-card,
-    .machine-card-native,
-    .preview-metric,
-    .summary-strip,
-    .summary-strip-item,
-    .section-header,
-    .workflow-step,
-    .elegant-panel,
-    .checklist-hero,
-    .pdm-action-bar,
-    .preset-status-strip,
-    .preset-chip,
-    .preset-hero,
-    .preset-hero-chip,
-    .preset-hero-badge,
-    .pack_stat,
-    .tech-sheet-preset-card,
-    .premium-sweep-card,
-    .csv-print-row,
-    div[data-testid="stVerticalBlockBorderWrapper"],
-    div[data-testid="stVerticalBlockBorderWrapper"] > div,
-    div[data-testid="stMetric"] {
-        height: auto !important;
-        max-height: none !important;
-        overflow-y: visible !important;
-        overscroll-behavior: auto !important;
-    }
-
-    /* Text inside cards must wrap and grow the card instead of creating a scroll area. */
-    .summary-card *,
-    .preset-param-card *,
-    .quick-card-v2 *,
-    .semaphore-card *,
-    .tech-mini-card *,
-    .machine-card-native *,
-    .summary-strip *,
-    .section-header *,
-    .workflow-step *,
-    .elegant-panel *,
-    .checklist-hero *,
-    .pdm-action-bar *,
-    .preset-status-strip *,
-    .preset-chip *,
-    .preset-hero *,
-    .tech-sheet-preset-card *,
-    .premium-sweep-card *,
-    .csv-print-row *,
-    div[data-testid="stVerticalBlockBorderWrapper"] * {
-        max-height: none !important;
-        overflow-y: visible !important;
-    }
-
-    /* Preserve mobile safety: vertical growth is allowed, horizontal overflow is not. */
-    .summary-card,
-    .preset-param-card,
-    .quick-card-v2,
-    .semaphore-card,
-    .tech-mini-card,
-    .machine-card-native,
-    .summary-strip,
-    .summary-strip-item,
-    .section-header,
-    .workflow-step,
-    .elegant-panel,
-    .checklist-hero,
-    .pdm-action-bar,
-    .preset-status-strip,
-    .preset-chip,
-    .preset-hero,
-    .pack_stat,
-    .tech-sheet-preset-card,
-    .premium-sweep-card,
-    .csv-print-row {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-    }
-
-    .summary-card-value,
-    .preset-param-value,
-    .quick-value-v2,
-    .semaphore-value,
-    .tech-mini-value,
-    .machine-card-value-native,
-    .summary-strip-value,
-    .preset-chip strong,
-    .preset-status-title,
-    .preset-status-sub,
-    .section-title,
-    .section-subtitle {
-        white-space: normal !important;
-        overflow-wrap: anywhere !important;
-        word-break: normal !important;
-        text-overflow: initial !important;
-    }
-
-    /* If Streamlit adds its own scroll container around a bordered card, let it expand. */
-    div[data-testid="stVerticalBlockBorderWrapper"] [style*="overflow: auto"],
-    div[data-testid="stVerticalBlockBorderWrapper"] [style*="overflow-y: auto"],
-    div[data-testid="stVerticalBlockBorderWrapper"] [style*="overflow: scroll"],
-    div[data-testid="stVerticalBlockBorderWrapper"] [style*="overflow-y: scroll"] {
-        height: auto !important;
-        max-height: none !important;
-        overflow-y: visible !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# Runtime cleanup for scrollbars created by dynamic Streamlit wrappers after render.
-# It only touches known card/panel selectors, not the viewer side panel or the page scroll.
-components.html(
-    """
-    <script>
-    (function () {
-        const CARD_SELECTOR = [
-            '.summary-card',
-            '.preset-param-card',
-            '.quick-card-v2',
-            '.semaphore-card',
-            '.tech-mini-card',
-            '.machine-card-native',
-            '.preview-metric',
-            '.summary-strip',
-            '.summary-strip-item',
-            '.section-header',
-            '.workflow-step',
-            '.elegant-panel',
-            '.checklist-hero',
-            '.pdm-action-bar',
-            '.preset-status-strip',
-            '.preset-chip',
-            '.preset-hero',
-            '.preset-hero-chip',
-            '.preset-hero-badge',
-            '.pack_stat',
-            '.tech-sheet-preset-card',
-            '.premium-sweep-card',
-            '.csv-print-row',
-            'div[data-testid="stVerticalBlockBorderWrapper"]'
-        ].join(',');
-
-        function getDoc() {
-            try {
-                return window.parent && window.parent.document ? window.parent.document : document;
-            } catch (error) {
-                return document;
-            }
-        }
-
-        function isScrollableY(el) {
-            const style = window.getComputedStyle(el);
-            return (style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 2;
-        }
-
-        function expandCardScrollAreas() {
-            const doc = getDoc();
-            const cards = Array.from(doc.querySelectorAll(CARD_SELECTOR));
-
-            cards.forEach(function (card) {
-                card.style.setProperty('height', 'auto', 'important');
-                card.style.setProperty('max-height', 'none', 'important');
-                card.style.setProperty('overflow-y', 'visible', 'important');
-                card.style.setProperty('overscroll-behavior', 'auto', 'important');
-                card.style.setProperty('box-sizing', 'border-box', 'important');
-
-                const inner = Array.from(card.querySelectorAll('*'));
-                inner.forEach(function (el) {
-                    if (isScrollableY(el)) {
-                        el.style.setProperty('height', 'auto', 'important');
-                        el.style.setProperty('max-height', 'none', 'important');
-                        el.style.setProperty('overflow-y', 'visible', 'important');
-                    }
-                });
-            });
-        }
-
-        function schedule() {
-            expandCardScrollAreas();
-            window.requestAnimationFrame(expandCardScrollAreas);
-            setTimeout(expandCardScrollAreas, 160);
-            setTimeout(expandCardScrollAreas, 500);
-            setTimeout(expandCardScrollAreas, 1100);
-        }
-
-        schedule();
-        window.addEventListener('resize', schedule, { passive: true });
-
-        try {
-            const doc = getDoc();
-            const observer = new MutationObserver(schedule);
-            observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-            setTimeout(function () { observer.disconnect(); }, 9000);
-        } catch (error) {}
-    })();
-    </script>
-    """,
-    height=0,
-)
-
 tab_production, tab_tech_sheet, tab_checklist = st.tabs([
     production_label,
     tech_sheet_label,
@@ -13837,7 +13622,7 @@ with tab_tech_sheet:
                 "Disegno del tubo e schema sintetico del preset selezionato." if lang == "IT" else "Tube drawing and compact scheme of the selected preset.",
                 "A",
             )
-            components.html(make_preset_visual(selected_row, lang), height=690, scrolling=False)
+            components.html(make_preset_visual(selected_row, lang), height=570, scrolling=False)
 
         with machine_sheet_tab:
             render_section_header(
@@ -13853,98 +13638,17 @@ with tab_checklist:
 render_app_footer()
 
 # =========================
-# FINAL V12 MOBILE CARD SCROLL KILLER
+# FINAL V14 SAFE CARD PATCH
 # =========================
-# This patch intentionally runs at the very end of the page. It removes vertical
-# scroll containers created by Streamlit inside cards/panels on mobile and lets
-# the page itself grow. It excludes the 3D viewer and Streamlit's main page scroll.
+# This is intentionally conservative:
+# - starts from the stable v10 header/layout
+# - no JavaScript measuring scrollHeight
+# - no generic Streamlit wrapper expansion
+# - no descendant-wide max-height:none rules
+# - viewer controls are not touched
 st.markdown(
     """
     <style>
-    /* Cards/panels must grow vertically, never scroll internally */
-    .summary-card,
-    .preset-param-card,
-    .quick-card-v2,
-    .semaphore-card,
-    .tech-mini-card,
-    .machine-card-native,
-    .preview-metric,
-    .summary-strip,
-    .summary-strip-item,
-    .section-header,
-    .workflow-step,
-    .elegant-panel,
-    .checklist-hero,
-    .pdm-action-bar,
-    .preset-status-strip,
-    .preset-chip,
-    .preset-hero,
-    .preset-hero-chip,
-    .preset-hero-badge,
-    .pack_stat,
-    .tech-sheet-preset-card,
-    .premium-sweep-card,
-    .csv-print-row,
-    .machine-section-native,
-    .machine-grid-native,
-    div[data-testid="stMetric"],
-    div[data-testid="stVerticalBlockBorderWrapper"],
-    div[data-testid="stVerticalBlockBorderWrapper"] > div,
-    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"],
-    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stElementContainer"] {
-        height: auto !important;
-        min-height: fit-content !important;
-        max-height: none !important;
-        overflow-y: visible !important;
-        overflow-x: hidden !important;
-        overscroll-behavior: auto !important;
-        box-sizing: border-box !important;
-    }
-
-    .summary-card *,
-    .preset-param-card *,
-    .quick-card-v2 *,
-    .semaphore-card *,
-    .tech-mini-card *,
-    .machine-card-native *,
-    .summary-strip *,
-    .summary-strip-item *,
-    .section-header *,
-    .workflow-step *,
-    .elegant-panel *,
-    .checklist-hero *,
-    .pdm-action-bar *,
-    .preset-status-strip *,
-    .preset-chip *,
-    .preset-hero *,
-    .tech-sheet-preset-card *,
-    .premium-sweep-card *,
-    .csv-print-row *,
-    div[data-testid="stVerticalBlockBorderWrapper"] *:not(iframe):not(canvas):not(svg) {
-        max-height: none !important;
-        overflow-y: visible !important;
-        text-overflow: initial !important;
-    }
-
-    .summary-card-value,
-    .preset-param-value,
-    .quick-value-v2,
-    .semaphore-value,
-    .tech-mini-value,
-    .machine-card-value-native,
-    .summary-strip-value,
-    .preset-chip strong,
-    .preset-status-title,
-    .preset-status-sub,
-    .section-title,
-    .section-subtitle,
-    .machine-card-label-native,
-    .machine-card-value-native {
-        white-space: normal !important;
-        overflow-wrap: anywhere !important;
-        word-break: normal !important;
-    }
-
     @media (max-width: 760px) {
         .summary-card,
         .preset-param-card,
@@ -13952,33 +13656,26 @@ st.markdown(
         .semaphore-card,
         .tech-mini-card,
         .machine-card-native,
-        .preview-metric,
-        .summary-strip,
         .summary-strip-item,
-        .section-header,
         .workflow-step,
         .elegant-panel,
         .checklist-hero,
         .pdm-action-bar,
         .preset-status-strip,
         .preset-chip,
-        .preset-hero,
         .pack_stat,
         .tech-sheet-preset-card,
         .premium-sweep-card,
-        .csv-print-row,
-        div[data-testid="stMetric"],
-        div[data-testid="stVerticalBlockBorderWrapper"],
-        div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        .csv-print-row {
             height: auto !important;
-            min-height: fit-content !important;
+            min-height: auto !important;
             max-height: none !important;
-            overflow-y: visible !important;
-            overflow-x: hidden !important;
+            overflow: visible !important;
+            box-sizing: border-box !important;
         }
 
-        .machine-grid-native,
         .summary-strip,
+        .machine-grid-native,
         .preset-chip-row,
         .quick-grid-v2,
         .semaphore-grid,
@@ -13987,136 +13684,46 @@ st.markdown(
             max-height: none !important;
             overflow: visible !important;
         }
+
+        .summary-card,
+        .preset-param-card,
+        .quick-card-v2,
+        .semaphore-card,
+        .tech-mini-card,
+        .machine-card-native,
+        .summary-strip-item,
+        .preset-chip,
+        .pack_stat {
+            padding-top: 12px !important;
+            padding-bottom: 12px !important;
+        }
+
+        .summary-card-value,
+        .preset-param-value,
+        .quick-value-v2,
+        .semaphore-value,
+        .tech-mini-value,
+        .machine-card-value-native,
+        .summary-strip-value,
+        .preset-chip strong,
+        .preset-status-title,
+        .preset-status-sub,
+        .section-title,
+        .section-subtitle,
+        .machine-card-label-native,
+        .machine-card-value-native {
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+            word-break: normal !important;
+            text-overflow: initial !important;
+        }
     }
 
-    /* Do not let this patch affect the 3D viewer control panel, which needs its own scroll. */
-    #viewer_root,
-    #viewer_root *,
-    #viewer_sidepanel,
-    #viewer_sidepanel * {
-        overscroll-behavior: contain;
+    /* Explicitly preserve the viewer panel behavior. */
+    #viewer_sidepanel {
+        overflow-y: auto !important;
     }
     </style>
     """,
     unsafe_allow_html=True,
-)
-
-components.html(
-    """
-    <script>
-    (function () {
-        const SAFE_EXCLUDE = [
-            'html', 'body',
-            '[data-testid="stAppViewContainer"]',
-            '[data-testid="stMain"]',
-            '[data-testid="stHeader"]',
-            '.main', '.block-container', '.stApp',
-            '#viewer_root', '#viewer_root *',
-            '#viewer_sidepanel', '#viewer_sidepanel *',
-            'canvas', 'svg', 'iframe',
-            '[role="tablist"]', '[role="tab"]'
-        ].join(',');
-
-        const CARD_HINT = [
-            '.summary-card', '.preset-param-card', '.quick-card-v2', '.semaphore-card',
-            '.tech-mini-card', '.machine-card-native', '.preview-metric', '.summary-strip',
-            '.summary-strip-item', '.section-header', '.workflow-step', '.elegant-panel',
-            '.checklist-hero', '.pdm-action-bar', '.preset-status-strip', '.preset-chip',
-            '.preset-hero', '.pack_stat', '.tech-sheet-preset-card', '.premium-sweep-card',
-            '.csv-print-row', '.machine-section-native', '.machine-grid-native',
-            'div[data-testid="stMetric"]', 'div[data-testid="stVerticalBlockBorderWrapper"]'
-        ].join(',');
-
-        function parentDoc() {
-            try { return window.parent && window.parent.document ? window.parent.document : document; }
-            catch (e) { return document; }
-        }
-
-        function isExcluded(el) {
-            try { return el.matches(SAFE_EXCLUDE) || !!el.closest('#viewer_root, #viewer_sidepanel, [role="tablist"]'); }
-            catch (e) { return true; }
-        }
-
-        function forceGrow(el) {
-            if (!el || isExcluded(el)) return;
-            const needed = Math.ceil(el.scrollHeight + 2);
-            el.style.setProperty('max-height', 'none', 'important');
-            el.style.setProperty('overflow-y', 'visible', 'important');
-            el.style.setProperty('overscroll-behavior', 'auto', 'important');
-            el.style.setProperty('box-sizing', 'border-box', 'important');
-            if (needed > 0 && el.clientHeight && needed > el.clientHeight + 2) {
-                el.style.setProperty('min-height', needed + 'px', 'important');
-                el.style.setProperty('height', 'auto', 'important');
-            }
-        }
-
-        function cleanDocument(doc) {
-            if (!doc || !doc.body) return;
-
-            Array.from(doc.querySelectorAll(CARD_HINT)).forEach(function (card) {
-                forceGrow(card);
-                Array.from(card.querySelectorAll('*')).forEach(function (el) {
-                    if (!isExcluded(el)) {
-                        const cs = window.getComputedStyle(el);
-                        const hasInternalScroll = (cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflowY === 'overlay') && el.scrollHeight > el.clientHeight + 2;
-                        const isClippedCardChild = el.scrollHeight > el.clientHeight + 8 && el.closest(CARD_HINT);
-                        if (hasInternalScroll || isClippedCardChild) forceGrow(el);
-                    }
-                });
-            });
-
-            /* Mobile fallback: any scrollable element inside the main app, except viewer/page containers, becomes auto-height. */
-            if (window.innerWidth <= 900) {
-                Array.from(doc.querySelectorAll('.block-container *')).forEach(function (el) {
-                    if (isExcluded(el)) return;
-                    const cs = window.getComputedStyle(el);
-                    const scrollable = (cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflowY === 'overlay') && el.scrollHeight > el.clientHeight + 3;
-                    if (scrollable && (el.closest(CARD_HINT) || el.clientHeight < 420)) forceGrow(el);
-                });
-            }
-        }
-
-        function cleanSameOriginIframes(doc) {
-            Array.from(doc.querySelectorAll('iframe')).forEach(function (frame) {
-                try {
-                    const idoc = frame.contentDocument;
-                    if (!idoc || !idoc.body) return;
-                    const bodyNeeded = Math.ceil(idoc.body.scrollHeight + 8);
-                    if (bodyNeeded > frame.clientHeight + 4 && frame.closest('.block-container')) {
-                        frame.style.setProperty('height', bodyNeeded + 'px', 'important');
-                        frame.style.setProperty('min-height', bodyNeeded + 'px', 'important');
-                    }
-                    cleanDocument(idoc);
-                } catch (e) {}
-            });
-        }
-
-        function run() {
-            const doc = parentDoc();
-            cleanDocument(doc);
-            cleanSameOriginIframes(doc);
-        }
-
-        function schedule() {
-            run();
-            requestAnimationFrame(run);
-            setTimeout(run, 120);
-            setTimeout(run, 360);
-            setTimeout(run, 900);
-            setTimeout(run, 1800);
-        }
-
-        schedule();
-        window.addEventListener('resize', schedule, { passive: true });
-        window.addEventListener('orientationchange', schedule, { passive: true });
-
-        try {
-            const doc = parentDoc();
-            const observer = new MutationObserver(schedule);
-            observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-        } catch (e) {}
-    })();
-    </script>
-    """,
-    height=0,
 )
