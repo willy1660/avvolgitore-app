@@ -6650,8 +6650,8 @@ def viewer(
                     bumpScale: 0.012,
                     ribbedBumpScale: 0.040,
                     ribGeometryScale: 0.070,
-                    ribPitchMm: 11.8,
-                    ribMaxTubularSegments: 3600,
+                    ribPitchMm: 8.8,
+                    ribMaxTubularSegments: 4200,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6676,8 +6676,8 @@ def viewer(
                     bumpScale: 0.040,
                     ribbedBumpScale: 0.078,
                     ribGeometryScale: 0.102,
-                    ribPitchMm: 10.8,
-                    ribMaxTubularSegments: 9800,
+                    ribPitchMm: 7.8,
+                    ribMaxTubularSegments: 11000,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6701,8 +6701,8 @@ def viewer(
                 bumpScale: 0.026,
                 ribbedBumpScale: 0.060,
                 ribGeometryScale: 0.086,
-                ribPitchMm: 11.2,
-                ribMaxTubularSegments: 6800,
+                ribPitchMm: 8.2,
+                ribMaxTubularSegments: 7600,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -7542,7 +7542,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                     const xx = x / size;
                     const i = (y * size + x) * 4;
 
-                    const phase = (xx * 30.0 + Math.sin(xx * 4.4 + yy * 1.8) * 0.050) % 1.0;
+                    const phase = (xx * 42.0 + Math.sin(xx * 4.0 + yy * 1.4) * 0.035) % 1.0;
                     const rise = smoothstep(0.07, 0.19, phase);
                     const fall = 1.0 - smoothstep(0.80, 0.92, phase);
                     const band = rise * fall;
@@ -7588,7 +7588,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(18.0, 1.0);
+            tex.repeat.set(28.0, 1.0);
             tex.anisotropy = 12;
             tex.needsUpdate = true;
 
@@ -8595,7 +8595,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const pitch = Math.max(10.2, profile.ribPitchMm || 11.2);
+            const pitch = Math.max(7.4, profile.ribPitchMm || 8.2);
             const repeats = Math.max(3.0, totalLen / pitch);
             const amp = Math.min(radius * 0.15, Math.max(0.50, radius * (profile.ribGeometryScale || 0.086)));
             const smoothstep = (a, b, x) => {{
@@ -8609,24 +8609,24 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 const phase = u * repeats;
                 const frac = phase - Math.floor(phase);
 
-                const rise = smoothstep(0.07, 0.19, frac);
-                const fall = 1.0 - smoothstep(0.80, 0.92, frac);
+                const rise = smoothstep(0.05, 0.17, frac);
+                const fall = 1.0 - smoothstep(0.83, 0.95, frac);
                 const band = rise * fall;
-                const crown = Math.exp(-Math.pow((frac - 0.50) / 0.33, 4.0)) * 0.16;
-                const grooveL = -Math.exp(-Math.pow((frac - 0.055) / 0.040, 2.0)) * 0.30;
-                const grooveR = -Math.exp(-Math.pow((frac - 0.945) / 0.046, 2.0)) * 0.24;
+                const crown = Math.exp(-Math.pow((frac - 0.50) / 0.30, 4.0)) * 0.18;
+                const grooveL = -Math.exp(-Math.pow((frac - 0.050) / 0.034, 2.0)) * 0.34;
+                const grooveR = -Math.exp(-Math.pow((frac - 0.950) / 0.038, 2.0)) * 0.30;
 
                 const seamImprint = (
-                    Math.exp(-Math.pow((v - 0.14) / 0.022, 2.0))
-                  + Math.exp(-Math.pow((v - 0.49) / 0.024, 2.0))
-                  + Math.exp(-Math.pow((v - 0.83) / 0.022, 2.0))
-                ) * 0.11;
+                    Math.exp(-Math.pow((v - 0.14) / 0.020, 2.0))
+                  + Math.exp(-Math.pow((v - 0.49) / 0.022, 2.0))
+                  + Math.exp(-Math.pow((v - 0.83) / 0.020, 2.0))
+                ) * 0.08;
 
-                const longNoise = 0.015 * Math.sin(phase * 0.42 + v * 4.2)
-                                + 0.010 * Math.sin(phase * 1.18 - v * 8.5);
-                const angularSoft = 1.0 + 0.015 * Math.sin(v * Math.PI * 2.0 * 2.0 + phase * 0.05);
+                const longNoise = 0.010 * Math.sin(phase * 0.36 + v * 4.0)
+                                + 0.006 * Math.sin(phase * 1.00 - v * 7.0);
+                const angularSoft = 1.0 + 0.010 * Math.sin(v * Math.PI * 2.0 * 2.0 + phase * 0.04);
 
-                const ribShape = (band * 1.08 + crown + grooveL + grooveR + longNoise) * (1.0 - seamImprint) * angularSoft;
+                const ribShape = (band * 1.18 + crown + grooveL + grooveR + longNoise) * (1.0 - seamImprint) * angularSoft;
                 const displacement = amp * ribShape;
 
                 pos.setXYZ(
@@ -8661,7 +8661,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode === "zigrinata") {{
                 const ribPitch = Math.max(12.0, profile.ribPitchMm || 16.5);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
-                const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 3.6 : (renderQuality === "ultra" ? 6.2 : 4.9)));
+                const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 4.4 : (renderQuality === "ultra" ? 7.0 : 5.8)));
                 tubularSegments = Math.max(
                     tubularSegments,
                     Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
