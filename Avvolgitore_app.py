@@ -5103,6 +5103,24 @@ def viewer(
                 </div>
             </div>
 
+            <div>
+                <div class="panel_label" id="camera_tools_title">Camera</div>
+                <div class="btn_group_vertical btn_grid_3">
+                    <button class="viewer_btn_small" id="zoom_out_btn" type="button">−</button>
+                    <button class="viewer_btn_small" id="fit_view_btn" type="button">Fit</button>
+                    <button class="viewer_btn_small" id="zoom_in_btn" type="button">+</button>
+                </div>
+            </div>
+
+            <div>
+                <div class="panel_label" id="quality_title">Qualità</div>
+                <div class="btn_group_vertical btn_grid_3">
+                    <button class="quality_btn viewer_btn_small" data-quality="eco" type="button">Eco</button>
+                    <button class="quality_btn viewer_btn_small active_opt" data-quality="alta" type="button">Alta</button>
+                    <button class="quality_btn viewer_btn_small" data-quality="ultra" type="button">Ultra</button>
+                </div>
+            </div>
+
             <div id="scene_block" style="display:none;">
                 <div class="panel_label" id="scene_title"></div>
                 <div class="btn_group_vertical btn_grid_2">
@@ -5899,6 +5917,10 @@ def viewer(
         const spoolBtns = [...document.querySelectorAll(".spool_btn")];
         const tubeBtns = [...document.querySelectorAll(".tube_btn")];
         const viewBtns = [...document.querySelectorAll(".view_btn")];
+        const qualityBtns = [...document.querySelectorAll(".quality_btn")];
+        const zoomInBtn = document.getElementById("zoom_in_btn");
+        const zoomOutBtn = document.getElementById("zoom_out_btn");
+        const fitViewBtn = document.getElementById("fit_view_btn");
         const sceneBtns = [...document.querySelectorAll(".scene_btn")];
         const packagingControls = document.getElementById("packaging_controls");
         const animationBlock = document.getElementById("animation_block");
@@ -5935,6 +5957,11 @@ def viewer(
         document.getElementById("spool_title").textContent = T.spool;
         document.getElementById("tube_title").textContent = T.tube_color;
         document.getElementById("view_title").textContent = T.view;
+        const cameraToolsTitle = document.getElementById("camera_tools_title");
+        const qualityTitle = document.getElementById("quality_title");
+        if (cameraToolsTitle) cameraToolsTitle.textContent = (T.language === "Language") ? "Camera" : "Camera";
+        if (qualityTitle) qualityTitle.textContent = (T.language === "Language") ? "Render quality" : "Qualità render";
+        if (fitViewBtn) fitViewBtn.textContent = (T.language === "Language") ? "Fit" : "Fit";
         document.getElementById("scene_title").textContent = T.packaging_title || "Packaging";
         document.getElementById("scene_winding_btn").textContent = T.title || "Avvolgimento";
         document.getElementById("scene_packaging_btn").textContent = T.packaging_title || "Packaging";
@@ -6006,17 +6033,20 @@ def viewer(
 
         const scene = new THREE.Scene();
 
-        const camera = new THREE.PerspectiveCamera(32, W / Hview, 0.1, 20000);
+        const camera = new THREE.PerspectiveCamera(32, W / Hview, 6, 12000);
         camera.position.set(-1350, -2150, 760);
         camera.up.set(0, 0, 1);
 
         const renderer = new THREE.WebGLRenderer({{
             antialias: true,
+            logarithmicDepthBuffer: true,
             preserveDrawingBuffer: true,
-            powerPreference: "high-performance"
+            powerPreference: "high-performance",
+            precision: "highp"
         }});
 
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.15));
+        let renderQuality = "alta";
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.physicallyCorrectLights = true;
@@ -6035,6 +6065,38 @@ def viewer(
         controls.dynamicDampingFactor = 0.18;
         controls.staticMoving = false;
 
+        function updateCameraClipping() {{
+            const distance = Math.max(1, camera.position.distanceTo(controls.target));
+            camera.near = Math.max(4, Math.min(42, distance / 650));
+            camera.far = Math.max(5200, distance * 5.8 + 2600);
+            camera.updateProjectionMatrix();
+        }}
+
+        function applyRenderQuality(quality) {{
+            renderQuality = quality;
+            const dpr = window.devicePixelRatio || 1;
+
+            if (quality === "eco") {{
+                renderer.setPixelRatio(Math.min(dpr, 1.00));
+            }} else if (quality === "ultra") {{
+                renderer.setPixelRatio(Math.min(dpr, 2.00));
+            }} else {{
+                renderer.setPixelRatio(Math.min(dpr, 1.65));
+            }}
+
+            renderer.toneMappingExposure = quality === "ultra" ? 1.08 : 1.04;
+            updateCameraClipping();
+            resizeViewer();
+        }}
+
+        function dollyCamera(factor) {{
+            const offset = camera.position.clone().sub(controls.target);
+            offset.multiplyScalar(factor);
+            camera.position.copy(controls.target.clone().add(offset));
+            updateCameraClipping();
+            controls.update();
+        }}
+
         const R = {float(d_aspo)} / 2.0;
         const Rt = {float(d_tubo)} / 2.0;
         const tubeLayout = "{tube_layout}";
@@ -6051,6 +6113,7 @@ def viewer(
 
         controls.target.set(0, 0, Hs * 0.52);
         camera.lookAt(0, 0, Hs * 0.52);
+        updateCameraClipping();
 
         const localRaw = {final_local_points_json};
         const thetaRaw = {final_thetas_json};
@@ -6166,6 +6229,7 @@ def viewer(
             camera.up.set(0, 0, 1);
             controls.target.copy(target);
             camera.lookAt(target);
+            updateCameraClipping();
             controls.update();
         }}
 
@@ -6208,6 +6272,22 @@ def viewer(
                 setActiveButton(viewBtns, currentView, "data-view");
                 setCameraView(currentView);
             }});
+        }});
+
+        qualityBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                const quality = btn.dataset.quality || "alta";
+                setActiveButton(qualityBtns, quality, "data-quality");
+                applyRenderQuality(quality);
+            }});
+        }});
+
+        if (zoomInBtn) zoomInBtn.addEventListener("click", () => dollyCamera(0.78));
+        if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => dollyCamera(1.28));
+        if (fitViewBtn) fitViewBtn.addEventListener("click", () => {{
+            currentView = "3d";
+            setActiveButton(viewBtns, currentView, "data-view");
+            if (sceneMode === "packaging") setPackagingCamera(); else setCameraView("3d");
         }});
 
         sceneBtns.forEach(btn => {{
@@ -6401,7 +6481,8 @@ def viewer(
 
         captureRenderBtn.addEventListener("click", () => {{
             try {{
-                renderer.render(scene, camera);
+                updateCameraClipping();
+            renderer.render(scene, camera);
                 const link = document.createElement("a");
                 const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
                 link.download = `avvolgimento-render-${{stamp}}.png`;
@@ -7721,7 +7802,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
         function makeTubeEndCap(point, tangentDir, radius, material) {{
             const thickness = Math.max(1.8, radius * 0.22);
-            const geo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, thickness, 16, 1, false);
+            const geo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, thickness, 24, 1, false);
             const mesh = new THREE.Mesh(geo, material);
 
             mesh.position.copy(point);
@@ -7748,11 +7829,11 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const curve = new PolylineCurve3(points);
 
             const tubularSegments = Math.max(
-                18,
-                Math.min(1200, Math.floor(totalLen / Math.max(1.60, radius * 0.75)))
+                32,
+                Math.min(1800, Math.floor(totalLen / Math.max(1.25, radius * 0.55)))
             );
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false);
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 22, false);
             geo.computeVertexNormals();
 
             const body = new THREE.Mesh(geo, material);
@@ -7816,7 +7897,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (len < 1e-6) return null;
 
-            const geo = new THREE.CylinderGeometry(radius, radius, len, 14, 1, false);
+            const geo = new THREE.CylinderGeometry(radius, radius, len, 22, 1, false);
             const mesh = new THREE.Mesh(geo, material);
 
             const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
@@ -8190,6 +8271,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }}
 
             controls.update();
+            updateCameraClipping();
             renderer.render(scene, camera);
 
             if (loadingOverlay && !loadingOverlay.classList.contains("is-hidden")) {{
