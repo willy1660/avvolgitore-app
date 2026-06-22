@@ -4904,10 +4904,10 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
-    rib_pitch_mm=4.5,
+    rib_pitch_mm=1.0,
     rib_geometry_scale=0.076,
     rib_bump_scale=0.054,
-    rib_texture_repeat=58.0,
+    rib_texture_repeat=180.0,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -6665,7 +6665,7 @@ def viewer(
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribPitchMm: CUSTOM_RIB.pitchMm,
-                    ribMaxTubularSegments: 7600,
+                    ribMaxTubularSegments: 22000,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6691,7 +6691,7 @@ def viewer(
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribPitchMm: CUSTOM_RIB.pitchMm,
-                    ribMaxTubularSegments: 7600,
+                    ribMaxTubularSegments: 22000,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6716,7 +6716,7 @@ def viewer(
                 ribbedBumpScale: CUSTOM_RIB.bumpScale,
                 ribGeometryScale: CUSTOM_RIB.geometryScale,
                 ribPitchMm: CUSTOM_RIB.pitchMm,
-                ribMaxTubularSegments: 7600,
+                ribMaxTubularSegments: 22000,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -7556,7 +7556,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                     const xx = x / size;
                     const i = (y * size + x) * 4;
 
-                    const phase = (xx * 82.0 + Math.sin(xx * 5.0 + yy * 1.2) * 0.018) % 1.0;
+                    const phase = (xx * 140.0 + Math.sin(xx * 5.0 + yy * 1.2) * 0.010) % 1.0;
                     const rise = smoothstep(0.07, 0.19, phase);
                     const fall = 1.0 - smoothstep(0.80, 0.92, phase);
                     const band = rise * fall;
@@ -8609,7 +8609,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const pitch = Math.max(0.1, profile.ribPitchMm || 4.5);
+            const pitch = Math.max(0.01, profile.ribPitchMm || 1.0);
             const repeats = Math.max(3.0, totalLen / pitch);
             const amp = Math.min(radius * 0.125, Math.max(0.38, radius * (profile.ribGeometryScale || 0.076)));
             const smoothstep = (a, b, x) => {{
@@ -8673,9 +8673,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribPitch = Math.max(0.1, profile.ribPitchMm || 4.5);
+                const ribPitch = Math.max(0.01, profile.ribPitchMm || 1.0);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
-                const ribTargetSegments = Math.ceil(ribRepeats * 6.2);
+                const ribTargetSegments = Math.ceil(ribRepeats * 12.0);
                 tubularSegments = Math.max(
                     tubularSegments,
                     Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
@@ -14363,15 +14363,15 @@ with tab_production:
         with zg1:
             rib_pitch_mm = st.slider(
                 "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
-                min_value=0.1,
+                min_value=0.01,
                 max_value=12.0,
-                value=float(st.session_state.get("tmp_rib_pitch_mm", 4.5)),
-                step=0.05,
+                value=float(st.session_state.get("tmp_rib_pitch_mm", 1.0)),
+                step=0.01,
                 key="tmp_rib_pitch_mm",
                 help=(
-                    "Distanza tra una nervatura e la successiva. Ora puoi scendere fino a 0,1 mm. Più basso = più anelli e zigrinatura più ripetitiva."
+                    "Distanza tra una nervatura e la successiva. Ora puoi scendere fino a 0,01 mm per una zigrinatura molto più fitta. Più basso = più anelli e zigrinatura più ripetitiva."
                     if lang == "IT"
-                    else "Distance between one rib and the next. You can now go down to 0.1 mm. Lower value = more rings and denser pattern."
+                    else "Distance between one rib and the next. You can now go down to 0.01 mm for a much denser rib pattern. Lower value = more rings and denser pattern."
                 ),
             )
             rib_geometry_scale = st.slider(
@@ -14405,14 +14405,14 @@ with tab_production:
             rib_texture_repeat = st.slider(
                 "Ripetizione texture" if lang == "IT" else "Texture repetition",
                 min_value=10.0,
-                max_value=200.0,
-                value=float(st.session_state.get("tmp_rib_texture_repeat", 58.0)),
+                max_value=600.0,
+                value=float(st.session_state.get("tmp_rib_texture_repeat", 180.0)),
                 step=1.0,
                 key="tmp_rib_texture_repeat",
                 help=(
-                    "Densità della texture visiva. Più alto = pattern più fitto; deve restare coerente con il passo tra anelli."
+                    "Densità della texture visiva. Molto più alto = pattern molto più fitto; deve restare coerente con il passo tra anelli."
                     if lang == "IT"
-                    else "Visual texture density. Higher value = denser pattern; should stay coherent with ring distance."
+                    else "Visual texture density. Much higher = much denser pattern; should stay coherent with ring distance."
                 ),
             )
 
