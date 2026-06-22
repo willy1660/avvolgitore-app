@@ -7765,7 +7765,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             mat.needsUpdate = true;
             return mat;
         }}
-        }}
 
         // ==========================================
         // SIMPLE ASPO
