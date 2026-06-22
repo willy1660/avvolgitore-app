@@ -14397,7 +14397,7 @@ with tab_production:
             <div class="zigrinatura-debug-card">
                 <div class="zigrinatura-debug-title">{"Regolazione zigrinatura" if lang == "IT" else "Ribbed finish tuning"}</div>
                 <div class="zigrinatura-debug-text">
-                    {"Prima troviamo i valori giusti in manuale per ogni diametro. Poi useremo quei valori per costruire una regola automatica proporzionale al diametro tubo." if lang == "IT" else "First tune the values manually for each diameter. Then those values will be used to build an automatic rule proportional to the tube diameter."}
+                    {"Solo modalità manuale per fare prove con calma. Quando trovi i valori giusti me li passi e poi ti preparo la versione finale pulita." if lang == "IT" else "Manual mode only, so you can test calmly. When you find the right values, send them to me and I’ll prepare the final clean version."}
                 </div>
             </div>
             """,
@@ -14405,164 +14405,81 @@ with tab_production:
         )
 
         rib_reference_diameter = max(0.1, float(d_tubo_sim))
-        zigrinatura_mode_label = st.radio(
-            "Modo zigrinatura" if lang == "IT" else "Ribbed finish mode",
-            ["Manuale", "Automatico per diametro tubo"] if lang == "IT" else ["Manual", "Automatic by tube diameter"],
-            horizontal=True,
-            key="tmp_rib_mode",
-            help=(
-                "Usa Manuale per trovare i valori corretti. Quando hai trovato un buon valore, passa ad Automatico per verificare la regola."
-                if lang == "IT"
-                else "Use Manual to find the right values. Once they work, switch to Automatic to test the rule."
-            ),
+        zg1, zg2 = st.columns(2, gap="large")
+        with zg1:
+            rib_pitch_mm = st.slider(
+                "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
+                min_value=0.001,
+                max_value=12.0,
+                value=float(st.session_state.get("tmp_rib_pitch_mm", 0.80)),
+                step=0.001,
+                key="tmp_rib_pitch_mm",
+                help=(
+                    "Distanza reale tra una nervatura e la successiva. Più basso = più anelli e zigrinatura più fitta."
+                    if lang == "IT"
+                    else "Real distance between one rib and the next. Lower value = more rings and denser pattern."
+                ),
+            )
+            rib_geometry_scale = st.slider(
+                "Rilievo geometrico" if lang == "IT" else "Geometric relief",
+                min_value=0.02,
+                max_value=0.16,
+                value=float(st.session_state.get("tmp_rib_geometry_scale", 0.076)),
+                step=0.002,
+                key="tmp_rib_geometry_scale",
+                help=(
+                    "Deformazione reale del tubo in 3D. Più alto = rilievo più marcato; troppo alto può creare effetto punte."
+                    if lang == "IT"
+                    else "Real 3D deformation of the tube. Higher value = stronger relief; too high may create spikes."
+                ),
+            )
+
+        with zg2:
+            rib_bump_scale = st.slider(
+                "Dettaglio bump superficiale" if lang == "IT" else "Surface bump detail",
+                min_value=0.0,
+                max_value=0.12,
+                value=float(st.session_state.get("tmp_rib_bump_scale", 0.054)),
+                step=0.002,
+                key="tmp_rib_bump_scale",
+                help=(
+                    "Rilievo visivo del materiale senza cambiare troppo la geometria. Aggiunge micro-dettaglio e realismo."
+                    if lang == "IT"
+                    else "Visual material relief without heavily changing geometry. Adds micro-detail and realism."
+                ),
+            )
+            rib_texture_repeat = st.slider(
+                "Ripetizione texture" if lang == "IT" else "Texture repetition",
+                min_value=10.0,
+                max_value=1500.0,
+                value=float(st.session_state.get("tmp_rib_texture_repeat", 420.0)),
+                step=1.0,
+                key="tmp_rib_texture_repeat",
+                help=(
+                    "Densità della texture visiva. Ora il passo reale viene mantenuto sulla lunghezza: 15 / 25 / 50 m cambiano il numero di anelli, non la distanza visiva tra anelli."
+                    if lang == "IT"
+                    else "Visual texture density. The real pitch is now kept along the length: 15 / 25 / 50 m change the number of rings, not the visible distance between rings."
+                ),
+            )
+
+        rib_pitch_factor_current = rib_pitch_mm / rib_reference_diameter
+        rib_texture_factor_current = rib_texture_repeat * rib_pitch_mm
+
+        st.markdown(
+            f"""
+            <div class="zigrinatura-values">
+                <b>{"Valori manuali attuali" if lang == "IT" else "Current manual values"}</b><br>
+                {"Diametro tubo usato" if lang == "IT" else "Tube diameter used"}: {rib_reference_diameter:.2f} mm<br>
+                {"Passo" if lang == "IT" else "Pitch"}: {rib_pitch_mm:.3f} mm ·
+                {"Fattore passo (solo informativo)" if lang == "IT" else "Pitch factor (info only)"}: {rib_pitch_factor_current:.5f} × Ø tubo<br>
+                {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
+                Bump: {rib_bump_scale:.3f} ·
+                Texture: {rib_texture_repeat:.0f}<br>
+                {"Fattore texture (solo informativo)" if lang == "IT" else "Texture factor (info only)"}: {rib_texture_factor_current:.1f}
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-
-        manual_mode = zigrinatura_mode_label in {"Manuale", "Manual"}
-
-        if manual_mode:
-            zg1, zg2 = st.columns(2, gap="large")
-            with zg1:
-                rib_pitch_mm = st.slider(
-                    "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
-                    min_value=0.001,
-                    max_value=12.0,
-                    value=float(st.session_state.get("tmp_rib_pitch_mm", 0.80)),
-                    step=0.001,
-                    key="tmp_rib_pitch_mm",
-                    help=(
-                        "Distanza reale tra una nervatura e la successiva. Più basso = più anelli e zigrinatura più fitta."
-                        if lang == "IT"
-                        else "Real distance between one rib and the next. Lower value = more rings and denser pattern."
-                    ),
-                )
-                rib_geometry_scale = st.slider(
-                    "Rilievo geometrico" if lang == "IT" else "Geometric relief",
-                    min_value=0.02,
-                    max_value=0.16,
-                    value=float(st.session_state.get("tmp_rib_geometry_scale", 0.076)),
-                    step=0.002,
-                    key="tmp_rib_geometry_scale",
-                    help=(
-                        "Deformazione reale del tubo in 3D. Più alto = rilievo più marcato; troppo alto può creare effetto punte."
-                        if lang == "IT"
-                        else "Real 3D deformation of the tube. Higher value = stronger relief; too high may create spikes."
-                    ),
-                )
-
-            with zg2:
-                rib_bump_scale = st.slider(
-                    "Dettaglio bump superficiale" if lang == "IT" else "Surface bump detail",
-                    min_value=0.0,
-                    max_value=0.12,
-                    value=float(st.session_state.get("tmp_rib_bump_scale", 0.054)),
-                    step=0.002,
-                    key="tmp_rib_bump_scale",
-                    help=(
-                        "Rilievo visivo del materiale senza cambiare troppo la geometria. Aggiunge micro-dettaglio e realismo."
-                        if lang == "IT"
-                        else "Visual material relief without heavily changing geometry. Adds micro-detail and realism."
-                    ),
-                )
-                rib_texture_repeat = st.slider(
-                    "Ripetizione texture" if lang == "IT" else "Texture repetition",
-                    min_value=10.0,
-                    max_value=1500.0,
-                    value=float(st.session_state.get("tmp_rib_texture_repeat", 420.0)),
-                    step=1.0,
-                    key="tmp_rib_texture_repeat",
-                    help=(
-                        "Densità della texture visiva. Ora il passo reale viene mantenuto sulla lunghezza: 15 / 25 / 50 m cambiano il numero di anelli, non la distanza visiva tra anelli."
-                        if lang == "IT"
-                        else "Visual texture density. The real pitch is now kept along the length: 15 / 25 / 50 m change the number of rings, not the visible distance between rings."
-                    ),
-                )
-
-            rib_pitch_factor_current = rib_pitch_mm / rib_reference_diameter
-            rib_texture_factor_current = rib_texture_repeat * rib_pitch_mm
-
-            st.markdown(
-                f"""
-                <div class="zigrinatura-values">
-                    <b>{"Valori manuali attuali" if lang == "IT" else "Current manual values"}</b><br>
-                    {"Diametro tubo usato" if lang == "IT" else "Tube diameter used"}: {rib_reference_diameter:.2f} mm<br>
-                    {"Passo" if lang == "IT" else "Pitch"}: {rib_pitch_mm:.3f} mm ·
-                    {"Fattore passo" if lang == "IT" else "Pitch factor"}: {rib_pitch_factor_current:.5f} × Ø tubo<br>
-                    {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
-                    Bump: {rib_bump_scale:.3f} ·
-                    Texture: {rib_texture_repeat:.0f}<br>
-                    {"Fattore texture suggerito" if lang == "IT" else "Suggested texture factor"}: {rib_texture_factor_current:.1f}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        else:
-            auto1, auto2 = st.columns(2, gap="large")
-            with auto1:
-                rib_pitch_factor = st.slider(
-                    "Fattore passo × Ø tubo" if lang == "IT" else "Pitch factor × tube Ø",
-                    min_value=0.0001,
-                    max_value=0.2000,
-                    value=float(st.session_state.get("tmp_rib_pitch_factor", 0.0100)),
-                    step=0.0001,
-                    format="%.4f",
-                    key="tmp_rib_pitch_factor",
-                    help=(
-                        "Formula: passo = diametro tubo × fattore. Serve per mantenere proporzioni simili tra tubi diversi."
-                        if lang == "IT"
-                        else "Formula: pitch = tube diameter × factor. Keeps similar proportions across different tube diameters."
-                    ),
-                )
-                rib_geometry_scale = st.slider(
-                    "Rilievo geometrico" if lang == "IT" else "Geometric relief",
-                    min_value=0.02,
-                    max_value=0.16,
-                    value=float(st.session_state.get("tmp_rib_geometry_scale_auto", 0.076)),
-                    step=0.002,
-                    key="tmp_rib_geometry_scale_auto",
-                )
-
-            with auto2:
-                rib_bump_scale = st.slider(
-                    "Dettaglio bump superficiale" if lang == "IT" else "Surface bump detail",
-                    min_value=0.0,
-                    max_value=0.12,
-                    value=float(st.session_state.get("tmp_rib_bump_scale_auto", 0.054)),
-                    step=0.002,
-                    key="tmp_rib_bump_scale_auto",
-                )
-                rib_texture_factor = st.slider(
-                    "Fattore ripetizione texture" if lang == "IT" else "Texture repetition factor",
-                    min_value=5.0,
-                    max_value=300.0,
-                    value=float(st.session_state.get("tmp_rib_texture_factor", 150.0)),
-                    step=1.0,
-                    key="tmp_rib_texture_factor",
-                    help=(
-                        "Formula: ripetizione texture = fattore / passo. Così se il passo è piccolo la texture diventa automaticamente più fitta."
-                        if lang == "IT"
-                        else "Formula: texture repetition = factor / pitch. If pitch is smaller, texture becomes denser automatically."
-                    ),
-                )
-
-            rib_pitch_mm = max(0.001, rib_reference_diameter * rib_pitch_factor)
-            rib_texture_repeat = max(10.0, min(1500.0, rib_texture_factor / max(rib_pitch_mm, 0.001)))
-
-            st.markdown(
-                f"""
-                <div class="zigrinatura-values">
-                    <b>{"Valori automatici calcolati" if lang == "IT" else "Calculated automatic values"}</b><br>
-                    {"Diametro tubo usato" if lang == "IT" else "Tube diameter used"}: {rib_reference_diameter:.2f} mm<br>
-                    {"Passo calcolato" if lang == "IT" else "Calculated pitch"}: {rib_pitch_mm:.3f} mm =
-                    {rib_reference_diameter:.2f} × {rib_pitch_factor:.4f}<br>
-                    {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
-                    Bump: {rib_bump_scale:.3f} ·
-                    Texture: {rib_texture_repeat:.0f}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
 
     components.html(
         viewer(
