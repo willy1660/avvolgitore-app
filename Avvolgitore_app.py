@@ -4990,26 +4990,106 @@ def viewer(
                     <button id="render_tools_close" class="render_tools_close" type="button">×</button>
                 </div>
 
-                <div class="viewer_tools_group viewer_tools_group_camera">
-                    <span class="viewer_tools_label" id="camera_tools_title">Camera</span>
-                    <button class="viewer_tool_chip" id="zoom_out_btn" type="button">−</button>
-                    <button class="viewer_tool_chip viewer_tool_chip_main" id="fit_view_btn" type="button">Fit</button>
-                    <button class="viewer_tool_chip" id="zoom_in_btn" type="button">+</button>
+                <div class="render_tools_section">
+                    <div class="render_tools_section_title">Controllo</div>
+                    <div class="render_tools_row render_tools_row_camera">
+                        <span class="viewer_tools_label" id="camera_tools_title">Camera</span>
+                        <button class="viewer_tool_chip" id="zoom_out_btn" type="button">−</button>
+                        <button class="viewer_tool_chip viewer_tool_chip_main" id="fit_view_btn" type="button">Fit</button>
+                        <button class="viewer_tool_chip" id="zoom_in_btn" type="button">+</button>
+                    </div>
+                    <div class="render_tools_row">
+                        <span class="viewer_tools_label" id="view_title"></span>
+                        <button class="view_btn viewer_tool_chip active_opt" data-view="3d" id="view_3d_btn" type="button"></button>
+                        <button class="view_btn viewer_tool_chip" data-view="front" id="view_front_btn" type="button"></button>
+                        <button class="view_btn viewer_tool_chip" data-view="side" id="view_side_btn" type="button"></button>
+                    </div>
                 </div>
 
-                <div class="viewer_tools_group viewer_tools_group_quality">
-                    <span class="viewer_tools_label" id="quality_title">Qualità</span>
-                    <button class="quality_btn viewer_tool_chip" data-quality="eco" type="button">Eco</button>
-                    <button class="quality_btn viewer_tool_chip active_opt" data-quality="alta" type="button">Alta</button>
-                    <button class="quality_btn viewer_tool_chip" data-quality="ultra" type="button">Ultra</button>
+                <div class="render_tools_section">
+                    <div class="render_tools_section_title">Render</div>
+                    <div class="render_tools_row">
+                        <span class="viewer_tools_label" id="quality_title">Qualità</span>
+                        <button class="quality_btn viewer_tool_chip" data-quality="eco" type="button">Eco</button>
+                        <button class="quality_btn viewer_tool_chip active_opt" data-quality="alta" type="button">Alta</button>
+                        <button class="quality_btn viewer_tool_chip" data-quality="ultra" type="button">Ultra</button>
+                    </div>
+                    <div class="render_tools_row">
+                        <span class="viewer_tools_label" id="tube_title"></span>
+                        <button class="tube_btn viewer_tool_chip active_opt" data-tube="gelwhite" id="tube_gelwhite_btn" type="button"></button>
+                        <button class="tube_btn viewer_tool_chip" data-tube="gelblack" id="tube_gelblack_btn" type="button"></button>
+                    </div>
+                    <div class="render_tools_row">
+                        <span class="viewer_tools_label" id="tube_finish_title">Finitura</span>
+                        <button class="tube_finish_btn viewer_tool_chip active_opt" data-finish="liscio" id="tube_finish_liscio_btn" type="button">Liscio</button>
+                        <button class="tube_finish_btn viewer_tool_chip" data-finish="zigrinata" id="tube_finish_zigrinata_btn" type="button">Zigrinata</button>
+                    </div>
                 </div>
 
-                <div class="viewer_tools_group viewer_tools_group_finish">
-                    <span class="viewer_tools_label" id="finish_tools_title">Finitura</span>
-                    <button class="tube_finish_btn viewer_tool_chip active_opt" data-finish="liscio" type="button">Liscio</button>
-                    <button class="tube_finish_btn viewer_tool_chip" data-finish="zigrinata" type="button">Zigrinata</button>
+                <div class="render_tools_section">
+                    <div class="render_tools_section_title">Movimento</div>
+                    <div class="render_tools_row render_tools_row_check">
+                        <span class="viewer_tools_label" id="animation_title"></span>
+                        <label class="panel_check panel_check_compact">
+                            <input type="checkbox" id="animation_check" />
+                            <span id="animation_label_text"></span>
+                        </label>
+                    </div>
+                    <div class="render_tools_row" id="speed_block">
+                        <span class="viewer_tools_label" id="speed_title"></span>
+                        <button class="speed_btn viewer_tool_chip" data-speed="0.5" type="button">x0.5</button>
+                        <button class="speed_btn viewer_tool_chip active_speed" data-speed="1.0" type="button">x1</button>
+                        <button class="speed_btn viewer_tool_chip" data-speed="2.0" type="button">x2</button>
+                    </div>
                 </div>
-            </div>
+
+                <div class="render_tools_section">
+                    <div class="render_tools_section_title">Scena</div>
+                    <div class="render_tools_row" id="scene_block" style="display:none;">
+                        <span class="viewer_tools_label" id="scene_title"></span>
+                        <button class="scene_btn viewer_tool_chip active_opt" data-scene="winding" id="scene_winding_btn" type="button">Avvolgimento</button>
+                        <button class="scene_btn viewer_tool_chip" data-scene="packaging" id="scene_packaging_btn" type="button">Packaging</button>
+                    </div>
+                    <div class="render_tools_row" id="spool_block">
+                        <span class="viewer_tools_label" id="spool_title"></span>
+                        <button class="spool_btn viewer_tool_chip" data-spool="visible" id="spool_visible_btn" type="button"></button>
+                        <button class="spool_btn viewer_tool_chip" data-spool="transparent" id="spool_transparent_btn" type="button"></button>
+                        <button class="spool_btn viewer_tool_chip active_opt" data-spool="hidden" id="spool_hidden_btn" type="button"></button>
+                    </div>
+                    <div class="render_tools_checks" id="checks_block">
+                        <label class="panel_check panel_check_compact">
+                            <input type="checkbox" id="ghost_check" />
+                            <span id="ghost_title"></span>
+                        </label>
+                        <label class="panel_check panel_check_compact">
+                            <input type="checkbox" id="grid_check" />
+                            <span id="grid_title"></span>
+                        </label>
+                        <label class="panel_check panel_check_compact" style="display:none;">
+                            <input type="checkbox" id="axes_check" />
+                            <span id="axes_title"></span>
+                        </label>
+                        <label class="panel_check panel_check_compact" style="display:none;">
+                            <input type="checkbox" id="section_check" />
+                            <span id="section_title"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="render_tools_section" id="packaging_controls" style="display:none;">
+                    <div class="render_tools_section_title">Packaging</div>
+                    <div class="render_tools_row render_tools_row_pack">
+                        <span class="viewer_tools_label" id="pack_roll_title"></span>
+                        <button id="pack_roll_minus" class="viewer_tool_chip pack_roll_btn" type="button">−</button>
+                        <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="{int(pack_roll_count)}" />
+                        <button id="pack_roll_plus" class="viewer_tool_chip pack_roll_btn" type="button">+</button>
+                    </div>
+                    <div id="pack_roll_hint" class="pack_roll_hint">Modifica diretta nel render</div>
+                    <label class="panel_check panel_check_compact panel_check_full">
+                        <input type="checkbox" id="pack_dimensions_check" checked />
+                        <span id="pack_dimensions_label">Quote / linee verdi</span>
+                    </label>
+                </div>            </div>
         </div>
 
         <div id="active_preset_badge" style="
@@ -5073,8 +5153,10 @@ def viewer(
             bottom:14px;
             z-index:22;
             display:none;
-            min-width:220px;
-            padding:14px 16px;
+            min-width:0;
+            width:max-content;
+            max-width:260px;
+            padding:10px 13px;
             background:rgba(18,22,27,0.78);
             color:#f8fafc;
             border:1px solid rgba(255,255,255,0.12);
@@ -5083,133 +5165,14 @@ def viewer(
             font-family:Arial, sans-serif;
             box-shadow:0 14px 30px rgba(0,0,0,0.24);
         ">
-            <div style="font-size:11px; opacity:0.72; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:5px;">Packaging</div>
-            <div id="packaging_status_text" style="font-size:22px; font-weight:900; line-height:1.05;"></div>
-            <div id="packaging_status_reason" style="font-size:12px; opacity:0.78; margin-top:6px; line-height:1.32;"></div>
+            <div style="font-size:9px; opacity:0.72; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:3px;">Packaging</div>
+            <div id="packaging_status_text" style="font-size:16px; font-weight:950; line-height:1.05; white-space:nowrap;"></div>
+            <div id="packaging_status_reason" style="font-size:11px; opacity:0.78; margin-top:4px; line-height:1.24; max-width:230px;"></div>
         </div>
 
-        <div id="viewer_sidepanel" style="
-            position:absolute;
-            top:14px;
-            right:14px;
-            z-index:20;
-            display:flex;
-            flex-direction:column;
-            gap:10px;
-            width:248px;
-            max-width:calc(100% - 28px);
-            max-height:calc(100% - 28px);
-            overflow-y:auto;
-            overscroll-behavior:contain;
-            box-sizing:border-box;
-            padding:12px;
-            background:rgba(18,22,27,0.74);
-            color:#f0f0f0;
-            border:1px solid rgba(255,255,255,0.12);
-            border-radius:14px;
-            backdrop-filter: blur(10px);
-            font-family:Arial, sans-serif;
-            font-size:13px;
-            user-select:none;
-        ">
-            <button id="viewer_sidepanel_toggle" class="viewer_sidepanel_toggle" title="Nascondi opzioni">❮</button>
-            <div id="viewer_sidepanel_content">
-            <div>
-                <div class="panel_label" id="animation_title"></div>
-                <label class="panel_check">
-                    <input type="checkbox" id="animation_check" />
-                    <span id="animation_label_text"></span>
-                </label>
-            </div>
-
-            <div id="speed_block">
-                <div class="panel_label" id="speed_title"></div>
-                <div class="btn_group_vertical btn_grid_3" id="speed_group">
-                    <button class="speed_btn viewer_btn_small" data-speed="0.5">x0.5</button>
-                    <button class="speed_btn viewer_btn_small active_speed" data-speed="1.0">x1</button>
-                    <button class="speed_btn viewer_btn_small" data-speed="2.0">x2</button>
-                </div>
-            </div>
-
-            <div>
-                <div class="panel_label" id="view_title"></div>
-                <div class="btn_group_vertical btn_grid_3">
-                    <button class="view_btn viewer_btn_small active_opt" data-view="3d" id="view_3d_btn"></button>
-                    <button class="view_btn viewer_btn_small" data-view="front" id="view_front_btn"></button>
-                    <button class="view_btn viewer_btn_small" data-view="side" id="view_side_btn"></button>
-                </div>
-            </div>
-
-
-            <div id="scene_block" style="display:none;">
-                <div class="panel_label" id="scene_title"></div>
-                <div class="btn_group_vertical btn_grid_2">
-                    <button class="scene_btn viewer_btn_small active_opt" data-scene="winding" id="scene_winding_btn">Avvolgimento</button>
-                    <button class="scene_btn viewer_btn_small" data-scene="packaging" id="scene_packaging_btn">Packaging</button>
-                </div>
-            </div>
-
-            <div id="packaging_controls" style="display:none;">
-                <div class="panel_label" id="pack_roll_title"></div>
-                <div class="pack_roll_inline">
-                    <button id="pack_roll_minus" class="viewer_btn_small pack_roll_btn" type="button">−</button>
-                    <input id="pack_roll_count" type="number" min="1" max="50" step="1" value="{int(pack_roll_count)}" />
-                    <button id="pack_roll_plus" class="viewer_btn_small pack_roll_btn" type="button">+</button>
-                </div>
-                <div id="pack_roll_hint" class="pack_roll_hint">Modifica diretta nel render</div>
-                <label class="panel_check" style="margin-top:9px;">
-                    <input type="checkbox" id="pack_dimensions_check" checked />
-                    <span id="pack_dimensions_label">Quote / linee verdi</span>
-                </label>
-            </div>
-
-            <div id="spool_block">
-                <div class="panel_label" id="spool_title"></div>
-                <div class="btn_group_vertical btn_grid_3">
-                    <button class="spool_btn viewer_btn_small" data-spool="visible" id="spool_visible_btn"></button>
-                    <button class="spool_btn viewer_btn_small" data-spool="transparent" id="spool_transparent_btn"></button>
-                    <button class="spool_btn viewer_btn_small active_opt" data-spool="hidden" id="spool_hidden_btn"></button>
-                </div>
-            </div>
-
-            <div>
-                <div class="panel_label" id="tube_title"></div>
-                <div class="btn_group_vertical btn_grid_2">
-                    <button class="tube_btn viewer_btn_small active_opt" data-tube="gelwhite" id="tube_gelwhite_btn"></button>
-                    <button class="tube_btn viewer_btn_small" data-tube="gelblack" id="tube_gelblack_btn"></button>
-                </div>
-            </div>
-
-            <div>
-                <div class="panel_label" id="tube_finish_title">Finitura</div>
-                <div class="btn_group_vertical btn_grid_2">
-                    <button class="tube_finish_btn viewer_btn_small active_opt" data-finish="liscio" id="tube_finish_liscio_btn" type="button">Liscio</button>
-                    <button class="tube_finish_btn viewer_btn_small" data-finish="zigrinata" id="tube_finish_zigrinata_btn" type="button">Zigrinata</button>
-                </div>
-            </div>
-
-            <div id="checks_block" class="panel_checks_block">
-                <label class="panel_check">
-                    <input type="checkbox" id="ghost_check" />
-                    <span id="ghost_title"></span>
-                </label>
-
-                <label class="panel_check">
-                    <input type="checkbox" id="grid_check" />
-                    <span id="grid_title"></span>
-                </label>
-
-                <label class="panel_check" style="display:none;">
-                    <input type="checkbox" id="axes_check" />
-                    <span id="axes_title"></span>
-                </label>
-
-                <label class="panel_check" style="display:none;">
-                    <input type="checkbox" id="section_check" />
-                    <span id="section_title"></span>
-                </label>
-            </div>
-            </div>
+        <div id="viewer_sidepanel" style="display:none !important;">
+            <button id="viewer_sidepanel_toggle" type="button" style="display:none !important;">❯</button>
+            <div id="viewer_sidepanel_content"></div>
         </div>
     </div>
 
@@ -5607,6 +5570,208 @@ def viewer(
                 min-width:104px;
                 height:40px;
                 margin-left:auto;
+            }}
+        }}
+
+
+
+        /* v20 · unified compact render panel */
+        .render_tools_panel {{
+            width: 370px !important;
+            max-width: min(370px, calc(100vw - 28px)) !important;
+            max-height: calc(100% - 82px) !important;
+            overflow-y: auto !important;
+            overscroll-behavior: contain !important;
+            gap: 8px !important;
+            padding: 11px !important;
+        }}
+
+        .render_tools_panel::-webkit-scrollbar {{
+            width: 5px;
+        }}
+        .render_tools_panel::-webkit-scrollbar-thumb {{
+            border-radius: 999px;
+            background: rgba(255,255,255,0.18);
+        }}
+
+        .render_tools_section {{
+            border: 1px solid rgba(255,255,255,0.085);
+            border-radius: 15px;
+            background: rgba(255,255,255,0.045);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }}
+
+        .render_tools_section_title {{
+            padding: 0 3px 1px 3px;
+            font-size: 9px;
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: 0.105em;
+            text-transform: uppercase;
+            color: rgba(248,250,252,0.54);
+        }}
+
+        .render_tools_row {{
+            display: grid;
+            grid-template-columns: 70px repeat(3, minmax(0, 1fr));
+            gap: 5px;
+            align-items: center;
+            min-height: 34px;
+        }}
+
+        .render_tools_row.render_tools_row_camera {{
+            grid-template-columns: 70px 52px 1fr 52px;
+        }}
+
+        .render_tools_row.render_tools_row_check {{
+            grid-template-columns: 70px 1fr;
+        }}
+
+        .render_tools_row.render_tools_row_pack {{
+            grid-template-columns: 86px 42px 1fr 42px;
+        }}
+
+        .render_tools_panel .viewer_tools_label {{
+            min-width: 0 !important;
+            padding-left: 4px;
+            font-size: 9px !important;
+            line-height: 1.05;
+            font-weight: 950;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: rgba(248,250,252,0.64) !important;
+            white-space: nowrap;
+        }}
+
+        .render_tools_panel .viewer_tool_chip,
+        .render_tools_panel .viewer_btn_small {{
+            min-width: 0 !important;
+            min-height: 34px !important;
+            height: 34px !important;
+            padding: 0 8px !important;
+            border: 1px solid rgba(255,255,255,0.105) !important;
+            border-radius: 11px !important;
+            background: rgba(255,255,255,0.09) !important;
+            color: #f8fafc !important;
+            font-size: 10.5px !important;
+            line-height: 1.05 !important;
+            font-weight: 900 !important;
+            letter-spacing: 0.01em !important;
+            box-shadow: none !important;
+        }}
+
+        .render_tools_panel .viewer_tool_chip.active_opt,
+        .render_tools_panel .viewer_tool_chip.active_speed,
+        .render_tools_panel .viewer_btn_small.active_opt,
+        .render_tools_panel .viewer_btn_small.active_speed {{
+            background: #C57E5A !important;
+            border-color: #C57E5A !important;
+            color: #ffffff !important;
+            box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
+        }}
+
+        .render_tools_checks {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+        }}
+
+        .panel_check_compact {{
+            min-height: 34px;
+            margin: 0 !important;
+            padding: 7px 8px !important;
+            border-radius: 11px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.085);
+            display: flex !important;
+            align-items: center !important;
+            gap: 7px !important;
+        }}
+
+        .panel_check_compact span {{
+            font-size: 10px !important;
+            line-height: 1.05 !important;
+            font-weight: 850 !important;
+            color: rgba(248,250,252,0.86) !important;
+        }}
+
+        .panel_check_full {{
+            margin-top: 6px !important;
+        }}
+
+        .render_tools_panel #pack_roll_count {{
+            width: 100%;
+            height: 34px;
+            min-height: 34px;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 11px;
+            background: rgba(255,255,255,0.08);
+            color: #f8fafc;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 900;
+            outline: none;
+        }}
+
+        .render_tools_panel .pack_roll_hint {{
+            margin: -1px 4px 0 90px;
+            color: rgba(248,250,252,0.52);
+            font-size: 9px;
+            font-weight: 750;
+        }}
+
+        #viewer_sidepanel {{
+            display:none !important;
+        }}
+
+        @media (max-width: 680px) {{
+            .viewer_render_tools_overlay {{
+                right: 10px !important;
+                bottom: 10px !important;
+            }}
+            .render_tools_panel {{
+                width: calc(100vw - 20px) !important;
+                max-width: calc(100vw - 20px) !important;
+                max-height: min(58vh, 430px) !important;
+                bottom: 48px !important;
+                padding: 10px !important;
+                gap: 7px !important;
+            }}
+            .render_tools_section {{
+                padding: 7px;
+                gap: 5px;
+            }}
+            .render_tools_row,
+            .render_tools_row.render_tools_row_camera {{
+                grid-template-columns: 62px repeat(3, minmax(0, 1fr));
+                gap: 5px;
+            }}
+            .render_tools_row.render_tools_row_check {{
+                grid-template-columns: 62px 1fr;
+            }}
+            .render_tools_row.render_tools_row_pack {{
+                grid-template-columns: 70px 38px 1fr 38px;
+            }}
+            .render_tools_panel .viewer_tools_label {{
+                font-size: 8.5px !important;
+                padding-left: 3px;
+            }}
+            .render_tools_panel .viewer_tool_chip,
+            .render_tools_panel .viewer_btn_small {{
+                height: 32px !important;
+                min-height: 32px !important;
+                padding: 0 6px !important;
+                font-size: 9.5px !important;
+            }}
+            .render_tools_checks {{
+                grid-template-columns: 1fr 1fr;
+            }}
+            .render_tools_panel .pack_roll_hint {{
+                margin-left: 74px;
             }}
         }}
 
@@ -6453,15 +6618,16 @@ def viewer(
                     pixelRatio: 1.00,
                     maxTubularSegments: 820,
                     segmentFactor: 1.05,
-                    radialSegments: 14,
+                    radialSegments: 16,
                     capSegments: 18,
                     anisotropy: 2,
                     shadows: false,
                     clearcoatBoost: 0.00,
                     bumpScale: 0.012,
-                    ribbedBumpScale: 0.035,
-                    ribGeometryScale: 0.030,
-                    ribPitchMm: 8.8,
+                    ribbedBumpScale: 0.060,
+                    ribGeometryScale: 0.078,
+                    ribPitchMm: 18.0,
+                    ribMaxTubularSegments: 2600,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6484,9 +6650,10 @@ def viewer(
                     shadows: true,
                     clearcoatBoost: 0.10,
                     bumpScale: 0.040,
-                    ribbedBumpScale: 0.075,
-                    ribGeometryScale: 0.060,
-                    ribPitchMm: 7.2,
+                    ribbedBumpScale: 0.110,
+                    ribGeometryScale: 0.125,
+                    ribPitchMm: 15.0,
+                    ribMaxTubularSegments: 7800,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6502,15 +6669,16 @@ def viewer(
                 pixelRatio: 1.35,
                 maxTubularSegments: 1350,
                 segmentFactor: 0.72,
-                radialSegments: 22,
+                radialSegments: 24,
                 capSegments: 26,
                 anisotropy: 6,
                 shadows: true,
                 clearcoatBoost: 0.045,
                 bumpScale: 0.026,
-                ribbedBumpScale: 0.055,
-                ribGeometryScale: 0.047,
-                ribPitchMm: 7.8,
+                ribbedBumpScale: 0.085,
+                ribGeometryScale: 0.105,
+                ribPitchMm: 16.5,
+                ribMaxTubularSegments: 5200,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -8382,11 +8550,13 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            // Real zigrinata: actual geometric ribs, not only bump-map.
-            // u follows the tube length, v follows the tube circumference.
-            const pitch = Math.max(4.8, profile.ribPitchMm || 7.8);
-            const repeats = Math.max(6.0, totalLen / pitch);
-            const amp = Math.max(0.10, radius * (profile.ribGeometryScale || 0.045));
+            // Zigrinata realistica: nervature anulari morbide ma molto visibili.
+            // Invece di una micro-texture perfettina, crea alternanza fisica di cresta + valle
+            // lungo l'asse del tubo. Il passo è volutamente più grande del reale per essere leggibile
+            // nel render dell'intero rotolo e nelle catture.
+            const pitch = Math.max(12.0, profile.ribPitchMm || 16.5);
+            const repeats = Math.max(3.0, totalLen / pitch);
+            const amp = Math.max(0.85, radius * (profile.ribGeometryScale || 0.105));
             const twoPi = Math.PI * 2.0;
 
             for (let i = 0; i < pos.count; i++) {{
@@ -8395,19 +8565,20 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 const phase = u * repeats;
                 const frac = phase - Math.floor(phase);
 
-                // Raised rounded band + narrow valley: closer to the real rolled foam texture.
-                const ridgeWave = Math.max(0.0, Math.sin(twoPi * frac - Math.PI * 0.52));
-                const ridge = Math.pow(ridgeWave, 2.15);
-                const shoulder = Math.pow(Math.max(0.0, Math.sin(twoPi * frac + Math.PI * 0.08)), 5.0) * 0.24;
-                const valley = Math.pow(Math.max(0.0, -Math.sin(twoPi * frac - Math.PI * 0.44)), 2.4) * 0.24;
+                // Cresta larga e arrotondata, valle stretta: più simile al tubo reale in foto.
+                const crest = Math.exp(-Math.pow((frac - 0.46) / 0.245, 2.0));
+                const crestTop = Math.exp(-Math.pow((frac - 0.52) / 0.145, 2.0)) * 0.46;
+                const valleyA = Math.exp(-Math.pow((frac - 0.05) / 0.075, 2.0)) * 0.54;
+                const valleyB = Math.exp(-Math.pow((frac - 0.91) / 0.085, 2.0)) * 0.30;
 
-                // Not perfectly machined: tiny circumferential deformation and pitch modulation.
+                // Piccole irregolarità, ma non una zigrinatura a sega né triangolare.
                 const angularIrregularity = 1.0
-                    + 0.080 * Math.sin(twoPi * v * 3.0 + phase * 0.41)
-                    + 0.045 * Math.sin(twoPi * v * 7.0 - phase * 0.19);
-                const longitudinalIrregularity = 0.040 * Math.sin(phase * 0.77) + 0.026 * Math.sin(phase * 1.73 + v * 5.0);
+                    + 0.045 * Math.sin(twoPi * v * 2.0 + phase * 0.23)
+                    + 0.030 * Math.sin(twoPi * v * 5.0 - phase * 0.17);
+                const longitudinalIrregularity = 0.035 * Math.sin(phase * 0.37) + 0.020 * Math.sin(phase * 1.11 + v * 4.0);
 
-                const displacement = amp * ((ridge + shoulder - valley) * angularIrregularity + longitudinalIrregularity);
+                const ribShape = (crest * 0.92 + crestTop - valleyA - valleyB);
+                const displacement = amp * (ribShape * angularIrregularity + longitudinalIrregularity);
 
                 pos.setXYZ(
                     i,
@@ -8433,10 +8604,20 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const curve = new PolylineCurve3(points);
 
             const profile = getQualityProfile();
-            const tubularSegments = Math.max(
+            let tubularSegments = Math.max(
                 renderQuality === "eco" ? 18 : 36,
                 Math.min(profile.maxTubularSegments, Math.floor(totalLen / Math.max(profile.segmentFactor, radius * profile.segmentFactor)))
             );
+
+            if (tubeFinishMode === "zigrinata") {{
+                const ribPitch = Math.max(12.0, profile.ribPitchMm || 16.5);
+                const ribRepeats = Math.max(1, totalLen / ribPitch);
+                const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 2.0 : (renderQuality === "ultra" ? 4.2 : 3.25)));
+                tubularSegments = Math.max(
+                    tubularSegments,
+                    Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
+                );
+            }}
 
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, profile.radialSegments, false);
             applyRibbedGeometry(geo, totalLen, radius);
