@@ -7741,10 +7741,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const profile = getQualityProfile();
 
-            // TubeGeometry maps U from 0 to 1 over the full tube curve.
-            // If repeat is fixed, the texture is stretched when length changes.
-            // Correct logic: repeat count must scale with real tube length.
-            // CUSTOM_RIB.visualDensity = visible ribs per metre.
+            // TubeGeometry maps U from 0 to 1 across the whole tube curve.
+            // So repeat must scale with real tube length; otherwise 15 / 25 / 50 m stretch differently.
             const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
             const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
             const lengthMetres = Math.max(0.001, totalLen / 1000.0);
@@ -7767,7 +7765,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             mat.needsUpdate = true;
             return mat;
         }}
-
+        }}
 
         // ==========================================
         // SIMPLE ASPO
