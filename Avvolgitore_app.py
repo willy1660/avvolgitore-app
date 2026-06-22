@@ -39,6 +39,13 @@ st.set_page_config(page_title="Avvolgimento", layout="wide")
 if "lang" not in st.session_state:
     st.session_state.lang = "IT"
 
+try:
+    query_lang = st.query_params.get("lang", None)
+    if query_lang in {"IT", "EN"} and query_lang != st.session_state.lang:
+        st.session_state.lang = query_lang
+except Exception:
+    pass
+
 # =========================
 # TEXTS
 # =========================
@@ -2676,18 +2683,70 @@ st.markdown(
         padding-top: 0.20rem !important;
     }}
 
+    .pdm-header-shell {{
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        display: block !important;
+        margin: 0 0 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }}
+
     .pdm-header-logo-wrap {{
         width: 100% !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        margin: 0 0 0.10rem 0 !important;
+        margin: 0 0 0 !important;
         padding: 0 !important;
         line-height: 0 !important;
         min-height: 0 !important;
         height: auto !important;
         overflow: visible !important;
         pointer-events: none;
+    }}
+
+    .pdm-lang-mini {{
+        position: absolute !important;
+        left: calc(50% + 150px) !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        z-index: 50 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+        width: auto !important;
+        max-width: calc(50vw - 18px) !important;
+        overflow: visible !important;
+        white-space: nowrap !important;
+    }}
+
+    .pdm-lang-mini a {{
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 45px !important;
+        height: 32px !important;
+        border-radius: 999px !important;
+        text-decoration: none !important;
+        color: var(--text-color) !important;
+        background: color-mix(in srgb, var(--secondary-background-color) 94%, var(--background-color)) !important;
+        border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent) !important;
+        box-shadow: none !important;
+        font-size: 0.70rem !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.03em !important;
+    }}
+
+    .pdm-lang-mini a.is-active {{
+        background: #C57E5A !important;
+        border-color: #C57E5A !important;
+        color: #ffffff !important;
+        box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
     }}
 
     .pdm-header-logo {{
@@ -2864,24 +2923,16 @@ st.markdown(
         }}
     }}
     </style>
-    <div class="pdm-header-logo-wrap">{logo_html}</div>
+    <div class="pdm-header-shell">
+        <div class="pdm-header-logo-wrap">{logo_html}</div>
+        <nav class="pdm-lang-mini" aria-label="Language selector">
+            <a class="{'is-active' if current_lang == 'IT' else ''}" href="?lang=IT" target="_self">IT</a>
+            <a class="{'is-active' if current_lang == 'EN' else ''}" href="?lang=EN" target="_self">EN</a>
+        </nav>
+    </div>
     """,
     unsafe_allow_html=True,
 )
-
-lang_option = st.radio(
-    TEXTS[current_lang]["language"],
-    ["IT", "EN"],
-    index=0 if current_lang == "IT" else 1,
-    key="lang_selector_header",
-    horizontal=True,
-    label_visibility="collapsed",
-)
-
-new_lang = lang_option
-if new_lang != st.session_state.lang:
-    st.session_state.lang = new_lang
-    st.rerun()
 
 lang = st.session_state.lang
 t = TEXTS[lang]
@@ -12280,6 +12331,84 @@ st.markdown(
         div[data-testid="stElementContainer"] {
             max-width: 100% !important;
             box-sizing: border-box !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# FINAL HEADER V8 PATCH - no language radio, compact mobile header
+st.markdown(
+    """
+    <style>
+    .pdm-header-shell,
+    .pdm-header-logo-wrap {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    .pdm-header-logo {
+        height: clamp(150px, 10.2vw, 205px) !important;
+        max-width: min(500px, 58vw) !important;
+    }
+
+    div[data-testid="stTabs"] {
+        margin-top: -0.12rem !important;
+        padding-top: 0 !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        margin-bottom: 0.52rem !important;
+    }
+
+    @media (max-width: 760px) {
+        .main .block-container {
+            padding-top: 0.02rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+
+        .pdm-header-logo {
+            height: clamp(112px, 31vw, 142px) !important;
+            max-width: min(260px, 50vw) !important;
+        }
+
+        .pdm-lang-mini {
+            left: calc(50% + 92px) !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            gap: 5px !important;
+            max-width: calc(50vw - 10px) !important;
+        }
+
+        .pdm-lang-mini a {
+            width: 34px !important;
+            height: 30px !important;
+            font-size: 0.62rem !important;
+            letter-spacing: 0.02em !important;
+        }
+
+        div[data-testid="stTabs"] {
+            margin-top: -0.28rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            margin-top: 0 !important;
+            margin-bottom: 0.30rem !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] {
+            min-height: 1.86rem !important;
+            padding-top: 0.22rem !important;
+            padding-bottom: 0.38rem !important;
         }
     }
     </style>
