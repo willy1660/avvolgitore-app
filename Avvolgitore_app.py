@@ -2482,9 +2482,46 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
         unsafe_allow_html=True,
     )
 
-    b1, b2 = st.columns([1, 1], gap="small")
+    st.markdown(
+        """
+        <style>
+        /* Copper action button area: prevents the restore label from being cut */
+        div[data-testid="stButton"] > button {
+            min-height: 50px !important;
+            height: auto !important;
+            padding: 0.72rem 1.10rem !important;
+            border-radius: 999px !important;
+            background: #C57E5A !important;
+            border: 1px solid color-mix(in srgb, #C57E5A 78%, var(--text-color)) !important;
+            color: #FFFFFF !important;
+            font-weight: 900 !important;
+            white-space: normal !important;
+            line-height: 1.15 !important;
+            box-shadow: 0 8px 18px rgba(197,126,90,0.28) !important;
+        }
+
+        div[data-testid="stButton"] > button * {
+            color: #FFFFFF !important;
+            white-space: normal !important;
+            line-height: 1.15 !important;
+        }
+
+        @media (max-width: 900px) {
+            div[data-testid="stButton"] > button {
+                min-height: 48px !important;
+                font-size: 0.92rem !important;
+                padding-left: 0.85rem !important;
+                padding-right: 0.85rem !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    b1, b2 = st.columns([1.35, 1.0], gap="small")
     with b1:
-        if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True):
+        if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True, key="restore_preset_button"):
             st.session_state["restore_preset_request"] = str(selected_product)
             st.rerun()
     with b2:
@@ -2522,6 +2559,7 @@ def init_calculator_state():
 # =========================
 
 def find_logo():
+    # Use only the real PNG logo file. Do not generate a fake/fallback logo.
     candidates = [
         "New Logo PDM – rame.png",
         "New Logo PDM - rame.png",
@@ -2530,10 +2568,6 @@ def find_logo():
         "logo_pdm.png",
         "pdm_logo.png",
         "logo.png",
-        "logo.svg",
-        "logo.jpg",
-        "logo.jpeg",
-        "logo.webp",
     ]
 
     search_dirs = [
@@ -2549,7 +2583,7 @@ def find_logo():
     for folder in search_dirs:
         for name in candidates:
             path = os.path.join(folder, name)
-            if os.path.exists(path):
+            if os.path.exists(path) and path.lower().endswith(".png"):
                 return path
 
     patterns = []
@@ -2558,14 +2592,10 @@ def find_logo():
             os.path.join(folder, "*logo*.png"),
             os.path.join(folder, "*Logo*.png"),
             os.path.join(folder, "*PDM*.png"),
-            os.path.join(folder, "*.svg"),
-            os.path.join(folder, "*.jpg"),
-            os.path.join(folder, "*.jpeg"),
-            os.path.join(folder, "*.webp"),
         ])
 
     for pattern in patterns:
-        files = glob.glob(pattern)
+        files = [f for f in glob.glob(pattern) if f.lower().endswith(".png")]
         if files:
             return files[0]
 
@@ -2585,20 +2615,10 @@ current_lang = st.session_state.lang
 logo_html = ""
 if logo_path:
     try:
-        logo_suffix = Path(logo_path).suffix.lower()
-        logo_mime = {
-            ".svg": "image/svg+xml",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".webp": "image/webp",
-            ".png": "image/png",
-        }.get(logo_suffix, "image/png")
         logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
-        logo_html = f'<img src="data:{logo_mime};base64,{logo_b64}" class="pdm-centered-logo" alt="PDM logo" />'
+        logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="pdm-centered-logo" alt="PDM logo" />'
     except Exception:
-        logo_html = '<div class="pdm-logo-fallback">PDM<div class="pdm-logo-sub">try it, love it</div></div>'
-else:
-    logo_html = '<div class="pdm-logo-fallback">PDM<div class="pdm-logo-sub">try it, love it</div></div>'
+        logo_html = ""
 
 st.markdown(
     f"""
@@ -2620,21 +2640,6 @@ st.markdown(
         object-fit: contain;
     }}
 
-    .pdm-logo-fallback {{
-        color: #C57E5A;
-        font-size: clamp(34px, 7vw, 68px);
-        font-weight: 950;
-        letter-spacing: -0.05em;
-        line-height: 0.88;
-        text-align: center;
-    }}
-
-    .pdm-logo-sub {{
-        margin-top: 5px;
-        font-size: clamp(10px, 1.8vw, 15px);
-        font-weight: 780;
-        letter-spacing: 0.06em;
-    }}
 
     @media (max-width: 900px) {{
         .pdm-logo-header {{
