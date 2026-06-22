@@ -12635,6 +12635,94 @@ tab_production, tab_tech_sheet, tab_checklist = st.tabs([
     checklist_label,
 ])
 
+# =========================
+# GUARANTEED HEADER/TABS GAP FIX
+# =========================
+# CSS alone was not reliable enough on Streamlit mobile because Streamlit can wrap
+# markdown blocks with dynamic heights. This tiny same-origin component measures the
+# real rendered distance between the logo and the tabs, then moves ONLY the tabs up
+# until the gap is compact. It does not touch buttons, cards, inputs or the rest of
+# the layout.
+components.html(
+    """
+    <script>
+    (function () {
+        const DESKTOP_GAP = 14;
+        const MOBILE_GAP = 10;
+
+        function getDoc() {
+            try {
+                return window.parent && window.parent.document ? window.parent.document : document;
+            } catch (error) {
+                return document;
+            }
+        }
+
+        function compactHeaderGap() {
+            const doc = getDoc();
+            const logo = doc.querySelector('.pdm-header-logo');
+            const tabs = doc.querySelector('div[data-testid=\"stTabs\"]');
+
+            if (!logo || !tabs) return;
+
+            const viewportWidth = doc.documentElement.clientWidth || window.innerWidth || 1024;
+            const desiredGap = viewportWidth <= 760 ? MOBILE_GAP : DESKTOP_GAP;
+
+            // Reset before measuring, otherwise repeated runs would accumulate.
+            tabs.style.setProperty('margin-top', '0px', 'important');
+
+            const logoRect = logo.getBoundingClientRect();
+            const tabsRect = tabs.getBoundingClientRect();
+            const currentGap = tabsRect.top - logoRect.bottom;
+
+            if (currentGap > desiredGap) {
+                const pullUp = Math.round(currentGap - desiredGap);
+                tabs.style.setProperty('margin-top', '-' + pullUp + 'px', 'important');
+            } else {
+                tabs.style.setProperty('margin-top', '0px', 'important');
+            }
+
+            tabs.style.setProperty('padding-top', '0px', 'important');
+            tabs.style.setProperty('overflow-x', 'hidden', 'important');
+
+            const tablist = tabs.querySelector('[role=\"tablist\"]');
+            if (tablist) {
+                tablist.style.setProperty('margin-top', '0px', 'important');
+                tablist.style.setProperty('padding-top', '0px', 'important');
+                tablist.style.setProperty('overflow-x', 'hidden', 'important');
+                if (viewportWidth <= 760) {
+                    tablist.style.setProperty('margin-bottom', '6px', 'important');
+                    tablist.style.setProperty('display', 'grid', 'important');
+                    tablist.style.setProperty('grid-template-columns', 'repeat(3, minmax(0, 1fr))', 'important');
+                    tablist.style.setProperty('gap', '0px', 'important');
+                    tablist.style.setProperty('width', '100%', 'important');
+                }
+            }
+        }
+
+        function schedule() {
+            compactHeaderGap();
+            window.requestAnimationFrame(compactHeaderGap);
+            setTimeout(compactHeaderGap, 120);
+            setTimeout(compactHeaderGap, 450);
+            setTimeout(compactHeaderGap, 900);
+        }
+
+        schedule();
+        window.addEventListener('resize', schedule, { passive: true });
+
+        try {
+            const doc = getDoc();
+            const observer = new MutationObserver(schedule);
+            observer.observe(doc.body, { childList: true, subtree: true });
+            setTimeout(function () { observer.disconnect(); }, 5000);
+        } catch (error) {}
+    })();
+    </script>
+    """,
+    height=0,
+)
+
 if presets_df is None:
     if isinstance(presets_load_exception, FileNotFoundError):
         st.error(t["presets_file_missing"])
