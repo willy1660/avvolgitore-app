@@ -5158,6 +5158,14 @@ def viewer(
                 </div>
             </div>
 
+            <div>
+                <div class="panel_label" id="tube_finish_title">Finitura</div>
+                <div class="btn_group_vertical btn_grid_2">
+                    <button class="tube_finish_btn viewer_btn_small active_opt" data-finish="liscio" id="tube_finish_liscio_btn" type="button">Liscio</button>
+                    <button class="tube_finish_btn viewer_btn_small" data-finish="zigrinata" id="tube_finish_zigrinata_btn" type="button">Zigrinata</button>
+                </div>
+            </div>
+
             <div id="checks_block" class="panel_checks_block">
                 <label class="panel_check">
                     <input type="checkbox" id="ghost_check" />
@@ -5307,14 +5315,15 @@ def viewer(
 
         .viewer_render_tools_overlay {{
             position:absolute;
-            top:66px;
-            right:276px;
+            top:auto;
+            right:14px;
+            bottom:14px;
             z-index:24;
             display:flex;
             align-items:center;
             justify-content:flex-end;
             gap:8px;
-            max-width:calc(100% - 310px);
+            max-width:calc(100% - 430px);
             font-family:Arial, sans-serif;
             user-select:none;
             pointer-events:auto;
@@ -5380,7 +5389,7 @@ def viewer(
                 top:auto;
                 right:10px;
                 left:10px;
-                bottom:10px;
+                bottom:68px;
                 max-width:none;
                 justify-content:center;
                 flex-wrap:wrap;
@@ -5872,10 +5881,12 @@ def viewer(
 
             #packaging_status_badge {{
                 left:10px !important;
-                right:10px !important;
+                right:auto !important;
                 bottom:10px !important;
                 min-width:0 !important;
-                width:auto !important;
+                width:max-content !important;
+                max-width:calc(100% - 20px) !important;
+                padding:10px 12px !important;
                 box-sizing:border-box !important;
             }}
         }}
@@ -5983,13 +5994,62 @@ def viewer(
 
             #packaging_status_badge {{
                 left: 8px !important;
-                right: 8px !important;
+                right: auto !important;
                 bottom: 8px !important;
-                width: auto !important;
+                width: max-content !important;
+                max-width: calc(100% - 16px) !important;
                 min-width: 0 !important;
+                padding: 10px 12px !important;
                 box-sizing: border-box !important;
             }}
         }}
+
+
+        /* v17 · render tools in lower HUD area + compact packaging semaphore */
+        #packaging_status_badge {{
+            width:max-content !important;
+            max-width:min(360px, calc(100% - 28px)) !important;
+            min-width:0 !important;
+            right:auto !important;
+            padding:10px 12px !important;
+        }}
+
+        #packaging_status_badge > div:first-child {{
+            font-size:9px !important;
+            margin-bottom:3px !important;
+        }}
+
+        #packaging_status_text {{
+            font-size:18px !important;
+            white-space:nowrap !important;
+        }}
+
+        #packaging_status_reason {{
+            display:none !important;
+        }}
+
+        @media (max-width: 680px) {{
+            .viewer_render_tools_overlay {{
+                top:auto !important;
+                bottom:64px !important;
+                left:8px !important;
+                right:8px !important;
+                max-width:calc(100% - 16px) !important;
+                justify-content:center !important;
+            }}
+            .viewer_tools_group {{
+                background:rgba(18,22,27,0.66) !important;
+                padding:4px !important;
+                gap:4px !important;
+            }}
+            .viewer_tool_chip {{
+                height:28px !important;
+                min-width:34px !important;
+                padding:0 8px !important;
+                font-size:10.5px !important;
+            }}
+        }}
+
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -6016,6 +6076,7 @@ def viewer(
         const speedBtns = [...document.querySelectorAll(".speed_btn")];
         const spoolBtns = [...document.querySelectorAll(".spool_btn")];
         const tubeBtns = [...document.querySelectorAll(".tube_btn")];
+        const tubeFinishBtns = [...document.querySelectorAll(".tube_finish_btn")];
         const viewBtns = [...document.querySelectorAll(".view_btn")];
         const qualityBtns = [...document.querySelectorAll(".quality_btn")];
         const zoomInBtn = document.getElementById("zoom_in_btn");
@@ -6082,6 +6143,12 @@ def viewer(
         document.getElementById("spool_hidden_btn").textContent = T.hidden;
         document.getElementById("tube_gelwhite_btn").textContent = T.gelwhite;
         document.getElementById("tube_gelblack_btn").textContent = T.gelblack;
+        const tubeFinishTitle = document.getElementById("tube_finish_title");
+        const tubeFinishLiscio = document.getElementById("tube_finish_liscio_btn");
+        const tubeFinishZigrinata = document.getElementById("tube_finish_zigrinata_btn");
+        if (tubeFinishTitle) tubeFinishTitle.textContent = (T.language === "Language") ? "Finish" : "Finitura";
+        if (tubeFinishLiscio) tubeFinishLiscio.textContent = (T.language === "Language") ? "Smooth" : "Liscio";
+        if (tubeFinishZigrinata) tubeFinishZigrinata.textContent = "Zigrinata";
         document.getElementById("view_3d_btn").textContent = T.view_3d;
         document.getElementById("view_front_btn").textContent = T.view_front;
         document.getElementById("view_side_btn").textContent = T.view_side;
@@ -6176,71 +6243,74 @@ def viewer(
         function getQualityProfile(quality = renderQuality) {{
             if (quality === "eco") {{
                 return {{
-                    pixelRatio: 0.58,
-                    maxTubularSegments: 380,
-                    segmentFactor: 1.90,
-                    radialSegments: 8,
-                    capSegments: 12,
-                    anisotropy: 1,
+                    pixelRatio: 1.00,
+                    maxTubularSegments: 820,
+                    segmentFactor: 1.05,
+                    radialSegments: 14,
+                    capSegments: 18,
+                    anisotropy: 2,
                     shadows: false,
                     clearcoatBoost: 0.00,
-                    bumpScale: 0.00,
-                    exposure: 0.96,
-                    ambientBoost: 0.08,
-                    nearMin: 9,
-                    nearMax: 70,
-                    nearDivisor: 430,
-                    farMin: 3600,
-                    farFactor: 4.4,
-                    farPadding: 1600
+                    bumpScale: 0.018,
+                    ribbedBumpScale: 0.050,
+                    exposure: 1.00,
+                    ambientBoost: 0.05,
+                    nearMin: 5,
+                    nearMax: 48,
+                    nearDivisor: 620,
+                    farMin: 4300,
+                    farFactor: 5.0,
+                    farPadding: 2100
                 }};
             }}
 
             if (quality === "ultra") {{
                 return {{
-                    pixelRatio: 2.80,
-                    maxTubularSegments: 4200,
-                    segmentFactor: 0.28,
-                    radialSegments: 40,
-                    capSegments: 48,
-                    anisotropy: 16,
+                    pixelRatio: 2.00,
+                    maxTubularSegments: 2600,
+                    segmentFactor: 0.42,
+                    radialSegments: 30,
+                    capSegments: 36,
+                    anisotropy: 12,
                     shadows: true,
-                    clearcoatBoost: 0.16,
-                    bumpScale: 0.18,
-                    exposure: 1.12,
-                    ambientBoost: -0.02,
-                    nearMin: 1.2,
-                    nearMax: 20,
-                    nearDivisor: 1200,
-                    farMin: 9500,
-                    farFactor: 8.5,
-                    farPadding: 5200
+                    clearcoatBoost: 0.10,
+                    bumpScale: 0.095,
+                    ribbedBumpScale: 0.145,
+                    exposure: 1.08,
+                    ambientBoost: -0.01,
+                    nearMin: 2.0,
+                    nearMax: 28,
+                    nearDivisor: 980,
+                    farMin: 7200,
+                    farFactor: 7.0,
+                    farPadding: 3900
                 }};
             }}
 
             return {{
-                pixelRatio: 1.45,
-                maxTubularSegments: 1500,
-                segmentFactor: 0.70,
+                pixelRatio: 1.35,
+                maxTubularSegments: 1350,
+                segmentFactor: 0.72,
                 radialSegments: 22,
-                capSegments: 24,
-                anisotropy: 8,
+                capSegments: 26,
+                anisotropy: 6,
                 shadows: true,
-                clearcoatBoost: 0.06,
-                bumpScale: 0.075,
-                exposure: 1.04,
-                ambientBoost: 0.00,
-                nearMin: 4,
-                nearMax: 42,
-                nearDivisor: 650,
-                farMin: 5200,
-                farFactor: 5.8,
-                farPadding: 2600
+                clearcoatBoost: 0.045,
+                bumpScale: 0.055,
+                ribbedBumpScale: 0.095,
+                exposure: 1.03,
+                ambientBoost: 0.01,
+                nearMin: 3.6,
+                nearMax: 40,
+                nearDivisor: 720,
+                farMin: 5400,
+                farFactor: 6.0,
+                farPadding: 2800
             }};
         }}
 
         function applyTextureQuality(profile) {{
-            [steelTex, tubeWhiteTex, tubeBlackTex, copperTex].forEach(tex => {{
+            [steelTex, tubeWhiteTex, tubeBlackTex, tubeWhiteRibbedTex, tubeBlackRibbedTex, copperTex].forEach(tex => {{
                 if (!tex) return;
                 tex.anisotropy = profile.anisotropy;
                 tex.needsUpdate = true;
@@ -6309,6 +6379,7 @@ def viewer(
         let speed = 1.0;
         let aspoMode = "hidden";
         let tubeMode = "{tube_mode_initial}";
+        let tubeFinishMode = "liscio";
         let currentView = "3d";
         let sceneMode = "{initial_scene}";
         let packagingMode = "{packaging_mode}";
@@ -6442,6 +6513,16 @@ def viewer(
             btn.addEventListener("click", () => {{
                 tubeMode = btn.dataset.tube;
                 setActiveButton(tubeBtns, tubeMode, "data-tube");
+                applyRenderQuality(renderQuality);
+                applyVisualState(true);
+            }});
+        }});
+
+        tubeFinishBtns.forEach(btn => {{
+            btn.addEventListener("click", () => {{
+                tubeFinishMode = btn.dataset.finish || "liscio";
+                setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
+                applyRenderQuality(renderQuality);
                 applyVisualState(true);
             }});
         }});
@@ -7032,6 +7113,62 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return tex;
         }}
 
+        function makeTubeRibbedTexture(size = 512, dark=false) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext("2d");
+            const base = dark ? 96 : 232;
+            ctx.fillStyle = `rgb(${{base}}, ${{base}}, ${{base}})`;
+            ctx.fillRect(0, 0, size, size);
+
+            const img = ctx.getImageData(0, 0, size, size);
+            const data = img.data;
+
+            for (let y = 0; y < size; y++) {{
+                const yy = y / size;
+                for (let x = 0; x < size; x++) {{
+                    const xx = x / size;
+                    const i = (y * size + x) * 4;
+
+                    // Banda anulare: varia lungo l'asse del tubo, ma con micro-irregolarità.
+                    const irregular = Math.sin(xx * 37.0 + Math.sin(xx * 9.0) * 0.55 + yy * 0.85) * 0.035;
+                    const phase = (xx * 34.0 + irregular) % 1.0;
+                    const ridgeCore = Math.exp(-Math.pow((phase - 0.50) / 0.115, 2));
+                    const ridgeShoulder = Math.exp(-Math.pow((phase - 0.50) / 0.255, 2)) * 0.40;
+                    const valley = -Math.exp(-Math.pow((phase - 0.02) / 0.150, 2)) * 0.22;
+                    const longitudinalNoise = (Math.random() - 0.5) * (dark ? 5.0 : 4.0);
+                    const softDents = Math.sin(xx * 91.0 + yy * 16.0) * 2.2 + Math.sin(xx * 17.0 - yy * 41.0) * 1.5;
+                    const dirtSpeck = Math.random() > 0.996 ? (dark ? 18 : -24) : 0;
+
+                    let v = base + (ridgeCore * 34.0) + (ridgeShoulder * 13.0) + (valley * 18.0) + longitudinalNoise + softDents + dirtSpeck;
+                    if (dark) {{
+                        v = Math.max(58, Math.min(145, v));
+                    }} else {{
+                        v = Math.max(198, Math.min(255, v));
+                    }}
+
+                    data[i] = v;
+                    data[i + 1] = v;
+                    data[i + 2] = v;
+                    data[i + 3] = 255;
+                }}
+            }}
+
+            ctx.putImageData(img, 0, 0);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            // Repeat alto sull'asse del tubo: crea l'effetto zigrinato/anulare.
+            tex.repeat.set(16.0, 1.0);
+            tex.anisotropy = 12;
+            tex.needsUpdate = true;
+
+            return tex;
+        }}
+
         function makeCopperTexture(size = 256) {{
             const canvas = document.createElement("canvas");
             canvas.width = size;
@@ -7080,6 +7217,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         const steelTex = makeSteelTexture(256);
         const tubeWhiteTex = makeTubeTexture(256, false);
         const tubeBlackTex = makeTubeTexture(256, true);
+        const tubeWhiteRibbedTex = makeTubeRibbedTexture(512, false);
+        const tubeBlackRibbedTex = makeTubeRibbedTexture(512, true);
         const copperTex = makeCopperTexture(256);
 
         // ==========================================
@@ -7116,23 +7255,28 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const theme = getTheme();
             const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
             const tex = mode === "gelblack" ? tubeBlackTex : tubeWhiteTex;
+            const ribbedTex = mode === "gelblack" ? tubeBlackRibbedTex : tubeWhiteRibbedTex;
             const profile = getQualityProfile();
             const isUltra = renderQuality === "ultra";
             const isEco = renderQuality === "eco";
+            const isRibbed = tubeFinishMode === "zigrinata";
 
             const mat = new THREE.MeshPhysicalMaterial({{
                 color: chosen,
                 map: tex,
-                roughness: isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72)),
+                roughness: isRibbed ? (isEco ? 0.84 : (active ? 0.58 : (free ? 0.78 : 0.66))) : (isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72))),
                 metalness: 0.005,
-                clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost),
+                clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost + (isRibbed ? 0.035 : 0.0)),
                 clearcoatRoughness: isUltra ? 0.10 : (mode === "gelblack" ? 0.20 : 0.15),
                 reflectivity: isEco ? 0.10 : (mode === "gelblack" ? 0.28 : 0.42),
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
 
-            if (!isEco) {{
+            if (isRibbed) {{
+                mat.bumpMap = ribbedTex;
+                mat.bumpScale = mode === "gelblack" ? profile.ribbedBumpScale * 0.55 : profile.ribbedBumpScale;
+            }} else if (!isEco) {{
                 mat.bumpMap = tex;
                 mat.bumpScale = mode === "gelblack" ? profile.bumpScale * 0.55 : profile.bumpScale;
             }}
@@ -7422,7 +7566,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const statusText = ok ? (T.box_fit_ok || "OK") : (warn ? "Attenzione" : (T.box_fit_over || "Fuori limite"));
             const heightLimitText = `${{heightLimit.toFixed(0)}} mm`;
             const reasonText = ok
-                ? (packagingMode === "box" ? (T.packaging_box_desc || "") : (containerMode === "40hc" ? (T.container_40hc_desc || "") : (T.container_20ft_desc || "")))
+                ? ""
                 : (warn
                     ? `${{T.coil_footprint || "Ingombro rotolo"}}: ${{coilFootprint.toFixed(1)}} mm (+${{footprintOver.toFixed(1)}} mm, margine tollerato)`
                     : (footprintOver > 20.001
