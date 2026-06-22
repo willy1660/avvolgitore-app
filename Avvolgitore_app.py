@@ -4904,10 +4904,10 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
-    rib_pitch_mm=0.80,
+    rib_visual_density=120.0,
     rib_geometry_scale=0.076,
     rib_bump_scale=0.054,
-    rib_texture_repeat=420.0,
+    rib_texture_factor=1.0,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
@@ -4926,10 +4926,10 @@ def viewer(
     active_product_name = active_product_name or ("Preset attivo" if language == "IT" else "Active preset")
     active_product_name_json = json.dumps(str(active_product_name))
     active_product_kind_json = json.dumps(str(active_product_kind or "preset"))
-    rib_pitch_mm_json = json.dumps(float(rib_pitch_mm))
+    rib_visual_density_json = json.dumps(float(rib_visual_density))
     rib_geometry_scale_json = json.dumps(float(rib_geometry_scale))
     rib_bump_scale_json = json.dumps(float(rib_bump_scale))
-    rib_texture_repeat_json = json.dumps(float(rib_texture_repeat))
+    rib_texture_factor_json = json.dumps(float(rib_texture_factor))
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -6429,10 +6429,10 @@ def viewer(
         const ACTIVE_PRODUCT_NAME = {active_product_name_json};
         const ACTIVE_PRODUCT_KIND = {active_product_kind_json};
         const CUSTOM_RIB = {{
-            pitchMm: {rib_pitch_mm_json},
+            visualDensity: {rib_visual_density_json},
             geometryScale: {rib_geometry_scale_json},
             bumpScale: {rib_bump_scale_json},
-            textureRepeat: {rib_texture_repeat_json}
+            textureFactor: {rib_texture_factor_json}
         }};
 
         const host = document.getElementById("viewer_root");
@@ -6664,8 +6664,9 @@ def viewer(
                     bumpScale: 0.012,
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
-                    ribPitchMm: CUSTOM_RIB.pitchMm,
-                    ribMaxTubularSegments: 52000,
+                    ribVisualDensity: CUSTOM_RIB.visualDensity,
+                    ribTextureFactor: CUSTOM_RIB.textureFactor,
+                    ribMaxTubularSegments: 12000,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6690,8 +6691,9 @@ def viewer(
                     bumpScale: 0.040,
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
-                    ribPitchMm: CUSTOM_RIB.pitchMm,
-                    ribMaxTubularSegments: 52000,
+                    ribVisualDensity: CUSTOM_RIB.visualDensity,
+                    ribTextureFactor: CUSTOM_RIB.textureFactor,
+                    ribMaxTubularSegments: 12000,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6715,8 +6717,8 @@ def viewer(
                 bumpScale: 0.026,
                 ribbedBumpScale: CUSTOM_RIB.bumpScale,
                 ribGeometryScale: CUSTOM_RIB.geometryScale,
-                ribPitchMm: CUSTOM_RIB.pitchMm,
-                ribMaxTubularSegments: 52000,
+                ribVisualDensity: CUSTOM_RIB.visualDensity,
+                ribMaxTubularSegments: 12000,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -7738,13 +7740,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode !== "zigrinata" || !material) return material;
 
             const profile = getQualityProfile();
-            const pitch = Math.max(0.001, profile.ribPitchMm || CUSTOM_RIB.pitchMm || 0.35);
-            const ribRepeats = Math.max(1.0, totalLen / pitch);
-
-            // Important: do not use a fixed texture repeat for the whole roll.
-            // A fixed repeat makes the zigrinatura look different on 15 / 25 / 50 m.
-            // This keeps the visible distance between rings constant with tube length.
-            const visualRepeat = Math.max(1.0, ribRepeats);
+            const visualRepeat = Math.max(1.0, (profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0) * (profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0));
 
             const mat = material.clone();
 
@@ -8639,9 +8635,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const pitch = Math.max(0.001, profile.ribPitchMm || 0.35);
-            const physicalRepeats = Math.max(3.0, totalLen / pitch);
-            const repeats = Math.min(2200.0, physicalRepeats);
+            const repeats = Math.max(3.0, Math.min(2200.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0));
             const amp = Math.min(radius * 0.125, Math.max(0.38, radius * (profile.ribGeometryScale || 0.076)));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
@@ -8704,8 +8698,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribPitch = Math.max(0.001, profile.ribPitchMm || 0.35);
-                const ribRepeats = Math.max(1, totalLen / ribPitch);
+                const ribRepeats = Math.max(1, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
                 const ribTargetSegments = Math.ceil(Math.min(ribRepeats, 2200.0) * 8.0);
                 tubularSegments = Math.max(
                     tubularSegments,
@@ -14397,27 +14390,26 @@ with tab_production:
             <div class="zigrinatura-debug-card">
                 <div class="zigrinatura-debug-title">{"Regolazione zigrinatura" if lang == "IT" else "Ribbed finish tuning"}</div>
                 <div class="zigrinatura-debug-text">
-                    {"Solo modalità manuale per fare prove con calma. Quando trovi i valori giusti me li passi e poi ti preparo la versione finale pulita." if lang == "IT" else "Manual mode only, so you can test calmly. When you find the right values, send them to me and I’ll prepare the final clean version."}
+                    {"Solo modalità manuale. Qui non lavori più con un passo fisico reale, ma con una densità visiva: così l'effetto resta leggibile e stabile anche se cambi i metri del tubo." if lang == "IT" else "Manual mode only. Here you are no longer tuning a real physical pitch, but a visual density, so the effect stays readable and stable even if tube length changes."}
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        rib_reference_diameter = max(0.1, float(d_tubo_sim))
         zg1, zg2 = st.columns(2, gap="large")
         with zg1:
-            rib_pitch_mm = st.slider(
-                "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
-                min_value=0.001,
-                max_value=12.0,
-                value=float(st.session_state.get("tmp_rib_pitch_mm", 0.80)),
-                step=0.001,
-                key="tmp_rib_pitch_mm",
+            rib_visual_density = st.slider(
+                "Densità zigrinatura" if lang == "IT" else "Rib density",
+                min_value=5.0,
+                max_value=600.0,
+                value=float(st.session_state.get("tmp_rib_visual_density", 120.0)),
+                step=1.0,
+                key="tmp_rib_visual_density",
                 help=(
-                    "Distanza reale tra una nervatura e la successiva. Più basso = più anelli e zigrinatura più fitta."
+                    "Controlla quante nervature visibili vedi sul tubo nel render. Più alto = zigrinatura più fitta e più ripetitiva."
                     if lang == "IT"
-                    else "Real distance between one rib and the next. Lower value = more rings and denser pattern."
+                    else "Controls how many visible ribs appear on the tube in the render. Higher = denser and more repetitive ribbing."
                 ),
             )
             rib_geometry_scale = st.slider(
@@ -14448,34 +14440,28 @@ with tab_production:
                     else "Visual material relief without heavily changing geometry. Adds micro-detail and realism."
                 ),
             )
-            rib_texture_repeat = st.slider(
-                "Ripetizione texture" if lang == "IT" else "Texture repetition",
-                min_value=10.0,
-                max_value=1500.0,
-                value=float(st.session_state.get("tmp_rib_texture_repeat", 420.0)),
-                step=1.0,
-                key="tmp_rib_texture_repeat",
+            rib_texture_factor = st.slider(
+                "Fattore texture fine" if lang == "IT" else "Fine texture factor",
+                min_value=0.20,
+                max_value=4.00,
+                value=float(st.session_state.get("tmp_rib_texture_factor", 1.0)),
+                step=0.05,
+                key="tmp_rib_texture_factor",
                 help=(
-                    "Densità della texture visiva. Ora il passo reale viene mantenuto sulla lunghezza: 15 / 25 / 50 m cambiano il numero di anelli, non la distanza visiva tra anelli."
+                    "Moltiplicatore della texture fine sopra la densità principale. Più alto = micro-texture più fitta."
                     if lang == "IT"
-                    else "Visual texture density. The real pitch is now kept along the length: 15 / 25 / 50 m change the number of rings, not the visible distance between rings."
+                    else "Multiplier for the fine texture on top of the main density. Higher = denser micro-texture."
                 ),
             )
-
-        rib_pitch_factor_current = rib_pitch_mm / rib_reference_diameter
-        rib_texture_factor_current = rib_texture_repeat * rib_pitch_mm
 
         st.markdown(
             f"""
             <div class="zigrinatura-values">
                 <b>{"Valori manuali attuali" if lang == "IT" else "Current manual values"}</b><br>
-                {"Diametro tubo usato" if lang == "IT" else "Tube diameter used"}: {rib_reference_diameter:.2f} mm<br>
-                {"Passo" if lang == "IT" else "Pitch"}: {rib_pitch_mm:.3f} mm ·
-                {"Fattore passo (solo informativo)" if lang == "IT" else "Pitch factor (info only)"}: {rib_pitch_factor_current:.5f} × Ø tubo<br>
+                {"Densità zigrinatura" if lang == "IT" else "Rib density"}: {rib_visual_density:.0f}<br>
                 {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
                 Bump: {rib_bump_scale:.3f} ·
-                Texture: {rib_texture_repeat:.0f}<br>
-                {"Fattore texture (solo informativo)" if lang == "IT" else "Texture factor (info only)"}: {rib_texture_factor_current:.1f}
+                {"Texture fine" if lang == "IT" else "Fine texture"}: × {rib_texture_factor:.2f}
             </div>
             """,
             unsafe_allow_html=True,
@@ -14508,10 +14494,10 @@ with tab_production:
             simulation_print_payload=simulation_print_payload,
             active_product_name=selected_product,
             active_product_kind="prototype" if is_prototype else "preset",
-            rib_pitch_mm=rib_pitch_mm,
+            rib_visual_density=rib_visual_density,
             rib_geometry_scale=rib_geometry_scale,
             rib_bump_scale=rib_bump_scale,
-            rib_texture_repeat=rib_texture_repeat,
+            rib_texture_factor=rib_texture_factor,
         ),
         height=720,
     )
