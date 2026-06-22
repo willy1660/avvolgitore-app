@@ -2484,7 +2484,7 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
 
     b1, b2 = st.columns([1, 1], gap="small")
     with b1:
-        if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True):
+        if st.button("Ripristina preset" if language == "IT" else "Restore preset", type="primary", use_container_width=True, key="restore_preset_button"):
             st.session_state["restore_preset_request"] = str(selected_product)
             st.rerun()
     with b2:
@@ -2578,53 +2578,10 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-# Minimal native header. No logo, no language selector, no custom hero/card.
+# Language state only. The visible header is rendered immediately before the tabs
+# so no hidden CSS/helper blocks can create blank space between title and tabs.
 lang = st.session_state.lang
 t = TEXTS[lang]
-
-st.title(t["title"])
-
-st.markdown(
-    """
-    <style>
-    /* Minimal header reset */
-    .main .block-container {
-        padding-top: 0.70rem !important;
-    }
-
-    h1 {
-        margin-top: 0 !important;
-        margin-bottom: 0.55rem !important;
-        line-height: 1.08 !important;
-        letter-spacing: -0.035em;
-        font-weight: 650;
-    }
-
-    div[data-testid="stTabs"] {
-        margin-top: 0 !important;
-    }
-
-    div[data-testid="stTabs"] [role="tablist"] {
-        margin-top: 0 !important;
-        margin-bottom: 14px !important;
-    }
-
-    @media (max-width: 900px) {
-        .main .block-container {
-            padding-left: 0.75rem !important;
-            padding-right: 0.75rem !important;
-            padding-top: 0.55rem !important;
-        }
-
-        h1 {
-            font-size: 2.05rem !important;
-            margin-bottom: 0.45rem !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 st.markdown(
     """
@@ -11555,9 +11512,47 @@ st.markdown(
 st.markdown(
     """
     <style>
-    /* Title-only header: reduce the blank gap between title and main tabs */
-    div[data-testid="stTabs"] {
+    /* Compact native header immediately before tabs */
+    .main .block-container {
+        padding-top: 0.55rem !important;
+    }
+
+    .pdm-header-anchor {
+        height: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    h1 {
         margin-top: 0 !important;
+        margin-bottom: 0.10rem !important;
+        line-height: 1.02 !important;
+        letter-spacing: -0.035em;
+        font-weight: 650;
+    }
+
+    div[data-testid="stImage"] {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    div[data-testid="stImage"] img {
+        max-height: 66px !important;
+        width: auto !important;
+        object-fit: contain !important;
+    }
+
+    div[data-testid="stSelectbox"] {
+        margin: 0 !important;
+    }
+
+    div[data-baseweb="select"] > div {
+        min-height: 42px !important;
+        border-radius: 12px !important;
+    }
+
+    div[data-testid="stTabs"] {
+        margin-top: 0.20rem !important;
     }
 
     div[data-testid="stTabs"] [role="tablist"] {
@@ -11565,27 +11560,80 @@ st.markdown(
         margin-bottom: 12px !important;
     }
 
-    @media (max-width: 1180px) {
-        div[data-testid="stTabs"] {
-            margin-top: -260px !important;
-        }
+    /* Reset/restore button: keep copper colour and avoid clipping */
+    div[data-testid="stButton"] button,
+    button[data-testid="baseButton-primary"] {
+        min-height: 44px !important;
+        border-radius: 14px !important;
+        padding: 0.55rem 1.10rem !important;
+        overflow: visible !important;
+    }
+
+    button[data-testid="baseButton-primary"] {
+        background: #C57E5A !important;
+        border-color: #C57E5A !important;
+        color: white !important;
+        font-weight: 850 !important;
     }
 
     @media (max-width: 900px) {
-        div[data-testid="stTabs"] {
-            margin-top: -430px !important;
+        .main .block-container {
+            padding-left: 0.70rem !important;
+            padding-right: 0.70rem !important;
+            padding-top: 0.45rem !important;
         }
-    }
 
-    @media (max-width: 520px) {
+        h1 {
+            font-size: 2.00rem !important;
+            margin-bottom: 0.05rem !important;
+        }
+
+        div[data-testid="stImage"] img {
+            max-height: 54px !important;
+        }
+
         div[data-testid="stTabs"] {
-            margin-top: -470px !important;
+            margin-top: 0.15rem !important;
         }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+st.markdown('<div class="pdm-header-anchor"></div>', unsafe_allow_html=True)
+
+header_logo_col, header_title_col, header_lang_col = st.columns([0.70, 4.85, 1.35], gap="medium")
+
+with header_logo_col:
+    if logo_path:
+        try:
+            st.image(logo_path, width=76)
+        except Exception:
+            st.markdown("**PDM**")
+    else:
+        st.markdown("**PDM**")
+
+with header_title_col:
+    st.title(t["title"])
+
+with header_lang_col:
+    current_lang = st.session_state.lang
+    lang_option = st.selectbox(
+        TEXTS[current_lang]["language"],
+        ["Italiano", "English (US)"],
+        index=0 if current_lang == "IT" else 1,
+        key="lang_selector_top",
+        label_visibility="collapsed",
+    )
+
+new_lang = "IT" if "Italiano" in lang_option else "EN"
+if new_lang != st.session_state.lang:
+    st.session_state.lang = new_lang
+    st.rerun()
+
+lang = st.session_state.lang
+t = TEXTS[lang]
 
 # =========================
 # UI
