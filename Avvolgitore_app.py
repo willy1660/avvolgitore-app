@@ -4975,6 +4975,21 @@ def viewer(
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
         </div>
 
+        <div id="viewer_render_tools_overlay" class="viewer_render_tools_overlay">
+            <div class="viewer_tools_group viewer_tools_group_camera">
+                <span class="viewer_tools_label" id="camera_tools_title">Camera</span>
+                <button class="viewer_tool_chip" id="zoom_out_btn" type="button">−</button>
+                <button class="viewer_tool_chip viewer_tool_chip_main" id="fit_view_btn" type="button">Fit</button>
+                <button class="viewer_tool_chip" id="zoom_in_btn" type="button">+</button>
+            </div>
+            <div class="viewer_tools_group viewer_tools_group_quality">
+                <span class="viewer_tools_label" id="quality_title">Qualità</span>
+                <button class="quality_btn viewer_tool_chip" data-quality="eco" type="button">Eco</button>
+                <button class="quality_btn viewer_tool_chip active_opt" data-quality="alta" type="button">Alta</button>
+                <button class="quality_btn viewer_tool_chip" data-quality="ultra" type="button">Ultra</button>
+            </div>
+        </div>
+
         <div id="active_preset_badge" style="
             position:absolute;
             top:22px;
@@ -5103,23 +5118,6 @@ def viewer(
                 </div>
             </div>
 
-            <div>
-                <div class="panel_label" id="camera_tools_title">Camera</div>
-                <div class="btn_group_vertical btn_grid_3">
-                    <button class="viewer_btn_small" id="zoom_out_btn" type="button">−</button>
-                    <button class="viewer_btn_small" id="fit_view_btn" type="button">Fit</button>
-                    <button class="viewer_btn_small" id="zoom_in_btn" type="button">+</button>
-                </div>
-            </div>
-
-            <div>
-                <div class="panel_label" id="quality_title">Qualità</div>
-                <div class="btn_group_vertical btn_grid_3">
-                    <button class="quality_btn viewer_btn_small" data-quality="eco" type="button">Eco</button>
-                    <button class="quality_btn viewer_btn_small active_opt" data-quality="alta" type="button">Alta</button>
-                    <button class="quality_btn viewer_btn_small" data-quality="ultra" type="button">Ultra</button>
-                </div>
-            </div>
 
             <div id="scene_block" style="display:none;">
                 <div class="panel_label" id="scene_title"></div>
@@ -5304,6 +5302,108 @@ def viewer(
             letter-spacing:0.02em;
             text-transform:uppercase;
             box-shadow:0 8px 18px rgba(197,126,90,0.28);
+        }}
+
+
+        .viewer_render_tools_overlay {{
+            position:absolute;
+            top:66px;
+            right:276px;
+            z-index:24;
+            display:flex;
+            align-items:center;
+            justify-content:flex-end;
+            gap:8px;
+            max-width:calc(100% - 310px);
+            font-family:Arial, sans-serif;
+            user-select:none;
+            pointer-events:auto;
+        }}
+
+        .viewer_tools_group {{
+            display:flex;
+            align-items:center;
+            gap:6px;
+            min-height:36px;
+            padding:6px;
+            border-radius:999px;
+            background:rgba(18,22,27,0.74);
+            border:1px solid rgba(255,255,255,0.12);
+            backdrop-filter:blur(10px);
+            box-shadow:0 12px 26px rgba(0,0,0,0.22);
+        }}
+
+        .viewer_tools_label {{
+            padding:0 6px 0 8px;
+            font-size:10px;
+            line-height:1;
+            font-weight:900;
+            letter-spacing:0.075em;
+            text-transform:uppercase;
+            color:rgba(248,250,252,0.68);
+            white-space:nowrap;
+        }}
+
+        .viewer_tool_chip {{
+            border:0;
+            min-width:38px;
+            height:30px;
+            border-radius:999px;
+            padding:0 10px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            background:rgba(255,255,255,0.10);
+            color:#f8fafc;
+            font-size:12px;
+            line-height:1;
+            font-weight:900;
+            cursor:pointer;
+            box-shadow:none;
+            transition:background 0.14s ease, transform 0.14s ease, color 0.14s ease;
+        }}
+
+        .viewer_tool_chip:hover {{
+            transform:translateY(-1px);
+            background:rgba(197,126,90,0.24);
+        }}
+
+        .viewer_tool_chip.active_opt,
+        .viewer_tool_chip_main {{
+            background:#C57E5A !important;
+            color:#ffffff !important;
+            box-shadow:0 8px 18px rgba(197,126,90,0.26);
+        }}
+
+        @media (max-width: 920px) {{
+            .viewer_render_tools_overlay {{
+                top:auto;
+                right:10px;
+                left:10px;
+                bottom:10px;
+                max-width:none;
+                justify-content:center;
+                flex-wrap:wrap;
+                gap:7px;
+                z-index:28;
+            }}
+
+            .viewer_tools_group {{
+                min-height:34px;
+                padding:5px;
+                gap:5px;
+            }}
+
+            .viewer_tools_label {{
+                display:none;
+            }}
+
+            .viewer_tool_chip {{
+                min-width:38px;
+                height:30px;
+                padding:0 9px;
+                font-size:11px;
+            }}
         }}
 
         html.pseudo_fullscreen_doc,
@@ -6046,13 +6146,13 @@ def viewer(
         }});
 
         let renderQuality = "alta";
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.45));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.physicallyCorrectLights = true;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.04;
-        renderer.shadowMap.enabled = false;
+        renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.localClippingEnabled = true;
 
@@ -6067,26 +6167,106 @@ def viewer(
 
         function updateCameraClipping() {{
             const distance = Math.max(1, camera.position.distanceTo(controls.target));
-            camera.near = Math.max(4, Math.min(42, distance / 650));
-            camera.far = Math.max(5200, distance * 5.8 + 2600);
+            const profile = getQualityProfile();
+            camera.near = Math.max(profile.nearMin, Math.min(profile.nearMax, distance / profile.nearDivisor));
+            camera.far = Math.max(profile.farMin, distance * profile.farFactor + profile.farPadding);
             camera.updateProjectionMatrix();
+        }}
+
+        function getQualityProfile(quality = renderQuality) {{
+            if (quality === "eco") {{
+                return {{
+                    pixelRatio: 0.58,
+                    maxTubularSegments: 380,
+                    segmentFactor: 1.90,
+                    radialSegments: 8,
+                    capSegments: 12,
+                    anisotropy: 1,
+                    shadows: false,
+                    clearcoatBoost: 0.00,
+                    bumpScale: 0.00,
+                    exposure: 0.96,
+                    ambientBoost: 0.08,
+                    nearMin: 9,
+                    nearMax: 70,
+                    nearDivisor: 430,
+                    farMin: 3600,
+                    farFactor: 4.4,
+                    farPadding: 1600
+                }};
+            }}
+
+            if (quality === "ultra") {{
+                return {{
+                    pixelRatio: 2.80,
+                    maxTubularSegments: 4200,
+                    segmentFactor: 0.28,
+                    radialSegments: 40,
+                    capSegments: 48,
+                    anisotropy: 16,
+                    shadows: true,
+                    clearcoatBoost: 0.16,
+                    bumpScale: 0.18,
+                    exposure: 1.12,
+                    ambientBoost: -0.02,
+                    nearMin: 1.2,
+                    nearMax: 20,
+                    nearDivisor: 1200,
+                    farMin: 9500,
+                    farFactor: 8.5,
+                    farPadding: 5200
+                }};
+            }}
+
+            return {{
+                pixelRatio: 1.45,
+                maxTubularSegments: 1500,
+                segmentFactor: 0.70,
+                radialSegments: 22,
+                capSegments: 24,
+                anisotropy: 8,
+                shadows: true,
+                clearcoatBoost: 0.06,
+                bumpScale: 0.075,
+                exposure: 1.04,
+                ambientBoost: 0.00,
+                nearMin: 4,
+                nearMax: 42,
+                nearDivisor: 650,
+                farMin: 5200,
+                farFactor: 5.8,
+                farPadding: 2600
+            }};
+        }}
+
+        function applyTextureQuality(profile) {{
+            [steelTex, tubeWhiteTex, tubeBlackTex, copperTex].forEach(tex => {{
+                if (!tex) return;
+                tex.anisotropy = profile.anisotropy;
+                tex.needsUpdate = true;
+            }});
         }}
 
         function applyRenderQuality(quality) {{
             renderQuality = quality;
+            const profile = getQualityProfile(quality);
             const dpr = window.devicePixelRatio || 1;
 
-            if (quality === "eco") {{
-                renderer.setPixelRatio(Math.min(dpr, 1.00));
-            }} else if (quality === "ultra") {{
-                renderer.setPixelRatio(Math.min(dpr, 2.00));
-            }} else {{
-                renderer.setPixelRatio(Math.min(dpr, 1.65));
-            }}
+            renderer.setPixelRatio(Math.min(dpr, profile.pixelRatio));
+            renderer.shadowMap.enabled = profile.shadows;
+            renderer.toneMappingExposure = profile.exposure;
+            ambient.intensity = Math.max(0.12, getTheme().ambient + profile.ambientBoost);
+            applyTextureQuality(profile);
 
-            renderer.toneMappingExposure = quality === "ultra" ? 1.08 : 1.04;
+            tubeMat = makeTubeMaterial(tubeMode, false, false);
+            activeTubeMat = makeTubeMaterial(tubeMode, true, false);
+            freeTubeMat = makeTubeMaterial(tubeMode, false, true);
+
             updateCameraClipping();
             resizeViewer();
+            rebuildDepositedMesh(Math.floor(drawPos), true);
+            updateOverlayContinuous(true);
+            updateGhostLine();
         }}
 
         function dollyCamera(factor) {{
@@ -6936,18 +7116,28 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const theme = getTheme();
             const chosen = active ? theme.activeTube : (free ? theme.freeTube : theme.tube);
             const tex = mode === "gelblack" ? tubeBlackTex : tubeWhiteTex;
+            const profile = getQualityProfile();
+            const isUltra = renderQuality === "ultra";
+            const isEco = renderQuality === "eco";
 
-            return new THREE.MeshPhysicalMaterial({{
+            const mat = new THREE.MeshPhysicalMaterial({{
                 color: chosen,
                 map: tex,
-                roughness: active ? 0.72 : (free ? 0.84 : 0.78),
-                metalness: 0.01,
-                clearcoat: mode === "gelblack" ? 0.10 : 0.18,
-                clearcoatRoughness: mode === "gelblack" ? 0.20 : 0.14,
-                reflectivity: mode === "gelblack" ? 0.22 : 0.34,
+                roughness: isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72)),
+                metalness: 0.005,
+                clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost),
+                clearcoatRoughness: isUltra ? 0.10 : (mode === "gelblack" ? 0.20 : 0.15),
+                reflectivity: isEco ? 0.10 : (mode === "gelblack" ? 0.28 : 0.42),
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
+
+            if (!isEco) {{
+                mat.bumpMap = tex;
+                mat.bumpScale = mode === "gelblack" ? profile.bumpScale * 0.55 : profile.bumpScale;
+            }}
+
+            return mat;
         }}
 
         let steelMat = makeSteelMat(1.0, false);
@@ -7570,11 +7760,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const theme = getTheme();
 
             scene.background = new THREE.Color(theme.bg);
-            renderer.toneMappingExposure = theme.exposure;
+            renderer.toneMappingExposure = getQualityProfile().exposure;
 
-            ambient.intensity = theme.ambient;
+            ambient.intensity = Math.max(0.12, theme.ambient + getQualityProfile().ambientBoost);
             hemi.color.setHex(theme.hemiSky);
             hemi.groundColor.setHex(theme.hemiGround);
+            hemi.intensity = renderQuality === "ultra" ? 0.42 : 0.34;
 
             keyLight.intensity = theme.key;
             fillLight.intensity = theme.fill;
@@ -7801,8 +7992,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         }}
 
         function makeTubeEndCap(point, tangentDir, radius, material) {{
+            const profile = getQualityProfile();
             const thickness = Math.max(1.8, radius * 0.22);
-            const geo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, thickness, 24, 1, false);
+            const geo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, thickness, profile.capSegments, 1, false);
             const mesh = new THREE.Mesh(geo, material);
 
             mesh.position.copy(point);
@@ -7811,8 +8003,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const dir = tangentDir.clone().normalize();
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir);
             mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = false;
-            mesh.receiveShadow = true;
+            mesh.castShadow = renderQuality === "ultra";
+            mesh.receiveShadow = renderQuality !== "eco";
 
             return mesh;
         }}
@@ -7828,17 +8020,18 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const curve = new PolylineCurve3(points);
 
+            const profile = getQualityProfile();
             const tubularSegments = Math.max(
-                32,
-                Math.min(1800, Math.floor(totalLen / Math.max(1.25, radius * 0.55)))
+                renderQuality === "eco" ? 18 : 36,
+                Math.min(profile.maxTubularSegments, Math.floor(totalLen / Math.max(profile.segmentFactor, radius * profile.segmentFactor)))
             );
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, 22, false);
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, profile.radialSegments, false);
             geo.computeVertexNormals();
 
             const body = new THREE.Mesh(geo, material);
-            body.castShadow = false;
-            body.receiveShadow = true;
+            body.castShadow = renderQuality === "ultra";
+            body.receiveShadow = renderQuality !== "eco";
 
             const group = new THREE.Group();
             group.add(body);
@@ -7907,8 +8100,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
 
             mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = false;
-            mesh.receiveShadow = true;
+            mesh.castShadow = renderQuality === "ultra";
+            mesh.receiveShadow = renderQuality !== "eco";
 
             return mesh;
         }}
@@ -7945,8 +8138,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, tangentDir.clone().normalize());
 
             mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = false;
-            mesh.receiveShadow = true;
+            mesh.castShadow = renderQuality === "ultra";
+            mesh.receiveShadow = renderQuality !== "eco";
 
             return mesh;
         }}
