@@ -2482,46 +2482,9 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        """
-        <style>
-        /* Copper action button area: prevents the restore label from being cut */
-        div[data-testid="stButton"] > button {
-            min-height: 50px !important;
-            height: auto !important;
-            padding: 0.72rem 1.10rem !important;
-            border-radius: 999px !important;
-            background: #C57E5A !important;
-            border: 1px solid color-mix(in srgb, #C57E5A 78%, var(--text-color)) !important;
-            color: #FFFFFF !important;
-            font-weight: 900 !important;
-            white-space: normal !important;
-            line-height: 1.15 !important;
-            box-shadow: 0 8px 18px rgba(197,126,90,0.28) !important;
-        }
-
-        div[data-testid="stButton"] > button * {
-            color: #FFFFFF !important;
-            white-space: normal !important;
-            line-height: 1.15 !important;
-        }
-
-        @media (max-width: 900px) {
-            div[data-testid="stButton"] > button {
-                min-height: 48px !important;
-                font-size: 0.92rem !important;
-                padding-left: 0.85rem !important;
-                padding-right: 0.85rem !important;
-            }
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    b1, b2 = st.columns([1.35, 1.0], gap="small")
+    b1, b2 = st.columns([1, 1], gap="small")
     with b1:
-        if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True, key="restore_preset_button"):
+        if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True):
             st.session_state["restore_preset_request"] = str(selected_product)
             st.rerun()
     with b2:
@@ -2559,7 +2522,6 @@ def init_calculator_state():
 # =========================
 
 def find_logo():
-    # Use only the real PNG logo file. Do not generate a fake/fallback logo.
     candidates = [
         "New Logo PDM – rame.png",
         "New Logo PDM - rame.png",
@@ -2568,6 +2530,10 @@ def find_logo():
         "logo_pdm.png",
         "pdm_logo.png",
         "logo.png",
+        "logo.svg",
+        "logo.jpg",
+        "logo.jpeg",
+        "logo.webp",
     ]
 
     search_dirs = [
@@ -2583,7 +2549,7 @@ def find_logo():
     for folder in search_dirs:
         for name in candidates:
             path = os.path.join(folder, name)
-            if os.path.exists(path) and path.lower().endswith(".png"):
+            if os.path.exists(path):
                 return path
 
     patterns = []
@@ -2592,10 +2558,14 @@ def find_logo():
             os.path.join(folder, "*logo*.png"),
             os.path.join(folder, "*Logo*.png"),
             os.path.join(folder, "*PDM*.png"),
+            os.path.join(folder, "*.svg"),
+            os.path.join(folder, "*.jpg"),
+            os.path.join(folder, "*.jpeg"),
+            os.path.join(folder, "*.webp"),
         ])
 
     for pattern in patterns:
-        files = [f for f in glob.glob(pattern) if f.lower().endswith(".png")]
+        files = glob.glob(pattern)
         if files:
             return files[0]
 
@@ -2608,59 +2578,20 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-# Centered logo + title/language row.
-# Keeps the same tab spacing that currently works.
+# Simple header: original logo + language selector only.
+# No title, no hero, no custom fixed layout.
 current_lang = st.session_state.lang
 
-logo_html = ""
-if logo_path:
-    try:
-        logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
-        logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="pdm-centered-logo" alt="PDM logo" />'
-    except Exception:
-        logo_html = ""
+logo_col, lang_col = st.columns([1.0, 2.2], gap="large")
 
-st.markdown(
-    f"""
-    <style>
-    .pdm-logo-header {{
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin: 0 0 0.12rem 0;
-        padding: 0;
-    }}
-
-    .pdm-centered-logo {{
-        display: block;
-        width: auto;
-        height: clamp(96px, 14vw, 165px);
-        max-width: min(420px, 72vw);
-        object-fit: contain;
-    }}
-
-
-    @media (max-width: 900px) {{
-        .pdm-logo-header {{
-            margin-bottom: 0.05rem;
-        }}
-
-        .pdm-centered-logo {{
-            height: clamp(88px, 21vw, 140px);
-            max-width: 70vw;
-        }}
-    }}
-    </style>
-    <div class="pdm-logo-header">{logo_html}</div>
-    """,
-    unsafe_allow_html=True,
-)
-
-title_col, lang_col = st.columns([1.55, 1.0], gap="large")
-
-with title_col:
-    st.title(TEXTS[current_lang]["title"])
+with logo_col:
+    if logo_path:
+        try:
+            st.image(logo_path, width=118)
+        except Exception:
+            st.markdown("**PDM**")
+    else:
+        st.markdown("**PDM**")
 
 with lang_col:
     lang_option = st.selectbox(
@@ -2682,21 +2613,27 @@ t = TEXTS[lang]
 st.markdown(
     """
     <style>
+    /* Logo + selector only header */
     .main .block-container {
         padding-top: 0.55rem !important;
     }
 
-    h1 {
-        margin-top: 0 !important;
-        margin-bottom: 0.20rem !important;
-        line-height: 1.04 !important;
-        letter-spacing: -0.035em;
-        font-weight: 650;
+    div[data-testid="stImage"] {
+        margin-bottom: 0 !important;
     }
 
     div[data-testid="stSelectbox"] {
         margin-top: 0.20rem !important;
-        margin-bottom: 0 !important;
+        margin-bottom: 0.20rem !important;
+    }
+
+    div[data-testid="stTabs"] {
+        margin-top: 0.35rem !important;
+    }
+
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-top: 0 !important;
+        margin-bottom: 12px !important;
     }
 
     @media (max-width: 900px) {
@@ -2706,13 +2643,18 @@ st.markdown(
             padding-top: 0.45rem !important;
         }
 
-        h1 {
-            font-size: 2.00rem !important;
-            margin-bottom: 0.08rem !important;
+        div[data-testid="stImage"] img {
+            max-width: 132px !important;
+            height: auto !important;
         }
 
         div[data-testid="stSelectbox"] {
-            margin-top: 0 !important;
+            margin-top: 0.10rem !important;
+            margin-bottom: 0.10rem !important;
+        }
+
+        div[data-testid="stTabs"] {
+            margin-top: 0.25rem !important;
         }
     }
     </style>
@@ -11646,12 +11588,13 @@ st.markdown(
 
 
 
+
 st.markdown(
     """
     <style>
-    /* Title-only header: reduce the blank gap between title and main tabs */
+    /* Final header spacing: logo + selector only */
     div[data-testid="stTabs"] {
-        margin-top: 0 !important;
+        margin-top: 0.35rem !important;
     }
 
     div[data-testid="stTabs"] [role="tablist"] {
@@ -11659,21 +11602,9 @@ st.markdown(
         margin-bottom: 12px !important;
     }
 
-    @media (max-width: 1180px) {
-        div[data-testid="stTabs"] {
-            margin-top: -260px !important;
-        }
-    }
-
     @media (max-width: 900px) {
         div[data-testid="stTabs"] {
-            margin-top: -430px !important;
-        }
-    }
-
-    @media (max-width: 520px) {
-        div[data-testid="stTabs"] {
-            margin-top: -470px !important;
+            margin-top: 0.25rem !important;
         }
     }
     </style>
