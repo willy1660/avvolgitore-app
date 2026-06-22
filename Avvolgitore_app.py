@@ -4904,7 +4904,7 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
-    rib_pitch_mm=0.35,
+    rib_pitch_mm=0.80,
     rib_geometry_scale=0.076,
     rib_bump_scale=0.054,
     rib_texture_repeat=420.0,
@@ -7556,7 +7556,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                     const xx = x / size;
                     const i = (y * size + x) * 4;
 
-                    const phase = (xx * 320.0 + Math.sin(xx * 5.0 + yy * 1.2) * 0.006) % 1.0;
+                    const phase = (xx * 1.0 + Math.sin(xx * 5.0 + yy * 1.2) * 0.006) % 1.0;
                     const rise = smoothstep(0.07, 0.19, phase);
                     const fall = 1.0 - smoothstep(0.80, 0.92, phase);
                     const band = rise * fall;
@@ -7744,7 +7744,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             // Important: do not use a fixed texture repeat for the whole roll.
             // A fixed repeat makes the zigrinatura look different on 15 / 25 / 50 m.
             // This keeps the visible distance between rings constant with tube length.
-            const visualRepeat = Math.max(1.0, Math.min(52000.0, ribRepeats));
+            const visualRepeat = Math.max(1.0, ribRepeats);
 
             const mat = material.clone();
 
@@ -8640,7 +8640,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }}
 
             const pitch = Math.max(0.001, profile.ribPitchMm || 0.35);
-            const repeats = Math.max(3.0, totalLen / pitch);
+            const physicalRepeats = Math.max(3.0, totalLen / pitch);
+            const repeats = Math.min(2200.0, physicalRepeats);
             const amp = Math.min(radius * 0.125, Math.max(0.38, radius * (profile.ribGeometryScale || 0.076)));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
@@ -8705,7 +8706,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode === "zigrinata") {{
                 const ribPitch = Math.max(0.001, profile.ribPitchMm || 0.35);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
-                const ribTargetSegments = Math.ceil(ribRepeats * 22.0);
+                const ribTargetSegments = Math.ceil(Math.min(ribRepeats, 2200.0) * 8.0);
                 tubularSegments = Math.max(
                     tubularSegments,
                     Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
@@ -14425,7 +14426,7 @@ with tab_production:
                     "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
                     min_value=0.001,
                     max_value=12.0,
-                    value=float(st.session_state.get("tmp_rib_pitch_mm", 0.35)),
+                    value=float(st.session_state.get("tmp_rib_pitch_mm", 0.80)),
                     step=0.001,
                     key="tmp_rib_pitch_mm",
                     help=(
@@ -14470,9 +14471,9 @@ with tab_production:
                     step=1.0,
                     key="tmp_rib_texture_repeat",
                     help=(
-                        "Densità della texture visiva. In questa versione il render la ricalcola anche sulla lunghezza per mantenere costante la proporzione tra 15 / 25 / 50 m."
+                        "Densità della texture visiva. Ora il passo reale viene mantenuto sulla lunghezza: 15 / 25 / 50 m cambiano il numero di anelli, non la distanza visiva tra anelli."
                         if lang == "IT"
-                        else "Visual texture density. In this version the render also recalculates it from tube length to keep the proportion stable across 15 / 25 / 50 m."
+                        else "Visual texture density. The real pitch is now kept along the length: 15 / 25 / 50 m change the number of rings, not the visible distance between rings."
                     ),
                 )
 
