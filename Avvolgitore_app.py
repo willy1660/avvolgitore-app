@@ -4,8 +4,8 @@ import json
 import html
 import hashlib
 import base64
-from io import BytesIO
 from pathlib import Path
+from io import BytesIO
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -2609,208 +2609,306 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-# Responsive premium header: centered logo + compact language selector.
-# The layout is intentionally built with Streamlit columns so the language selector
-# remains a real widget, while CSS keeps the header stable on desktop and mobile.
+# Header net: logo centrat, idioma discret a la dreta i pestanyes just a sota.
+# Important: el logo es retalla en memòria si el PNG té marge transparent,
+# així s'evita l'espai buit fantasma entre el logo i les pestanyes.
 current_lang = st.session_state.lang
 
-logo_html = ""
-if logo_path:
+
+def encode_logo_base64_clean(path):
+    if not path:
+        return ""
+
     try:
-        logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
-        logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="pdm-header-logo" alt="PDM logo" />'
+        raw = Path(path).read_bytes()
     except Exception:
-        logo_html = ""
+        return ""
+
+    try:
+        from PIL import Image, ImageChops
+
+        image = Image.open(BytesIO(raw)).convert("RGBA")
+        alpha = image.getchannel("A")
+        bbox = alpha.getbbox()
+
+        if bbox:
+            image = image.crop(bbox)
+            pad_x = max(6, int(image.width * 0.035))
+            pad_y = max(5, int(image.height * 0.035))
+            canvas = Image.new("RGBA", (image.width + 2 * pad_x, image.height + 2 * pad_y), (255, 255, 255, 0))
+            canvas.paste(image, (pad_x, pad_y), image)
+            image = canvas
+
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        raw = buffer.getvalue()
+    except Exception:
+        # Si Pillow no està disponible, fem servir el PNG original.
+        pass
+
+    return base64.b64encode(raw).decode("utf-8")
+
+
+logo_b64 = encode_logo_base64_clean(logo_path)
+logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="pdm-header-logo" alt="PDM logo" />' if logo_b64 else ""
 
 st.markdown(
-    """
+    f"""
     <style>
-    :root {
+    :root {{
         --pdm-accent: #C57E5A;
-        --pdm-header-gap-desktop: 0.08rem;
-        --pdm-header-gap-mobile: 0.04rem;
-    }
+    }}
 
-    .main .block-container {
-        padding-top: 0.42rem !important;
-    }
+    html,
+    body,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewBlockContainer"],
+    .main,
+    .main .block-container {{
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }}
 
-    .pdm-header-logo-wrap {
+    .main .block-container {{
+        padding-top: 0.24rem !important;
+    }}
+
+    .pdm-header-spacer,
+    .pdm-lang-slot {{
+        width: 1px !important;
+        height: 1px !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }}
+
+    .pdm-header-logo-wrap {{
         width: 100%;
-        min-height: clamp(148px, 12.4vw, 224px);
+        height: auto !important;
+        min-height: 0 !important;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0;
-        padding: 0.02rem 0 0 0;
+        margin: 0 !important;
+        padding: 0 !important;
         pointer-events: none;
-    }
+        line-height: 0;
+    }}
 
-    .pdm-header-logo {
+    .pdm-header-logo {{
         display: block;
         width: auto;
-        height: clamp(142px, 11.8vw, 218px);
-        max-width: min(680px, 58vw);
+        height: clamp(170px, 11.2vw, 220px);
+        max-width: min(520px, 54vw);
         object-fit: contain;
-        filter: drop-shadow(0 10px 22px rgba(0,0,0,0.10));
-        transform: translateY(0);
-    }
+        filter: drop-shadow(0 10px 22px rgba(0,0,0,0.12));
+    }}
 
-    .pdm-header-spacer,
-    .pdm-lang-slot {
-        width: 100%;
-        height: 1px;
-        line-height: 1px;
-        overflow: hidden;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {{
         align-items: flex-start !important;
-        gap: 0.55rem !important;
-        margin: 0 0 var(--pdm-header-gap-desktop) 0 !important;
-    }
+        gap: 0.35rem !important;
+        margin: 0 0 0.10rem 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+    }}
 
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"] {
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"] {{
         min-width: 0 !important;
         padding: 0 !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) {
-        display: flex !important;
-        justify-content: flex-end !important;
-        align-items: flex-start !important;
-        padding-top: clamp(18px, 2.1vw, 30px) !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stSelectbox"] {
-        width: 74px !important;
-        min-width: 74px !important;
         margin: 0 !important;
-    }
+        overflow: visible !important;
+    }}
 
-    div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] > div {
-        min-height: 34px !important;
-        height: 34px !important;
+    div[data-testid="column"]:has(.pdm-lang-slot) {{
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-end !important;
+        justify-content: flex-start !important;
+        padding-top: clamp(18px, 1.7vw, 28px) !important;
+    }}
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {{
+        width: auto !important;
+        max-width: 116px !important;
+        margin: 0 !important;
+        margin-left: auto !important;
+    }}
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {{
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 5px !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        width: auto !important;
+        overflow: visible !important;
+    }}
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {{
+        flex: 0 0 42px !important;
+        width: 42px !important;
+        min-width: 42px !important;
+        max-width: 42px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 !important;
+        margin: 0 !important;
         border-radius: 999px !important;
-        border: 1px solid color-mix(in srgb, var(--text-color) 13%, transparent) !important;
         background: color-mix(in srgb, var(--secondary-background-color) 92%, var(--background-color)) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.055) !important;
-        transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
-    }
+        border: 1px solid color-mix(in srgb, var(--text-color) 13%, transparent) !important;
+        box-shadow: none !important;
+    }}
 
-    div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] > div:hover {
-        border-color: color-mix(in srgb, var(--pdm-accent) 42%, var(--text-color) 8%) !important;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.075) !important;
-        transform: translateY(-1px);
-    }
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label:has(input:checked) {{
+        background: #C57E5A !important;
+        border-color: #C57E5A !important;
+        box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
+    }}
 
-    div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] * {
-        font-size: 0.76rem !important;
-        font-weight: 760 !important;
-        letter-spacing: 0.02em !important;
-    }
+    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {{
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        text-align: center !important;
+        font-size: 0.70rem !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.03em !important;
+        white-space: nowrap !important;
+    }}
 
-    div[data-testid="column"]:has(.pdm-lang-slot) svg {
-        width: 15px !important;
-        height: 15px !important;
-        opacity: 0.62 !important;
-    }
-
-    h1 {
+    div[data-testid="stTabs"] {{
         margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        line-height: 1.04 !important;
-        letter-spacing: -0.035em;
-        font-weight: 650;
-    }
+        padding-top: 0 !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }}
 
-    @media (max-width: 1180px) {
-        .main .block-container {
-            padding-top: 0.36rem !important;
-        }
+    div[data-testid="stTabs"] [role="tablist"] {{
+        margin-top: 0 !important;
+        margin-bottom: 12px !important;
+        padding-top: 0 !important;
+        padding-bottom: 0.22rem !important;
+        gap: clamp(16px, 1.8vw, 32px) !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        scrollbar-width: none !important;
+    }}
 
-        .pdm-header-logo-wrap {
-            min-height: clamp(124px, 16vw, 176px);
-            padding-top: 0;
-        }
+    div[data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar {{
+        display: none !important;
+    }}
 
-        .pdm-header-logo {
-            height: clamp(118px, 15vw, 168px);
-            max-width: min(540px, 62vw);
-        }
+    div[data-testid="stTabs"] [role="tab"] {{
+        min-height: 2.32rem !important;
+        padding-top: 0.45rem !important;
+        padding-bottom: 0.66rem !important;
+    }}
 
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-            gap: 0.42rem !important;
-            margin-bottom: 0.06rem !important;
-        }
+    @media (max-width: 760px) {{
+        .main .block-container {{
+            padding-top: 0.12rem !important;
+            padding-left: 0.48rem !important;
+            padding-right: 0.48rem !important;
+        }}
 
-        div[data-testid="column"]:has(.pdm-lang-slot) {
-            padding-top: clamp(14px, 2.6vw, 24px) !important;
-        }
-    }
-
-    @media (max-width: 640px) {
-        .main .block-container {
-            padding-top: 0.28rem !important;
-            padding-left: 0.55rem !important;
-            padding-right: 0.55rem !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {{
             display: flex !important;
             flex-wrap: nowrap !important;
-            align-items: flex-start !important;
-            gap: 0.22rem !important;
-            margin-bottom: var(--pdm-header-gap-mobile) !important;
-        }
+            gap: 0.12rem !important;
+            margin-bottom: 0.04rem !important;
+        }}
 
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1),
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
-            flex: 0 0 62px !important;
-            width: 62px !important;
-            min-width: 62px !important;
-        }
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1) {{
+            flex: 0 0 38px !important;
+            width: 38px !important;
+            max-width: 38px !important;
+        }}
 
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(2) {
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(2) {{
             flex: 1 1 auto !important;
             width: auto !important;
+            max-width: calc(100% - 94px) !important;
+        }}
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {{
+            flex: 0 0 56px !important;
+            width: 56px !important;
+            max-width: 56px !important;
+        }}
+
+        .pdm-header-logo {{
+            height: clamp(98px, 24vw, 132px);
+            max-width: 100%;
+        }}
+
+        div[data-testid="column"]:has(.pdm-lang-slot) {{
+            padding-top: 8px !important;
+        }}
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {{
+            gap: 3px !important;
+        }}
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {{
+            flex-basis: 25px !important;
+            width: 25px !important;
+            min-width: 25px !important;
+            max-width: 25px !important;
+            height: 27px !important;
+            min-height: 27px !important;
+        }}
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {{
+            font-size: 0.60rem !important;
+            letter-spacing: 0 !important;
+        }}
+
+        div[data-testid="stTabs"] [role="tablist"] {{
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            justify-content: stretch !important;
+            gap: 0 !important;
+            margin-bottom: 8px !important;
+            overflow-x: hidden !important;
+        }}
+
+        div[data-testid="stTabs"] [role="tab"] {{
+            flex: 1 1 0 !important;
+            width: 33.333% !important;
+            max-width: 33.333% !important;
             min-width: 0 !important;
-        }
+            min-height: 2.04rem !important;
+            padding: 0.34rem 0.06rem 0.52rem 0.06rem !important;
+            overflow: hidden !important;
+        }}
 
-        .pdm-header-logo-wrap {
-            min-height: clamp(94px, 25vw, 128px);
-        }
+        div[data-testid="stTabs"] [role="tab"] p {{
+            font-size: clamp(0.68rem, 3vw, 0.84rem) !important;
+            line-height: 1.04 !important;
+            text-align: center !important;
+            white-space: normal !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+        }}
 
-        .pdm-header-logo {
-            height: clamp(90px, 24vw, 122px);
-            max-width: min(330px, 66vw);
-            filter: drop-shadow(0 7px 15px rgba(0,0,0,0.09));
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) {
-            padding-top: 10px !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stSelectbox"] {
-            width: 58px !important;
-            min-width: 58px !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] > div {
-            min-height: 31px !important;
-            height: 31px !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] * {
-            font-size: 0.70rem !important;
-        }
-    }
+        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {{
+            left: 0.24rem !important;
+            right: 0.24rem !important;
+            bottom: 0.08rem !important;
+            height: 2px !important;
+        }}
+    }}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-header_left, header_logo, header_lang = st.columns([0.95, 3.10, 0.95], gap="small")
+header_left, header_logo, header_lang = st.columns([0.85, 3.30, 0.85], gap="small")
 
 with header_left:
     st.markdown('<div class="pdm-header-spacer"></div>', unsafe_allow_html=True)
@@ -11766,965 +11864,37 @@ st.markdown(
 st.markdown(
     """
     <style>
-    /* Final header-to-tabs spacing override.
-       No negative margins: this keeps desktop, tablet and mobile proportional. */
-    .main .block-container {
-        padding-top: 0.42rem !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-        margin-bottom: 0.18rem !important;
-    }
-
+    /* Title-only header: reduce the blank gap between title and main tabs */
     div[data-testid="stTabs"] {
-        margin-top: 0.04rem !important;
+        margin-top: 0 !important;
     }
 
     div[data-testid="stTabs"] [role="tablist"] {
         margin-top: 0 !important;
-        margin-bottom: 10px !important;
-        padding-top: 0 !important;
-        padding-bottom: 0.34rem !important;
-    }
-
-    div[data-testid="stTabs"] [role="tab"] {
-        min-height: 2.42rem !important;
-        padding-top: 0.52rem !important;
-        padding-bottom: 0.76rem !important;
-    }
-
-    div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
-        bottom: 0.16rem !important;
+        margin-bottom: 12px !important;
     }
 
     @media (max-width: 1180px) {
-        .main .block-container {
-            padding-top: 0.34rem !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-            margin-bottom: 0.12rem !important;
-        }
-
         div[data-testid="stTabs"] {
-            margin-top: 0.02rem !important;
-        }
-
-        div[data-testid="stTabs"] [role="tablist"] {
-            gap: 18px !important;
-            margin-bottom: 9px !important;
-            padding-bottom: 0.28rem !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"] {
-            min-height: 2.34rem !important;
-            padding-top: 0.48rem !important;
-            padding-bottom: 0.68rem !important;
+            margin-top: -260px !important;
         }
     }
 
-    @media (max-width: 560px) {
-        .main .block-container {
-            padding-top: 0.24rem !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-            margin-bottom: 0.06rem !important;
-        }
-
+    @media (max-width: 900px) {
         div[data-testid="stTabs"] {
-            margin-top: 0 !important;
+            margin-top: -430px !important;
         }
+    }
 
-        div[data-testid="stTabs"] [role="tablist"] {
-            gap: 12px !important;
-            margin-bottom: 8px !important;
-            padding-bottom: 0.22rem !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"] {
-            min-height: 2.18rem !important;
-            padding-top: 0.40rem !important;
-            padding-bottom: 0.58rem !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"] p {
-            font-size: 0.88rem !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
-            bottom: 0.10rem !important;
-            height: 2px !important;
+    @media (max-width: 520px) {
+        div[data-testid="stTabs"] {
+            margin-top: -470px !important;
         }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
-
-
-
-st.markdown(
-    """
-    <style>
-    /* vFinal · header amb més presència + zero scroll lateral en mòbil */
-    html,
-    body,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stAppViewBlockContainer"],
-    .main,
-    .main .block-container {
-        max-width: 100vw !important;
-        overflow-x: hidden !important;
-        box-sizing: border-box !important;
-    }
-
-    .main .block-container {
-        padding-top: 0.26rem !important;
-    }
-
-    /* Header: logo dominant, selector petit, sense espai mort abans de les pestanyes */
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        align-items: flex-start !important;
-        gap: 0.35rem !important;
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow: visible !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"] {
-        min-width: 0 !important;
-        padding: 0 !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1),
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
-        flex: 0 0 clamp(88px, 14vw, 190px) !important;
-        width: clamp(88px, 14vw, 190px) !important;
-        min-width: 0 !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(2) {
-        flex: 1 1 auto !important;
-        width: auto !important;
-        min-width: 0 !important;
-    }
-
-    .pdm-header-logo-wrap {
-        min-height: 0 !important;
-        height: clamp(150px, 12.5vw, 230px) !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-    .pdm-header-logo {
-        height: clamp(148px, 12.1vw, 224px) !important;
-        max-width: min(720px, 60vw) !important;
-        object-fit: contain !important;
-        transform: none !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-end !important;
-        justify-content: flex-start !important;
-        padding-top: clamp(18px, 2.2vw, 34px) !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {
-        width: auto !important;
-        max-width: 128px !important;
-        margin: 0 !important;
-        margin-left: auto !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        gap: 5px !important;
-        justify-content: flex-end !important;
-        width: auto !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
-        min-width: 42px !important;
-        width: 42px !important;
-        height: 32px !important;
-        min-height: 32px !important;
-        padding: 0 !important;
-        border-radius: 999px !important;
-        background: color-mix(in srgb, var(--secondary-background-color) 92%, var(--background-color)) !important;
-        border: 1px solid color-mix(in srgb, var(--text-color) 13%, transparent) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.055) !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label:has(input:checked) {
-        background: #C57E5A !important;
-        border-color: #C57E5A !important;
-        box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
-        font-size: 0.70rem !important;
-        line-height: 1 !important;
-        font-weight: 900 !important;
-        letter-spacing: 0.035em !important;
-        text-align: center !important;
-        margin: 0 !important;
-    }
-
-    /* Tabs: sense scroll horitzontal. En mòbil caben sempre dins l'amplada. */
-    div[data-testid="stTabs"] {
-        max-width: 100% !important;
-        overflow-x: hidden !important;
-        margin-top: 0 !important;
-    }
-
-    div[data-testid="stTabs"] [role="tablist"] {
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow-x: hidden !important;
-        overflow-y: hidden !important;
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        gap: clamp(10px, 1.5vw, 26px) !important;
-        margin-top: 0 !important;
-        margin-bottom: 8px !important;
-        padding-bottom: 0.22rem !important;
-        box-sizing: border-box !important;
-        scrollbar-width: none !important;
-    }
-
-    div[data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar {
-        display: none !important;
-    }
-
-    div[data-testid="stTabs"] [role="tab"] {
-        min-width: 0 !important;
-        max-width: 100% !important;
-        flex: 0 1 auto !important;
-        padding-left: 0.24rem !important;
-        padding-right: 0.24rem !important;
-        min-height: 2.22rem !important;
-        box-sizing: border-box !important;
-    }
-
-    div[data-testid="stTabs"] [role="tab"] p {
-        white-space: normal !important;
-        overflow-wrap: anywhere !important;
-    }
-
-    /* Botons d'acció: el Ripristina/Reset queda coure, llegible i sense tallar-se. */
-    div[data-testid="stButton"] > button,
-    .stButton > button,
-    button[kind="secondary"] {
-        min-height: 48px !important;
-        height: auto !important;
-        padding: 0.72rem 1.05rem !important;
-        border-radius: 999px !important;
-        background: #C57E5A !important;
-        border: 1px solid color-mix(in srgb, #C57E5A 78%, var(--text-color)) !important;
-        color: #FFFFFF !important;
-        font-weight: 900 !important;
-        line-height: 1.12 !important;
-        white-space: normal !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
-        box-shadow: 0 8px 18px rgba(197,126,90,0.24) !important;
-    }
-
-    div[data-testid="stButton"] > button *,
-    .stButton > button *,
-    button[kind="secondary"] * {
-        color: #FFFFFF !important;
-        white-space: normal !important;
-        line-height: 1.12 !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
-    }
-
-    @media (max-width: 1180px) {
-        .main .block-container {
-            padding-top: 0.18rem !important;
-            padding-left: 0.62rem !important;
-            padding-right: 0.62rem !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-            flex-wrap: nowrap !important;
-            gap: 0.24rem !important;
-            margin-bottom: 0 !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1),
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
-            flex: 0 0 clamp(64px, 12vw, 130px) !important;
-            width: clamp(64px, 12vw, 130px) !important;
-        }
-
-        .pdm-header-logo-wrap {
-            height: clamp(118px, 16vw, 174px) !important;
-        }
-
-        .pdm-header-logo {
-            height: clamp(116px, 15.4vw, 168px) !important;
-            max-width: min(560px, 64vw) !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) {
-            padding-top: clamp(12px, 2.5vw, 24px) !important;
-        }
-
-        div[data-testid="stTabs"] [role="tablist"] {
-            gap: 14px !important;
-            margin-bottom: 7px !important;
-        }
-    }
-
-    @media (max-width: 700px) {
-        html,
-        body,
-        [data-testid="stAppViewContainer"],
-        [data-testid="stAppViewBlockContainer"],
-        .main,
-        .main .block-container {
-            width: 100% !important;
-            max-width: 100vw !important;
-            overflow-x: hidden !important;
-        }
-
-        .main .block-container {
-            padding-left: 0.48rem !important;
-            padding-right: 0.48rem !important;
-            padding-top: 0.12rem !important;
-        }
-
-        /* totes les columnes normals passen a una sola columna per evitar desbordaments */
-        div[data-testid="stHorizontalBlock"] {
-            flex-wrap: wrap !important;
-            max-width: 100% !important;
-            overflow-x: hidden !important;
-        }
-
-        div[data-testid="column"] {
-            flex: 1 1 100% !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            min-width: 0 !important;
-        }
-
-        /* excepció: el header conserva proporció logo-centre / idioma-dreta */
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-            flex-wrap: nowrap !important;
-            align-items: flex-start !important;
-            gap: 0.10rem !important;
-            overflow: visible !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1) {
-            flex: 0 0 42px !important;
-            width: 42px !important;
-            max-width: 42px !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(2) {
-            flex: 1 1 auto !important;
-            width: auto !important;
-            max-width: calc(100% - 98px) !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
-            flex: 0 0 56px !important;
-            width: 56px !important;
-            max-width: 56px !important;
-        }
-
-        .pdm-header-logo-wrap {
-            height: clamp(86px, 25vw, 116px) !important;
-        }
-
-        .pdm-header-logo {
-            height: clamp(84px, 24vw, 112px) !important;
-            max-width: 100% !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) {
-            padding-top: 8px !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
-            gap: 3px !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
-            min-width: 25px !important;
-            width: 25px !important;
-            height: 28px !important;
-            min-height: 28px !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
-            font-size: 0.62rem !important;
-            letter-spacing: 0 !important;
-        }
-
-        div[data-testid="stTabs"] [role="tablist"] {
-            gap: 0 !important;
-            justify-content: stretch !important;
-            margin-bottom: 6px !important;
-            padding-bottom: 0.16rem !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"] {
-            flex: 1 1 0 !important;
-            width: 33.333% !important;
-            min-width: 0 !important;
-            padding: 0.36rem 0.08rem 0.52rem 0.08rem !important;
-            min-height: 2.04rem !important;
-            overflow: hidden !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"] p {
-            font-size: clamp(0.70rem, 3vw, 0.84rem) !important;
-            line-height: 1.05 !important;
-            text-align: center !important;
-            white-space: normal !important;
-            overflow-wrap: normal !important;
-            word-break: normal !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
-            left: 0.28rem !important;
-            right: 0.28rem !important;
-            bottom: 0.08rem !important;
-            height: 2px !important;
-        }
-
-        div[data-testid="stButton"] > button,
-        .stButton > button,
-        button[kind="secondary"] {
-            min-height: 46px !important;
-            padding: 0.64rem 0.74rem !important;
-            font-size: 0.84rem !important;
-            line-height: 1.10 !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-
-st.markdown(
-    """
-    <style>
-    /* v3 · header compacte: les pestanyes queden just sota el logo.
-       El problema venia del contenidor del header, que podia reservar massa alçada.
-       Aquí es fixa l'alçada real del bloc header i també del wrapper Streamlit. */
-
-    section[data-testid="stMain"] > div,
-    div[data-testid="stAppViewBlockContainer"],
-    div[data-testid="stMainBlockContainer"],
-    .main .block-container {
-        padding-top: 0.18rem !important;
-        max-width: 100vw !important;
-        overflow-x: hidden !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Contenidor Streamlit que envolta el header */
-    div[data-testid="stElementContainer"]:has(.pdm-header-logo-wrap),
-    div[data-testid="stVerticalBlock"] > div:has(.pdm-header-logo-wrap) {
-        height: clamp(156px, 12.4vw, 230px) !important;
-        min-height: clamp(156px, 12.4vw, 230px) !important;
-        max-height: clamp(156px, 12.4vw, 230px) !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-        height: clamp(156px, 12.4vw, 230px) !important;
-        min-height: clamp(156px, 12.4vw, 230px) !important;
-        max-height: clamp(156px, 12.4vw, 230px) !important;
-        align-items: flex-start !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-    }
-
-    .pdm-header-logo-wrap {
-        height: clamp(152px, 12.0vw, 224px) !important;
-        min-height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        align-items: center !important;
-    }
-
-    .pdm-header-logo {
-        height: clamp(150px, 11.7vw, 218px) !important;
-        max-width: min(720px, 60vw) !important;
-    }
-
-    /* Selector idioma: versió discreta i estable dins el header */
-    div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[data-testid="stRadio"],
-    div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {
-        width: auto !important;
-        max-width: 118px !important;
-        margin: 0 !important;
-        margin-left: auto !important;
-        transform: scale(0.88);
-        transform-origin: top right;
-    }
-
-    div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"],
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        gap: 5px !important;
-        justify-content: flex-end !important;
-        width: auto !important;
-        min-width: 0 !important;
-    }
-
-    div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"] label,
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
-        min-width: 42px !important;
-        width: 42px !important;
-        height: 31px !important;
-        min-height: 31px !important;
-        padding: 0 !important;
-        border-radius: 999px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-    div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"] label p,
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
-        font-size: 0.68rem !important;
-        line-height: 1 !important;
-        font-weight: 900 !important;
-        letter-spacing: 0.025em !important;
-        margin: 0 !important;
-        text-align: center !important;
-    }
-
-    /* Pestanyes enganxades sota el header */
-    div[data-testid="stTabs"] {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-        max-width: 100% !important;
-        overflow-x: hidden !important;
-    }
-
-    div[data-testid="stTabs"] [role="tablist"] {
-        margin-top: 0 !important;
-        margin-bottom: 8px !important;
-        padding-top: 0 !important;
-    }
-
-    @media (max-width: 1180px) {
-        div[data-testid="stElementContainer"]:has(.pdm-header-logo-wrap),
-        div[data-testid="stVerticalBlock"] > div:has(.pdm-header-logo-wrap),
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-            height: clamp(116px, 15.6vw, 170px) !important;
-            min-height: clamp(116px, 15.6vw, 170px) !important;
-            max-height: clamp(116px, 15.6vw, 170px) !important;
-        }
-
-        .pdm-header-logo-wrap {
-            height: clamp(112px, 15.1vw, 164px) !important;
-        }
-
-        .pdm-header-logo {
-            height: clamp(110px, 14.7vw, 160px) !important;
-            max-width: min(560px, 64vw) !important;
-        }
-
-        div[data-testid="stTabs"] [role="tablist"] {
-            margin-bottom: 7px !important;
-        }
-    }
-
-    @media (max-width: 700px) {
-        section[data-testid="stMain"] > div,
-        div[data-testid="stAppViewBlockContainer"],
-        div[data-testid="stMainBlockContainer"],
-        .main .block-container {
-            padding-top: 0.10rem !important;
-            padding-left: 0.46rem !important;
-            padding-right: 0.46rem !important;
-            width: 100% !important;
-            max-width: 100vw !important;
-            overflow-x: hidden !important;
-        }
-
-        div[data-testid="stElementContainer"]:has(.pdm-header-logo-wrap),
-        div[data-testid="stVerticalBlock"] > div:has(.pdm-header-logo-wrap),
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-            height: clamp(86px, 24vw, 116px) !important;
-            min-height: clamp(86px, 24vw, 116px) !important;
-            max-height: clamp(86px, 24vw, 116px) !important;
-            overflow: visible !important;
-        }
-
-        .pdm-header-logo-wrap {
-            height: clamp(84px, 23vw, 112px) !important;
-        }
-
-        .pdm-header-logo {
-            height: clamp(82px, 22vw, 108px) !important;
-            max-width: 100% !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[data-testid="stRadio"],
-        div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {
-            transform: scale(0.80);
-            max-width: 62px !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"] label,
-        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
-            min-width: 25px !important;
-            width: 25px !important;
-            height: 27px !important;
-            min-height: 27px !important;
-        }
-
-        div[data-testid="stVerticalBlock"]:has(.pdm-lang-slot) div[role="radiogroup"] label p,
-        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
-            font-size: 0.61rem !important;
-        }
-
-        div[data-testid="stTabs"] [role="tablist"] {
-            margin-top: 0 !important;
-            margin-bottom: 6px !important;
-            overflow-x: hidden !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-
-st.markdown(
-    """
-    <style>
-    /* v4 · HEADER SURGICAL FIX
-       Objectiu: logo present, selector discret i tabs enganxades al header.
-       Aquesta capa va al final de tots els CSS del header per neutralitzar
-       els min-height/margins anteriors que estaven creant espai mort. */
-
-    html,
-    body,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stAppViewBlockContainer"],
-    section[data-testid="stMain"],
-    .main,
-    .main .block-container {
-        max-width: 100vw !important;
-        overflow-x: hidden !important;
-        box-sizing: border-box !important;
-    }
-
-    .main .block-container,
-    div[data-testid="stMainBlockContainer"] {
-        padding-top: 0.18rem !important;
-        padding-left: 0.90rem !important;
-        padding-right: 0.90rem !important;
-    }
-
-    /* Elimina l'alçada fantasma dels wrappers Streamlit del header */
-    div[data-testid="stElementContainer"]:has(.pdm-header-logo-wrap),
-    div[data-testid="stVerticalBlock"] > div:has(.pdm-header-logo-wrap) {
-        height: auto !important;
-        min-height: 0 !important;
-        max-height: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-    }
-
-    /* Header real: una fila compacta i controlada */
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-        display: grid !important;
-        grid-template-columns: minmax(92px, 1fr) minmax(240px, 430px) minmax(92px, 1fr) !important;
-        align-items: start !important;
-        column-gap: 0.35rem !important;
-        row-gap: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        height: clamp(142px, 10.8vw, 178px) !important;
-        min-height: clamp(142px, 10.8vw, 178px) !important;
-        max-height: clamp(142px, 10.8vw, 178px) !important;
-        margin: 0 0 0.02rem 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"] {
-        width: auto !important;
-        min-width: 0 !important;
-        max-width: none !important;
-        flex: unset !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: visible !important;
-    }
-
-    .pdm-header-spacer,
-    .pdm-lang-slot {
-        width: 1px !important;
-        height: 1px !important;
-        min-height: 0 !important;
-        line-height: 1px !important;
-        overflow: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
-
-    .pdm-header-logo-wrap {
-        width: 100% !important;
-        height: clamp(138px, 10.4vw, 172px) !important;
-        min-height: 0 !important;
-        max-height: clamp(138px, 10.4vw, 172px) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        pointer-events: none !important;
-    }
-
-    .pdm-header-logo {
-        display: block !important;
-        width: auto !important;
-        height: clamp(132px, 10vw, 166px) !important;
-        max-height: clamp(132px, 10vw, 166px) !important;
-        max-width: min(430px, 100%) !important;
-        object-fit: contain !important;
-        transform: none !important;
-        filter: drop-shadow(0 9px 20px rgba(0,0,0,0.11)) !important;
-    }
-
-    /* Idioma: petit, a dalt a la dreta, sense empènyer el layout */
-    div[data-testid="column"]:has(.pdm-lang-slot) {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-end !important;
-        justify-content: flex-start !important;
-        padding-top: 0.82rem !important;
-        overflow: visible !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stRadio"] {
-        width: auto !important;
-        max-width: 118px !important;
-        min-width: 0 !important;
-        margin: 0 !important;
-        margin-left: auto !important;
-        transform: none !important;
-        transform-origin: top right !important;
-        overflow: visible !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-        gap: 5px !important;
-        width: auto !important;
-        min-width: 0 !important;
-        overflow: visible !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
-        flex: 0 0 42px !important;
-        width: 42px !important;
-        min-width: 42px !important;
-        max-width: 42px !important;
-        height: 31px !important;
-        min-height: 31px !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        border-radius: 999px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: color-mix(in srgb, var(--secondary-background-color) 92%, var(--background-color)) !important;
-        border: 1px solid color-mix(in srgb, var(--text-color) 13%, transparent) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.055) !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label:has(input:checked) {
-        background: #C57E5A !important;
-        border-color: #C57E5A !important;
-        box-shadow: 0 6px 14px rgba(197,126,90,0.24) !important;
-    }
-
-    div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        text-align: center !important;
-        font-size: 0.68rem !important;
-        line-height: 1 !important;
-        font-weight: 900 !important;
-        letter-spacing: 0.025em !important;
-        white-space: nowrap !important;
-    }
-
-    /* Tabs directament sota el logo */
-    div[data-testid="stTabs"] {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-        max-width: 100% !important;
-        overflow-x: hidden !important;
-    }
-
-    div[data-testid="stTabs"] [role="tablist"] {
-        margin-top: 0 !important;
-        margin-bottom: 8px !important;
-        padding-top: 0 !important;
-        padding-bottom: 0.20rem !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        align-items: center !important;
-        gap: clamp(14px, 2vw, 30px) !important;
-        overflow-x: hidden !important;
-        overflow-y: hidden !important;
-        box-sizing: border-box !important;
-        scrollbar-width: none !important;
-    }
-
-    div[data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar {
-        display: none !important;
-    }
-
-    div[data-testid="stTabs"] [role="tab"] {
-        min-width: 0 !important;
-        flex: 0 1 auto !important;
-        min-height: 2.20rem !important;
-        padding: 0.42rem 0.24rem 0.62rem 0.24rem !important;
-        box-sizing: border-box !important;
-    }
-
-    div[data-testid="stTabs"] [role="tab"] p {
-        white-space: normal !important;
-        overflow-wrap: anywhere !important;
-        line-height: 1.05 !important;
-    }
-
-    div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
-        bottom: 0.10rem !important;
-    }
-
-    /* Mòbil: cap scroll lateral, header proporcional */
-    @media (max-width: 700px) {
-        .main .block-container,
-        div[data-testid="stMainBlockContainer"] {
-            padding-top: 0.10rem !important;
-            padding-left: 0.46rem !important;
-            padding-right: 0.46rem !important;
-            width: 100% !important;
-            max-width: 100vw !important;
-            overflow-x: hidden !important;
-        }
-
-        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
-            grid-template-columns: 40px minmax(0, 1fr) 56px !important;
-            column-gap: 0.14rem !important;
-            height: clamp(92px, 26vw, 124px) !important;
-            min-height: clamp(92px, 26vw, 124px) !important;
-            max-height: clamp(92px, 26vw, 124px) !important;
-        }
-
-        .pdm-header-logo-wrap {
-            height: clamp(88px, 25vw, 120px) !important;
-            max-height: clamp(88px, 25vw, 120px) !important;
-        }
-
-        .pdm-header-logo {
-            height: clamp(84px, 24vw, 114px) !important;
-            max-height: clamp(84px, 24vw, 114px) !important;
-            max-width: 100% !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) {
-            padding-top: 0.45rem !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] {
-            gap: 3px !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label {
-            flex-basis: 25px !important;
-            width: 25px !important;
-            min-width: 25px !important;
-            max-width: 25px !important;
-            height: 27px !important;
-            min-height: 27px !important;
-        }
-
-        div[data-testid="column"]:has(.pdm-lang-slot) div[role="radiogroup"] label p {
-            font-size: 0.60rem !important;
-            letter-spacing: 0 !important;
-        }
-
-        div[data-testid="stTabs"] [role="tablist"] {
-            gap: 0 !important;
-            justify-content: stretch !important;
-            margin-bottom: 6px !important;
-            padding-bottom: 0.14rem !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"] {
-            flex: 1 1 0 !important;
-            width: 33.333% !important;
-            min-width: 0 !important;
-            max-width: 33.333% !important;
-            min-height: 2.02rem !important;
-            padding: 0.34rem 0.06rem 0.52rem 0.06rem !important;
-            overflow: hidden !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"] p {
-            font-size: clamp(0.68rem, 3vw, 0.82rem) !important;
-            line-height: 1.04 !important;
-            text-align: center !important;
-            white-space: normal !important;
-            overflow-wrap: normal !important;
-            word-break: normal !important;
-        }
-
-        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
-            left: 0.24rem !important;
-            right: 0.24rem !important;
-            bottom: 0.08rem !important;
-            height: 2px !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 
 # =========================
 # UI
@@ -13613,8 +12783,7 @@ with tab_tech_sheet:
 
         render_tech_snapshot_cards(selected_row, lang)
 
-        # Small spacer before the internal technical-sheet tabs.
-        # The header no longer uses negative tab margins, so no compensation is needed.
+        # Small spacer before the internal tabs.
         INNER_TABS_SPACER = 14
         st.markdown(f"<div style='height: {INNER_TABS_SPACER}px;'></div>", unsafe_allow_html=True)
 
