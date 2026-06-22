@@ -8609,7 +8609,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const pitch = Math.max(0.5, profile.ribPitchMm || 4.5);
+            const pitch = Math.max(0.1, profile.ribPitchMm || 4.5);
             const repeats = Math.max(3.0, totalLen / pitch);
             const amp = Math.min(radius * 0.125, Math.max(0.38, radius * (profile.ribGeometryScale || 0.076)));
             const smoothstep = (a, b, x) => {{
@@ -8673,7 +8673,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribPitch = Math.max(0.5, profile.ribPitchMm || 4.5);
+                const ribPitch = Math.max(0.1, profile.ribPitchMm || 4.5);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
                 const ribTargetSegments = Math.ceil(ribRepeats * 6.2);
                 tubularSegments = Math.max(
@@ -14363,15 +14363,15 @@ with tab_production:
         with zg1:
             rib_pitch_mm = st.slider(
                 "Passo tra anelli (mm)" if lang == "IT" else "Distance between rings (mm)",
-                min_value=0.5,
+                min_value=0.1,
                 max_value=12.0,
                 value=float(st.session_state.get("tmp_rib_pitch_mm", 4.5)),
-                step=0.1,
+                step=0.05,
                 key="tmp_rib_pitch_mm",
                 help=(
-                    "Distanza tra una nervatura e la successiva. Ora puoi scendere sotto 2 mm. Più basso = più anelli e zigrinatura più ripetitiva."
+                    "Distanza tra una nervatura e la successiva. Ora puoi scendere fino a 0,1 mm. Più basso = più anelli e zigrinatura più ripetitiva."
                     if lang == "IT"
-                    else "Distance between one rib and the next. You can now go below 2 mm. Lower value = more rings and denser pattern."
+                    else "Distance between one rib and the next. You can now go down to 0.1 mm. Lower value = more rings and denser pattern."
                 ),
             )
             rib_geometry_scale = st.slider(
@@ -14405,7 +14405,7 @@ with tab_production:
             rib_texture_repeat = st.slider(
                 "Ripetizione texture" if lang == "IT" else "Texture repetition",
                 min_value=10.0,
-                max_value=100.0,
+                max_value=200.0,
                 value=float(st.session_state.get("tmp_rib_texture_repeat", 58.0)),
                 step=1.0,
                 key="tmp_rib_texture_repeat",
