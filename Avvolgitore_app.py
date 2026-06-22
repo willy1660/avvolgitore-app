@@ -2578,87 +2578,29 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-# Card header: safer than fixed-height CSS. It adapts much better on desktop/tablet/mobile.
+# Native Streamlit header: no custom hero/card layout.
+# This avoids mobile/iPad spacing issues caused by fixed CSS and complex columns.
 current_lang = st.session_state.lang
 
-st.markdown(
-    """
-    <style>
-    .pdm-card-title {
-        width: 100%;
-        text-align: center;
-        font-size: clamp(34px, 3.6vw, 58px);
-        line-height: 0.98;
-        font-weight: 520;
-        letter-spacing: -0.048em;
-        color: var(--pdm-popup-text, var(--text-color));
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin: 0;
-        padding: 0;
-    }
+logo_col, lang_col = st.columns([1.0, 1.0], gap="large")
 
-    .pdm-card-logo-fallback {
-        color: #C57E5A;
-        font-weight: 950;
-        font-size: 28px;
-        line-height: 0.90;
-        letter-spacing: -0.04em;
-        text-align: center;
-    }
+with logo_col:
+    if logo_path:
+        try:
+            st.image(logo_path, width=90)
+        except Exception:
+            st.markdown("**PDM**")
+    else:
+        st.markdown("**PDM**")
 
-    .pdm-card-logo-sub {
-        margin-top: 3px;
-        font-size: 10px;
-        font-weight: 760;
-        letter-spacing: 0.04em;
-    }
-
-    @media (max-width: 900px) {
-        .pdm-card-title {
-            font-size: clamp(28px, 7.0vw, 38px);
-            margin-top: -2px;
-            margin-bottom: -2px;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-with st.container(border=True):
-    h_logo_col, h_title_col, h_lang_col = st.columns([0.85, 5.95, 1.55], gap="medium")
-
-    with h_logo_col:
-        if logo_path:
-            try:
-                st.image(logo_path, width=82)
-            except Exception:
-                st.markdown(
-                    '<div class="pdm-card-logo-fallback">PDM<div class="pdm-card-logo-sub">try it, love it</div></div>',
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.markdown(
-                '<div class="pdm-card-logo-fallback">PDM<div class="pdm-card-logo-sub">try it, love it</div></div>',
-                unsafe_allow_html=True,
-            )
-
-    with h_title_col:
-        st.markdown(
-            f'<div class="pdm-card-title">{html.escape(str(TEXTS[current_lang]["title"]))}</div>',
-            unsafe_allow_html=True,
-        )
-
-    with h_lang_col:
-        lang_option = st.selectbox(
-            TEXTS[current_lang]["language"],
-            ["Italiano", "English (US)"],
-            index=0 if current_lang == "IT" else 1,
-            key="lang_selector_top",
-            label_visibility="collapsed",
-        )
+with lang_col:
+    lang_option = st.selectbox(
+        TEXTS[current_lang]["language"],
+        ["Italiano", "English (US)"],
+        index=0 if current_lang == "IT" else 1,
+        key="lang_selector_top",
+        label_visibility="collapsed",
+    )
 
 new_lang = "IT" if "Italiano" in lang_option else "EN"
 if new_lang != st.session_state.lang:
@@ -2668,40 +2610,42 @@ if new_lang != st.session_state.lang:
 lang = st.session_state.lang
 t = TEXTS[lang]
 
-# Fixed compact header values.
-# Tested visually and locked: no sidebar controls.
-HEADER_BLOCK_HEIGHT = 140
-HEADER_LOGO_HEIGHT = 170
-HEADER_TITLE_SIZE = 100
-HEADER_TABS_MARGIN = -220
+st.title(t["title"])
 
 st.markdown(
-    f"""
+    """
     <style>
-    /*
-    Fixed header tuning.
-    Values locked after manual adjustment.
-    */
-    .top-brand-logo-wrap,
-    .top-brand-title-wrap {{
-        min-height: {HEADER_BLOCK_HEIGHT}px !important;
-        height: {HEADER_BLOCK_HEIGHT}px !important;
-        max-height: {HEADER_BLOCK_HEIGHT}px !important;
-        overflow: hidden !important;
-    }}
+    /* Native Streamlit title spacing */
+    .main .block-container {
+        padding-top: 0.75rem !important;
+    }
 
-    .top-brand-logo-img {{
-        height: {HEADER_LOGO_HEIGHT}px !important;
-        max-height: {HEADER_LOGO_HEIGHT}px !important;
-    }}
+    h1 {
+        margin-top: 0.10rem !important;
+        margin-bottom: 0.60rem !important;
+        letter-spacing: -0.035em;
+        font-weight: 600;
+    }
 
-    .top-brand-title {{
-        font-size: {HEADER_TITLE_SIZE}px !important;
-    }}
+    div[data-testid="stTabs"] {
+        margin-top: 0.15rem !important;
+    }
 
-    [data-testid="stTabs"] {{
-        margin-top: 0 !important;
-    }}
+    div[data-testid="stTabs"] [role="tablist"] {
+        margin-bottom: 14px !important;
+    }
+
+    @media (max-width: 900px) {
+        .main .block-container {
+            padding-left: 0.70rem !important;
+            padding-right: 0.70rem !important;
+        }
+
+        h1 {
+            font-size: 2.15rem !important;
+            margin-bottom: 0.45rem !important;
+        }
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -2719,7 +2663,7 @@ st.markdown(
     }
 
     [data-testid="stTabs"] {
-        margin-top: 0 !important;
+        margin-top: 0.15rem !important;
     }
 
     [data-testid="stTabs"] [role="tablist"] {
@@ -11833,54 +11777,6 @@ st.markdown(
 
         .top-brand-title {
             font-size: clamp(34px, 8.8vw, 44px) !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <style>
-    /* Final spacing for the compact card header */
-    .main .block-container {
-        padding-top: 0.55rem !important;
-    }
-
-    /*
-    The old header system left vertical flow space before the tabs.
-    Pull the main tabs up so the card behaves like a normal compact header.
-    */
-    div[data-testid="stTabs"] {
-        margin-top: -285px !important;
-    }
-
-    div[data-testid="stTabs"] [role="tablist"] {
-        margin-top: 0 !important;
-        margin-bottom: 14px !important;
-    }
-
-    @media (max-width: 1180px) {
-        div[data-testid="stTabs"] {
-            margin-top: -230px !important;
-        }
-    }
-
-    @media (max-width: 900px) {
-        .main .block-container {
-            padding-left: 0.65rem !important;
-            padding-right: 0.65rem !important;
-        }
-
-        div[data-testid="stTabs"] {
-            margin-top: -170px !important;
-        }
-    }
-
-    @media (max-width: 520px) {
-        div[data-testid="stTabs"] {
-            margin-top: -145px !important;
         }
     }
     </style>
