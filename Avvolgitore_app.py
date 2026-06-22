@@ -5,6 +5,7 @@ import html
 import hashlib
 import base64
 from io import BytesIO
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -2482,9 +2483,46 @@ def render_preset_action_bar(selected_product, selected_row, language, modified,
         unsafe_allow_html=True,
     )
 
-    b1, b2 = st.columns([1, 1], gap="small")
+    st.markdown(
+        """
+        <style>
+        /* Copper action button area: prevents the restore label from being cut */
+        div[data-testid="stButton"] > button {
+            min-height: 50px !important;
+            height: auto !important;
+            padding: 0.72rem 1.10rem !important;
+            border-radius: 999px !important;
+            background: #C57E5A !important;
+            border: 1px solid color-mix(in srgb, #C57E5A 78%, var(--text-color)) !important;
+            color: #FFFFFF !important;
+            font-weight: 900 !important;
+            white-space: normal !important;
+            line-height: 1.15 !important;
+            box-shadow: 0 8px 18px rgba(197,126,90,0.28) !important;
+        }
+
+        div[data-testid="stButton"] > button * {
+            color: #FFFFFF !important;
+            white-space: normal !important;
+            line-height: 1.15 !important;
+        }
+
+        @media (max-width: 900px) {
+            div[data-testid="stButton"] > button {
+                min-height: 48px !important;
+                font-size: 0.92rem !important;
+                padding-left: 0.85rem !important;
+                padding-right: 0.85rem !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    b1, b2 = st.columns([1.35, 1.0], gap="small")
     with b1:
-        if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True):
+        if st.button("Ripristina preset" if language == "IT" else "Restore preset", use_container_width=True, key="restore_preset_button"):
             st.session_state["restore_preset_request"] = str(selected_product)
             st.rerun()
     with b2:
@@ -2522,6 +2560,7 @@ def init_calculator_state():
 # =========================
 
 def find_logo():
+    # Use only the real PNG logo file. Do not generate a fake/fallback logo.
     candidates = [
         "New Logo PDM – rame.png",
         "New Logo PDM - rame.png",
@@ -2530,10 +2569,6 @@ def find_logo():
         "logo_pdm.png",
         "pdm_logo.png",
         "logo.png",
-        "logo.svg",
-        "logo.jpg",
-        "logo.jpeg",
-        "logo.webp",
     ]
 
     search_dirs = [
@@ -2549,7 +2584,7 @@ def find_logo():
     for folder in search_dirs:
         for name in candidates:
             path = os.path.join(folder, name)
-            if os.path.exists(path):
+            if os.path.exists(path) and path.lower().endswith(".png"):
                 return path
 
     patterns = []
@@ -2558,14 +2593,10 @@ def find_logo():
             os.path.join(folder, "*logo*.png"),
             os.path.join(folder, "*Logo*.png"),
             os.path.join(folder, "*PDM*.png"),
-            os.path.join(folder, "*.svg"),
-            os.path.join(folder, "*.jpg"),
-            os.path.join(folder, "*.jpeg"),
-            os.path.join(folder, "*.webp"),
         ])
 
     for pattern in patterns:
-        files = glob.glob(pattern)
+        files = [f for f in glob.glob(pattern) if f.lower().endswith(".png")]
         if files:
             return files[0]
 
@@ -2578,89 +2609,232 @@ logo_path = find_logo()
 # HEADER
 # =========================
 
-# Simple header: original logo + language selector only.
-# No title, no hero, no custom fixed layout.
+# Responsive premium header: centered logo + compact language selector.
+# The layout is intentionally built with Streamlit columns so the language selector
+# remains a real widget, while CSS keeps the header stable on desktop and mobile.
 current_lang = st.session_state.lang
 
-logo_col, lang_col = st.columns([1.0, 2.2], gap="large")
-
-with logo_col:
-    if logo_path:
-        try:
-            st.image(logo_path, width=118)
-        except Exception:
-            st.markdown("**PDM**")
-    else:
-        st.markdown("**PDM**")
-
-with lang_col:
-    lang_option = st.selectbox(
-        TEXTS[current_lang]["language"],
-        ["Italiano", "English (US)"],
-        index=0 if current_lang == "IT" else 1,
-        key="lang_selector_top",
-        label_visibility="collapsed",
-    )
-
-new_lang = "IT" if "Italiano" in lang_option else "EN"
-if new_lang != st.session_state.lang:
-    st.session_state.lang = new_lang
-    st.rerun()
-
-lang = st.session_state.lang
-t = TEXTS[lang]
+logo_html = ""
+if logo_path:
+    try:
+        logo_b64 = base64.b64encode(Path(logo_path).read_bytes()).decode("utf-8")
+        logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="pdm-header-logo" alt="PDM logo" />'
+    except Exception:
+        logo_html = ""
 
 st.markdown(
     """
     <style>
-    /* Logo + selector only header */
+    :root {
+        --pdm-accent: #C57E5A;
+        --pdm-header-gap-desktop: 0.34rem;
+        --pdm-header-gap-mobile: 0.16rem;
+    }
+
     .main .block-container {
-        padding-top: 0.55rem !important;
+        padding-top: 0.42rem !important;
     }
 
-    div[data-testid="stImage"] {
-        margin-bottom: 0 !important;
+    .pdm-header-logo-wrap {
+        width: 100%;
+        min-height: clamp(116px, 10.5vw, 178px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: 0.08rem 0 0.02rem 0;
+        pointer-events: none;
     }
 
-    div[data-testid="stSelectbox"] {
-        margin-top: 0.20rem !important;
-        margin-bottom: 0.20rem !important;
+    .pdm-header-logo {
+        display: block;
+        width: auto;
+        height: clamp(108px, 9.8vw, 168px);
+        max-width: min(560px, 54vw);
+        object-fit: contain;
+        filter: drop-shadow(0 10px 22px rgba(0,0,0,0.10));
+        transform: translateY(1px);
     }
 
-    div[data-testid="stTabs"] {
-        margin-top: 0.35rem !important;
+    .pdm-header-spacer,
+    .pdm-lang-slot {
+        width: 100%;
+        height: 1px;
+        line-height: 1px;
+        overflow: hidden;
     }
 
-    div[data-testid="stTabs"] [role="tablist"] {
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+        align-items: flex-start !important;
+        gap: 0.55rem !important;
+        margin: 0 0 var(--pdm-header-gap-desktop) 0 !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"] {
+        min-width: 0 !important;
+        padding: 0 !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) {
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: flex-start !important;
+        padding-top: clamp(18px, 2.1vw, 30px) !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stSelectbox"] {
+        width: 74px !important;
+        min-width: 74px !important;
+        margin: 0 !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] > div {
+        min-height: 34px !important;
+        height: 34px !important;
+        border-radius: 999px !important;
+        border: 1px solid color-mix(in srgb, var(--text-color) 13%, transparent) !important;
+        background: color-mix(in srgb, var(--secondary-background-color) 92%, var(--background-color)) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.055) !important;
+        transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] > div:hover {
+        border-color: color-mix(in srgb, var(--pdm-accent) 42%, var(--text-color) 8%) !important;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.075) !important;
+        transform: translateY(-1px);
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] * {
+        font-size: 0.76rem !important;
+        font-weight: 760 !important;
+        letter-spacing: 0.02em !important;
+    }
+
+    div[data-testid="column"]:has(.pdm-lang-slot) svg {
+        width: 15px !important;
+        height: 15px !important;
+        opacity: 0.62 !important;
+    }
+
+    h1 {
         margin-top: 0 !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 0 !important;
+        line-height: 1.04 !important;
+        letter-spacing: -0.035em;
+        font-weight: 650;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 1180px) {
         .main .block-container {
-            padding-left: 0.75rem !important;
-            padding-right: 0.75rem !important;
-            padding-top: 0.45rem !important;
+            padding-top: 0.36rem !important;
         }
 
-        div[data-testid="stImage"] img {
-            max-width: 132px !important;
-            height: auto !important;
+        .pdm-header-logo-wrap {
+            min-height: clamp(98px, 14vw, 150px);
+            padding-top: 0.02rem;
         }
 
-        div[data-testid="stSelectbox"] {
-            margin-top: 0.10rem !important;
-            margin-bottom: 0.10rem !important;
+        .pdm-header-logo {
+            height: clamp(92px, 13vw, 140px);
+            max-width: min(460px, 58vw);
         }
 
-        div[data-testid="stTabs"] {
-            margin-top: 0.25rem !important;
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            gap: 0.42rem !important;
+            margin-bottom: 0.22rem !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) {
+            padding-top: clamp(14px, 2.6vw, 24px) !important;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .main .block-container {
+            padding-top: 0.28rem !important;
+            padding-left: 0.55rem !important;
+            padding-right: 0.55rem !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            align-items: flex-start !important;
+            gap: 0.22rem !important;
+            margin-bottom: var(--pdm-header-gap-mobile) !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(1),
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(3) {
+            flex: 0 0 62px !important;
+            width: 62px !important;
+            min-width: 62px !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) > div[data-testid="column"]:nth-child(2) {
+            flex: 1 1 auto !important;
+            width: auto !important;
+            min-width: 0 !important;
+        }
+
+        .pdm-header-logo-wrap {
+            min-height: clamp(82px, 22vw, 116px);
+        }
+
+        .pdm-header-logo {
+            height: clamp(78px, 21vw, 108px);
+            max-width: min(300px, 62vw);
+            filter: drop-shadow(0 7px 15px rgba(0,0,0,0.09));
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) {
+            padding-top: 10px !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[data-testid="stSelectbox"] {
+            width: 58px !important;
+            min-width: 58px !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] > div {
+            min-height: 31px !important;
+            height: 31px !important;
+        }
+
+        div[data-testid="column"]:has(.pdm-lang-slot) div[data-baseweb="select"] * {
+            font-size: 0.70rem !important;
         }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+header_left, header_logo, header_lang = st.columns([0.95, 3.10, 0.95], gap="small")
+
+with header_left:
+    st.markdown('<div class="pdm-header-spacer"></div>', unsafe_allow_html=True)
+
+with header_logo:
+    st.markdown(f'<div class="pdm-header-logo-wrap">{logo_html}</div>', unsafe_allow_html=True)
+
+with header_lang:
+    st.markdown('<div class="pdm-lang-slot"></div>', unsafe_allow_html=True)
+    lang_option = st.selectbox(
+        TEXTS[current_lang]["language"],
+        ["IT", "EN"],
+        index=0 if current_lang == "IT" else 1,
+        key="lang_selector_header",
+        label_visibility="collapsed",
+    )
+
+new_lang = lang_option
+if new_lang != st.session_state.lang:
+    st.session_state.lang = new_lang
+    st.rerun()
+
+lang = st.session_state.lang
+t = TEXTS[lang]
 
 st.markdown(
     """
@@ -11588,23 +11762,98 @@ st.markdown(
 
 
 
-
 st.markdown(
     """
     <style>
-    /* Final header spacing: logo + selector only */
+    /* Final header-to-tabs spacing override.
+       No negative margins: this keeps desktop, tablet and mobile proportional. */
+    .main .block-container {
+        padding-top: 0.42rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+        margin-bottom: 0.18rem !important;
+    }
+
     div[data-testid="stTabs"] {
-        margin-top: 0.35rem !important;
+        margin-top: 0.04rem !important;
     }
 
     div[data-testid="stTabs"] [role="tablist"] {
         margin-top: 0 !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 10px !important;
+        padding-top: 0 !important;
+        padding-bottom: 0.34rem !important;
     }
 
-    @media (max-width: 900px) {
+    div[data-testid="stTabs"] [role="tab"] {
+        min-height: 2.42rem !important;
+        padding-top: 0.52rem !important;
+        padding-bottom: 0.76rem !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
+        bottom: 0.16rem !important;
+    }
+
+    @media (max-width: 1180px) {
+        .main .block-container {
+            padding-top: 0.34rem !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            margin-bottom: 0.12rem !important;
+        }
+
         div[data-testid="stTabs"] {
-            margin-top: 0.25rem !important;
+            margin-top: 0.02rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            gap: 18px !important;
+            margin-bottom: 9px !important;
+            padding-bottom: 0.28rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] {
+            min-height: 2.34rem !important;
+            padding-top: 0.48rem !important;
+            padding-bottom: 0.68rem !important;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .main .block-container {
+            padding-top: 0.24rem !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.pdm-header-logo-wrap) {
+            margin-bottom: 0.06rem !important;
+        }
+
+        div[data-testid="stTabs"] {
+            margin-top: 0 !important;
+        }
+
+        div[data-testid="stTabs"] [role="tablist"] {
+            gap: 12px !important;
+            margin-bottom: 8px !important;
+            padding-bottom: 0.22rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] {
+            min-height: 2.18rem !important;
+            padding-top: 0.40rem !important;
+            padding-bottom: 0.58rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"] p {
+            font-size: 0.88rem !important;
+        }
+
+        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after {
+            bottom: 0.10rem !important;
+            height: 2px !important;
         }
     }
     </style>
@@ -12499,10 +12748,9 @@ with tab_tech_sheet:
 
         render_tech_snapshot_cards(selected_row, lang)
 
-        # Internal tabs need their own compensation because the main header tabs use
-        # HEADER_TABS_MARGIN = -220. This keeps the title/header unchanged while
-        # preventing the "Anteprima / Parametri macchina" tabs from overlapping.
-        INNER_TABS_SPACER = abs(int(HEADER_TABS_MARGIN)) + 28
+        # Small spacer before the internal technical-sheet tabs.
+        # The header no longer uses negative tab margins, so no compensation is needed.
+        INNER_TABS_SPACER = 14
         st.markdown(f"<div style='height: {INNER_TABS_SPACER}px;'></div>", unsafe_allow_html=True)
 
         overview_tab, machine_sheet_tab = st.tabs([
