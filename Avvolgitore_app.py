@@ -4991,22 +4991,6 @@ def viewer(
                 </div>
 
                 <div class="render_tools_section">
-                    <div class="render_tools_section_title">Controllo</div>
-                    <div class="render_tools_row render_tools_row_camera">
-                        <span class="viewer_tools_label" id="camera_tools_title">Camera</span>
-                        <button class="viewer_tool_chip" id="zoom_out_btn" type="button">−</button>
-                        <button class="viewer_tool_chip viewer_tool_chip_main" id="fit_view_btn" type="button">Fit</button>
-                        <button class="viewer_tool_chip" id="zoom_in_btn" type="button">+</button>
-                    </div>
-                    <div class="render_tools_row">
-                        <span class="viewer_tools_label" id="view_title"></span>
-                        <button class="view_btn viewer_tool_chip active_opt" data-view="3d" id="view_3d_btn" type="button"></button>
-                        <button class="view_btn viewer_tool_chip" data-view="front" id="view_front_btn" type="button"></button>
-                        <button class="view_btn viewer_tool_chip" data-view="side" id="view_side_btn" type="button"></button>
-                    </div>
-                </div>
-
-                <div class="render_tools_section">
                     <div class="render_tools_section_title">Render</div>
                     <div class="render_tools_row">
                         <span class="viewer_tools_label" id="quality_title">Qualità</span>
@@ -5023,6 +5007,22 @@ def viewer(
                         <span class="viewer_tools_label" id="tube_finish_title">Finitura</span>
                         <button class="tube_finish_btn viewer_tool_chip active_opt" data-finish="liscio" id="tube_finish_liscio_btn" type="button">Liscio</button>
                         <button class="tube_finish_btn viewer_tool_chip" data-finish="zigrinata" id="tube_finish_zigrinata_btn" type="button">Zigrinata</button>
+                    </div>
+                </div>
+
+                <div class="render_tools_section">
+                    <div class="render_tools_section_title">Controllo</div>
+                    <div class="render_tools_row render_tools_row_camera">
+                        <span class="viewer_tools_label" id="camera_tools_title">Camera</span>
+                        <button class="viewer_tool_chip" id="zoom_out_btn" type="button">−</button>
+                        <button class="viewer_tool_chip viewer_tool_chip_main" id="fit_view_btn" type="button">Fit</button>
+                        <button class="viewer_tool_chip" id="zoom_in_btn" type="button">+</button>
+                    </div>
+                    <div class="render_tools_row">
+                        <span class="viewer_tools_label" id="view_title"></span>
+                        <button class="view_btn viewer_tool_chip active_opt" data-view="3d" id="view_3d_btn" type="button"></button>
+                        <button class="view_btn viewer_tool_chip" data-view="front" id="view_front_btn" type="button"></button>
+                        <button class="view_btn viewer_tool_chip" data-view="side" id="view_side_btn" type="button"></button>
                     </div>
                 </div>
 
@@ -6648,10 +6648,10 @@ def viewer(
                     shadows: false,
                     clearcoatBoost: 0.00,
                     bumpScale: 0.012,
-                    ribbedBumpScale: 0.060,
-                    ribGeometryScale: 0.078,
-                    ribPitchMm: 18.0,
-                    ribMaxTubularSegments: 2600,
+                    ribbedBumpScale: 0.026,
+                    ribGeometryScale: 0.046,
+                    ribPitchMm: 12.5,
+                    ribMaxTubularSegments: 3200,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6674,10 +6674,10 @@ def viewer(
                     shadows: true,
                     clearcoatBoost: 0.10,
                     bumpScale: 0.040,
-                    ribbedBumpScale: 0.110,
-                    ribGeometryScale: 0.125,
-                    ribPitchMm: 15.0,
-                    ribMaxTubularSegments: 7800,
+                    ribbedBumpScale: 0.048,
+                    ribGeometryScale: 0.066,
+                    ribPitchMm: 11.5,
+                    ribMaxTubularSegments: 8800,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6699,10 +6699,10 @@ def viewer(
                 shadows: true,
                 clearcoatBoost: 0.045,
                 bumpScale: 0.026,
-                ribbedBumpScale: 0.085,
-                ribGeometryScale: 0.105,
-                ribPitchMm: 16.5,
-                ribMaxTubularSegments: 5200,
+                ribbedBumpScale: 0.036,
+                ribGeometryScale: 0.056,
+                ribPitchMm: 12.0,
+                ribMaxTubularSegments: 6200,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -7531,27 +7531,48 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const img = ctx.getImageData(0, 0, size, size);
             const data = img.data;
 
+            const smoothstep = (a, b, x) => {{
+                const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
+                return t * t * (3 - 2 * t);
+            }};
+
             for (let y = 0; y < size; y++) {{
                 const yy = y / size;
                 for (let x = 0; x < size; x++) {{
                     const xx = x / size;
                     const i = (y * size + x) * 4;
 
-                    // Banda anulare: varia lungo l'asse del tubo, ma con micro-irregolarità.
-                    const irregular = Math.sin(xx * 37.0 + Math.sin(xx * 9.0) * 0.55 + yy * 0.85) * 0.035;
-                    const phase = (xx * 34.0 + irregular) % 1.0;
-                    const ridgeCore = Math.exp(-Math.pow((phase - 0.50) / 0.115, 2));
-                    const ridgeShoulder = Math.exp(-Math.pow((phase - 0.50) / 0.255, 2)) * 0.40;
-                    const valley = -Math.exp(-Math.pow((phase - 0.02) / 0.150, 2)) * 0.22;
-                    const longitudinalNoise = (Math.random() - 0.5) * (dark ? 5.0 : 4.0);
-                    const softDents = Math.sin(xx * 91.0 + yy * 16.0) * 2.2 + Math.sin(xx * 17.0 - yy * 41.0) * 1.5;
-                    const dirtSpeck = Math.random() > 0.996 ? (dark ? 18 : -24) : 0;
+                    const phase = (xx * 28.0 + Math.sin(xx * 5.7 + yy * 1.9) * 0.065) % 1.0;
+                    const rise = smoothstep(0.08, 0.24, phase);
+                    const fall = 1.0 - smoothstep(0.74, 0.90, phase);
+                    const band = rise * fall;
+                    const crown = Math.exp(-Math.pow((phase - 0.50) / 0.26, 4.0)) * 0.18;
+                    const edgeGroove = -Math.exp(-Math.pow((phase - 0.06) / 0.060, 2.0)) * 0.34
+                                     - Math.exp(-Math.pow((phase - 0.94) / 0.060, 2.0)) * 0.26;
 
-                    let v = base + (ridgeCore * 34.0) + (ridgeShoulder * 13.0) + (valley * 18.0) + longitudinalNoise + softDents + dirtSpeck;
+                    const verticalSeams = (
+                        Math.exp(-Math.pow((yy - 0.12) / 0.018, 2.0))
+                      + Math.exp(-Math.pow((yy - 0.47) / 0.020, 2.0))
+                      + Math.exp(-Math.pow((yy - 0.81) / 0.018, 2.0))
+                    ) * 0.11;
+
+                    const softDents = Math.sin(xx * 21.0 + yy * 10.0) * 1.2 + Math.sin(xx * 9.0 - yy * 17.0) * 0.9;
+                    const longitudinalNoise = Math.sin(xx * 63.0 + yy * 5.0) * 0.9 + (Math.random() - 0.5) * 1.1;
+                    const dirtSpeck = Math.random() > 0.9975 ? (dark ? 9 : -11) : 0;
+
+                    let v = base
+                        + band * (dark ? 18.0 : 21.0)
+                        + crown * (dark ? 8.0 : 10.0)
+                        + edgeGroove * (dark ? 18.0 : 22.0)
+                        - verticalSeams * (dark ? 14.0 : 17.0)
+                        + softDents
+                        + longitudinalNoise
+                        + dirtSpeck;
+
                     if (dark) {{
-                        v = Math.max(58, Math.min(145, v));
+                        v = Math.max(62, Math.min(142, v));
                     }} else {{
-                        v = Math.max(198, Math.min(255, v));
+                        v = Math.max(204, Math.min(252, v));
                     }}
 
                     data[i] = v;
@@ -7566,8 +7587,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const tex = new THREE.CanvasTexture(canvas);
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            // Repeat alto sull'asse del tubo: crea l'effetto zigrinato/anulare.
-            tex.repeat.set(16.0, 1.0);
+            tex.repeat.set(14.0, 1.0);
             tex.anisotropy = 12;
             tex.needsUpdate = true;
 
@@ -8574,14 +8594,13 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            // Zigrinata realistica: nervature anulari morbide ma molto visibili.
-            // Invece di una micro-texture perfettina, crea alternanza fisica di cresta + valle
-            // lungo l'asse del tubo. Il passo è volutamente più grande del reale per essere leggibile
-            // nel render dell'intero rotolo e nelle catture.
-            const pitch = Math.max(12.0, profile.ribPitchMm || 16.5);
+            const pitch = Math.max(10.5, profile.ribPitchMm || 12.0);
             const repeats = Math.max(3.0, totalLen / pitch);
-            const amp = Math.max(0.85, radius * (profile.ribGeometryScale || 0.105));
-            const twoPi = Math.PI * 2.0;
+            const amp = Math.min(radius * 0.11, Math.max(0.34, radius * (profile.ribGeometryScale || 0.056)));
+            const smoothstep = (a, b, x) => {{
+                const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
+                return t * t * (3 - 2 * t);
+            }};
 
             for (let i = 0; i < pos.count; i++) {{
                 const u = uv.getX(i);
@@ -8589,20 +8608,25 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 const phase = u * repeats;
                 const frac = phase - Math.floor(phase);
 
-                // Cresta larga e arrotondata, valle stretta: più simile al tubo reale in foto.
-                const crest = Math.exp(-Math.pow((frac - 0.46) / 0.245, 2.0));
-                const crestTop = Math.exp(-Math.pow((frac - 0.52) / 0.145, 2.0)) * 0.46;
-                const valleyA = Math.exp(-Math.pow((frac - 0.05) / 0.075, 2.0)) * 0.54;
-                const valleyB = Math.exp(-Math.pow((frac - 0.91) / 0.085, 2.0)) * 0.30;
+                const rise = smoothstep(0.08, 0.24, frac);
+                const fall = 1.0 - smoothstep(0.74, 0.90, frac);
+                const band = rise * fall;
+                const crown = Math.exp(-Math.pow((frac - 0.50) / 0.27, 4.0)) * 0.16;
+                const groove = -Math.exp(-Math.pow((frac - 0.05) / 0.060, 2.0)) * 0.24
+                             - Math.exp(-Math.pow((frac - 0.95) / 0.060, 2.0)) * 0.18;
 
-                // Piccole irregolarità, ma non una zigrinatura a sega né triangolare.
-                const angularIrregularity = 1.0
-                    + 0.045 * Math.sin(twoPi * v * 2.0 + phase * 0.23)
-                    + 0.030 * Math.sin(twoPi * v * 5.0 - phase * 0.17);
-                const longitudinalIrregularity = 0.035 * Math.sin(phase * 0.37) + 0.020 * Math.sin(phase * 1.11 + v * 4.0);
+                const seamImprint = (
+                    Math.exp(-Math.pow((v - 0.12) / 0.028, 2.0))
+                  + Math.exp(-Math.pow((v - 0.48) / 0.030, 2.0))
+                  + Math.exp(-Math.pow((v - 0.82) / 0.026, 2.0))
+                ) * 0.055;
 
-                const ribShape = (crest * 0.92 + crestTop - valleyA - valleyB);
-                const displacement = amp * (ribShape * angularIrregularity + longitudinalIrregularity);
+                const longNoise = 0.018 * Math.sin(phase * 0.45 + v * 5.0)
+                                + 0.012 * Math.sin(phase * 1.35 - v * 9.0);
+                const angularSoft = 1.0 + 0.010 * Math.sin(v * Math.PI * 2.0 * 2.0 + phase * 0.06);
+
+                const ribShape = (band * 0.92 + crown + groove + longNoise) * (1.0 - seamImprint) * angularSoft;
+                const displacement = amp * ribShape;
 
                 pos.setXYZ(
                     i,
@@ -8636,14 +8660,17 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode === "zigrinata") {{
                 const ribPitch = Math.max(12.0, profile.ribPitchMm || 16.5);
                 const ribRepeats = Math.max(1, totalLen / ribPitch);
-                const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 2.0 : (renderQuality === "ultra" ? 4.2 : 3.25)));
+                const ribTargetSegments = Math.ceil(ribRepeats * (renderQuality === "eco" ? 3.0 : (renderQuality === "ultra" ? 5.2 : 4.1)));
                 tubularSegments = Math.max(
                     tubularSegments,
                     Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
                 );
             }}
 
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, profile.radialSegments, false);
+            const ribbedRadialSegments = tubeFinishMode === "zigrinata"
+                ? Math.max(profile.radialSegments, renderQuality === "eco" ? 22 : (renderQuality === "ultra" ? 38 : 30))
+                : profile.radialSegments;
+            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, ribbedRadialSegments, false);
             applyRibbedGeometry(geo, totalLen, radius);
             geo.computeBoundingSphere();
             geo.computeBoundingBox();
