@@ -7756,39 +7756,51 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }});
 
             if (isRibbed) {{
-                const visualComp = getRollVisualCompensation();
-                const ribVisualBoost = Math.max(0.90, Math.min(3.00, visualComp.strengthComp * (CUSTOM_RIB.textureFactor || 1.0)));
-                mat.bumpMap = ribbedTex;
-                mat.bumpScale = (mode === "gelblack" ? profile.ribbedBumpScale * 0.95 : profile.ribbedBumpScale * 1.75) * visualComp.strengthComp;
+                // Zigrinatura VISUALE in screen-space.
+                // No UV, no texture repeat, no bump map, no geometria: així NO depèn de la longitud del rotllo.
+                const screenSpacingPx = Math.max(4.0, Math.min(42.0, 1400.0 / Math.max(5.0, CUSTOM_RIB.visualDensity || 70.0)));
+                const ribVisualBoost = Math.max(
+                    0.25,
+                    Math.min(
+                        4.00,
+                        (CUSTOM_RIB.textureFactor || 1.0)
+                        * (0.75 + 6.0 * (CUSTOM_RIB.bumpScale || 0.09))
+                        * (0.75 + 2.2 * (CUSTOM_RIB.geometryScale || 0.11))
+                    )
+                );
 
-                // Zigrinatura procedurale solo visiva: auto-compensata per rotoli grandi.
+                mat.bumpMap = null;
+                mat.bumpScale = 0.0;
+
                 mat.onBeforeCompile = (shader) => {{
                     shader.fragmentShader = shader.fragmentShader.replace(
                         "#include <dithering_fragment>",
                         `
-                        float ribPhaseProc = fract(vUv.x);
-                        float ribRiseProc = smoothstep(0.045, 0.135, ribPhaseProc);
-                        float ribFallProc = 1.0 - smoothstep(0.865, 0.955, ribPhaseProc);
-                        float ribBandProc = ribRiseProc * ribFallProc;
-                        float ribCrownProc = exp(-pow((ribPhaseProc - 0.50) / 0.28, 4.0)) * 0.42;
-                        float ribGrooveLProc = exp(-pow((ribPhaseProc - 0.040) / 0.026, 2.0));
-                        float ribGrooveRProc = exp(-pow((ribPhaseProc - 0.960) / 0.028, 2.0));
-                        float ribVisualBoost = ${{ribVisualBoost.toFixed(3)}};
+                        float ribSpacingPx = ${screenSpacingPx.toFixed(3)};
+                        float ribVisualBoost = ${ribVisualBoost.toFixed(3)};
+
+                        // Patró fix en píxels: mateixa separació aparent independentment de longitud/càmera.
+                        float ribCoordProc = (gl_FragCoord.x * 0.92 + gl_FragCoord.y * 0.18) / ribSpacingPx;
+                        float ribPhaseProc = fract(ribCoordProc);
+
+                        float ribCenterProc = abs(ribPhaseProc - 0.50) * 2.0;
+                        float ribBandProc = 1.0 - smoothstep(0.22, 0.92, ribCenterProc);
+                        float ribGrooveProc = 1.0 - smoothstep(0.00, 0.20, min(ribPhaseProc, 1.0 - ribPhaseProc));
+
+                        float ribFineProc = sin((gl_FragCoord.x * 0.35 + gl_FragCoord.y * 0.71) * 0.35) * 0.010 * ribVisualBoost;
 
                         float ribShadeProc = 1.0
-                            + ribBandProc * (0.080 * ribVisualBoost)
-                            + ribCrownProc * (0.085 * ribVisualBoost)
-                            - ribGrooveLProc * (0.110 * ribVisualBoost)
-                            - ribGrooveRProc * (0.095 * ribVisualBoost);
+                            + ribBandProc * (0.105 * ribVisualBoost)
+                            - ribGrooveProc * (0.145 * ribVisualBoost)
+                            + ribFineProc;
 
-                        ribShadeProc += sin(vUv.x * 6.2831853 * 0.23 + vUv.y * 18.0) * 0.008 * ribVisualBoost;
-                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.68, 1.28);
+                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.62, 1.34);
 
                         #include <dithering_fragment>
                         `
                     );
                 }};
-                mat.customProgramCacheKey = () => "zigrinata_visual_auto_" + ribVisualBoost.toFixed(2);
+                mat.customProgramCacheKey = () => "zigrinata_screen_space_" + screenSpacingPx.toFixed(1) + "_" + ribVisualBoost.toFixed(2);
             }} else if (!isEco) {{
                 mat.bumpMap = tex;
                 mat.bumpScale = mode === "gelblack" ? profile.bumpScale * 0.55 : profile.bumpScale;
@@ -8704,7 +8716,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const profile = getQualityProfile();
             const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
             const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
-            const totalRepeats = Math.max(1.0, (totalLen / 1000.0) * ribsPerMetre * fineFactor);
+            const totalRepeats = 1.0;
 
             for (let i = 0; i < uv.count; i++) {{
                 const ringIndex = Math.floor(i / ringSize);
@@ -8734,8 +8746,11 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const visualComp = getRollVisualCompensation();
-            const amp = Math.min(radius * 0.090, Math.max(0.08, radius * (profile.ribGeometryScale || 0.076) * 0.38 * visualComp.strengthComp));
+            // Screen-space zigrinatura: no deformem geometria per evitar dependència de longitud.
+            geo.computeVertexNormals();
+            return;
+
+            const amp = 0.0;
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
                 return t * t * (3 - 2 * t);
@@ -14429,9 +14444,9 @@ with tab_production:
 
     with st.expander("Regolazione zigrinata visuale" if lang == "IT" else "Visual ribbed finish tuning", expanded=False):
         st.caption(
-            "Solo regolazione visiva. Usa questi slider per rendere la zigrinatura più evidente quando selezioni 'Zigrinata' nel viewer."
+            "Solo regolazione visiva in screen-space. Non è una texture fisica: serve a mantenere la stessa visibilità anche cambiando la lunghezza del rotolo."
             if lang == "IT"
-            else "Visual tuning only. Use these sliders to make the ribbed finish more visible when you select 'Ribbed' in the viewer."
+            else "Screen-space visual tuning only. This is not a physical texture: it keeps the same visibility even when coil length changes."
         )
         zg1, zg2 = st.columns(2, gap="large")
         with zg1:
@@ -14443,9 +14458,9 @@ with tab_production:
                 step=1.0,
                 key="tmp_rib_visual_density_simple",
                 help=(
-                    "Più alto = più righe visibili e più ripetizione. L’app compensa automaticamente i rotoli grandi per mantenere l’effetto più simile."
+                    "Più alto = più righe visibili. Il pattern è fissato in pixel, quindi non segue la lunghezza fisica del rotolo."
                     if lang == "IT"
-                    else "Higher = more visible rib lines and more repetition. The app automatically compensates larger coils to keep the effect more similar."
+                    else "Higher = more visible rib lines. The pattern is fixed in pixels, so it does not follow the physical coil length."
                 ),
             )
             rib_geometry_scale = st.slider(
