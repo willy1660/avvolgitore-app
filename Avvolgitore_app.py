@@ -5018,8 +5018,8 @@ def viewer(
                     </div>
                     <div class="render_tools_row">
                         <span class="viewer_tools_label" id="tube_finish_title">Finitura</span>
-                        <button class="tube_finish_btn viewer_tool_chip active_opt" data-finish="liscio" id="tube_finish_liscio_btn" type="button">Liscio</button>
-                        <button class="tube_finish_btn viewer_tool_chip" data-finish="zigrinata" id="tube_finish_zigrinata_btn" type="button">Zigrinata</button>
+                        <button class="tube_finish_btn viewer_tool_chip" data-finish="liscio" id="tube_finish_liscio_btn" type="button">Liscio</button>
+                        <button class="tube_finish_btn viewer_tool_chip active_opt" data-finish="zigrinata" id="tube_finish_zigrinata_btn" type="button">Zigrinata</button>
                     </div>
                 </div>
 
@@ -6837,7 +6837,7 @@ def viewer(
         let speed = 1.0;
         let aspoMode = "hidden";
         let tubeMode = "{tube_mode_initial}";
-        let tubeFinishMode = "liscio";
+        let tubeFinishMode = "zigrinata";
         let currentView = "3d";
         let sceneMode = "{initial_scene}";
         let packagingMode = "{packaging_mode}";
@@ -14463,9 +14463,9 @@ with tab_production:
 
     with st.expander("Regolazione zigrinata visuale" if lang == "IT" else "Visual ribbed finish tuning", expanded=False):
         st.caption(
-            "Solo regolazione visiva in screen-space. Non è una texture fisica: serve a mantenere la stessa visibilità anche cambiando la lunghezza del rotolo."
+            "Solo regolazione visiva in screen-space. Per fare prove, il viewer ora parte direttamente in Zigrinata: così i cambi dei slider si vedono subito."
             if lang == "IT"
-            else "Screen-space visual tuning only. This is not a physical texture: it keeps the same visibility even when coil length changes."
+            else "Screen-space visual tuning only. For testing, the viewer now starts directly in Ribbed mode so slider changes are immediately visible."
         )
         zg1, zg2 = st.columns(2, gap="large")
         with zg1:
