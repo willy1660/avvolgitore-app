@@ -7728,7 +7728,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const mat = new THREE.MeshPhysicalMaterial({{
                 color: chosen,
-                map: tex,
+                map: isRibbed ? null : tex,
                 roughness: isRibbed ? (isEco ? 0.84 : (active ? 0.58 : (free ? 0.78 : 0.66))) : (isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72))),
                 metalness: 0.005,
                 clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost + (isRibbed ? 0.035 : 0.0)),
@@ -7762,12 +7762,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         function makeLengthInvariantTubeMaterial(material, totalLen) {{
             if (tubeFinishMode !== "zigrinata" || !material) return material;
 
-            const profile = getQualityProfile();
-            const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
-            const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
-            const lengthMetres = Math.max(0.001, totalLen / 1000.0);
-            const visualRepeat = Math.max(1.0, lengthMetres * ribsPerMetre * fineFactor);
-
             const mat = material.clone();
 
             if (material.map) {{
@@ -7778,7 +7772,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (material.bumpMap) {{
                 mat.bumpMap = material.bumpMap.clone();
-                mat.bumpMap.repeat.set(visualRepeat, 1.0);
+                mat.bumpMap.repeat.set(1.0, 1.0);
                 mat.bumpMap.needsUpdate = true;
             }}
 
@@ -8645,6 +8639,23 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return mesh;
         }}
 
+        function applyRealLengthRibUVs(geo, totalLen) {{
+            if (tubeFinishMode !== "zigrinata") return;
+            const uv = geo.attributes.uv;
+            if (!uv) return;
+
+            const profile = getQualityProfile();
+            const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
+            const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
+            const totalRepeats = Math.max(1.0, (totalLen / 1000.0) * ribsPerMetre * fineFactor);
+
+            for (let i = 0; i < uv.count; i++) {{
+                uv.setX(i, uv.getX(i) * totalRepeats);
+            }}
+
+            uv.needsUpdate = true;
+        }}
+
         function applyRibbedGeometry(geo, totalLen, radius) {{
             const profile = getQualityProfile();
 
@@ -8661,9 +8672,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
-            const lengthMetres = Math.max(0.001, totalLen / 1000.0);
-            const repeats = Math.max(10.0, Math.min(6000.0, lengthMetres * ribsPerMetre));
             const amp = Math.min(radius * 0.090, Math.max(0.16, radius * (profile.ribGeometryScale || 0.076) * 0.68));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
@@ -8671,9 +8679,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }};
 
             for (let i = 0; i < pos.count; i++) {{
-                const u = uv.getX(i);
+                const phase = uv.getX(i);
                 const v = uv.getY(i);
-                const phase = u * repeats;
                 const frac = phase - Math.floor(phase);
 
                 const rise = smoothstep(0.04, 0.14, frac);
@@ -8740,6 +8747,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 ? Math.max(profile.radialSegments, 32)
                 : profile.radialSegments;
             const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, ribbedRadialSegments, false);
+            applyRealLengthRibUVs(geo, totalLen);
             applyRibbedGeometry(geo, totalLen, radius);
             geo.computeBoundingSphere();
             geo.computeBoundingBox();
@@ -14494,9 +14502,9 @@ with tab_production:
                 step=0.05,
                 key="tmp_rib_length_compensation",
                 help=(
-                    "Serve per correggere differenze tra 15 / 25 / 50 m. Se nei tubi lunghi la zigrinatura sembra meno fitta, aumenta questo valore."
+                    "Serve solo come rifinitura. Ora la zigrinatura usa UV basate sulla lunghezza reale del tubo, quindi non dovrebbe più scalare con 15 / 25 / 50 m."
                     if lang == "IT"
-                    else "Corrects differences between 15 / 25 / 50 m. If long tubes look less dense, increase this value."
+                    else "Fine-tuning only. Ribbing now uses UVs based on real tube length, so it should no longer scale with 15 / 25 / 50 m."
                 ),
             )
         with zg4:
