@@ -7776,8 +7776,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                     shader.fragmentShader = shader.fragmentShader.replace(
                         "#include <dithering_fragment>",
                         `
-                        float ribSpacingPx = ${screenSpacingPx.toFixed(3)};
-                        float ribVisualBoost = ${ribVisualBoost.toFixed(3)};
+                        float ribSpacingPx = ${{screenSpacingPx.toFixed(3)}};
+                        float ribVisualBoost = ${{ribVisualBoost.toFixed(3)}};
 
                         // Patró fix en píxels: mateixa separació aparent independentment de longitud/càmera.
                         float ribCoordProc = (gl_FragCoord.x * 0.92 + gl_FragCoord.y * 0.18) / ribSpacingPx;
