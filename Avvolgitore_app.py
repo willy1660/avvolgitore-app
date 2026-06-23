@@ -4996,8 +4996,69 @@ def viewer(
             <button id="fullscreen_btn" class="viewer_btn viewer_icon_btn">⛶</button>
             <button id="capture_render_btn" class="viewer_btn viewer_icon_btn">📷</button>
             <button id="print_simulation_btn" class="viewer_btn viewer_print_btn">Stampa</button>
+            <button id="info_toggle_btn" class="viewer_btn viewer_print_btn">Info</button>
+            <button id="clean_toggle_btn" class="viewer_btn viewer_print_btn">Clean</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
+        </div>
+
+        <button id="clean_exit_btn" type="button" style="
+            position:absolute;
+            top:14px;
+            right:14px;
+            z-index:30;
+            display:none;
+            align-items:center;
+            justify-content:center;
+            width:40px;
+            height:40px;
+            border:1px solid rgba(255,255,255,0.14);
+            border-radius:999px;
+            background:rgba(18,22,27,0.76);
+            color:#f8fafc;
+            backdrop-filter:blur(10px);
+            box-shadow:0 12px 26px rgba(0,0,0,0.20);
+            font-family:Arial, sans-serif;
+            font-size:18px;
+            font-weight:900;
+            line-height:1;
+            cursor:pointer;
+        ">×</button>
+
+        <div id="viewer_info_card" style="
+            position:absolute;
+            top:14px;
+            right:14px;
+            z-index:21;
+            display:none;
+            min-width:220px;
+            max-width:240px;
+            padding:11px 12px;
+            border:1px solid rgba(255,255,255,0.10);
+            border-radius:15px;
+            background:linear-gradient(180deg, rgba(18,22,27,0.78), rgba(18,22,27,0.64));
+            color:#f8fafc;
+            backdrop-filter:blur(10px);
+            box-shadow:0 14px 30px rgba(0,0,0,0.22);
+            font-family:Arial, sans-serif;
+            user-select:none;
+            pointer-events:none;
+        ">
+            <div style="font-size:9px;line-height:1;font-weight:900;letter-spacing:0.10em;text-transform:uppercase;color:rgba(255,255,255,0.44);margin-bottom:7px;">Quick read</div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:7px;">
+                <div style="font-size:11px;color:rgba(255,255,255,0.60);font-weight:800;">Length</div>
+                <div id="info_length_value" style="font-size:18px;font-weight:950;line-height:1;color:#ffffff;"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="padding:8px 9px;border-radius:12px;background:rgba(255,255,255,0.05);">
+                    <div style="font-size:9px;line-height:1;color:rgba(255,255,255,0.44);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Tube</div>
+                    <div id="info_tube_value" style="font-size:14px;font-weight:900;line-height:1.05;"></div>
+                </div>
+                <div style="padding:8px 9px;border-radius:12px;background:rgba(255,255,255,0.05);">
+                    <div style="font-size:9px;line-height:1;color:rgba(255,255,255,0.44);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Layer</div>
+                    <div id="info_layer_value" style="font-size:14px;font-weight:900;line-height:1.05;"></div>
+                </div>
+            </div>
         </div>
 
         <div id="viewer_render_tools_overlay" class="viewer_render_tools_overlay collapsed">
@@ -5746,6 +5807,27 @@ def viewer(
             box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
         }}
 
+        #info_toggle_btn.active_opt,
+        #clean_toggle_btn.active_opt {{
+            background:#C57E5A !important;
+            border-color:#C57E5A !important;
+            color:#ffffff !important;
+            box-shadow:0 8px 18px rgba(197,126,90,0.20) !important;
+        }}
+
+        #viewer_root.clean_mode_active #viewer_topbar,
+        #viewer_root.clean_mode_active #viewer_render_tools_overlay,
+        #viewer_root.clean_mode_active #active_preset_badge,
+        #viewer_root.clean_mode_active #viewer_hud,
+        #viewer_root.clean_mode_active #packaging_status_badge,
+        #viewer_root.clean_mode_active #viewer_info_card {{
+            display:none !important;
+        }}
+
+        #viewer_root.clean_mode_active #clean_exit_btn {{
+            display:flex !important;
+        }}
+
         .render_tools_panel .viewer_tool_chip:disabled,
         .render_tools_panel .viewer_tool_chip.viewer_btn_disabled {{
             opacity: 0.38 !important;
@@ -6428,6 +6510,29 @@ def viewer(
                 gap: 8px !important;
             }}
 
+            #viewer_info_card {{
+                top: 66px !important;
+                right: 8px !important;
+                min-width: 0 !important;
+                width: min(46vw, 210px) !important;
+                max-width: min(46vw, 210px) !important;
+                padding: 10px 10px !important;
+            }}
+
+            #clean_exit_btn {{
+                top: 8px !important;
+                right: 8px !important;
+                width: 38px !important;
+                height: 38px !important;
+            }}
+
+            #info_toggle_btn,
+            #clean_toggle_btn {{
+                min-width: 84px !important;
+                padding: 0 10px !important;
+                font-size: 12px !important;
+            }}
+
             .hud_card {{
                 min-width: 0 !important;
                 width: 100% !important;
@@ -6542,6 +6647,13 @@ def viewer(
         const fullscreenBtn = document.getElementById("fullscreen_btn");
         const captureRenderBtn = document.getElementById("capture_render_btn");
         const printSimulationBtn = document.getElementById("print_simulation_btn");
+        const infoToggleBtn = document.getElementById("info_toggle_btn");
+        const cleanToggleBtn = document.getElementById("clean_toggle_btn");
+        const cleanExitBtn = document.getElementById("clean_exit_btn");
+        const viewerInfoCard = document.getElementById("viewer_info_card");
+        const infoLengthValueEl = document.getElementById("info_length_value");
+        const infoTubeValueEl = document.getElementById("info_tube_value");
+        const infoLayerValueEl = document.getElementById("info_layer_value");
         const progressSlider = document.getElementById("progress_slider");
         const animationCheck = document.getElementById("animation_check");
 
@@ -6704,6 +6816,7 @@ def viewer(
         document.getElementById("hud_layer_label").textContent = T.hud_layer;
         document.getElementById("hud_diameter_label").textContent = T.hud_diameter;
         document.getElementById("hud_diameter_value").textContent = {tube_diameter_label_json};
+        refreshInfoCardFromHud();
 
         const W = Math.max(host.clientWidth, 600);
         const Hview = Math.max(host.clientHeight, 400);
@@ -6723,6 +6836,8 @@ def viewer(
         }});
 
         let renderQuality = "alta";
+        let infoCardVisible = false;
+        let cleanModeActive = false;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.45));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
@@ -7009,6 +7124,37 @@ def viewer(
             }}
 
             updateTubeFinishAvailability();
+            updateInfoCard();
+        }}
+
+        function refreshInfoCardFromHud() {{
+            const hudLength = document.getElementById("hud_length_value");
+            const hudLayer = document.getElementById("hud_layer_value");
+            const hudTube = document.getElementById("hud_diameter_value");
+
+            if (infoLengthValueEl && hudLength) infoLengthValueEl.textContent = hudLength.textContent || "";
+            if (infoLayerValueEl && hudLayer) infoLayerValueEl.textContent = hudLayer.textContent || "";
+            if (infoTubeValueEl && hudTube) infoTubeValueEl.textContent = hudTube.textContent || "";
+        }}
+
+        function updateInfoCard() {{
+            if (!viewerInfoCard) return;
+            const visible = infoCardVisible && !cleanModeActive && sceneMode !== "packaging";
+            viewerInfoCard.style.display = visible ? "block" : "none";
+            if (infoToggleBtn) infoToggleBtn.classList.toggle("active_opt", infoCardVisible && !cleanModeActive);
+            refreshInfoCardFromHud();
+        }}
+
+        function setCleanMode(active) {{
+            cleanModeActive = !!active;
+            host.classList.toggle("clean_mode_active", cleanModeActive);
+
+            if (cleanToggleBtn) cleanToggleBtn.classList.toggle("active_opt", cleanModeActive);
+            if (cleanModeActive && renderToolsOverlay) {{
+                renderToolsOverlay.classList.add("collapsed");
+            }}
+
+            updateInfoCard();
         }}
 
         function setActiveButton(group, value, attr, activeClass="active_opt") {{
@@ -7108,6 +7254,27 @@ def viewer(
             currentView = "3d";
             setActiveButton(viewBtns, currentView, "data-view");
             if (sceneMode === "packaging") setPackagingCamera(); else setCameraView("3d");
+        }});
+
+        if (infoToggleBtn) {{
+            infoToggleBtn.addEventListener("click", () => {{
+                infoCardVisible = !infoCardVisible;
+                updateInfoCard();
+            }});
+        }}
+
+        if (cleanToggleBtn) {{
+            cleanToggleBtn.addEventListener("click", () => setCleanMode(!cleanModeActive));
+        }}
+
+        if (cleanExitBtn) {{
+            cleanExitBtn.addEventListener("click", () => setCleanMode(false));
+        }}
+
+        window.addEventListener("keydown", (ev) => {{
+            if (ev.key === "Escape" && cleanModeActive) {{
+                setCleanMode(false);
+            }}
         }});
 
         sceneBtns.forEach(btn => {{
@@ -9270,6 +9437,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             document.getElementById("hud_length_value").textContent = `${{lengthM.toFixed(2)}} m`;
             document.getElementById("hud_layer_value").textContent = `${{layer}}`;
+            refreshInfoCardFromHud();
         }}
 
         function updateGhostLine() {{
