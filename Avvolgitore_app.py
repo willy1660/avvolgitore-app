@@ -4904,10 +4904,10 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
-    rib_visual_density=14.0,
-    rib_geometry_scale=0.076,
-    rib_bump_scale=0.054,
-    rib_texture_factor=1.0,
+    rib_visual_density=70.0,
+    rib_geometry_scale=0.110,
+    rib_bump_scale=0.090,
+    rib_texture_factor=1.60,
     rib_length_compensation=0.0,
     rib_diameter_compensation=0.0,
 ):
@@ -6446,7 +6446,7 @@ def viewer(
         }};
 
         function getEffectiveRibsPerMetre(totalLen) {{
-            const baseDensity = Math.max(1.0, CUSTOM_RIB.visualDensity || 120.0);
+            const baseDensity = Math.max(1.0, CUSTOM_RIB.visualDensity || 70.0);
             const lengthMetres = Math.max(0.001, totalLen / 1000.0);
             const lengthRatio = Math.max(0.05, lengthMetres / (CUSTOM_RIB.referenceLengthM || 25.0));
             const diameterRatio = Math.max(0.05, (CUSTOM_RIB.tubeDiameterMm || 30.0) / (CUSTOM_RIB.referenceDiameterMm || 30.0));
@@ -7756,18 +7756,19 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                         float ribRiseProc = smoothstep(0.045, 0.135, ribPhaseProc);
                         float ribFallProc = 1.0 - smoothstep(0.865, 0.955, ribPhaseProc);
                         float ribBandProc = ribRiseProc * ribFallProc;
-                        float ribCrownProc = exp(-pow((ribPhaseProc - 0.50) / 0.30, 4.0)) * 0.32;
-                        float ribGrooveLProc = exp(-pow((ribPhaseProc - 0.045) / 0.032, 2.0));
-                        float ribGrooveRProc = exp(-pow((ribPhaseProc - 0.955) / 0.034, 2.0));
+                        float ribCrownProc = exp(-pow((ribPhaseProc - 0.50) / 0.28, 4.0)) * 0.42;
+                        float ribGrooveLProc = exp(-pow((ribPhaseProc - 0.040) / 0.026, 2.0));
+                        float ribGrooveRProc = exp(-pow((ribPhaseProc - 0.960) / 0.028, 2.0));
+                        float ribVisualBoost = 1.35;
 
                         float ribShadeProc = 1.0
-                            + ribBandProc * 0.055
-                            + ribCrownProc * 0.050
-                            - ribGrooveLProc * 0.070
-                            - ribGrooveRProc * 0.060;
+                            + ribBandProc * (0.080 * ribVisualBoost)
+                            + ribCrownProc * (0.085 * ribVisualBoost)
+                            - ribGrooveLProc * (0.110 * ribVisualBoost)
+                            - ribGrooveRProc * (0.095 * ribVisualBoost);
 
-                        ribShadeProc += sin(vUv.x * 6.2831853 * 0.23 + vUv.y * 18.0) * 0.006;
-                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.84, 1.13);
+                        ribShadeProc += sin(vUv.x * 6.2831853 * 0.23 + vUv.y * 18.0) * 0.008 * ribVisualBoost;
+                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.74, 1.22);
 
                         #include <dithering_fragment>
                         `
@@ -14411,6 +14412,68 @@ with tab_production:
                 st.markdown("&nbsp;", unsafe_allow_html=True)
                 st.caption(t["packaging_box_desc"])
 
+    with st.expander("Regolazione zigrinata visuale" if lang == "IT" else "Visual ribbed finish tuning", expanded=False):
+        st.caption(
+            "Solo regolazione visiva. Usa questi slider per rendere la zigrinatura più evidente quando selezioni 'Zigrinata' nel viewer."
+            if lang == "IT"
+            else "Visual tuning only. Use these sliders to make the ribbed finish more visible when you select 'Ribbed' in the viewer."
+        )
+        zg1, zg2 = st.columns(2, gap="large")
+        with zg1:
+            rib_visual_density = st.slider(
+                "Densità zigrinatura" if lang == "IT" else "Rib density",
+                min_value=5.0,
+                max_value=250.0,
+                value=float(st.session_state.get("tmp_rib_visual_density_simple", 70.0)),
+                step=1.0,
+                key="tmp_rib_visual_density_simple",
+                help=(
+                    "Più alto = più righe visibili e più ripetizione."
+                    if lang == "IT"
+                    else "Higher = more visible rib lines and more repetition."
+                ),
+            )
+            rib_geometry_scale = st.slider(
+                "Rilievo geometrico" if lang == "IT" else "Geometric relief",
+                min_value=0.02,
+                max_value=0.22,
+                value=float(st.session_state.get("tmp_rib_geometry_scale_simple", 0.110)),
+                step=0.005,
+                key="tmp_rib_geometry_scale_simple",
+                help=(
+                    "Quanto si vede il rilievo 3D della zigrinatura."
+                    if lang == "IT"
+                    else "How visible the 3D relief of the ribbing is."
+                ),
+            )
+        with zg2:
+            rib_bump_scale = st.slider(
+                "Intensità superficie" if lang == "IT" else "Surface intensity",
+                min_value=0.00,
+                max_value=0.20,
+                value=float(st.session_state.get("tmp_rib_bump_scale_simple", 0.090)),
+                step=0.005,
+                key="tmp_rib_bump_scale_simple",
+                help=(
+                    "Quanto il materiale sembra inciso / zigrinato in superficie."
+                    if lang == "IT"
+                    else "How engraved / ribbed the surface looks."
+                ),
+            )
+            rib_texture_factor = st.slider(
+                "Contrasto zigrinatura" if lang == "IT" else "Rib contrast",
+                min_value=0.50,
+                max_value=3.00,
+                value=float(st.session_state.get("tmp_rib_texture_factor_simple", 1.60)),
+                step=0.05,
+                key="tmp_rib_texture_factor_simple",
+                help=(
+                    "Più alto = zigrinatura visivamente più marcata."
+                    if lang == "IT"
+                    else "Higher = visually stronger ribbed finish."
+                ),
+            )
+
     simulation_print_payload = build_simulation_print_payload(
         selected_product,
         lang,
@@ -14453,6 +14516,12 @@ with tab_production:
             simulation_print_payload=simulation_print_payload,
             active_product_name=selected_product,
             active_product_kind="prototype" if is_prototype else "preset",
+            rib_visual_density=rib_visual_density,
+            rib_geometry_scale=rib_geometry_scale,
+            rib_bump_scale=rib_bump_scale,
+            rib_texture_factor=rib_texture_factor,
+            rib_length_compensation=0.0,
+            rib_diameter_compensation=0.0,
         ),
         height=720,
     )
