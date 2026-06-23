@@ -4928,6 +4928,18 @@ def viewer(
     active_product_name = active_product_name or ("Preset attivo" if language == "IT" else "Active preset")
     active_product_name_json = json.dumps(str(active_product_name))
     active_product_kind_json = json.dumps(str(active_product_kind or "preset"))
+    viewer_brand_mark = ""
+    try:
+        if logo_b64:
+            viewer_brand_mark = f"""
+            <img src="data:image/png;base64,{logo_b64}" alt="PDM logo"
+                 style="height:36px; width:auto; display:block; object-fit:contain; opacity:0.24; filter:grayscale(1) brightness(2.4) contrast(0.95);" />
+            """
+    except Exception:
+        viewer_brand_mark = ""
+
+    if not viewer_brand_mark:
+        viewer_brand_mark = '<div style="font-size:20px;font-weight:900;letter-spacing:0.10em;color:rgba(255,255,255,0.22);line-height:1;">PDM</div>'
     rib_visual_density_json = json.dumps(float(rib_visual_density))
     rib_geometry_scale_json = json.dumps(float(rib_geometry_scale))
     rib_bump_scale_json = json.dumps(float(rib_bump_scale))
@@ -5141,6 +5153,41 @@ def viewer(
                 overflow:hidden;
                 text-overflow:ellipsis;
             "></div>
+        </div>
+
+        <div id="viewer_brand_watermark" style="
+            position:absolute;
+            right:14px;
+            bottom:14px;
+            z-index:19;
+            display:flex;
+            align-items:center;
+            gap:10px;
+            min-height:48px;
+            padding:9px 12px 9px 11px;
+            border:1px solid rgba(255,255,255,0.08);
+            border-radius:14px;
+            background:linear-gradient(180deg, rgba(18,22,27,0.46), rgba(18,22,27,0.32));
+            backdrop-filter:blur(10px);
+            box-shadow:0 12px 28px rgba(0,0,0,0.16);
+            pointer-events:none;
+            user-select:none;
+            overflow:hidden;
+        ">
+            <div style="
+                position:absolute;
+                inset:0 auto 0 0;
+                width:3px;
+                background:linear-gradient(180deg, rgba(197,126,90,0.72), rgba(197,126,90,0.16));
+                border-radius:14px 0 0 14px;
+            "></div>
+            <div style="position:relative; z-index:1; display:flex; align-items:center; justify-content:center; min-width:44px;">
+                {viewer_brand_mark}
+            </div>
+            <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:1px;">
+                <div style="font-family:Arial, sans-serif; font-size:9px; line-height:1; font-weight:900; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,255,255,0.42);">PDM EU</div>
+                <div style="font-family:Arial, sans-serif; font-size:12px; line-height:1.05; font-weight:800; letter-spacing:0.02em; color:rgba(255,255,255,0.70);">Avvolgimento</div>
+            </div>
         </div>
 
         <div id="viewer_hud" style="
@@ -6370,6 +6417,15 @@ def viewer(
                 grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
                 gap: 6px !important;
                 box-sizing: border-box !important;
+            }}
+
+            #viewer_brand_watermark {{
+                right: 8px !important;
+                bottom: 66px !important;
+                max-width: min(46vw, 180px) !important;
+                padding: 8px 10px 8px 10px !important;
+                border-radius: 12px !important;
+                gap: 8px !important;
             }}
 
             .hud_card {{
@@ -8546,11 +8602,15 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             progressSlider.disabled = packaging;
             playPauseBtn.disabled = packaging;
             animationCheck.disabled = packaging;
+            const brandWatermark = document.getElementById("viewer_brand_watermark");
+
             if (packaging) {{
                 updatePackagingScene();
                 setPackagingCamera();
+                if (brandWatermark) brandWatermark.style.opacity = "0.72";
             }} else {{
                 setCameraView(currentView);
+                if (brandWatermark) brandWatermark.style.opacity = "0.92";
             }}
 
             updateTubeFinishAvailability();
