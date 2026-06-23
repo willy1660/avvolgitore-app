@@ -7773,7 +7773,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                         float ribCrownProc = exp(-pow((ribPhaseProc - 0.50) / 0.28, 4.0)) * 0.42;
                         float ribGrooveLProc = exp(-pow((ribPhaseProc - 0.040) / 0.026, 2.0));
                         float ribGrooveRProc = exp(-pow((ribPhaseProc - 0.960) / 0.028, 2.0));
-                        float ribVisualBoost = ${ribVisualBoost.toFixed(3)};
+                        float ribVisualBoost = ${{ribVisualBoost.toFixed(3)}};
 
                         float ribShadeProc = 1.0
                             + ribBandProc * (0.080 * ribVisualBoost)
