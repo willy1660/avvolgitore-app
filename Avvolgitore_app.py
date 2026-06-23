@@ -5049,6 +5049,16 @@ def viewer(
                         <button class="view_btn viewer_tool_chip" data-view="front" id="view_front_btn" type="button"></button>
                         <button class="view_btn viewer_tool_chip" data-view="side" id="view_side_btn" type="button"></button>
                     </div>
+                    <div class="render_tools_row">
+                        <span class="viewer_tools_label">Extra</span>
+                        <button id="auto_rotate_btn" class="viewer_tool_chip" type="button">Auto</button>
+                        <button id="explode_view_btn" class="viewer_tool_chip" type="button">Explode</button>
+                    </div>
+                    <div class="render_tools_row">
+                        <span class="viewer_tools_label" style="opacity:.0;">Extra</span>
+                        <button id="info_card_btn" class="viewer_tool_chip" type="button">Info</button>
+                        <button id="clean_mode_btn" class="viewer_tool_chip" type="button">Clean</button>
+                    </div>
                 </div>
 
                 <div class="render_tools_section">
@@ -5153,6 +5163,66 @@ def viewer(
                 overflow:hidden;
                 text-overflow:ellipsis;
             "></div>
+        </div>
+
+        <button id="clean_mode_exit_btn" type="button" style="
+            position:absolute;
+            top:14px;
+            right:14px;
+            z-index:28;
+            display:none;
+            align-items:center;
+            justify-content:center;
+            gap:6px;
+            min-width:42px;
+            height:42px;
+            padding:0 14px;
+            border:1px solid rgba(255,255,255,0.14);
+            border-radius:999px;
+            background:rgba(18,22,27,0.74);
+            color:#f8fafc;
+            backdrop-filter:blur(10px);
+            box-shadow:0 14px 30px rgba(0,0,0,0.22);
+            font-family:Arial, sans-serif;
+            font-size:13px;
+            font-weight:900;
+            line-height:1;
+            cursor:pointer;
+        ">×</button>
+
+        <div id="viewer_info_card" style="
+            position:absolute;
+            top:14px;
+            right:14px;
+            z-index:19;
+            display:none;
+            min-width:210px;
+            max-width:230px;
+            padding:11px 12px;
+            border:1px solid rgba(255,255,255,0.10);
+            border-radius:15px;
+            background:linear-gradient(180deg, rgba(18,22,27,0.76), rgba(18,22,27,0.62));
+            color:#f8fafc;
+            backdrop-filter:blur(10px);
+            box-shadow:0 14px 30px rgba(0,0,0,0.22);
+            font-family:Arial, sans-serif;
+            user-select:none;
+        ">
+            <div style="font-size:9px; line-height:1; font-weight:900; letter-spacing:0.10em; text-transform:uppercase; color:rgba(255,255,255,0.44); margin-bottom:7px;">Quick read</div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:7px;">
+                <div style="font-size:11px; color:rgba(255,255,255,0.60); font-weight:800;">Length</div>
+                <div id="info_length_value" style="font-size:18px; font-weight:950; line-height:1; color:#ffffff;"></div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div style="padding:8px 9px; border-radius:12px; background:rgba(255,255,255,0.05);">
+                    <div style="font-size:9px; line-height:1; color:rgba(255,255,255,0.44); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">XY</div>
+                    <div id="info_xy_value" style="font-size:14px; font-weight:900; line-height:1.05;"></div>
+                </div>
+                <div style="padding:8px 9px; border-radius:12px; background:rgba(255,255,255,0.05);">
+                    <div style="font-size:9px; line-height:1; color:rgba(255,255,255,0.44); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;">Layers</div>
+                    <div id="info_layers_value" style="font-size:14px; font-weight:900; line-height:1.05;"></div>
+                </div>
+            </div>
         </div>
 
         <div id="viewer_brand_watermark" style="
@@ -5744,6 +5814,18 @@ def viewer(
             border-color: #C57E5A !important;
             color: #ffffff !important;
             box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
+        }}
+
+        #viewer_root.clean_mode_active #viewer_topbar,
+        #viewer_root.clean_mode_active #viewer_render_tools_overlay,
+        #viewer_root.clean_mode_active #active_preset_badge,
+        #viewer_root.clean_mode_active #viewer_hud,
+        #viewer_root.clean_mode_active #packaging_status_badge {{
+            display:none !important;
+        }}
+
+        #viewer_root.clean_mode_active #clean_mode_exit_btn {{
+            display:flex !important;
         }}
 
         .render_tools_panel .viewer_tool_chip:disabled,
@@ -6428,6 +6510,24 @@ def viewer(
                 gap: 8px !important;
             }}
 
+            #viewer_info_card {{
+                top: 66px !important;
+                right: 8px !important;
+                min-width: 0 !important;
+                width: min(46vw, 210px) !important;
+                max-width: min(46vw, 210px) !important;
+                padding: 10px 10px !important;
+            }}
+
+            #clean_mode_exit_btn {{
+                top: 8px !important;
+                right: 8px !important;
+                width: 40px !important;
+                min-width: 40px !important;
+                height: 40px !important;
+                padding: 0 !important;
+            }}
+
             .hud_card {{
                 min-width: 0 !important;
                 width: 100% !important;
@@ -6560,6 +6660,15 @@ def viewer(
         const zoomInBtn = document.getElementById("zoom_in_btn");
         const zoomOutBtn = document.getElementById("zoom_out_btn");
         const fitViewBtn = document.getElementById("fit_view_btn");
+        const autoRotateBtn = document.getElementById("auto_rotate_btn");
+        const explodeViewBtn = document.getElementById("explode_view_btn");
+        const infoCardBtn = document.getElementById("info_card_btn");
+        const cleanModeBtn = document.getElementById("clean_mode_btn");
+        const cleanModeExitBtn = document.getElementById("clean_mode_exit_btn");
+        const viewerInfoCard = document.getElementById("viewer_info_card");
+        const infoLengthValueEl = document.getElementById("info_length_value");
+        const infoXYValueEl = document.getElementById("info_xy_value");
+        const infoLayersValueEl = document.getElementById("info_layers_value");
         const sceneBtns = [...document.querySelectorAll(".scene_btn")];
         const packagingControls = document.getElementById("packaging_controls");
         const animationBlock = document.getElementById("animation_block");
@@ -6741,6 +6850,9 @@ def viewer(
         controls.panSpeed = 0.12;
         controls.dynamicDampingFactor = 0.18;
         controls.staticMoving = false;
+        controls.addEventListener("start", () => {{
+            cameraTransitionActive = false;
+        }});
 
         function updateCameraClipping() {{
             const distance = Math.max(1, camera.position.distanceTo(controls.target));
@@ -6871,6 +6983,7 @@ def viewer(
         }}
 
         function dollyCamera(factor) {{
+            cameraTransitionActive = false;
             const offset = camera.position.clone().sub(controls.target);
             offset.multiplyScalar(factor);
             camera.position.copy(controls.target.clone().add(offset));
@@ -6904,6 +7017,12 @@ def viewer(
         const lengthRaw = {final_lengths_json};
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const totalLengthM = ((lengthRaw[lengthRaw.length - 1] || 0) / 1000.0);
+        const totalLayers = (Math.max(0, ...layerRaw) || 0) + 1;
+
+        if (infoLengthValueEl) infoLengthValueEl.textContent = `${totalLengthM.toFixed(1)} m`;
+        if (infoXYValueEl) infoXYValueEl.textContent = `${coilFootprint.toFixed(1)} mm`;
+        if (infoLayersValueEl) infoLayersValueEl.textContent = `${totalLayers}`;
 
         let isPlaying = false;
         let animationEnabled = false;
@@ -6921,6 +7040,18 @@ def viewer(
         let showGrid = false;
         let showAxes = false;
         let showSection = false;
+        let autoRotateEnabled = false;
+        let explodedViewEnabled = false;
+        let infoCardVisible = false;
+        let cleanModeActive = false;
+        let cameraTransitionActive = false;
+        let cameraTransitionStart = 0;
+        let cameraTransitionDuration = 560;
+        let cameraFromPos = camera.position.clone();
+        let cameraToPos = camera.position.clone();
+        let cameraFromTarget = controls.target.clone();
+        let cameraToTarget = controls.target.clone();
+        let explodedVisual = 0.0;
 
         let clippingPlanes = [];
         let grid = null;
@@ -7011,37 +7142,90 @@ def viewer(
             updateTubeFinishAvailability();
         }}
 
+        function setToggleButtonState(btn, active) {{
+            if (!btn) return;
+            btn.classList.toggle("active_opt", !!active);
+        }}
+
+        function updateInfoCard() {{
+            if (!viewerInfoCard) return;
+            const canShow = infoCardVisible && sceneMode !== "packaging";
+            viewerInfoCard.style.display = canShow ? "block" : "none";
+        }}
+
+        function updateMagicButtons() {{
+            setToggleButtonState(autoRotateBtn, autoRotateEnabled);
+            setToggleButtonState(explodeViewBtn, explodedViewEnabled);
+            setToggleButtonState(infoCardBtn, infoCardVisible);
+            setToggleButtonState(cleanModeBtn, cleanModeActive);
+            updateInfoCard();
+        }}
+
+        function setCleanMode(active) {{
+            cleanModeActive = !!active;
+            host.classList.toggle("clean_mode_active", cleanModeActive);
+
+            if (cleanModeActive) {{
+                if (renderToolsOverlay) renderToolsOverlay.classList.add("collapsed");
+                if (renderToolsToggle) renderToolsToggle.setAttribute("aria-expanded", "false");
+            }}
+
+            updateMagicButtons();
+        }}
+
+        function startCameraTransition(nextPos, nextTarget, duration=560) {{
+            cameraTransitionActive = true;
+            cameraTransitionStart = performance.now();
+            cameraTransitionDuration = duration;
+            cameraFromPos = camera.position.clone();
+            cameraFromTarget = controls.target.clone();
+            cameraToPos = nextPos.clone();
+            cameraToTarget = nextTarget.clone();
+        }}
+
+        function applyCameraPose(nextPos, nextTarget, smooth=true) {{
+            camera.up.set(0, 0, 1);
+
+            if (!smooth) {{
+                cameraTransitionActive = false;
+                camera.position.copy(nextPos);
+                controls.target.copy(nextTarget);
+                camera.lookAt(nextTarget);
+                updateCameraClipping();
+                controls.update();
+                return;
+            }}
+
+            startCameraTransition(nextPos, nextTarget);
+        }}
+
         function setActiveButton(group, value, attr, activeClass="active_opt") {{
             group.forEach(btn => {{
                 btn.classList.toggle(activeClass, btn.getAttribute(attr) === value);
             }});
         }}
 
-        function setCameraView(viewName) {{
+        function setCameraView(viewName, smooth=true) {{
             const target = new THREE.Vector3(0, 0, Hs * 0.52);
+            let nextPos = null;
 
             if (viewName === "front") {{
-                camera.position.set(0, -2600, Hs * 0.56);
+                nextPos = new THREE.Vector3(0, -2600, Hs * 0.56);
             }} else if (viewName === "side") {{
-                camera.position.set(-2600, 0, Hs * 0.56);
+                nextPos = new THREE.Vector3(-2600, 0, Hs * 0.56);
             }} else {{
-                camera.position.set(-1350, -2150, 760);
+                nextPos = new THREE.Vector3(-1350, -2150, 760);
             }}
 
-            camera.up.set(0, 0, 1);
-            controls.target.copy(target);
-            camera.lookAt(target);
-            updateCameraClipping();
-            controls.update();
+            applyCameraPose(nextPos, target, smooth);
         }}
 
-        function setPackagingCamera() {{
+        function setPackagingCamera(smooth=true) {{
             const totalHeight = packagingGroup.userData.totalHeight || 800;
             const sceneSpan = Math.max(palletSize * 2.05, totalHeight * 1.48);
-            camera.position.set(-sceneSpan * 1.55, -sceneSpan * 1.78, Math.max(1380, totalHeight * 1.55));
-            controls.target.set(0, 0, palletHeight + totalHeight * 0.40);
-            camera.lookAt(0, 0, palletHeight + totalHeight * 0.40);
-            controls.update();
+            const nextPos = new THREE.Vector3(-sceneSpan * 1.55, -sceneSpan * 1.78, Math.max(1380, totalHeight * 1.55));
+            const nextTarget = new THREE.Vector3(0, 0, palletHeight + totalHeight * 0.40);
+            applyCameraPose(nextPos, nextTarget, smooth);
         }}
 
         speedBtns.forEach(btn => {{
@@ -7107,7 +7291,49 @@ def viewer(
         if (fitViewBtn) fitViewBtn.addEventListener("click", () => {{
             currentView = "3d";
             setActiveButton(viewBtns, currentView, "data-view");
-            if (sceneMode === "packaging") setPackagingCamera(); else setCameraView("3d");
+            if (sceneMode === "packaging") setPackagingCamera(true); else setCameraView("3d", true);
+        }});
+
+        if (autoRotateBtn) {{
+            autoRotateBtn.addEventListener("click", () => {{
+                if (sceneMode === "packaging") return;
+                if (currentView !== "3d") {{
+                    currentView = "3d";
+                    setActiveButton(viewBtns, currentView, "data-view");
+                    setCameraView("3d", true);
+                }}
+                autoRotateEnabled = !autoRotateEnabled;
+                updateMagicButtons();
+            }});
+        }}
+
+        if (explodeViewBtn) {{
+            explodeViewBtn.addEventListener("click", () => {{
+                if (sceneMode === "packaging") return;
+                explodedViewEnabled = !explodedViewEnabled;
+                updateMagicButtons();
+            }});
+        }}
+
+        if (infoCardBtn) {{
+            infoCardBtn.addEventListener("click", () => {{
+                infoCardVisible = !infoCardVisible;
+                updateMagicButtons();
+            }});
+        }}
+
+        if (cleanModeBtn) {{
+            cleanModeBtn.addEventListener("click", () => setCleanMode(!cleanModeActive));
+        }}
+
+        if (cleanModeExitBtn) {{
+            cleanModeExitBtn.addEventListener("click", () => setCleanMode(false));
+        }}
+
+        window.addEventListener("keydown", (ev) => {{
+            if (ev.key === "Escape" && cleanModeActive) {{
+                setCleanMode(false);
+            }}
         }});
 
         sceneBtns.forEach(btn => {{
@@ -7157,7 +7383,7 @@ def viewer(
         resetViewBtn.addEventListener("click", () => {{
             currentView = "3d";
             setActiveButton(viewBtns, currentView, "data-view");
-            setCameraView("3d");
+            setCameraView("3d", true);
         }});
 
         if (studioCheck) {{
@@ -8167,6 +8393,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
 
+        const explodeGuideOffset = new THREE.Vector3(90, 78, 16);
+        const explodedMandrelOffsetZ = 8;
+        const explodedCoilOffsetZ = 10;
+        const explodedTopOffsetZ = 32;
+        const explodedBaseOffsetZ = -18;
+
         const guideBarrel = new THREE.Mesh(
             new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 40, 1, false),
             steelMat
@@ -8605,486 +8837,18 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const brandWatermark = document.getElementById("viewer_brand_watermark");
 
             if (packaging) {{
+                autoRotateEnabled = false;
+                explodedViewEnabled = false;
                 updatePackagingScene();
-                setPackagingCamera();
+                setPackagingCamera(true);
                 if (brandWatermark) brandWatermark.style.opacity = "0.72";
             }} else {{
-                setCameraView(currentView);
+                setCameraView(currentView, true);
                 if (brandWatermark) brandWatermark.style.opacity = "0.92";
             }}
 
             updateTubeFinishAvailability();
-        }}
-
-        // ==========================================
-        // VISUAL STATE
-        // ==========================================
-
-        function refreshThemeBackgroundAndLights() {{
-            const theme = getTheme();
-
-            scene.background = new THREE.Color(theme.bg);
-            renderer.toneMappingExposure = getQualityProfile().exposure;
-
-            ambient.intensity = Math.max(0.12, theme.ambient + getQualityProfile().ambientBoost);
-            hemi.color.setHex(theme.hemiSky);
-            hemi.groundColor.setHex(theme.hemiGround);
-            hemi.intensity = renderQuality === "ultra" ? 0.48 : 0.34;
-
-            if (renderQuality === "ultra") {{
-                keyLight.intensity = theme.key * 1.18;
-                fillLight.intensity = theme.fill * 1.18;
-                rimLight.intensity = theme.rim * 1.34;
-            }} else {{
-                keyLight.intensity = theme.key;
-                fillLight.intensity = theme.fill;
-                rimLight.intensity = theme.rim;
-            }}
-
-        }}
-
-        function applySectionState() {{
-            clippingPlanes = [];
-
-            if (sectionPlaneHelper) scene.remove(sectionPlaneHelper);
-            if (sectionFrame) scene.remove(sectionFrame);
-
-            sectionPlaneHelper = null;
-            sectionFrame = null;
-
-            if (showSection) {{
-                const theme = getTheme();
-
-                const cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
-                clippingPlanes = [cutPlane];
-
-                const sectionMat = new THREE.MeshBasicMaterial({{
-                    color: theme.sectionFill,
-                    transparent: true,
-                    opacity: tubeMode === "gelwhite" ? 0.12 : 0.08,
-                    side: THREE.DoubleSide,
-                    depthWrite: false
-                }});
-
-                const sectionGeo = new THREE.PlaneGeometry(2 * (R + 320), Hs + 300);
-
-                sectionPlaneHelper = new THREE.Mesh(sectionGeo, sectionMat);
-                sectionPlaneHelper.position.set(0, 0, Hs * 0.5);
-                sectionPlaneHelper.rotation.y = Math.PI / 2;
-                scene.add(sectionPlaneHelper);
-
-                const frameGeo = new THREE.EdgesGeometry(sectionGeo);
-
-                const frameMat = new THREE.LineBasicMaterial({{
-                    color: theme.sectionFrame,
-                    transparent: true,
-                    opacity: tubeMode === "gelwhite" ? 0.34 : 0.26
-                }});
-
-                sectionFrame = new THREE.LineSegments(frameGeo, frameMat);
-                sectionFrame.position.copy(sectionPlaneHelper.position);
-                sectionFrame.rotation.copy(sectionPlaneHelper.rotation);
-                scene.add(sectionFrame);
-            }}
-
-            renderer.localClippingEnabled = showSection;
-
-            tubeMat = makeTubeMaterial(tubeMode, false, false);
-            activeTubeMat = makeTubeMaterial(tubeMode, true, false);
-            freeTubeMat = makeTubeMaterial(tubeMode, false, true);
-        }}
-
-        function buildGridIfNeeded() {{
-            if (grid) scene.remove(grid);
-            grid = null;
-
-            if (showGrid) {{
-                const theme = getTheme();
-
-                grid = new THREE.GridHelper(
-                    2200,
-                    22,
-                    theme.gridMajor,
-                    theme.gridMinor
-                );
-
-                grid.rotation.x = Math.PI / 2;
-                grid.position.z = -36;
-                grid.material.opacity = theme.gridOpacity;
-                grid.material.transparent = true;
-
-                scene.add(grid);
-            }}
-        }}
-
-        function buildAxesIfNeeded() {{
-            if (axes) scene.remove(axes);
-            axes = null;
-
-            if (showAxes) {{
-                axes = new THREE.AxesHelper(380);
-                scene.add(axes);
-            }}
-        }}
-
-        function applySpoolMaterialState() {{
-            const useMat = aspoMode === "transparent" ? steelMatTransparent : steelMat;
-
-            spoolParts.forEach(part => {{
-                part.visible = aspoMode !== "hidden";
-                part.material = useMat;
-            }});
-
-            guideBarrel.material = useMat;
-            guideShoulder.material = useMat;
-            guideTaper.material = useMat;
-            guideNozzle.material = useMat;
-            guideBackCap.material = useMat;
-        }}
-
-        function applyVisualState(themeChanged=false) {{
-            refreshThemeBackgroundAndLights();
-            rebuildStudio();
-            applySpoolMaterialState();
-            buildGridIfNeeded();
-            buildAxesIfNeeded();
-
-            if (themeChanged) {{
-                applySectionState();
-            }}
-
-            rebuildDepositedMesh(Math.floor(drawPos), true);
-            updateOverlayContinuous(true);
-            updateGhostLine();
-            if (sceneMode === "packaging") {{
-                updatePackagingScene();
-            }}
-        }}
-
-        // ==========================================
-        // HELPERS
-        // ==========================================
-
-        function guidePointWorld(radius, z) {{
-            return new THREE.Vector3(
-                -(radius + guideOffsetX),
-                radius,
-                z
-            );
-        }}
-
-        function localPointToWorld(ptLocal, theta) {{
-            return ptLocal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), theta);
-        }}
-
-        function lerp(a, b, tt) {{
-            return a + (b - a) * tt;
-        }}
-
-        function lerpVec3(a, b, tt) {{
-            return new THREE.Vector3(
-                lerp(a.x, b.x, tt),
-                lerp(a.y, b.y, tt),
-                lerp(a.z, b.z, tt)
-            );
-        }}
-
-        class PolylineCurve3 extends THREE.Curve {{
-            constructor(points) {{
-                super();
-
-                this.points = points || [];
-                this.arc = [0];
-                this.totalLength = 0;
-
-                for (let i = 1; i < this.points.length; i++) {{
-                    const seg = this.points[i].distanceTo(this.points[i - 1]);
-                    this.totalLength += seg;
-                    this.arc.push(this.totalLength);
-                }}
-            }}
-
-            getPoint(tt) {{
-                if (!this.points || this.points.length === 0) {{
-                    return new THREE.Vector3(0, 0, 0);
-                }}
-
-                if (this.points.length === 1 || this.totalLength <= 1e-9) {{
-                    return this.points[0].clone();
-                }}
-
-                const target = tt * this.totalLength;
-
-                let i = 1;
-
-                while (i < this.arc.length && this.arc[i] < target) {{
-                    i++;
-                }}
-
-                if (i >= this.points.length) {{
-                    return this.points[this.points.length - 1].clone();
-                }}
-
-                const l0 = this.arc[i - 1];
-                const l1 = this.arc[i];
-
-                const p0 = this.points[i - 1];
-                const p1 = this.points[i];
-
-                const denom = Math.max(1e-9, l1 - l0);
-                const a = (target - l0) / denom;
-
-                return new THREE.Vector3(
-                    p0.x + a * (p1.x - p0.x),
-                    p0.y + a * (p1.y - p0.y),
-                    p0.z + a * (p1.z - p0.z)
-                );
-            }}
-        }}
-
-        function disposeMaterial(mat) {{
-            if (!mat) return;
-
-            if (Array.isArray(mat)) {{
-                mat.forEach(m => m && m.dispose && m.dispose());
-            }} else if (mat.dispose) {{
-                mat.dispose();
-            }}
-        }}
-
-        function disposeObj(obj, parentObj = scene) {{
-            if (!obj) return;
-
-            parentObj.remove(obj);
-
-            if (obj.geometry) obj.geometry.dispose();
-
-            disposeMaterial(obj.material);
-        }}
-
-        function makeTubeEndCap(point, tangentDir, radius, material) {{
-            const profile = getQualityProfile();
-            const thickness = Math.max(1.8, radius * 0.22);
-            const geo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, thickness, profile.capSegments, 1, false);
-            const mesh = new THREE.Mesh(geo, material);
-
-            mesh.position.copy(point);
-
-            const yAxis = new THREE.Vector3(0, 1, 0);
-            const dir = tangentDir.clone().normalize();
-            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir);
-            mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = renderQuality === "ultra";
-            mesh.receiveShadow = renderQuality !== "eco";
-
-            return mesh;
-        }}
-
-        function applyRealLengthRibUVs(geo, totalLen) {{
-            if (tubeFinishMode !== "zigrinata") return;
-
-            const uv = geo.attributes.uv;
-            if (!uv) return;
-
-            const params = geo.parameters || {{}};
-            const tubularSegments = Math.max(1, Number(params.tubularSegments || 1));
-            const radialSegments = Math.max(3, Number(params.radialSegments || 32));
-            const ringSize = radialSegments + 1;
-
-            const profile = getQualityProfile();
-            const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
-            const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
-            const totalRepeats = Math.max(1.0, (totalLen / 1000.0) * ribsPerMetre * fineFactor);
-
-            for (let i = 0; i < uv.count; i++) {{
-                const ringIndex = Math.floor(i / ringSize);
-                const radialIndex = i - ringIndex * ringSize;
-                const u = (ringIndex / tubularSegments) * totalRepeats;
-                const v = radialIndex / radialSegments;
-
-                uv.setXY(i, u, v);
-            }}
-
-            uv.needsUpdate = true;
-        }}
-
-        function applyRibbedGeometry(geo, totalLen, radius) {{
-            const profile = getQualityProfile();
-
-            if (tubeFinishMode !== "zigrinata") {{
-                geo.computeVertexNormals();
-                return;
-            }}
-
-            const pos = geo.attributes.position;
-            const normal = geo.attributes.normal;
-            const uv = geo.attributes.uv;
-            if (!pos || !normal || !uv) {{
-                geo.computeVertexNormals();
-                return;
-            }}
-
-            // La zigrinatura ara és visual per UV real. No deformem geometria per evitar dependència de segments/longitud.
-            geo.computeVertexNormals();
-            return;
-
-            const amp = 0.0;
-            const smoothstep = (a, b, x) => {{
-                const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
-                return t * t * (3 - 2 * t);
-            }};
-
-            for (let i = 0; i < pos.count; i++) {{
-                const phase = uv.getX(i);
-                const v = uv.getY(i);
-                const frac = phase - Math.floor(phase);
-
-                const rise = smoothstep(0.04, 0.14, frac);
-                const fall = 1.0 - smoothstep(0.86, 0.96, frac);
-                const band = rise * fall;
-                const crown = Math.exp(-Math.pow((frac - 0.50) / 0.26, 4.0)) * 0.16;
-                const grooveL = -Math.exp(-Math.pow((frac - 0.045) / 0.030, 2.0)) * 0.30;
-                const grooveR = -Math.exp(-Math.pow((frac - 0.955) / 0.032, 2.0)) * 0.27;
-
-                const seamImprint = (
-                    Math.exp(-Math.pow((v - 0.14) / 0.020, 2.0))
-                  + Math.exp(-Math.pow((v - 0.49) / 0.022, 2.0))
-                  + Math.exp(-Math.pow((v - 0.83) / 0.020, 2.0))
-                ) * 0.08;
-
-                const longNoise = 0.004 * Math.sin(phase * 0.30 + v * 3.5)
-                                + 0.003 * Math.sin(phase * 0.85 - v * 6.0);
-                const angularSoft = 1.0 + 0.006 * Math.sin(v * Math.PI * 2.0 * 2.0 + phase * 0.03);
-
-                const ribShape = (band * 1.22 + crown + grooveL + grooveR + longNoise) * (1.0 - seamImprint) * angularSoft;
-                const displacement = amp * ribShape;
-
-                pos.setXYZ(
-                    i,
-                    pos.getX(i) + normal.getX(i) * displacement,
-                    pos.getY(i) + normal.getY(i) * displacement,
-                    pos.getZ(i) + normal.getZ(i) * displacement
-                );
-            }}
-
-            pos.needsUpdate = true;
-            geo.computeVertexNormals();
-        }}
-
-        function makeTubeMeshFromPoints(points, radius, material) {{
-            if (!points || points.length < 2) return null;
-
-            let totalLen = 0;
-
-            for (let i = 1; i < points.length; i++) {{
-                totalLen += points[i].distanceTo(points[i - 1]);
-            }}
-
-            const curve = new PolylineCurve3(points);
-
-            const profile = getQualityProfile();
-            let tubularSegments = Math.max(
-                renderQuality === "eco" ? 18 : 36,
-                Math.min(profile.maxTubularSegments, Math.floor(totalLen / Math.max(profile.segmentFactor, radius * profile.segmentFactor)))
-            );
-
-            if (tubeFinishMode === "zigrinata") {{
-                const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
-                const lengthMetres = Math.max(0.001, totalLen / 1000.0);
-                const ribRepeats = Math.max(24, Math.min(6000, lengthMetres * ribsPerMetre));
-                const ribTargetSegments = Math.ceil(ribRepeats * 3.6);
-                tubularSegments = Math.max(
-                    tubularSegments,
-                    Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
-                );
-            }}
-
-            const ribbedRadialSegments = tubeFinishMode === "zigrinata"
-                ? Math.max(profile.radialSegments, 32)
-                : profile.radialSegments;
-            const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, ribbedRadialSegments, false);
-            applyRealLengthRibUVs(geo, totalLen);
-            applyRibbedGeometry(geo, totalLen, radius);
-            geo.computeBoundingSphere();
-            geo.computeBoundingBox();
-
-            const lengthAwareMaterial = makeLengthInvariantTubeMaterial(material, totalLen);
-
-            const body = new THREE.Mesh(geo, lengthAwareMaterial);
-            body.castShadow = renderQuality === "ultra";
-            body.receiveShadow = renderQuality !== "eco";
-
-            const group = new THREE.Group();
-            group.add(body);
-
-            const startPoint = points[0];
-            const endPoint = points[points.length - 1];
-            const startDir = new THREE.Vector3().subVectors(points[1], points[0]);
-            const endDir = new THREE.Vector3().subVectors(points[points.length - 1], points[points.length - 2]);
-
-            if (startDir.length() > 1e-6) {{
-                const startCap = makeTubeEndCap(startPoint, startDir, radius, lengthAwareMaterial);
-                group.add(startCap);
-            }}
-
-            if (endDir.length() > 1e-6) {{
-                const endCap = makeTubeEndCap(endPoint, endDir, radius, lengthAwareMaterial);
-                group.add(endCap);
-            }}
-
-            return group;
-        }}
-
-        function offsetPointsVertical(points, offset) {{
-            return points.map(p => new THREE.Vector3(p.x, p.y, p.z + offset));
-        }}
-
-        function offsetPointVertical(point, offset) {{
-            return new THREE.Vector3(point.x, point.y, point.z + offset);
-        }}
-
-        function makeWoundTubeObject(points, material) {{
-            if (!isDoubleTube) {{
-                return makeTubeMeshFromPoints(points, Rt, material);
-            }}
-
-            // Doppio verticale:
-            // - tubo inferiore = diametro maggiore, appoggiato "sotto"
-            // - tubo superiore = diametro minore, posizionato "sopra"
-            // L'offset è assiale/verticale (asse Z locale), non radiale.
-            const group = new THREE.Group();
-
-            const lowerMesh = makeTubeMeshFromPoints(points, RtLower, material);
-            if (lowerMesh) group.add(lowerMesh);
-
-            const verticalOffset = RtLower + RtUpper;
-            const upperPts = offsetPointsVertical(points, verticalOffset);
-            const upperMesh = makeTubeMeshFromPoints(upperPts, RtUpper, material);
-            if (upperMesh) group.add(upperMesh);
-
-            return group;
-        }}
-
-        function makeTubeSegment(p0, p1, radius, material) {{
-            const dir = new THREE.Vector3().subVectors(p1, p0);
-            const len = dir.length();
-
-            if (len < 1e-6) return null;
-
-            const geo = new THREE.CylinderGeometry(radius, radius, len, 22, 1, false);
-            const mesh = new THREE.Mesh(geo, material);
-
-            const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
-            mesh.position.copy(mid);
-
-            const yAxis = new THREE.Vector3(0, 1, 0);
-            const quat = new THREE.Quaternion().setFromUnitVectors(yAxis, dir.clone().normalize());
-
-            mesh.setRotationFromQuaternion(quat);
-            mesh.castShadow = renderQuality === "ultra";
-            mesh.receiveShadow = renderQuality !== "eco";
-
-            return mesh;
+            updateMagicButtons();
         }}
 
         function makeWoundTubeSegment(p0, p1, material) {{
@@ -9399,6 +9163,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 }}
 
                 guideGroup.position.copy(guideWorld);
+                guideGroup.position.addScaledVector(explodeGuideOffset, explodedVisual);
                 guideGroup.visible = true;
             }} else {{
                 guideGroup.visible = false;
@@ -9422,9 +9187,36 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         updateAnimationUI();
         updateTubeFinishAvailability();
         updatePlayBtn();
+        updateMagicButtons();
 
         function animate() {{
             requestAnimationFrame(animate);
+
+            explodedVisual += (((explodedViewEnabled && sceneMode !== "packaging") ? 1.0 : 0.0) - explodedVisual) * 0.12;
+            mandrel.position.z = explodedMandrelOffsetZ * explodedVisual;
+            depositedGroup.position.z = explodedCoilOffsetZ * explodedVisual;
+            overlayGroup.position.z = explodedCoilOffsetZ * explodedVisual;
+            base.position.z = -20 + explodedBaseOffsetZ * explodedVisual;
+            top.position.z = Hs + 20 + explodedTopOffsetZ * explodedVisual;
+
+            if (cameraTransitionActive) {{
+                const elapsed = performance.now() - cameraTransitionStart;
+                const t = Math.max(0, Math.min(1, elapsed / cameraTransitionDuration));
+                const ease = 1 - Math.pow(1 - t, 3);
+
+                camera.position.lerpVectors(cameraFromPos, cameraToPos, ease);
+                controls.target.lerpVectors(cameraFromTarget, cameraToTarget, ease);
+                camera.lookAt(controls.target);
+
+                if (t >= 1) {{
+                    cameraTransitionActive = false;
+                }}
+            }} else if (autoRotateEnabled && sceneMode !== "packaging" && currentView === "3d") {{
+                const offset = camera.position.clone().sub(controls.target);
+                offset.applyAxisAngle(new THREE.Vector3(0, 0, 1), 0.0030);
+                camera.position.copy(controls.target.clone().add(offset));
+                camera.lookAt(controls.target);
+            }}
 
             if (sceneMode !== "packaging" && animationEnabled && isPlaying && drawPos < localPts.length - 1) {{
                 const advance = 0.08 + Math.pow(speed, 2.35) * 1.1;
