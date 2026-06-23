@@ -7738,7 +7738,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const mat = new THREE.MeshPhysicalMaterial({{
                 color: chosen,
-                map: isRibbed ? null : tex,
+                map: tex,
                 roughness: isRibbed ? (isEco ? 0.84 : (active ? 0.58 : (free ? 0.78 : 0.66))) : (isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72))),
                 metalness: 0.005,
                 clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost + (isRibbed ? 0.035 : 0.0)),
