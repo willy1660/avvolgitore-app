@@ -7758,22 +7758,21 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (isRibbed) {{
                 // Zigrinatura VISUALE in screen-space.
                 // No UV, no texture repeat, no bump map, no geometria: així NO depèn de la longitud del rotllo.
-                // Spacing fixed in screen pixels, but with a gentler curve:
-                // even at max density, the pattern must remain visible.
-                const densityCtrl = Math.max(5.0, CUSTOM_RIB.visualDensity || 70.0);
+                // Screen-space spacing. Keep it clearly visible even at extreme values.
+                const densityCtrl = Math.max(1.0, CUSTOM_RIB.visualDensity || 70.0);
                 const screenSpacingPx = Math.max(
-                    8.0,
-                    Math.min(28.0, 980.0 / Math.max(10.0, Math.sqrt(densityCtrl) * 8.0))
+                    4.0,
+                    Math.min(30.0, 520.0 / Math.max(6.0, Math.sqrt(densityCtrl) * 3.2))
                 );
 
-                // Much stronger visual boost for white tubes.
+                // Make sliders much more effective.
                 const ribVisualBoost = Math.max(
-                    0.60,
+                    0.40,
                     Math.min(
-                        8.00,
-                        (CUSTOM_RIB.textureFactor || 1.0)
-                        * (0.95 + 10.0 * (CUSTOM_RIB.bumpScale || 0.09))
-                        * (0.95 + 5.0 * (CUSTOM_RIB.geometryScale || 0.11))
+                        18.00,
+                        (0.35 + 1.15 * (CUSTOM_RIB.textureFactor || 1.0))
+                        * (0.55 + 7.5 * (CUSTOM_RIB.bumpScale || 0.09))
+                        * (0.55 + 5.5 * (CUSTOM_RIB.geometryScale || 0.11))
                     )
                 );
 
@@ -7788,26 +7787,29 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                         float ribVisualBoost = ${{ribVisualBoost.toFixed(3)}};
 
                         // Patró fix en píxels: mateixa separació aparent independentment de longitud/càmera.
-                        float ribCoordProc = (gl_FragCoord.x * 0.96 + gl_FragCoord.y * 0.20) / ribSpacingPx;
+                        float ribCoordProc = (gl_FragCoord.x * 0.97 + gl_FragCoord.y * 0.21) / ribSpacingPx;
                         float ribPhaseProc = fract(ribCoordProc);
 
+                        float edgeDistProc = min(ribPhaseProc, 1.0 - ribPhaseProc);
                         float ribCenterProc = abs(ribPhaseProc - 0.50) * 2.0;
 
-                        // Broader body + darker grooves so it is clearly visible on white.
-                        float ribBodyProc = 1.0 - smoothstep(0.10, 0.82, ribCenterProc);
-                        float ribCoreProc = 1.0 - smoothstep(0.00, 0.38, ribCenterProc);
-                        float ribGrooveProc = 1.0 - smoothstep(0.00, 0.12, min(ribPhaseProc, 1.0 - ribPhaseProc));
+                        // Very visible body and grooves.
+                        float ribBodyProc = 1.0 - smoothstep(0.06, 0.92, ribCenterProc);
+                        float ribCoreProc = 1.0 - smoothstep(0.00, 0.55, ribCenterProc);
+                        float ribGrooveProc = 1.0 - smoothstep(0.00, 0.10, edgeDistProc);
+                        float ribGrooveWideProc = 1.0 - smoothstep(0.00, 0.18, edgeDistProc);
 
-                        // Slight secondary breakup so it does not look too flat.
-                        float ribFineProc = sin((gl_FragCoord.x * 0.42 + gl_FragCoord.y * 0.85) * 0.30) * 0.016 * ribVisualBoost;
+                        // Slight breakup so it does not look perfectly flat.
+                        float ribFineProc = sin((gl_FragCoord.x * 0.46 + gl_FragCoord.y * 0.88) * 0.28) * 0.020 * ribVisualBoost;
 
                         float ribShadeProc = 1.0
-                            + ribBodyProc * (0.16 * ribVisualBoost)
-                            + ribCoreProc * (0.08 * ribVisualBoost)
-                            - ribGrooveProc * (0.26 * ribVisualBoost)
+                            + ribBodyProc * (0.26 * ribVisualBoost)
+                            + ribCoreProc * (0.12 * ribVisualBoost)
+                            - ribGrooveProc * (0.52 * ribVisualBoost)
+                            - ribGrooveWideProc * (0.18 * ribVisualBoost)
                             + ribFineProc;
 
-                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.42, 1.52);
+                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.18, 1.85);
 
                         #include <dithering_fragment>
                         `
@@ -14511,9 +14513,9 @@ with tab_production:
                 step=0.05,
                 key="tmp_rib_texture_factor_simple",
                 help=(
-                    "Più alto = zigrinatura visivamente più marcata. Limite esteso per prove molto spinte."
+                    "Più alto = zigrinatura visivamente più marcata. In questa versione il contrasto è molto più aggressivo."
                     if lang == "IT"
-                    else "Higher = visually stronger ribbed finish. Extended limit for very strong tests."
+                    else "Higher = visually stronger ribbed finish. In this version the contrast is much more aggressive."
                 ),
             )
 
