@@ -4904,10 +4904,10 @@ def viewer(
     simulation_print_payload=None,
     active_product_name=None,
     active_product_kind="preset",
-    rib_visual_density=70.0,
-    rib_geometry_scale=0.110,
-    rib_bump_scale=0.090,
-    rib_texture_factor=1.60,
+    rib_visual_density=200.0,
+    rib_geometry_scale=0.010,
+    rib_bump_scale=0.020,
+    rib_texture_factor=0.50,
     rib_length_compensation=0.0,
     rib_diameter_compensation=0.0,
 ):
@@ -14461,7 +14461,7 @@ with tab_production:
                 "Densità zigrinatura" if lang == "IT" else "Rib density",
                 min_value=5.0,
                 max_value=250.0,
-                value=float(st.session_state.get("tmp_rib_visual_density_simple", 70.0)),
+                value=float(st.session_state.get("tmp_rib_visual_density_simple", 200.0)),
                 step=1.0,
                 key="tmp_rib_visual_density_simple",
                 help=(
@@ -14474,7 +14474,7 @@ with tab_production:
                 "Rilievo geometrico" if lang == "IT" else "Geometric relief",
                 min_value=0.02,
                 max_value=0.22,
-                value=float(st.session_state.get("tmp_rib_geometry_scale_simple", 0.110)),
+                value=float(st.session_state.get("tmp_rib_geometry_scale_simple", 0.010)),
                 step=0.005,
                 key="tmp_rib_geometry_scale_simple",
                 help=(
@@ -14488,7 +14488,7 @@ with tab_production:
                 "Intensità superficie" if lang == "IT" else "Surface intensity",
                 min_value=0.00,
                 max_value=0.20,
-                value=float(st.session_state.get("tmp_rib_bump_scale_simple", 0.090)),
+                value=float(st.session_state.get("tmp_rib_bump_scale_simple", 0.020)),
                 step=0.005,
                 key="tmp_rib_bump_scale_simple",
                 help=(
@@ -14501,7 +14501,7 @@ with tab_production:
                 "Contrasto zigrinatura" if lang == "IT" else "Rib contrast",
                 min_value=0.50,
                 max_value=3.00,
-                value=float(st.session_state.get("tmp_rib_texture_factor_simple", 1.60)),
+                value=float(st.session_state.get("tmp_rib_texture_factor_simple", 0.50)),
                 step=0.05,
                 key="tmp_rib_texture_factor_simple",
                 help=(
