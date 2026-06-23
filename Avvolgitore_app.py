@@ -7628,6 +7628,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(1.0, 1.0);
+            tex.generateMipmaps = false;
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
             tex.anisotropy = 12;
             tex.needsUpdate = true;
 
@@ -7773,6 +7776,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (material.bumpMap) {{
                 mat.bumpMap = material.bumpMap.clone();
                 mat.bumpMap.repeat.set(1.0, 1.0);
+                mat.bumpMap.generateMipmaps = false;
+                mat.bumpMap.minFilter = THREE.LinearFilter;
+                mat.bumpMap.magFilter = THREE.LinearFilter;
                 mat.bumpMap.needsUpdate = true;
             }}
 
@@ -8641,8 +8647,14 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
         function applyRealLengthRibUVs(geo, totalLen) {{
             if (tubeFinishMode !== "zigrinata") return;
+
             const uv = geo.attributes.uv;
             if (!uv) return;
+
+            const params = geo.parameters || {{}};
+            const tubularSegments = Math.max(1, Number(params.tubularSegments || 1));
+            const radialSegments = Math.max(3, Number(params.radialSegments || 32));
+            const ringSize = radialSegments + 1;
 
             const profile = getQualityProfile();
             const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
@@ -8650,7 +8662,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const totalRepeats = Math.max(1.0, (totalLen / 1000.0) * ribsPerMetre * fineFactor);
 
             for (let i = 0; i < uv.count; i++) {{
-                uv.setX(i, uv.getX(i) * totalRepeats);
+                const ringIndex = Math.floor(i / ringSize);
+                const radialIndex = i - ringIndex * ringSize;
+                const u = (ringIndex / tubularSegments) * totalRepeats;
+                const v = radialIndex / radialSegments;
+
+                uv.setXY(i, u, v);
             }}
 
             uv.needsUpdate = true;
@@ -14502,9 +14519,9 @@ with tab_production:
                 step=0.05,
                 key="tmp_rib_length_compensation",
                 help=(
-                    "Serve solo come rifinitura. Ora la zigrinatura usa UV basate sulla lunghezza reale del tubo, quindi non dovrebbe più scalare con 15 / 25 / 50 m."
+                    "Serve solo come rifinitura. Ora la zigrinatura usa UV riscritte per anello lungo il tubo e texture senza mipmap, quindi non dovrebbe più scalare con 15 / 25 / 50 m."
                     if lang == "IT"
-                    else "Fine-tuning only. Ribbing now uses UVs based on real tube length, so it should no longer scale with 15 / 25 / 50 m."
+                    else "Fine-tuning only. Ribbing now uses rewritten per-ring UVs along the tube and no texture mipmaps, so it should no longer scale with 15 / 25 / 50 m."
                 ),
             )
         with zg4:
