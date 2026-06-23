@@ -14405,14 +14405,14 @@ with tab_production:
             rib_visual_density = st.slider(
                 "Densità zigrinatura / metro" if lang == "IT" else "Rib density / metre",
                 min_value=1.0,
-                max_value=200.0,
+                max_value=1500.0,
                 value=float(st.session_state.get("tmp_rib_visual_density", 14.0)),
                 step=1.0,
                 key="tmp_rib_visual_density",
                 help=(
-                    "Controlla quante nervature visibili ci sono ogni metro di tubo renderizzato. Più alto = zigrinatura più fitta. Se non si vede quasi nulla, prova a BA SSARE questo valore: 120 / metro era troppo fitto."
+                    "Controlla quante nervature visibili ci sono ogni metro di tubo renderizzato. Più alto = zigrinatura più fitta. Puoi pujar fins a 1500 per fer proves extremes."
                     if lang == "IT"
-                    else "Controls how many visible ribs appear per metre of rendered tube. Higher = denser ribbing. If you barely see it, LOWER this value: 120 / metre was too dense to be visible."
+                    else "Controls how many visible ribs appear per metre of rendered tube. Higher = denser ribbing. You can go up to 1500 for extreme tests."
                 ),
             )
             rib_geometry_scale = st.slider(
