@@ -6460,16 +6460,9 @@ def viewer(
         }};
 
         function getEffectiveRibsPerMetre(totalLen) {{
-            const baseDensity = Math.max(1.0, CUSTOM_RIB.visualDensity || 70.0);
-            const lengthMetres = Math.max(0.001, totalLen / 1000.0);
-            const lengthRatio = Math.max(0.05, lengthMetres / (CUSTOM_RIB.referenceLengthM || 25.0));
-            const diameterRatio = Math.max(0.05, (CUSTOM_RIB.tubeDiameterMm || 30.0) / (CUSTOM_RIB.referenceDiameterMm || 30.0));
-
-            const lengthFactor = Math.pow(lengthRatio, CUSTOM_RIB.lengthCompensation || 0.0);
-            const diameterFactor = Math.pow(diameterRatio, CUSTOM_RIB.diameterCompensation || 0.0);
-            const visualComp = getRollVisualCompensation();
-
-            return Math.max(1.0, baseDensity * lengthFactor * diameterFactor * visualComp.densityComp);
+            // Physical-ish visual mapping: real UV length only.
+            // No roll-footprint compensation here, because that made it depend on the coil length again.
+            return Math.max(1.0, CUSTOM_RIB.visualDensity || 70.0);
         }};
 
         const host = document.getElementById("viewer_root");
@@ -7756,26 +7749,21 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }});
 
             if (isRibbed) {{
-                // Zigrinatura VISUALE in screen-space.
-                // No UV, no texture repeat, no bump map, no geometria: així NO depèn de la longitud del rotllo.
-                // Screen-space spacing. Keep it clearly visible even at extreme values.
-                const densityCtrl = Math.max(1.0, CUSTOM_RIB.visualDensity || 70.0);
-                const screenSpacingPx = Math.max(
-                    2.0,
-                    Math.min(18.0, 320.0 / Math.max(4.0, Math.sqrt(densityCtrl) * 2.6))
-                );
-
-                // Make sliders much more effective.
                 const ribVisualBoost = Math.max(
                     0.60,
                     Math.min(
-                        28.00,
+                        18.00,
                         (0.55 + 1.60 * (CUSTOM_RIB.textureFactor || 1.0))
                         * (0.70 + 10.0 * (CUSTOM_RIB.bumpScale || 0.09))
                         * (0.70 + 7.5 * (CUSTOM_RIB.geometryScale || 0.11))
                     )
                 );
 
+                // Zigrinatura UV real:
+                // - vUv.x ja porta la repetició basada en longitud real del tub
+                // - no fem screen-space
+                // - no fem texture repeat
+                // - no fem bumpMap, perquè ens estava contaminant la longitud
                 mat.bumpMap = null;
                 mat.bumpScale = 0.0;
 
@@ -7783,34 +7771,30 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                     shader.fragmentShader = shader.fragmentShader.replace(
                         "#include <dithering_fragment>",
                         `
-                        float ribSpacingPx = ${{screenSpacingPx.toFixed(3)}};
                         float ribVisualBoost = ${{ribVisualBoost.toFixed(3)}};
 
-                        // Patró fix en píxels: MUY visible, independentment de longitud/càmera.
-                        float ribCoordProc = (gl_FragCoord.x * 1.00 + gl_FragCoord.y * 0.24) / ribSpacingPx;
-                        float ribPhaseProc = fract(ribCoordProc);
-
+                        // UV.x ja és longitud real reescalada: fract(vUv.x) = fase local de la nervadura.
+                        float ribPhaseProc = fract(vUv.x);
                         float edgeDistProc = min(ribPhaseProc, 1.0 - ribPhaseProc);
-                        float ribCenterProc = abs(ribPhaseProc - 0.50) * 2.0;
+                        float centerDistProc = abs(ribPhaseProc - 0.50) * 2.0;
 
-                        // Ridges and grooves intentionally exaggerated.
-                        float ridgeWideProc   = 1.0 - smoothstep(0.08, 0.98, ribCenterProc);
-                        float ridgeCoreProc   = 1.0 - smoothstep(0.00, 0.42, ribCenterProc);
-                        float grooveThinProc  = 1.0 - smoothstep(0.00, 0.14, edgeDistProc);
-                        float grooveWideProc  = 1.0 - smoothstep(0.00, 0.26, edgeDistProc);
+                        float ridgeWideProc  = 1.0 - smoothstep(0.08, 0.98, centerDistProc);
+                        float ridgeCoreProc  = 1.0 - smoothstep(0.00, 0.44, centerDistProc);
+                        float grooveThinProc = 1.0 - smoothstep(0.00, 0.12, edgeDistProc);
+                        float grooveWideProc = 1.0 - smoothstep(0.00, 0.24, edgeDistProc);
 
-                        float microProc = sin((gl_FragCoord.x * 0.52 + gl_FragCoord.y * 0.91) * 0.32) * 0.022 * ribVisualBoost;
+                        float microProc = sin((vUv.x * 6.2831853 * 0.37) + (vUv.y * 18.0)) * 0.018 * ribVisualBoost;
 
                         vec3 baseColProc = gl_FragColor.rgb;
-                        float darkMaskProc = clamp(grooveThinProc * 1.00 + grooveWideProc * 0.45, 0.0, 1.0);
-                        float lightMaskProc = clamp(ridgeWideProc * 0.70 + ridgeCoreProc * 0.55, 0.0, 1.0);
+                        vec3 darkerProc = baseColProc * max(0.08, 1.0 - 0.12 * ribVisualBoost);
+                        vec3 lighterProc = min(vec3(1.0), baseColProc * (1.0 + 0.034 * ribVisualBoost));
 
-                        vec3 darkerProc = baseColProc * max(0.10, 1.0 - 0.11 * ribVisualBoost);
-                        vec3 lighterProc = min(vec3(1.0), baseColProc * (1.0 + 0.030 * ribVisualBoost));
+                        float darkMaskProc = clamp(grooveThinProc * 1.0 + grooveWideProc * 0.42, 0.0, 1.0);
+                        float lightMaskProc = clamp(ridgeWideProc * 0.72 + ridgeCoreProc * 0.50, 0.0, 1.0);
 
                         vec3 ribColProc = baseColProc;
-                        ribColProc = mix(ribColProc, darkerProc, clamp(darkMaskProc, 0.0, 1.0));
-                        ribColProc = mix(ribColProc, lighterProc, clamp(lightMaskProc * 0.70, 0.0, 1.0));
+                        ribColProc = mix(ribColProc, darkerProc, darkMaskProc);
+                        ribColProc = mix(ribColProc, lighterProc, lightMaskProc * 0.78);
                         ribColProc += vec3(microProc);
 
                         gl_FragColor.rgb = clamp(ribColProc, vec3(0.02), vec3(1.0));
@@ -7819,7 +7803,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                         `
                     );
                 }};
-                mat.customProgramCacheKey = () => "zigrinata_screen_space_" + screenSpacingPx.toFixed(1) + "_" + ribVisualBoost.toFixed(2);
+                mat.customProgramCacheKey = () => "zigrinata_uv_real_" + ribVisualBoost.toFixed(2);
             }} else if (!isEco) {{
                 mat.bumpMap = tex;
                 mat.bumpScale = mode === "gelblack" ? profile.bumpScale * 0.55 : profile.bumpScale;
@@ -7843,9 +7827,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const mat = material.clone();
 
-            // IMPORTANT: THREE.Material.clone() does not reliably preserve onBeforeCompile.
-            // Without this, the screen-space zigrinatura shader is lost on the real tube mesh,
-            // so the sliders appear to do nothing.
+            // IMPORTANT: preserve procedural shader after Material.clone().
             if (material.onBeforeCompile) mat.onBeforeCompile = material.onBeforeCompile;
             if (material.customProgramCacheKey) mat.customProgramCacheKey = material.customProgramCacheKey;
 
@@ -8741,7 +8723,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const profile = getQualityProfile();
             const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
             const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
-            const totalRepeats = 1.0;
+            const totalRepeats = Math.max(1.0, (totalLen / 1000.0) * ribsPerMetre * fineFactor);
 
             for (let i = 0; i < uv.count; i++) {{
                 const ringIndex = Math.floor(i / ringSize);
@@ -8771,7 +8753,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            // Screen-space zigrinatura: no deformem geometria per evitar dependència de longitud.
+            // La zigrinatura ara és visual per UV real. No deformem geometria per evitar dependència de segments/longitud.
             geo.computeVertexNormals();
             return;
 
@@ -14469,63 +14451,63 @@ with tab_production:
 
     with st.expander("Regolazione zigrinata visuale" if lang == "IT" else "Visual ribbed finish tuning", expanded=False):
         st.caption(
-            "Solo regolazione visiva in screen-space. Per fare prove, il viewer ora parte direttamente in Zigrinata: così i cambi dei slider si vedono subito."
+            "Solo regolazione visiva. Usa questi slider per rendere la zigrinatura più evidente quando selezioni 'Zigrinata' nel viewer."
             if lang == "IT"
-            else "Screen-space visual tuning only. For testing, the viewer now starts directly in Ribbed mode so slider changes are immediately visible."
+            else "Visual tuning only. Use these sliders to make the ribbed finish more visible when you select 'Ribbed' in the viewer."
         )
         zg1, zg2 = st.columns(2, gap="large")
         with zg1:
             rib_visual_density = st.slider(
                 "Densità zigrinatura" if lang == "IT" else "Rib density",
-                min_value=1.0,
-                max_value=1000.0,
+                min_value=5.0,
+                max_value=250.0,
                 value=float(st.session_state.get("tmp_rib_visual_density_simple", 70.0)),
                 step=1.0,
                 key="tmp_rib_visual_density_simple",
                 help=(
-                    "Più alto = più righe visibili. Limite esteso per prove aggressive."
+                    "Più alto = più righe visibili e più ripetizione. L’app compensa automaticamente i rotoli grandi per mantenere l’effetto più simile."
                     if lang == "IT"
-                    else "Higher = more visible rib lines. Extended limit for aggressive tests."
+                    else "Higher = more visible rib lines and more repetition. The app automatically compensates larger coils to keep the effect more similar."
                 ),
             )
             rib_geometry_scale = st.slider(
                 "Rilievo geometrico" if lang == "IT" else "Geometric relief",
-                min_value=0.00,
-                max_value=1.00,
+                min_value=0.02,
+                max_value=0.22,
                 value=float(st.session_state.get("tmp_rib_geometry_scale_simple", 0.110)),
                 step=0.005,
                 key="tmp_rib_geometry_scale_simple",
                 help=(
-                    "Quanto si vede il rilievo 3D della zigrinatura. Limite esteso."
+                    "Quanto si vede il rilievo 3D della zigrinatura."
                     if lang == "IT"
-                    else "How visible the 3D relief of the ribbing is. Extended limit."
+                    else "How visible the 3D relief of the ribbing is."
                 ),
             )
         with zg2:
             rib_bump_scale = st.slider(
                 "Intensità superficie" if lang == "IT" else "Surface intensity",
                 min_value=0.00,
-                max_value=1.00,
+                max_value=0.20,
                 value=float(st.session_state.get("tmp_rib_bump_scale_simple", 0.090)),
                 step=0.005,
                 key="tmp_rib_bump_scale_simple",
                 help=(
-                    "Quanto il materiale sembra inciso / zigrinato in superficie. Limite esteso."
+                    "Quanto il materiale sembra inciso / zigrinato in superficie."
                     if lang == "IT"
-                    else "How engraved / ribbed the surface looks. Extended limit."
+                    else "How engraved / ribbed the surface looks."
                 ),
             )
             rib_texture_factor = st.slider(
                 "Contrasto zigrinatura" if lang == "IT" else "Rib contrast",
-                min_value=0.10,
-                max_value=10.00,
+                min_value=0.50,
+                max_value=3.00,
                 value=float(st.session_state.get("tmp_rib_texture_factor_simple", 1.60)),
                 step=0.05,
                 key="tmp_rib_texture_factor_simple",
                 help=(
-                    "Più alto = zigrinatura visivamente più marcata. En aquesta versió l’efecte és extrem i els solcs es marquen molt més."
+                    "Più alto = zigrinatura visivamente più marcata. Il viewer la rinforza automaticamente sui rotoli grandi."
                     if lang == "IT"
-                    else "Higher = visually stronger ribbed finish. In this version the effect is extreme and grooves are much more pronounced."
+                    else "Higher = visually stronger ribbed finish. The viewer automatically boosts it on larger coils."
                 ),
             )
 
