@@ -4983,7 +4983,7 @@ def viewer(
             <button id="reset_view_btn" class="viewer_btn viewer_icon_btn">↺</button>
             <button id="fullscreen_btn" class="viewer_btn viewer_icon_btn">⛶</button>
             <button id="capture_render_btn" class="viewer_btn viewer_icon_btn">📷</button>
-            <button id="capture_mode_btn" class="viewer_btn viewer_print_btn">Capture</button>
+            <button id="capture_mode_btn" class="viewer_btn viewer_print_btn">Presentation</button>
             <button id="print_simulation_btn" class="viewer_btn viewer_print_btn">Stampa</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
@@ -5166,7 +5166,7 @@ def viewer(
             letter-spacing:0.02em;
             cursor:pointer;
             user-select:none;
-        ">Exit capture</button>
+        ">Exit presentation</button>
 
         <div id="viewer_hud" style="
             position:absolute;
@@ -6524,7 +6524,7 @@ def viewer(
         let stageGlowMat = null;
         let stageRimMat = null;
         function updatePresentationStage() {{
-            // Safe no-op fallback. Capture mode still hides the UI and forces Ultra.
+            // Safe no-op fallback. Presentation mode still hides the UI and forces Ultra.
             // The decorative stage can be reintroduced later without breaking the viewer.
         }}
 
@@ -6631,8 +6631,8 @@ def viewer(
         resetViewBtn.title = T.reset_view;
         fullscreenBtn.title = T.fullscreen;
         captureRenderBtn.title = T.capture_render || "Save render image";
-        if (captureModeBtn) captureModeBtn.title = "Clean capture / presentation mode";
-        if (captureModeExitBtn) captureModeExitBtn.title = "Exit capture mode";
+        if (captureModeBtn) captureModeBtn.title = "Presentation mode · maximum quality";
+        if (captureModeExitBtn) captureModeExitBtn.title = "Exit presentation mode";
 
         if (captureModeBtn) {{
             captureModeBtn.addEventListener("click", () => applyCaptureMode(true));
@@ -7064,7 +7064,7 @@ def viewer(
             if (captureModeActive) {{
                 captureModePreviousQuality = renderQuality || "alta";
 
-                // Clean presentation state for screenshots / fair-style viewing.
+                // Clean presentation state for screenshots / fair-style viewing at maximum quality.
                 if (animationEnabled) {{
                     animationEnabled = false;
                     isPlaying = false;
@@ -14687,67 +14687,10 @@ with tab_production:
                 st.markdown("&nbsp;", unsafe_allow_html=True)
                 st.caption(t["packaging_box_desc"])
 
-    with st.expander("Regolazione zigrinata visuale" if lang == "IT" else "Visual ribbed finish tuning", expanded=False):
-        st.caption(
-            "Solo regolazione visiva. Usa questi slider per rendere la zigrinatura più evidente quando selezioni 'Zigrinata' nel viewer."
-            if lang == "IT"
-            else "Visual tuning only. Use these sliders to make the ribbed finish more visible when you select 'Ribbed' in the viewer."
-        )
-        zg1, zg2 = st.columns(2, gap="large")
-        with zg1:
-            rib_visual_density = st.slider(
-                "Densità zigrinatura" if lang == "IT" else "Rib density",
-                min_value=5.0,
-                max_value=250.0,
-                value=float(st.session_state.get("tmp_rib_visual_density_simple", 200.0)),
-                step=1.0,
-                key="tmp_rib_visual_density_simple",
-                help=(
-                    "Più alto = più righe visibili e più ripetizione. L’app compensa automaticamente i rotoli grandi per mantenere l’effetto più simile."
-                    if lang == "IT"
-                    else "Higher = more visible rib lines and more repetition. The app automatically compensates larger coils to keep the effect more similar."
-                ),
-            )
-            rib_geometry_scale = st.slider(
-                "Rilievo geometrico" if lang == "IT" else "Geometric relief",
-                min_value=0.02,
-                max_value=0.22,
-                value=float(st.session_state.get("tmp_rib_geometry_scale_simple", 0.010)),
-                step=0.005,
-                key="tmp_rib_geometry_scale_simple",
-                help=(
-                    "Quanto si vede il rilievo 3D della zigrinatura."
-                    if lang == "IT"
-                    else "How visible the 3D relief of the ribbing is."
-                ),
-            )
-        with zg2:
-            rib_bump_scale = st.slider(
-                "Intensità superficie" if lang == "IT" else "Surface intensity",
-                min_value=0.00,
-                max_value=0.20,
-                value=float(st.session_state.get("tmp_rib_bump_scale_simple", 0.020)),
-                step=0.005,
-                key="tmp_rib_bump_scale_simple",
-                help=(
-                    "Quanto il materiale sembra inciso / zigrinato in superficie."
-                    if lang == "IT"
-                    else "How engraved / ribbed the surface looks."
-                ),
-            )
-            rib_texture_factor = st.slider(
-                "Contrasto zigrinatura" if lang == "IT" else "Rib contrast",
-                min_value=0.50,
-                max_value=3.00,
-                value=float(st.session_state.get("tmp_rib_texture_factor_simple", 0.50)),
-                step=0.05,
-                key="tmp_rib_texture_factor_simple",
-                help=(
-                    "Più alto = zigrinatura visivamente più marcata. Il viewer la rinforza automaticamente sui rotoli grandi."
-                    if lang == "IT"
-                    else "Higher = visually stronger ribbed finish. The viewer automatically boosts it on larger coils."
-                ),
-            )
+    rib_visual_density = 200.0
+    rib_geometry_scale = 0.010
+    rib_bump_scale = 0.020
+    rib_texture_factor = 0.50
 
     simulation_print_payload = build_simulation_print_payload(
         selected_product,
