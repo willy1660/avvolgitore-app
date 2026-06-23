@@ -7758,14 +7758,22 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (isRibbed) {{
                 // Zigrinatura VISUALE in screen-space.
                 // No UV, no texture repeat, no bump map, no geometria: així NO depèn de la longitud del rotllo.
-                const screenSpacingPx = Math.max(4.0, Math.min(42.0, 1400.0 / Math.max(5.0, CUSTOM_RIB.visualDensity || 70.0)));
+                // Spacing fixed in screen pixels, but with a gentler curve:
+                // even at max density, the pattern must remain visible.
+                const densityCtrl = Math.max(5.0, CUSTOM_RIB.visualDensity || 70.0);
+                const screenSpacingPx = Math.max(
+                    8.0,
+                    Math.min(28.0, 980.0 / Math.max(10.0, Math.sqrt(densityCtrl) * 8.0))
+                );
+
+                // Much stronger visual boost for white tubes.
                 const ribVisualBoost = Math.max(
-                    0.25,
+                    0.60,
                     Math.min(
-                        4.00,
+                        8.00,
                         (CUSTOM_RIB.textureFactor || 1.0)
-                        * (0.75 + 6.0 * (CUSTOM_RIB.bumpScale || 0.09))
-                        * (0.75 + 2.2 * (CUSTOM_RIB.geometryScale || 0.11))
+                        * (0.95 + 10.0 * (CUSTOM_RIB.bumpScale || 0.09))
+                        * (0.95 + 5.0 * (CUSTOM_RIB.geometryScale || 0.11))
                     )
                 );
 
@@ -7780,21 +7788,26 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                         float ribVisualBoost = ${{ribVisualBoost.toFixed(3)}};
 
                         // Patró fix en píxels: mateixa separació aparent independentment de longitud/càmera.
-                        float ribCoordProc = (gl_FragCoord.x * 0.92 + gl_FragCoord.y * 0.18) / ribSpacingPx;
+                        float ribCoordProc = (gl_FragCoord.x * 0.96 + gl_FragCoord.y * 0.20) / ribSpacingPx;
                         float ribPhaseProc = fract(ribCoordProc);
 
                         float ribCenterProc = abs(ribPhaseProc - 0.50) * 2.0;
-                        float ribBandProc = 1.0 - smoothstep(0.22, 0.92, ribCenterProc);
-                        float ribGrooveProc = 1.0 - smoothstep(0.00, 0.20, min(ribPhaseProc, 1.0 - ribPhaseProc));
 
-                        float ribFineProc = sin((gl_FragCoord.x * 0.35 + gl_FragCoord.y * 0.71) * 0.35) * 0.010 * ribVisualBoost;
+                        // Broader body + darker grooves so it is clearly visible on white.
+                        float ribBodyProc = 1.0 - smoothstep(0.10, 0.82, ribCenterProc);
+                        float ribCoreProc = 1.0 - smoothstep(0.00, 0.38, ribCenterProc);
+                        float ribGrooveProc = 1.0 - smoothstep(0.00, 0.12, min(ribPhaseProc, 1.0 - ribPhaseProc));
+
+                        // Slight secondary breakup so it does not look too flat.
+                        float ribFineProc = sin((gl_FragCoord.x * 0.42 + gl_FragCoord.y * 0.85) * 0.30) * 0.016 * ribVisualBoost;
 
                         float ribShadeProc = 1.0
-                            + ribBandProc * (0.105 * ribVisualBoost)
-                            - ribGrooveProc * (0.145 * ribVisualBoost)
+                            + ribBodyProc * (0.16 * ribVisualBoost)
+                            + ribCoreProc * (0.08 * ribVisualBoost)
+                            - ribGrooveProc * (0.26 * ribVisualBoost)
                             + ribFineProc;
 
-                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.62, 1.34);
+                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.42, 1.52);
 
                         #include <dithering_fragment>
                         `
@@ -14458,9 +14471,9 @@ with tab_production:
                 step=1.0,
                 key="tmp_rib_visual_density_simple",
                 help=(
-                    "Più alto = più righe visibili. Il pattern è fissato in pixel, quindi non segue la lunghezza fisica del rotolo."
+                    "Più alto = più righe visibili. Anche al massimo la spaziatura resta abbastanza grande da non sparire visivamente."
                     if lang == "IT"
-                    else "Higher = more visible rib lines. The pattern is fixed in pixels, so it does not follow the physical coil length."
+                    else "Higher = more visible rib lines. Even at max, spacing stays large enough to remain visible."
                 ),
             )
             rib_geometry_scale = st.slider(
@@ -14498,9 +14511,9 @@ with tab_production:
                 step=0.05,
                 key="tmp_rib_texture_factor_simple",
                 help=(
-                    "Più alto = zigrinatura visivamente più marcata. Il viewer la rinforza automaticamente sui rotoli grandi."
+                    "Più alto = zigrinatura visivamente più marcata. In questa versione l’effetto è molto più aggressivo."
                     if lang == "IT"
-                    else "Higher = visually stronger ribbed finish. The viewer automatically boosts it on larger coils."
+                    else "Higher = visually stronger ribbed finish. In this version the effect is much more aggressive."
                 ),
             )
 
