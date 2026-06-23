@@ -14465,55 +14465,55 @@ with tab_production:
         with zg1:
             rib_visual_density = st.slider(
                 "Densità zigrinatura" if lang == "IT" else "Rib density",
-                min_value=5.0,
-                max_value=250.0,
+                min_value=1.0,
+                max_value=1000.0,
                 value=float(st.session_state.get("tmp_rib_visual_density_simple", 70.0)),
                 step=1.0,
                 key="tmp_rib_visual_density_simple",
                 help=(
-                    "Più alto = più righe visibili. Anche al massimo la spaziatura resta abbastanza grande da non sparire visivamente."
+                    "Più alto = più righe visibili. Limite esteso per prove aggressive."
                     if lang == "IT"
-                    else "Higher = more visible rib lines. Even at max, spacing stays large enough to remain visible."
+                    else "Higher = more visible rib lines. Extended limit for aggressive tests."
                 ),
             )
             rib_geometry_scale = st.slider(
                 "Rilievo geometrico" if lang == "IT" else "Geometric relief",
-                min_value=0.02,
-                max_value=0.22,
+                min_value=0.00,
+                max_value=1.00,
                 value=float(st.session_state.get("tmp_rib_geometry_scale_simple", 0.110)),
                 step=0.005,
                 key="tmp_rib_geometry_scale_simple",
                 help=(
-                    "Quanto si vede il rilievo 3D della zigrinatura."
+                    "Quanto si vede il rilievo 3D della zigrinatura. Limite esteso."
                     if lang == "IT"
-                    else "How visible the 3D relief of the ribbing is."
+                    else "How visible the 3D relief of the ribbing is. Extended limit."
                 ),
             )
         with zg2:
             rib_bump_scale = st.slider(
                 "Intensità superficie" if lang == "IT" else "Surface intensity",
                 min_value=0.00,
-                max_value=0.20,
+                max_value=1.00,
                 value=float(st.session_state.get("tmp_rib_bump_scale_simple", 0.090)),
                 step=0.005,
                 key="tmp_rib_bump_scale_simple",
                 help=(
-                    "Quanto il materiale sembra inciso / zigrinato in superficie."
+                    "Quanto il materiale sembra inciso / zigrinato in superficie. Limite esteso."
                     if lang == "IT"
-                    else "How engraved / ribbed the surface looks."
+                    else "How engraved / ribbed the surface looks. Extended limit."
                 ),
             )
             rib_texture_factor = st.slider(
                 "Contrasto zigrinatura" if lang == "IT" else "Rib contrast",
-                min_value=0.50,
-                max_value=3.00,
+                min_value=0.10,
+                max_value=10.00,
                 value=float(st.session_state.get("tmp_rib_texture_factor_simple", 1.60)),
                 step=0.05,
                 key="tmp_rib_texture_factor_simple",
                 help=(
-                    "Più alto = zigrinatura visivamente più marcata. In questa versione l’effetto è molto più aggressivo."
+                    "Più alto = zigrinatura visivamente più marcata. Limite esteso per prove molto spinte."
                     if lang == "IT"
-                    else "Higher = visually stronger ribbed finish. In this version the effect is much more aggressive."
+                    else "Higher = visually stronger ribbed finish. Extended limit for very strong tests."
                 ),
             )
 
