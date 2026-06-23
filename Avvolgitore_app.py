@@ -6521,11 +6521,26 @@ def viewer(
             return Math.max(1.0, CUSTOM_RIB.visualDensity || 70.0);
         }};
 
+        let presentationStage = null;
+        let stageShadowMat = null;
         let stageGlowMat = null;
         let stageRimMat = null;
+
         function updatePresentationStage() {{
-            // Safe no-op fallback. Presentation mode still hides the UI and forces Ultra.
-            // The decorative stage can be reintroduced later without breaking the viewer.
+            const ultraHero = renderQuality === "ultra" && sceneMode !== "packaging";
+
+            if (presentationStage) presentationStage.visible = ultraHero;
+
+            if (!ultraHero) {{
+                if (stageShadowMat) stageShadowMat.opacity = 0.0;
+                if (stageGlowMat) stageGlowMat.opacity = 0.0;
+                if (stageRimMat) stageRimMat.opacity = 0.0;
+                return;
+            }}
+
+            if (stageShadowMat) stageShadowMat.opacity = 0.34;
+            if (stageGlowMat) stageGlowMat.opacity = 0.16;
+            if (stageRimMat) stageRimMat.opacity = 0.13;
         }}
 
         const host = document.getElementById("viewer_root");
@@ -8117,6 +8132,55 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         scene.add(softTopLight);
 
         // ==========================================
+        // ULTRA PRESENTATION STAGE
+        // ==========================================
+
+        presentationStage = new THREE.Group();
+        presentationStage.visible = false;
+        scene.add(presentationStage);
+
+        stageShadowMat = new THREE.MeshBasicMaterial({{
+            map: makeSoftShadowTexture(512),
+            transparent: true,
+            opacity: 0.0,
+            depthWrite: false,
+            depthTest: true
+        }});
+        const stageShadow = new THREE.Mesh(
+            new THREE.PlaneGeometry(Math.max(720, coilFootprint * 1.75), Math.max(520, coilFootprint * 1.20)),
+            stageShadowMat
+        );
+        stageShadow.rotation.x = Math.PI / 2;
+        stageShadow.position.set(0, 0, -Math.max(24, Hs * 0.11));
+        presentationStage.add(stageShadow);
+
+        stageGlowMat = new THREE.SpriteMaterial({{
+            map: makeRadialGlowTexture(512, "rgba(255,255,255,0.95)", "rgba(255,255,255,0.0)"),
+            transparent: true,
+            opacity: 0.0,
+            depthWrite: false,
+            depthTest: false,
+            blending: THREE.AdditiveBlending
+        }});
+        const stageGlow = new THREE.Sprite(stageGlowMat);
+        stageGlow.scale.set(Math.max(1050, coilFootprint * 2.20), Math.max(1050, coilFootprint * 2.20), 1);
+        stageGlow.position.set(0, -Math.max(180, coilFootprint * 0.34), Hs * 0.78);
+        presentationStage.add(stageGlow);
+
+        stageRimMat = new THREE.SpriteMaterial({{
+            map: makeRadialGlowTexture(512, "rgba(197,126,90,0.64)", "rgba(197,126,90,0.0)"),
+            transparent: true,
+            opacity: 0.0,
+            depthWrite: false,
+            depthTest: false,
+            blending: THREE.AdditiveBlending
+        }});
+        const stageRimGlow = new THREE.Sprite(stageRimMat);
+        stageRimGlow.scale.set(Math.max(760, coilFootprint * 1.55), Math.max(390, Hs * 1.18), 1);
+        stageRimGlow.position.set(Math.max(90, coilFootprint * 0.14), -Math.max(260, coilFootprint * 0.48), Hs * 0.56);
+        presentationStage.add(stageRimGlow);
+
+        // ==========================================
         // SCENE GROUPS
         // ==========================================
 
@@ -9507,8 +9571,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (renderQuality === "ultra" && sceneMode !== "packaging") {{
                 const tNow = performance.now() * 0.001;
-                if (stageGlowMat) stageGlowMat.opacity = 0.14 + Math.sin(tNow * 0.90) * 0.018;
-                if (stageRimMat) stageRimMat.opacity = 0.095 + Math.sin(tNow * 0.72 + 0.8) * 0.012;
+                if (stageGlowMat) stageGlowMat.opacity = 0.16 + Math.sin(tNow * 0.90) * 0.022;
+                if (stageRimMat) stageRimMat.opacity = 0.13 + Math.sin(tNow * 0.72 + 0.8) * 0.018;
             }}
 
             controls.update();
