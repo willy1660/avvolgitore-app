@@ -6790,6 +6790,7 @@ def viewer(
             renderer.setPixelRatio(Math.min(dpr, profile.pixelRatio));
             renderer.shadowMap.enabled = profile.shadows;
             renderer.toneMappingExposure = profile.exposure;
+            scene.environment = quality === "ultra" ? ultraStudioEnvMap : null;
             ambient.intensity = Math.max(0.12, getTheme().ambient + profile.ambientBoost);
 
             if (typeof keyLight !== "undefined" && keyLight && keyLight.shadow && keyLight.shadow.mapSize) {{
@@ -7791,22 +7792,91 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             return tex;
         }}
 
+        function makeUltraStudioEnvRenderTarget(rendererRef, size = 1024) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size * 2;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+
+            // Soft studio base
+            const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bg.addColorStop(0.00, "#fafbfd");
+            bg.addColorStop(0.22, "#eef2f6");
+            bg.addColorStop(0.52, "#dde4eb");
+            bg.addColorStop(1.00, "#cfd7e0");
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            function addStrip(cxNorm, widthNorm, alpha, tint = "255,255,255") {{
+                const cx = canvas.width * cxNorm;
+                const w = canvas.width * widthNorm;
+                const grad = ctx.createLinearGradient(cx - w * 0.5, 0, cx + w * 0.5, 0);
+                grad.addColorStop(0.00, "rgba(" + tint + ",0.00)");
+                grad.addColorStop(0.18, "rgba(" + tint + "," + (alpha * 0.55).toFixed(3) + ")");
+                grad.addColorStop(0.50, "rgba(" + tint + "," + alpha.toFixed(3) + ")");
+                grad.addColorStop(0.82, "rgba(" + tint + "," + (alpha * 0.55).toFixed(3) + ")");
+                grad.addColorStop(1.00, "rgba(" + tint + ",0.00)");
+                ctx.fillStyle = grad;
+                ctx.fillRect(cx - w * 0.5, 0, w, canvas.height);
+            }}
+
+            // Elegant vertical reflection panels
+            addStrip(0.16, 0.09, 0.95);
+            addStrip(0.34, 0.06, 0.55, "248,250,252");
+            addStrip(0.52, 0.12, 0.80);
+            addStrip(0.72, 0.05, 0.42, "246,248,251");
+            addStrip(0.88, 0.08, 0.72);
+
+            // Top soft band
+            const topBand = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.34);
+            topBand.addColorStop(0.00, "rgba(255,255,255,0.72)");
+            topBand.addColorStop(0.55, "rgba(255,255,255,0.08)");
+            topBand.addColorStop(1.00, "rgba(255,255,255,0.00)");
+            ctx.fillStyle = topBand;
+            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.34);
+
+            // Warm subtle side accent for copper elegance
+            const warmAccent = ctx.createLinearGradient(canvas.width * 0.74, 0, canvas.width, 0);
+            warmAccent.addColorStop(0.00, "rgba(212,150,110,0.00)");
+            warmAccent.addColorStop(0.55, "rgba(212,150,110,0.06)");
+            warmAccent.addColorStop(1.00, "rgba(212,150,110,0.12)");
+            ctx.fillStyle = warmAccent;
+            ctx.fillRect(canvas.width * 0.68, 0, canvas.width * 0.32, canvas.height);
+
+            const envTex = new THREE.CanvasTexture(canvas);
+            envTex.mapping = THREE.EquirectangularReflectionMapping;
+            envTex.encoding = THREE.sRGBEncoding;
+            envTex.needsUpdate = true;
+
+            const pmrem = new THREE.PMREMGenerator(rendererRef);
+            pmrem.compileEquirectangularShader();
+            const envRT = pmrem.fromEquirectangular(envTex);
+            pmrem.dispose();
+            envTex.dispose();
+
+            return envRT;
+        }}
+
         const steelTex = makeSteelTexture(256);
         const tubeWhiteTex = makeTubeTexture(256, false);
         const tubeBlackTex = makeTubeTexture(256, true);
         const tubeWhiteRibbedTex = makeTubeRibbedTexture(512, false);
         const tubeBlackRibbedTex = makeTubeRibbedTexture(512, true);
         const copperTex = makeCopperTexture(256);
+        const ultraStudioEnvRT = makeUltraStudioEnvRenderTarget(renderer, 1024);
+        const ultraStudioEnvMap = ultraStudioEnvRT.texture;
 
         // ==========================================
         // MATERIALS
         // ==========================================
 
         function makeSteelMat(opacity=1.0, transparent=false) {{
+            const isUltra = renderQuality === "ultra";
             return new THREE.MeshStandardMaterial({{
                 color: 0x6d7278,
-                roughness: 0.58,
+                roughness: isUltra ? 0.42 : 0.58,
                 metalness: 0.82,
+                envMapIntensity: isUltra ? 1.10 : 0.24,
                 map: steelTex,
                 transparent: transparent,
                 opacity: opacity,
@@ -7815,16 +7885,18 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         }}
 
         function makeCopperMat(bright=false) {{
+            const isUltra = renderQuality === "ultra";
             return new THREE.MeshPhysicalMaterial({{
-                color: bright ? 0xe1a579 : 0xc47a4d,
+                color: bright ? (isUltra ? 0xe7b08a : 0xe1a579) : (isUltra ? 0xc97d4f : 0xc47a4d),
                 map: copperTex,
-                roughness: bright ? 0.22 : 0.28,
-                metalness: 0.86,
-                clearcoat: 0.22,
-                clearcoatRoughness: 0.18,
-                reflectivity: 0.78,
+                roughness: bright ? (isUltra ? 0.10 : 0.22) : (isUltra ? 0.14 : 0.28),
+                metalness: 0.88,
+                clearcoat: isUltra ? 0.42 : 0.22,
+                clearcoatRoughness: isUltra ? 0.08 : 0.18,
+                reflectivity: isUltra ? 0.96 : 0.78,
+                envMapIntensity: isUltra ? (bright ? 2.40 : 2.05) : 0.26,
                 emissive: bright ? 0x201007 : 0x120804,
-                emissiveIntensity: bright ? 0.06 : 0.03
+                emissiveIntensity: bright ? (isUltra ? 0.08 : 0.06) : (isUltra ? 0.04 : 0.03)
             }});
         }}
 
@@ -7838,14 +7910,19 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const isEco = renderQuality === "eco";
             const isRibbed = tubeFinishMode === "zigrinata";
 
+            const baseRoughness = isRibbed
+                ? (isEco ? 0.84 : (active ? 0.58 : (free ? 0.78 : 0.66)))
+                : (isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72)));
+
             const mat = new THREE.MeshPhysicalMaterial({{
                 color: chosen,
                 map: tex,
-                roughness: isRibbed ? (isEco ? 0.84 : (active ? 0.58 : (free ? 0.78 : 0.66))) : (isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72))),
+                roughness: isUltra ? Math.max(0.16, baseRoughness - (mode === "gelblack" ? 0.16 : 0.18)) : baseRoughness,
                 metalness: 0.005,
-                clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost + (isRibbed ? 0.035 : 0.0)),
-                clearcoatRoughness: isUltra ? 0.10 : (mode === "gelblack" ? 0.20 : 0.15),
-                reflectivity: isEco ? 0.10 : (mode === "gelblack" ? 0.28 : 0.42),
+                clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost + (isRibbed ? 0.035 : 0.0) + (isUltra ? 0.08 : 0.0)),
+                clearcoatRoughness: isUltra ? (mode === "gelblack" ? 0.08 : 0.06) : (mode === "gelblack" ? 0.20 : 0.15),
+                reflectivity: isEco ? 0.10 : ((mode === "gelblack" ? 0.28 : 0.42) + (isUltra ? 0.10 : 0.0)),
+                envMapIntensity: isEco ? 0.0 : (isUltra ? (mode === "gelblack" ? 0.85 : 0.58) : 0.14),
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
@@ -8565,6 +8642,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             scene.background = new THREE.Color(theme.bg);
             renderer.toneMappingExposure = getQualityProfile().exposure;
+            scene.environment = renderQuality === "ultra" ? ultraStudioEnvMap : null;
 
             ambient.intensity = Math.max(0.12, theme.ambient + getQualityProfile().ambientBoost);
             hemi.color.setHex(theme.hemiSky);
@@ -8572,9 +8650,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             hemi.intensity = renderQuality === "ultra" ? 0.48 : 0.34;
 
             if (renderQuality === "ultra") {{
-                keyLight.intensity = theme.key * 1.18;
-                fillLight.intensity = theme.fill * 1.18;
-                rimLight.intensity = theme.rim * 1.34;
+                keyLight.intensity = theme.key * 1.22;
+                fillLight.intensity = theme.fill * 1.20;
+                rimLight.intensity = theme.rim * 1.42;
             }} else {{
                 keyLight.intensity = theme.key;
                 fillLight.intensity = theme.fill;
