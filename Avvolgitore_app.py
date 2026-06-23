@@ -5699,6 +5699,13 @@ def viewer(
             box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
         }}
 
+        .render_tools_panel .viewer_tool_chip:disabled,
+        .render_tools_panel .viewer_tool_chip.viewer_btn_disabled {{
+            opacity: 0.38 !important;
+            cursor: not-allowed !important;
+            filter: grayscale(0.35);
+        }}
+
         .render_tools_checks {{
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6922,9 +6929,23 @@ def viewer(
             if (animationEnabled) {{
                 playPauseBtn.classList.remove("viewer_btn_disabled");
                 playPauseBtn.disabled = false;
+
+                // La zigrinatura pesa massa per l'animació progressiva.
+                // Durant l'animació bloquegem Zigrinata i forcem Liscio.
+                if (tubeFinishZigrinata) {{
+                    tubeFinishZigrinata.disabled = true;
+                    tubeFinishZigrinata.classList.add("viewer_btn_disabled");
+                    tubeFinishZigrinata.title = "Disponibile solo a animazione disattivata";
+                }}
             }} else {{
                 playPauseBtn.classList.add("viewer_btn_disabled");
                 playPauseBtn.disabled = true;
+
+                if (tubeFinishZigrinata) {{
+                    tubeFinishZigrinata.disabled = false;
+                    tubeFinishZigrinata.classList.remove("viewer_btn_disabled");
+                    tubeFinishZigrinata.title = "";
+                }}
             }}
         }}
 
@@ -6988,7 +7009,15 @@ def viewer(
 
         tubeFinishBtns.forEach(btn => {{
             btn.addEventListener("click", () => {{
-                tubeFinishMode = btn.dataset.finish || "liscio";
+                const requestedFinish = btn.dataset.finish || "liscio";
+
+                if (animationEnabled && requestedFinish === "zigrinata") {{
+                    tubeFinishMode = "liscio";
+                    setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
+                    return;
+                }}
+
+                tubeFinishMode = requestedFinish;
                 setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
                 applyRenderQuality(renderQuality);
                 applyVisualState(true);
@@ -7109,7 +7138,19 @@ def viewer(
                 updateOverlayContinuous(true);
                 progressSlider.value = 1000;
             }} else {{
+                // L'animació progressiva reconstrueix la mesh contínuament.
+                // Amb Zigrinata és massa pesat, així que passem automàticament a Liscio.
+                tubeFinishMode = "liscio";
+                setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
+
                 isPlaying = true;
+                drawPos = 1;
+                lastRebuiltCompleted = -1;
+                progressSlider.value = 0;
+
+                applyRenderQuality(renderQuality);
+                rebuildDepositedMesh(1, true);
+                updateOverlayContinuous(true);
             }}
 
             updatePlayBtn();
@@ -9255,6 +9296,11 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (force || Math.random() < 0.08) {{
                 updateGhostLine();
             }}
+        }}
+
+        if (animationEnabled && tubeFinishMode === "zigrinata") {{
+            tubeFinishMode = "liscio";
+            setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
         }}
 
         applySectionState();
