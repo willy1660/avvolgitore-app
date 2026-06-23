@@ -4908,6 +4908,8 @@ def viewer(
     rib_geometry_scale=0.076,
     rib_bump_scale=0.054,
     rib_texture_factor=1.0,
+    rib_length_compensation=0.0,
+    rib_diameter_compensation=0.0,
 ):
     final_local_points_json = json.dumps(final_local_points)
     final_thetas_json = json.dumps(final_thetas)
