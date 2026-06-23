@@ -4984,6 +4984,7 @@ def viewer(
             <button id="fullscreen_btn" class="viewer_btn viewer_icon_btn">⛶</button>
             <button id="capture_render_btn" class="viewer_btn viewer_icon_btn">📷</button>
             <button id="capture_mode_btn" class="viewer_btn viewer_print_btn">Presentation</button>
+            <button id="tech_overlay_btn" class="viewer_btn viewer_print_btn">Tech</button>
             <button id="print_simulation_btn" class="viewer_btn viewer_print_btn">Stampa</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
@@ -5144,6 +5145,43 @@ def viewer(
             "></div>
         </div>
 
+        <div id="presentation_tech_overlay" style="
+            position:absolute;
+            right:16px;
+            bottom:16px;
+            z-index:24;
+            display:none;
+            min-width:220px;
+            max-width:260px;
+            padding:12px 13px 11px 13px;
+            border:1px solid rgba(17,24,39,0.08);
+            border-radius:16px;
+            background:rgba(255,255,255,0.86);
+            color:#0f172a;
+            backdrop-filter:blur(12px);
+            box-shadow:0 18px 40px rgba(15,23,42,0.08);
+            font-family:Arial, sans-serif;
+            user-select:none;
+        ">
+            <div style="font-size:10px;font-weight:900;letter-spacing:0.10em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Technical overlay</div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:7px 12px;align-items:center;">
+                <div style="font-size:11px;font-weight:800;color:#64748b;">Tube</div>
+                <div id="tech_tube_value" style="font-size:12px;font-weight:900;color:#0f172a;text-align:right;"></div>
+
+                <div style="font-size:11px;font-weight:800;color:#64748b;">Length</div>
+                <div id="tech_length_value" style="font-size:12px;font-weight:900;color:#0f172a;text-align:right;"></div>
+
+                <div style="font-size:11px;font-weight:800;color:#64748b;">Spool</div>
+                <div id="tech_spool_value" style="font-size:12px;font-weight:900;color:#0f172a;text-align:right;"></div>
+
+                <div style="font-size:11px;font-weight:800;color:#64748b;">XY footprint</div>
+                <div id="tech_xy_value" style="font-size:12px;font-weight:900;color:#0f172a;text-align:right;"></div>
+
+                <div style="font-size:11px;font-weight:800;color:#64748b;">Layers</div>
+                <div id="tech_layers_value" style="font-size:12px;font-weight:900;color:#0f172a;text-align:right;"></div>
+            </div>
+        </div>
+
         <button id="capture_mode_exit_btn" type="button" style="
             position:absolute;
             top:14px;
@@ -5240,6 +5278,10 @@ def viewer(
         #viewer_root.capture_mode_active #viewer_hud,
         #viewer_root.capture_mode_active #packaging_status_badge {{
             display: none !important;
+        }}
+
+        #viewer_root.capture_mode_active #presentation_tech_overlay.tech_visible {{
+            display:block !important;
         }}
 
         #viewer_root.capture_mode_active #capture_mode_exit_btn {{
@@ -5739,6 +5781,13 @@ def viewer(
             border-color: #C57E5A !important;
             color: #ffffff !important;
             box-shadow: 0 6px 14px rgba(197,126,90,0.22) !important;
+        }}
+
+        #tech_overlay_btn.active_opt {{
+            background:#C57E5A !important;
+            border-color:#C57E5A !important;
+            color:#ffffff !important;
+            box-shadow:0 8px 18px rgba(197,126,90,0.20) !important;
         }}
 
         .render_tools_panel .viewer_tool_chip:disabled,
@@ -6535,8 +6584,10 @@ def viewer(
         const fullscreenBtn = document.getElementById("fullscreen_btn");
         const captureRenderBtn = document.getElementById("capture_render_btn");
         const captureModeBtn = document.getElementById("capture_mode_btn");
+        const techOverlayBtn = document.getElementById("tech_overlay_btn");
         const captureModeExitBtn = document.getElementById("capture_mode_exit_btn");
         const printSimulationBtn = document.getElementById("print_simulation_btn");
+        const presentationTechOverlay = document.getElementById("presentation_tech_overlay");
         const progressSlider = document.getElementById("progress_slider");
         const animationCheck = document.getElementById("animation_check");
 
@@ -6632,10 +6683,18 @@ def viewer(
         fullscreenBtn.title = T.fullscreen;
         captureRenderBtn.title = T.capture_render || "Save render image";
         if (captureModeBtn) captureModeBtn.title = "Presentation mode · maximum quality";
+        if (techOverlayBtn) techOverlayBtn.title = "Toggle technical overlay";
         if (captureModeExitBtn) captureModeExitBtn.title = "Exit presentation mode";
 
         if (captureModeBtn) {{
             captureModeBtn.addEventListener("click", () => applyCaptureMode(true));
+        }}
+
+        if (techOverlayBtn) {{
+            techOverlayBtn.addEventListener("click", () => {{
+                showTechOverlay = !showTechOverlay;
+                updateTechOverlay();
+            }});
         }}
 
         if (captureModeExitBtn) {{
@@ -6736,6 +6795,8 @@ def viewer(
         let renderQuality = "alta";
         let captureModeActive = false;
         let captureModePreviousQuality = "alta";
+        let showTechOverlay = false;
+        let prevShowStudio = false;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.45));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
@@ -6917,6 +6978,19 @@ def viewer(
         const lengthRaw = {final_lengths_json};
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const totalLengthM = ((lengthRaw[lengthRaw.length - 1] || 0) / 1000.0);
+        const totalLayers = (Math.max(0, ...layerRaw) || 0) + 1;
+        const techTubeValueEl = document.getElementById("tech_tube_value");
+        const techLengthValueEl = document.getElementById("tech_length_value");
+        const techSpoolValueEl = document.getElementById("tech_spool_value");
+        const techXYValueEl = document.getElementById("tech_xy_value");
+        const techLayersValueEl = document.getElementById("tech_layers_value");
+
+        if (techTubeValueEl) techTubeValueEl.textContent = {tube_diameter_label_json};
+        if (techLengthValueEl) techLengthValueEl.textContent = `${{totalLengthM.toFixed(1)}} m`;
+        if (techSpoolValueEl) techSpoolValueEl.textContent = `${{(R * 2.0).toFixed(0)}} mm`;
+        if (techXYValueEl) techXYValueEl.textContent = `${{coilFootprint.toFixed(1)}} mm`;
+        if (techLayersValueEl) techLayersValueEl.textContent = `${{totalLayers}}`;
 
         let isPlaying = false;
         let animationEnabled = false;
@@ -6944,7 +7018,32 @@ def viewer(
         let ghostLine = null;
 
         function getTheme() {{
+            const presentationStudio = captureModeActive && sceneMode !== "packaging";
+
             if (tubeMode === "gelblack") {{
+                if (presentationStudio) {{
+                    return {{
+                        bg: 0xf4f6f8,
+                        floor: 0xe7ebef,
+                        tube: 0x343635,
+                        freeTube: 0x3d403f,
+                        activeTube: 0x252827,
+                        ghost: 0x2c2c2c,
+                        sectionFill: 0x111111,
+                        sectionFrame: 0x111111,
+                        gridMajor: 0x8e96a0,
+                        gridMinor: 0xd8dde3,
+                        gridOpacity: 0.24,
+                        hemiSky: 0xffffff,
+                        hemiGround: 0xe2e8ef,
+                        ambient: 0.42,
+                        key: 1.42,
+                        fill: 0.84,
+                        rim: 1.06,
+                        exposure: 1.12
+                    }};
+                }}
+
                 return {{
                     bg: 0xffffff,
                     floor: 0xf3f3f3,
@@ -6964,6 +7063,29 @@ def viewer(
                     fill: 0.66,
                     rim: 0.80,
                     exposure: 1.10
+                }};
+            }}
+
+            if (presentationStudio) {{
+                return {{
+                    bg: 0xf4f6f8,
+                    floor: 0xe8edf1,
+                    tube: 0xdedbd4,
+                    freeTube: 0xcdc8c0,
+                    activeTube: 0xf7f4ed,
+                    ghost: 0xffffff,
+                    sectionFill: 0xffffff,
+                    sectionFrame: 0xffffff,
+                    gridMajor: 0x97a0ab,
+                    gridMinor: 0xe4e8ee,
+                    gridOpacity: 0.22,
+                    hemiSky: 0xffffff,
+                    hemiGround: 0xe1e7ed,
+                    ambient: 0.34,
+                    key: 1.46,
+                    fill: 0.78,
+                    rim: 1.04,
+                    exposure: 1.08
                 }};
             }}
 
@@ -7024,6 +7146,18 @@ def viewer(
             updateTubeFinishAvailability();
         }}
 
+        function updateTechOverlay() {{
+            if (!presentationTechOverlay) return;
+
+            const techVisible = !!showTechOverlay && sceneMode !== "packaging";
+            presentationTechOverlay.style.display = techVisible ? "block" : "none";
+            presentationTechOverlay.classList.toggle("tech_visible", techVisible);
+
+            if (techOverlayBtn) {{
+                techOverlayBtn.classList.toggle("active_opt", techVisible);
+            }}
+        }}
+
         function setActiveButton(group, value, attr, activeClass="active_opt") {{
             group.forEach(btn => {{
                 btn.classList.toggle(activeClass, btn.getAttribute(attr) === value);
@@ -7031,14 +7165,19 @@ def viewer(
         }}
 
         function setCameraView(viewName) {{
-            const target = new THREE.Vector3(0, 0, Hs * 0.52);
+            const presentationView = captureModeActive && sceneMode !== "packaging";
+            const target = new THREE.Vector3(0, 0, Hs * (presentationView ? 0.48 : 0.52));
 
             if (viewName === "front") {{
                 camera.position.set(0, -2600, Hs * 0.56);
             }} else if (viewName === "side") {{
                 camera.position.set(-2600, 0, Hs * 0.56);
             }} else {{
-                camera.position.set(-1350, -2150, 760);
+                if (presentationView) {{
+                    camera.position.set(-1120, -1760, 700);
+                }} else {{
+                    camera.position.set(-1350, -2150, 760);
+                }}
             }}
 
             camera.up.set(0, 0, 1);
@@ -7063,6 +7202,7 @@ def viewer(
 
             if (captureModeActive) {{
                 captureModePreviousQuality = renderQuality || "alta";
+                prevShowStudio = showStudio;
 
                 // Clean presentation state for screenshots / fair-style viewing at maximum quality.
                 if (animationEnabled) {{
@@ -7071,6 +7211,8 @@ def viewer(
                     animationCheck.checked = false;
                     updateAnimationUI();
                 }}
+
+                showStudio = true;
 
                 setActiveButton(qualityBtns, "ultra", "data-quality");
                 applyRenderQuality("ultra");
@@ -7094,10 +7236,13 @@ def viewer(
             }} else {{
                 // Keep Ultra active when leaving capture mode: usually this is what the user wants after previewing.
                 host.classList.remove("capture_mode_active");
+                showStudio = prevShowStudio;
                 applyVisualState(true);
                 updateTubeFinishAvailability();
                 updatePresentationStage();
             }}
+
+            updateTechOverlay();
         }}
 
         speedBtns.forEach(btn => {{
@@ -7928,16 +8073,17 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         }}
 
         function makeCopperMat(bright=false) {{
+            const isUltra = renderQuality === "ultra";
             return new THREE.MeshPhysicalMaterial({{
-                color: bright ? 0xe1a579 : 0xc47a4d,
+                color: bright ? (isUltra ? 0xe6ae84 : 0xe1a579) : (isUltra ? 0xc97f52 : 0xc47a4d),
                 map: copperTex,
-                roughness: bright ? 0.22 : 0.28,
-                metalness: 0.86,
-                clearcoat: 0.22,
-                clearcoatRoughness: 0.18,
-                reflectivity: 0.78,
+                roughness: bright ? (isUltra ? 0.14 : 0.22) : (isUltra ? 0.18 : 0.28),
+                metalness: 0.88,
+                clearcoat: isUltra ? 0.34 : 0.22,
+                clearcoatRoughness: isUltra ? 0.10 : 0.18,
+                reflectivity: isUltra ? 0.92 : 0.78,
                 emissive: bright ? 0x201007 : 0x120804,
-                emissiveIntensity: bright ? 0.06 : 0.03
+                emissiveIntensity: bright ? (isUltra ? 0.08 : 0.06) : (isUltra ? 0.04 : 0.03)
             }});
         }}
 
@@ -7951,14 +8097,18 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const isEco = renderQuality === "eco";
             const isRibbed = tubeFinishMode === "zigrinata";
 
+            const baseRoughness = isRibbed
+                ? (isEco ? 0.84 : (active ? 0.58 : (free ? 0.78 : 0.66)))
+                : (isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72)));
+
             const mat = new THREE.MeshPhysicalMaterial({{
                 color: chosen,
                 map: tex,
-                roughness: isRibbed ? (isEco ? 0.84 : (active ? 0.58 : (free ? 0.78 : 0.66))) : (isEco ? 0.92 : (active ? 0.66 : (free ? 0.82 : 0.72))),
+                roughness: isUltra ? Math.max(0.14, baseRoughness - (mode === "gelblack" ? 0.10 : 0.14)) : baseRoughness,
                 metalness: 0.005,
-                clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost + (isRibbed ? 0.035 : 0.0)),
-                clearcoatRoughness: isUltra ? 0.10 : (mode === "gelblack" ? 0.20 : 0.15),
-                reflectivity: isEco ? 0.10 : (mode === "gelblack" ? 0.28 : 0.42),
+                clearcoat: isEco ? 0.00 : ((mode === "gelblack" ? 0.12 : 0.24) + profile.clearcoatBoost + (isRibbed ? 0.035 : 0.0) + (isUltra ? (mode === "gelblack" ? 0.08 : 0.12) : 0.0)),
+                clearcoatRoughness: isUltra ? (mode === "gelblack" ? 0.08 : 0.06) : (mode === "gelblack" ? 0.20 : 0.15),
+                reflectivity: isEco ? 0.10 : ((mode === "gelblack" ? 0.28 : 0.42) + (isUltra ? (mode === "gelblack" ? 0.08 : 0.14) : 0.0)),
                 clippingPlanes: clippingPlanes,
                 clipShadows: showSection
             }});
@@ -8102,6 +8252,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         keyLight.shadow.camera.right = 1400;
         keyLight.shadow.camera.top = 1400;
         keyLight.shadow.camera.bottom = -1400;
+        keyLight.shadow.bias = -0.00018;
+        keyLight.shadow.normalBias = 0.02;
         scene.add(keyLight);
 
         const fillLight = new THREE.DirectionalLight(0xffffff, 0.52);
@@ -8150,22 +8302,24 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 floor = null;
             }}
 
-            if (!showStudio) return;
+            const studioVisible = showStudio || captureModeActive;
+            if (!studioVisible) return;
 
             const theme = getTheme();
+            const presentationStudio = captureModeActive && sceneMode !== "packaging";
 
             const floorMat = new THREE.MeshStandardMaterial({{
                 color: theme.floor,
-                roughness: 0.88,
+                roughness: presentationStudio ? 0.96 : 0.88,
                 metalness: 0.0
             }});
 
             floor = new THREE.Mesh(
-                new THREE.PlaneGeometry(2600, 2600),
+                new THREE.PlaneGeometry(presentationStudio ? 3400 : 2600, presentationStudio ? 3400 : 2600),
                 floorMat
             );
 
-            floor.position.set(0, 0, -38);
+            floor.position.set(0, 0, presentationStudio ? -42 : -38);
             floor.receiveShadow = true;
             studioGroup.add(floor);
         }}
@@ -8668,6 +8822,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             updateTubeFinishAvailability();
             updatePresentationStage();
+            updateTechOverlay();
         }}
 
         // ==========================================
@@ -8686,9 +8841,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             hemi.intensity = renderQuality === "ultra" ? 0.48 : 0.34;
 
             if (renderQuality === "ultra") {{
-                keyLight.intensity = theme.key * 1.18;
-                fillLight.intensity = theme.fill * 1.18;
-                rimLight.intensity = theme.rim * 1.34;
+                keyLight.intensity = theme.key * (captureModeActive ? 1.24 : 1.18);
+                fillLight.intensity = theme.fill * (captureModeActive ? 1.26 : 1.18);
+                rimLight.intensity = theme.rim * (captureModeActive ? 1.42 : 1.34);
             }} else {{
                 keyLight.intensity = theme.key;
                 fillLight.intensity = theme.fill;
@@ -9476,6 +9631,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         applySceneMode();
         updateAnimationUI();
         updateTubeFinishAvailability();
+        updateTechOverlay();
         updatePlayBtn();
 
         function animate() {{
