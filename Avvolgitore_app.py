@@ -6666,7 +6666,7 @@ def viewer(
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribVisualDensity: CUSTOM_RIB.visualDensity,
                     ribTextureFactor: CUSTOM_RIB.textureFactor,
-                    ribMaxTubularSegments: 3200,
+                    ribMaxTubularSegments: 9000,
                     exposure: 1.00,
                     ambientBoost: 0.05,
                     nearMin: 5,
@@ -6693,7 +6693,7 @@ def viewer(
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribVisualDensity: CUSTOM_RIB.visualDensity,
                     ribTextureFactor: CUSTOM_RIB.textureFactor,
-                    ribMaxTubularSegments: 3200,
+                    ribMaxTubularSegments: 9000,
                     exposure: 1.08,
                     ambientBoost: -0.01,
                     nearMin: 2.0,
@@ -6718,7 +6718,7 @@ def viewer(
                 ribbedBumpScale: CUSTOM_RIB.bumpScale,
                 ribGeometryScale: CUSTOM_RIB.geometryScale,
                 ribVisualDensity: CUSTOM_RIB.visualDensity,
-                ribMaxTubularSegments: 3200,
+                ribMaxTubularSegments: 9000,
                 exposure: 1.03,
                 ambientBoost: 0.01,
                 nearMin: 3.6,
@@ -8638,7 +8638,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const repeats = Math.max(10.0, Math.min(140.0, (profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 14.0) * 0.70));
+            const repeats = Math.max(10.0, Math.min(1500.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 14.0));
             const amp = Math.min(radius * 0.090, Math.max(0.16, radius * (profile.ribGeometryScale || 0.076) * 0.68));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
@@ -8701,8 +8701,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribRepeats = Math.max(24, Math.min(220, (profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 14.0) * 1.8));
-                const ribTargetSegments = Math.ceil(ribRepeats * 8.0);
+                const ribRepeats = Math.max(24, Math.min(1500, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 14.0));
+                const ribTargetSegments = Math.ceil(ribRepeats * 4.8);
                 tubularSegments = Math.max(
                     tubularSegments,
                     Math.min(profile.ribMaxTubularSegments || profile.maxTubularSegments, ribTargetSegments)
@@ -14410,9 +14410,9 @@ with tab_production:
                 step=1.0,
                 key="tmp_rib_visual_density",
                 help=(
-                    "Controlla quante nervature visibili ci sono ogni metro di tubo renderizzato. Più alto = zigrinatura più fitta. Puoi pujar fins a 1500 per fer proves extremes."
+                    "Controlla quante nervature visibili ci sono nel render. Più alto = zigrinatura più fitta. Ora il valore influenza davvero anche la geometria; oltre valori molto alti può comparire aliasing."
                     if lang == "IT"
-                    else "Controls how many visible ribs appear per metre of rendered tube. Higher = denser ribbing. You can go up to 1500 for extreme tests."
+                    else "Controls how many visible ribs appear in the render. Higher = denser ribbing. The value now actually drives geometry too; very high values may create aliasing."
                 ),
             )
             rib_geometry_scale = st.slider(
