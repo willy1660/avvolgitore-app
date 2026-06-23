@@ -5016,6 +5016,11 @@ def viewer(
                         <button class="tube_btn viewer_tool_chip active_opt" data-tube="gelwhite" id="tube_gelwhite_btn" type="button"></button>
                         <button class="tube_btn viewer_tool_chip" data-tube="gelblack" id="tube_gelblack_btn" type="button"></button>
                     </div>
+                    <div class="render_tools_row">
+                        <span class="viewer_tools_label" id="tube_finish_title">Finitura</span>
+                        <button class="tube_finish_btn viewer_tool_chip active_opt" data-finish="liscio" id="tube_finish_liscio_btn" type="button">Liscio</button>
+                        <button class="tube_finish_btn viewer_tool_chip" data-finish="zigrinata" id="tube_finish_zigrinata_btn" type="button">Zigrinata</button>
+                    </div>
                 </div>
 
                 <div class="render_tools_section">
@@ -6818,7 +6823,7 @@ def viewer(
         let speed = 1.0;
         let aspoMode = "hidden";
         let tubeMode = "{tube_mode_initial}";
-        let tubeFinishMode = "liscio"; // fixed: zigrinatura disabled
+        let tubeFinishMode = "liscio";
         let currentView = "3d";
         let sceneMode = "{initial_scene}";
         let packagingMode = "{packaging_mode}";
@@ -6959,7 +6964,7 @@ def viewer(
 
         tubeFinishBtns.forEach(btn => {{
             btn.addEventListener("click", () => {{
-                tubeFinishMode = "liscio";
+                tubeFinishMode = btn.dataset.finish || "liscio";
                 setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
                 applyRenderQuality(renderQuality);
                 applyVisualState(true);
