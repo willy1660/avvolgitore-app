@@ -7788,7 +7788,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                         `
                     );
                 }};
-                mat.customProgramCacheKey = () => `zigrinata_visual_auto_${ribVisualBoost.toFixed(2)}`;
+                mat.customProgramCacheKey = () => "zigrinata_visual_auto_" + ribVisualBoost.toFixed(2);
             }} else if (!isEco) {{
                 mat.bumpMap = tex;
                 mat.bumpScale = mode === "gelblack" ? profile.bumpScale * 0.55 : profile.bumpScale;
