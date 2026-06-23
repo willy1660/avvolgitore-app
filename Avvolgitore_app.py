@@ -7744,6 +7744,36 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (isRibbed) {{
                 mat.bumpMap = ribbedTex;
                 mat.bumpScale = mode === "gelblack" ? profile.ribbedBumpScale * 0.95 : profile.ribbedBumpScale * 1.75;
+
+                // Zigrinatura procedurale: non dipende dal repeat della texture.
+                // Usa la UV reale riscritta lungo il tubo e disegna le nervature nello shader.
+                // Questo evita che le lunghezze lunghe cambino scala per colpa del sampling texture/mipmap.
+                mat.onBeforeCompile = (shader) => {{
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        "#include <dithering_fragment>",
+                        `
+                        float ribPhaseProc = fract(vUv.x);
+                        float ribRiseProc = smoothstep(0.045, 0.135, ribPhaseProc);
+                        float ribFallProc = 1.0 - smoothstep(0.865, 0.955, ribPhaseProc);
+                        float ribBandProc = ribRiseProc * ribFallProc;
+                        float ribCrownProc = exp(-pow((ribPhaseProc - 0.50) / 0.30, 4.0)) * 0.32;
+                        float ribGrooveLProc = exp(-pow((ribPhaseProc - 0.045) / 0.032, 2.0));
+                        float ribGrooveRProc = exp(-pow((ribPhaseProc - 0.955) / 0.034, 2.0));
+
+                        float ribShadeProc = 1.0
+                            + ribBandProc * 0.055
+                            + ribCrownProc * 0.050
+                            - ribGrooveLProc * 0.070
+                            - ribGrooveRProc * 0.060;
+
+                        ribShadeProc += sin(vUv.x * 6.2831853 * 0.23 + vUv.y * 18.0) * 0.006;
+                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.84, 1.13);
+
+                        #include <dithering_fragment>
+                        `
+                    );
+                }};
+                mat.customProgramCacheKey = () => "zigrinata_procedural_length_independent_v53";
             }} else if (!isEco) {{
                 mat.bumpMap = tex;
                 mat.bumpScale = mode === "gelblack" ? profile.bumpScale * 0.55 : profile.bumpScale;
@@ -8689,7 +8719,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const amp = Math.min(radius * 0.090, Math.max(0.16, radius * (profile.ribGeometryScale || 0.076) * 0.68));
+            const amp = Math.min(radius * 0.055, Math.max(0.08, radius * (profile.ribGeometryScale || 0.076) * 0.38));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
                 return t * t * (3 - 2 * t);
@@ -14519,9 +14549,9 @@ with tab_production:
                 step=0.05,
                 key="tmp_rib_length_compensation",
                 help=(
-                    "Serve solo come rifinitura. Ora la zigrinatura usa UV riscritte per anello lungo il tubo e texture senza mipmap, quindi non dovrebbe più scalare con 15 / 25 / 50 m."
+                    "Serve solo come rifinitura. Ora la zigrinatura visibile è procedurale nello shader e non dipende dal repeat della texture."
                     if lang == "IT"
-                    else "Fine-tuning only. Ribbing now uses rewritten per-ring UVs along the tube and no texture mipmaps, so it should no longer scale with 15 / 25 / 50 m."
+                    else "Fine-tuning only. Visible ribbing is now procedural in the shader and does not depend on texture repeat."
                 ),
             )
         with zg4:
