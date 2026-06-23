@@ -6724,28 +6724,28 @@ def viewer(
 
             if (quality === "ultra") {{
                 return {{
-                    pixelRatio: 3.00,
-                    maxTubularSegments: 6200,
-                    segmentFactor: 0.28,
-                    radialSegments: 56,
-                    capSegments: 64,
+                    pixelRatio: 4.00,
+                    maxTubularSegments: 12000,
+                    segmentFactor: 0.18,
+                    radialSegments: 80,
+                    capSegments: 96,
                     anisotropy: 16,
                     shadows: true,
-                    clearcoatBoost: 0.22,
-                    bumpScale: 0.060,
+                    clearcoatBoost: 0.28,
+                    bumpScale: 0.072,
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribVisualDensity: CUSTOM_RIB.visualDensity,
                     ribTextureFactor: CUSTOM_RIB.textureFactor,
-                    ribMaxTubularSegments: 56000,
-                    exposure: 1.13,
-                    ambientBoost: -0.035,
-                    nearMin: 0.9,
-                    nearMax: 18,
-                    nearDivisor: 1500,
-                    farMin: 11000,
-                    farFactor: 9.2,
-                    farPadding: 6200
+                    ribMaxTubularSegments: 90000,
+                    exposure: 1.14,
+                    ambientBoost: -0.045,
+                    nearMin: 0.6,
+                    nearMax: 12,
+                    nearDivisor: 1800,
+                    farMin: 14000,
+                    farFactor: 10.5,
+                    farPadding: 7600
                 }};
             }}
 
