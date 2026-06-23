@@ -5650,7 +5650,7 @@ def viewer(
         }}
 
         .render_tools_row.render_tools_row_pack {{
-            grid-template-columns: 86px 42px 1fr 42px;
+            grid-template-columns: 106px 42px minmax(78px, 1fr) 42px;
         }}
 
         .render_tools_panel .viewer_tools_label {{
@@ -5663,6 +5663,13 @@ def viewer(
             text-transform: uppercase;
             color: rgba(248,250,252,0.64) !important;
             white-space: nowrap;
+        }}
+
+        .render_tools_row.render_tools_row_pack .viewer_tools_label {{
+            white-space: normal !important;
+            line-height: 0.98 !important;
+            font-size: 8.8px !important;
+            letter-spacing: 0.05em !important;
         }}
 
         .render_tools_panel .viewer_tool_chip,
@@ -5731,13 +5738,13 @@ def viewer(
             background: rgba(255,255,255,0.08);
             color: #f8fafc;
             text-align: center;
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: 900;
             outline: none;
         }}
 
         .render_tools_panel .pack_roll_hint {{
-            margin: -1px 4px 0 90px;
+            margin: -1px 4px 0 110px;
             color: rgba(248,250,252,0.52);
             font-size: 9px;
             font-weight: 750;
@@ -5778,7 +5785,7 @@ def viewer(
                 grid-template-columns: 62px 1fr;
             }}
             .render_tools_row.render_tools_row_pack {{
-                grid-template-columns: 70px 38px 1fr 38px;
+                grid-template-columns: 86px 36px minmax(72px, 1fr) 36px;
             }}
             .render_tools_panel .viewer_tools_label {{
                 font-size: 8.5px !important;
@@ -5795,7 +5802,7 @@ def viewer(
                 grid-template-columns: 1fr 1fr;
             }}
             .render_tools_panel .pack_roll_hint {{
-                margin-left: 74px;
+                margin-left: 90px;
             }}
         }}
 
@@ -6710,28 +6717,28 @@ def viewer(
 
             if (quality === "ultra") {{
                 return {{
-                    pixelRatio: 2.00,
-                    maxTubularSegments: 2600,
-                    segmentFactor: 0.42,
-                    radialSegments: 30,
-                    capSegments: 36,
-                    anisotropy: 12,
+                    pixelRatio: 2.65,
+                    maxTubularSegments: 4200,
+                    segmentFactor: 0.34,
+                    radialSegments: 40,
+                    capSegments: 48,
+                    anisotropy: 16,
                     shadows: true,
-                    clearcoatBoost: 0.10,
-                    bumpScale: 0.040,
+                    clearcoatBoost: 0.16,
+                    bumpScale: 0.052,
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribVisualDensity: CUSTOM_RIB.visualDensity,
                     ribTextureFactor: CUSTOM_RIB.textureFactor,
-                    ribMaxTubularSegments: 26000,
-                    exposure: 1.08,
-                    ambientBoost: -0.01,
-                    nearMin: 2.0,
-                    nearMax: 28,
-                    nearDivisor: 980,
-                    farMin: 7200,
-                    farFactor: 7.0,
-                    farPadding: 3900
+                    ribMaxTubularSegments: 42000,
+                    exposure: 1.11,
+                    ambientBoost: -0.02,
+                    nearMin: 1.2,
+                    nearMax: 22,
+                    nearDivisor: 1280,
+                    farMin: 9200,
+                    farFactor: 8.2,
+                    farPadding: 5200
                 }};
             }}
 
@@ -6777,6 +6784,16 @@ def viewer(
             renderer.shadowMap.enabled = profile.shadows;
             renderer.toneMappingExposure = profile.exposure;
             ambient.intensity = Math.max(0.12, getTheme().ambient + profile.ambientBoost);
+
+            if (typeof keyLight !== "undefined" && keyLight && keyLight.shadow && keyLight.shadow.mapSize) {{
+                const shadowSize = quality === "ultra" ? 4096 : (quality === "alta" ? 2048 : 1024);
+                if (keyLight.shadow.mapSize.width !== shadowSize || keyLight.shadow.mapSize.height !== shadowSize) {{
+                    keyLight.shadow.mapSize.width = shadowSize;
+                    keyLight.shadow.mapSize.height = shadowSize;
+                    if (keyLight.shadow.map) keyLight.shadow.map.dispose();
+                }}
+            }}
+
             applyTextureQuality(profile);
 
             tubeMat = makeTubeMaterial(tubeMode, false, false);
