@@ -4983,6 +4983,7 @@ def viewer(
             <button id="reset_view_btn" class="viewer_btn viewer_icon_btn">↺</button>
             <button id="fullscreen_btn" class="viewer_btn viewer_icon_btn">⛶</button>
             <button id="capture_render_btn" class="viewer_btn viewer_icon_btn">📷</button>
+            <button id="capture_mode_btn" class="viewer_btn viewer_print_btn">Capture</button>
             <button id="print_simulation_btn" class="viewer_btn viewer_print_btn">Stampa</button>
             <span style="margin-left:6px;" id="progress_title"></span>
             <input id="progress_slider" type="range" min="0" max="1000" step="1" value="0" style="width:180px;" />
@@ -5143,6 +5144,30 @@ def viewer(
             "></div>
         </div>
 
+        <button id="capture_mode_exit_btn" type="button" style="
+            position:absolute;
+            top:14px;
+            right:14px;
+            z-index:42;
+            display:none;
+            align-items:center;
+            justify-content:center;
+            gap:7px;
+            min-height:34px;
+            padding:0 13px;
+            border:1px solid rgba(255,255,255,0.16);
+            border-radius:999px;
+            background:rgba(18,22,27,0.58);
+            color:#f8fafc;
+            backdrop-filter:blur(10px);
+            font-family:Arial, sans-serif;
+            font-size:11px;
+            font-weight:900;
+            letter-spacing:0.02em;
+            cursor:pointer;
+            user-select:none;
+        ">Exit capture</button>
+
         <div id="viewer_hud" style="
             position:absolute;
             left:14px;
@@ -5202,6 +5227,23 @@ def viewer(
 
         #viewer_root {{
             animation: viewerFadeUp 0.58s cubic-bezier(.16,1,.3,1) both;
+        }}
+
+        #viewer_root.capture_mode_active {{
+            border-color: rgba(255,255,255,0.04) !important;
+            box-shadow: none !important;
+        }}
+
+        #viewer_root.capture_mode_active #viewer_topbar,
+        #viewer_root.capture_mode_active #viewer_render_tools_overlay,
+        #viewer_root.capture_mode_active #active_preset_badge,
+        #viewer_root.capture_mode_active #viewer_hud,
+        #viewer_root.capture_mode_active #packaging_status_badge {{
+            display: none !important;
+        }}
+
+        #viewer_root.capture_mode_active #capture_mode_exit_btn {{
+            display: flex !important;
         }}
 
         .viewer_loading_overlay {{
@@ -6479,12 +6521,21 @@ def viewer(
             return Math.max(1.0, CUSTOM_RIB.visualDensity || 70.0);
         }};
 
+        let stageGlowMat = null;
+        let stageRimMat = null;
+        function updatePresentationStage() {{
+            // Safe no-op fallback. Capture mode still hides the UI and forces Ultra.
+            // The decorative stage can be reintroduced later without breaking the viewer.
+        }}
+
         const host = document.getElementById("viewer_root");
         const loadingOverlay = document.getElementById("viewer_loading_overlay");
         const playPauseBtn = document.getElementById("play_pause_btn");
         const resetViewBtn = document.getElementById("reset_view_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
         const captureRenderBtn = document.getElementById("capture_render_btn");
+        const captureModeBtn = document.getElementById("capture_mode_btn");
+        const captureModeExitBtn = document.getElementById("capture_mode_exit_btn");
         const printSimulationBtn = document.getElementById("print_simulation_btn");
         const progressSlider = document.getElementById("progress_slider");
         const animationCheck = document.getElementById("animation_check");
@@ -6580,6 +6631,22 @@ def viewer(
         resetViewBtn.title = T.reset_view;
         fullscreenBtn.title = T.fullscreen;
         captureRenderBtn.title = T.capture_render || "Save render image";
+        if (captureModeBtn) captureModeBtn.title = "Clean capture / presentation mode";
+        if (captureModeExitBtn) captureModeExitBtn.title = "Exit capture mode";
+
+        if (captureModeBtn) {{
+            captureModeBtn.addEventListener("click", () => applyCaptureMode(true));
+        }}
+
+        if (captureModeExitBtn) {{
+            captureModeExitBtn.addEventListener("click", () => applyCaptureMode(false));
+        }}
+
+        window.addEventListener("keydown", (ev) => {{
+            if (ev.key === "Escape" && captureModeActive) {{
+                applyCaptureMode(false);
+            }}
+        }});
         if (printSimulationBtn) {{
             printSimulationBtn.textContent = "PDF render";
             printSimulationBtn.title = "Apri PDF render in una nuova scheda";
@@ -6667,6 +6734,8 @@ def viewer(
         }});
 
         let renderQuality = "alta";
+        let captureModeActive = false;
+        let captureModePreviousQuality = "alta";
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.45));
         renderer.setSize(W, Hview);
         renderer.outputEncoding = THREE.sRGBEncoding;
@@ -6988,6 +7057,49 @@ def viewer(
             controls.update();
         }}
 
+        function applyCaptureMode(active) {{
+            captureModeActive = !!active;
+            host.classList.toggle("capture_mode_active", captureModeActive);
+
+            if (captureModeActive) {{
+                captureModePreviousQuality = renderQuality || "alta";
+
+                // Clean presentation state for screenshots / fair-style viewing.
+                if (animationEnabled) {{
+                    animationEnabled = false;
+                    isPlaying = false;
+                    animationCheck.checked = false;
+                    updateAnimationUI();
+                }}
+
+                setActiveButton(qualityBtns, "ultra", "data-quality");
+                applyRenderQuality("ultra");
+
+                if (renderToolsOverlay) renderToolsOverlay.classList.add("collapsed");
+                if (renderToolsToggle) renderToolsToggle.setAttribute("aria-expanded", "false");
+
+                if (sceneMode === "packaging") {{
+                    tubeFinishMode = "liscio";
+                    setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
+                    updatePackagingScene();
+                    setPackagingCamera();
+                }} else {{
+                    currentView = "3d";
+                    setActiveButton(viewBtns, currentView, "data-view");
+                    setCameraView("3d");
+                }}
+
+                applyVisualState(true);
+                updatePresentationStage();
+            }} else {{
+                // Keep Ultra active when leaving capture mode: usually this is what the user wants after previewing.
+                host.classList.remove("capture_mode_active");
+                applyVisualState(true);
+                updateTubeFinishAvailability();
+                updatePresentationStage();
+            }}
+        }}
+
         speedBtns.forEach(btn => {{
             btn.addEventListener("click", () => {{
                 speed = parseFloat(btn.dataset.speed);
@@ -7258,7 +7370,8 @@ def viewer(
         captureRenderBtn.addEventListener("click", () => {{
             try {{
                 updateCameraClipping();
-            renderer.render(scene, camera);
+                updatePresentationStage();
+                renderer.render(scene, camera);
                 const link = document.createElement("a");
                 const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
                 link.download = `avvolgimento-render-${{stamp}}.png`;
