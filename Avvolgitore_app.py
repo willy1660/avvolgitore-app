@@ -5052,12 +5052,11 @@ def viewer(
                     <div class="render_tools_row">
                         <span class="viewer_tools_label">Extra</span>
                         <button id="auto_rotate_btn" class="viewer_tool_chip" type="button">Auto</button>
-                        <button id="explode_view_btn" class="viewer_tool_chip" type="button">Explode</button>
+                        <button id="info_card_btn" class="viewer_tool_chip" type="button">Info</button>
                     </div>
                     <div class="render_tools_row">
                         <span class="viewer_tools_label" style="opacity:.0;">Extra</span>
-                        <button id="info_card_btn" class="viewer_tool_chip" type="button">Info</button>
-                        <button id="clean_mode_btn" class="viewer_tool_chip" type="button">Clean</button>
+                        <button id="clean_mode_btn" class="viewer_tool_chip viewer_tool_chip_main" type="button">Clean</button>
                     </div>
                 </div>
 
@@ -6661,7 +6660,6 @@ def viewer(
         const zoomOutBtn = document.getElementById("zoom_out_btn");
         const fitViewBtn = document.getElementById("fit_view_btn");
         const autoRotateBtn = document.getElementById("auto_rotate_btn");
-        const explodeViewBtn = document.getElementById("explode_view_btn");
         const infoCardBtn = document.getElementById("info_card_btn");
         const cleanModeBtn = document.getElementById("clean_mode_btn");
         const cleanModeExitBtn = document.getElementById("clean_mode_exit_btn");
@@ -7020,9 +7018,9 @@ def viewer(
         const totalLengthM = ((lengthRaw[lengthRaw.length - 1] || 0) / 1000.0);
         const totalLayers = (Math.max(0, ...layerRaw) || 0) + 1;
 
-        if (infoLengthValueEl) infoLengthValueEl.textContent = `${totalLengthM.toFixed(1)} m`;
-        if (infoXYValueEl) infoXYValueEl.textContent = `${coilFootprint.toFixed(1)} mm`;
-        if (infoLayersValueEl) infoLayersValueEl.textContent = `${totalLayers}`;
+        if (infoLengthValueEl) infoLengthValueEl.textContent = `${{totalLengthM.toFixed(1)}} m`;
+        if (infoXYValueEl) infoXYValueEl.textContent = `${{coilFootprint.toFixed(1)}} mm`;
+        if (infoLayersValueEl) infoLayersValueEl.textContent = `${{totalLayers}}`;
 
         let isPlaying = false;
         let animationEnabled = false;
@@ -7041,7 +7039,6 @@ def viewer(
         let showAxes = false;
         let showSection = false;
         let autoRotateEnabled = false;
-        let explodedViewEnabled = false;
         let infoCardVisible = false;
         let cleanModeActive = false;
         let cameraTransitionActive = false;
@@ -7051,7 +7048,6 @@ def viewer(
         let cameraToPos = camera.position.clone();
         let cameraFromTarget = controls.target.clone();
         let cameraToTarget = controls.target.clone();
-        let explodedVisual = 0.0;
 
         let clippingPlanes = [];
         let grid = null;
@@ -7155,7 +7151,6 @@ def viewer(
 
         function updateMagicButtons() {{
             setToggleButtonState(autoRotateBtn, autoRotateEnabled);
-            setToggleButtonState(explodeViewBtn, explodedViewEnabled);
             setToggleButtonState(infoCardBtn, infoCardVisible);
             setToggleButtonState(cleanModeBtn, cleanModeActive);
             updateInfoCard();
@@ -7303,14 +7298,6 @@ def viewer(
                     setCameraView("3d", true);
                 }}
                 autoRotateEnabled = !autoRotateEnabled;
-                updateMagicButtons();
-            }});
-        }}
-
-        if (explodeViewBtn) {{
-            explodeViewBtn.addEventListener("click", () => {{
-                if (sceneMode === "packaging") return;
-                explodedViewEnabled = !explodedViewEnabled;
                 updateMagicButtons();
             }});
         }}
@@ -8393,12 +8380,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         const guideGroup = new THREE.Group();
         scene.add(guideGroup);
 
-        const explodeGuideOffset = new THREE.Vector3(90, 78, 16);
-        const explodedMandrelOffsetZ = 8;
-        const explodedCoilOffsetZ = 10;
-        const explodedTopOffsetZ = 32;
-        const explodedBaseOffsetZ = -18;
-
         const guideBarrel = new THREE.Mesh(
             new THREE.CylinderGeometry(20 * guideScale, 20 * guideScale, 44 * guideScale, 40, 1, false),
             steelMat
@@ -8838,7 +8819,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (packaging) {{
                 autoRotateEnabled = false;
-                explodedViewEnabled = false;
                 updatePackagingScene();
                 setPackagingCamera(true);
                 if (brandWatermark) brandWatermark.style.opacity = "0.72";
@@ -9163,7 +9143,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 }}
 
                 guideGroup.position.copy(guideWorld);
-                guideGroup.position.addScaledVector(explodeGuideOffset, explodedVisual);
                 guideGroup.visible = true;
             }} else {{
                 guideGroup.visible = false;
@@ -9191,13 +9170,6 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
         function animate() {{
             requestAnimationFrame(animate);
-
-            explodedVisual += (((explodedViewEnabled && sceneMode !== "packaging") ? 1.0 : 0.0) - explodedVisual) * 0.12;
-            mandrel.position.z = explodedMandrelOffsetZ * explodedVisual;
-            depositedGroup.position.z = explodedCoilOffsetZ * explodedVisual;
-            overlayGroup.position.z = explodedCoilOffsetZ * explodedVisual;
-            base.position.z = -20 + explodedBaseOffsetZ * explodedVisual;
-            top.position.z = Hs + 20 + explodedTopOffsetZ * explodedVisual;
 
             if (cameraTransitionActive) {{
                 const elapsed = performance.now() - cameraTransitionStart;
