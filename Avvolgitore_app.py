@@ -5016,11 +5016,6 @@ def viewer(
                         <button class="tube_btn viewer_tool_chip active_opt" data-tube="gelwhite" id="tube_gelwhite_btn" type="button"></button>
                         <button class="tube_btn viewer_tool_chip" data-tube="gelblack" id="tube_gelblack_btn" type="button"></button>
                     </div>
-                    <div class="render_tools_row">
-                        <span class="viewer_tools_label" id="tube_finish_title">Finitura</span>
-                        <button class="tube_finish_btn viewer_tool_chip active_opt" data-finish="liscio" id="tube_finish_liscio_btn" type="button">Liscio</button>
-                        <button class="tube_finish_btn viewer_tool_chip" data-finish="zigrinata" id="tube_finish_zigrinata_btn" type="button">Zigrinata</button>
-                    </div>
                 </div>
 
                 <div class="render_tools_section">
@@ -6823,7 +6818,7 @@ def viewer(
         let speed = 1.0;
         let aspoMode = "hidden";
         let tubeMode = "{tube_mode_initial}";
-        let tubeFinishMode = "liscio";
+        let tubeFinishMode = "liscio"; // fixed: zigrinatura disabled
         let currentView = "3d";
         let sceneMode = "{initial_scene}";
         let packagingMode = "{packaging_mode}";
@@ -6964,7 +6959,7 @@ def viewer(
 
         tubeFinishBtns.forEach(btn => {{
             btn.addEventListener("click", () => {{
-                tubeFinishMode = btn.dataset.finish || "liscio";
+                tubeFinishMode = "liscio";
                 setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
                 applyRenderQuality(renderQuality);
                 applyVisualState(true);
@@ -14426,164 +14421,6 @@ with tab_production:
         status_items,
     )
 
-    with st.expander("Zigrinatura temporanea" if lang == "IT" else "Temporary ribbed finish", expanded=False):
-        st.markdown(
-            """
-            <style>
-            .zigrinatura-debug-card {
-                margin: 4px 0 14px 0;
-                padding: 14px 16px;
-                border-radius: 16px;
-                border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
-                background: linear-gradient(180deg,
-                    color-mix(in srgb, var(--secondary-background-color) 88%, var(--background-color)),
-                    color-mix(in srgb, var(--secondary-background-color) 98%, var(--background-color))
-                );
-            }
-            .zigrinatura-debug-title {
-                font-size: 0.98rem;
-                line-height: 1.15;
-                font-weight: 900;
-                letter-spacing: -0.015em;
-                margin-bottom: 4px;
-            }
-            .zigrinatura-debug-text {
-                font-size: 0.78rem;
-                line-height: 1.35;
-                color: color-mix(in srgb, var(--text-color) 66%, transparent);
-                font-weight: 650;
-            }
-            .zigrinatura-values {
-                margin-top: 8px;
-                padding: 10px 12px;
-                border-radius: 13px;
-                background: color-mix(in srgb, var(--secondary-background-color) 75%, transparent);
-                border: 1px solid color-mix(in srgb, var(--text-color) 9%, transparent);
-                font-size: 0.76rem;
-                line-height: 1.45;
-            }
-            .zigrinatura-values b {
-                font-weight: 900;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            f"""
-            <div class="zigrinatura-debug-card">
-                <div class="zigrinatura-debug-title">{"Regolazione zigrinatura" if lang == "IT" else "Ribbed finish tuning"}</div>
-                <div class="zigrinatura-debug-text">
-                    {"Solo modalità manuale. Qui regoli la densità visiva per metro. La zigrinatura fine è affidata alla texture, così la scala resta stabile anche se cambi la lunghezza del tubo." if lang == "IT" else "Manual mode only. Here you tune visual density per metre. Fine ribbing is driven by texture so the scale stays stable even if tube length changes."}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        zg1, zg2 = st.columns(2, gap="large")
-        with zg1:
-            rib_visual_density = st.slider(
-                "Densità zigrinatura / metro" if lang == "IT" else "Rib density / metre",
-                min_value=1.0,
-                max_value=1500.0,
-                value=float(st.session_state.get("tmp_rib_visual_density", 14.0)),
-                step=1.0,
-                key="tmp_rib_visual_density",
-                help=(
-                    "Controlla quante nervature visibili ci sono per metro nel render. Ora la geometria compensa anche le lunghezze lunghe: 15 / 25 / 50 m mantengono una densità più coerente. Valori estremi possono rallentare."
-                    if lang == "IT"
-                    else "Controls how many visible ribs appear per metre in the render. Geometry now compensates long lengths too: 15 / 25 / 50 m keep a more coherent density. Extreme values may slow the viewer."
-                ),
-            )
-            rib_geometry_scale = st.slider(
-                "Rilievo geometrico" if lang == "IT" else "Geometric relief",
-                min_value=0.02,
-                max_value=0.16,
-                value=float(st.session_state.get("tmp_rib_geometry_scale", 0.076)),
-                step=0.002,
-                key="tmp_rib_geometry_scale",
-                help=(
-                    "Deformazione reale del tubo in 3D. Più alto = rilievo più marcato; troppo alto può creare effetto punte."
-                    if lang == "IT"
-                    else "Real 3D deformation of the tube. Higher value = stronger relief; too high may create spikes."
-                ),
-            )
-
-        with zg2:
-            rib_bump_scale = st.slider(
-                "Dettaglio bump superficiale" if lang == "IT" else "Surface bump detail",
-                min_value=0.0,
-                max_value=0.12,
-                value=float(st.session_state.get("tmp_rib_bump_scale", 0.054)),
-                step=0.002,
-                key="tmp_rib_bump_scale",
-                help=(
-                    "Rilievo visivo del materiale senza cambiare troppo la geometria. Aggiunge micro-dettaglio e realismo."
-                    if lang == "IT"
-                    else "Visual material relief without heavily changing geometry. Adds micro-detail and realism."
-                ),
-            )
-            rib_texture_factor = st.slider(
-                "Fattore texture fine" if lang == "IT" else "Fine texture factor",
-                min_value=0.20,
-                max_value=4.00,
-                value=float(st.session_state.get("tmp_rib_texture_factor", 1.0)),
-                step=0.05,
-                key="tmp_rib_texture_factor",
-                help=(
-                    "Moltiplicatore della texture fine sopra la densità principale. Più alto = micro-texture più fitta."
-                    if lang == "IT"
-                    else "Multiplier for the fine texture on top of the main density. Higher = denser micro-texture."
-                ),
-            )
-
-        zg3, zg4 = st.columns(2, gap="large")
-        with zg3:
-            rib_length_compensation = st.slider(
-                "Compensazione lunghezza" if lang == "IT" else "Length compensation",
-                min_value=-1.00,
-                max_value=1.00,
-                value=float(st.session_state.get("tmp_rib_length_compensation", 0.0)),
-                step=0.05,
-                key="tmp_rib_length_compensation",
-                help=(
-                    "Serve solo come rifinitura. Ora la zigrinatura visibile è procedurale nello shader e non dipende dal repeat della texture."
-                    if lang == "IT"
-                    else "Fine-tuning only. Visible ribbing is now procedural in the shader and does not depend on texture repeat."
-                ),
-            )
-        with zg4:
-            rib_diameter_compensation = st.slider(
-                "Compensazione diametro" if lang == "IT" else "Diameter compensation",
-                min_value=-1.00,
-                max_value=1.00,
-                value=float(st.session_state.get("tmp_rib_diameter_compensation", 0.0)),
-                step=0.05,
-                key="tmp_rib_diameter_compensation",
-                help=(
-                    "Serve per correggere differenze tra diametri piccoli e grandi. Se nei diametri grandi la zigrinatura sembra meno fitta, aumenta questo valore."
-                    if lang == "IT"
-                    else "Corrects differences between small and large diameters. If large diameters look less dense, increase this value."
-                ),
-            )
-
-        st.markdown(
-            f"""
-            <div class="zigrinatura-values">
-                <b>{"Valori manuali attuali" if lang == "IT" else "Current manual values"}</b><br>
-                {"Densità zigrinatura / metro" if lang == "IT" else "Rib density / metre"}: {rib_visual_density:.0f}<br>
-                {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
-                Bump: {rib_bump_scale:.3f} ·
-                {"Texture fine" if lang == "IT" else "Fine texture"}: × {rib_texture_factor:.2f}<br>
-                {"Comp. lunghezza" if lang == "IT" else "Length comp."}: {rib_length_compensation:+.2f} ·
-                {"Comp. diametro" if lang == "IT" else "Diameter comp."}: {rib_diameter_compensation:+.2f}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
     components.html(
         viewer(
             diametro_aspo,
@@ -14611,12 +14448,6 @@ with tab_production:
             simulation_print_payload=simulation_print_payload,
             active_product_name=selected_product,
             active_product_kind="prototype" if is_prototype else "preset",
-            rib_visual_density=rib_visual_density,
-            rib_geometry_scale=rib_geometry_scale,
-            rib_bump_scale=rib_bump_scale,
-            rib_texture_factor=rib_texture_factor,
-            rib_length_compensation=rib_length_compensation,
-            rib_diameter_compensation=rib_diameter_compensation,
         ),
         height=720,
     )
