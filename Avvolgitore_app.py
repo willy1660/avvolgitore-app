@@ -7761,18 +7761,18 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 // Screen-space spacing. Keep it clearly visible even at extreme values.
                 const densityCtrl = Math.max(1.0, CUSTOM_RIB.visualDensity || 70.0);
                 const screenSpacingPx = Math.max(
-                    4.0,
-                    Math.min(30.0, 520.0 / Math.max(6.0, Math.sqrt(densityCtrl) * 3.2))
+                    2.0,
+                    Math.min(18.0, 320.0 / Math.max(4.0, Math.sqrt(densityCtrl) * 2.6))
                 );
 
                 // Make sliders much more effective.
                 const ribVisualBoost = Math.max(
-                    0.40,
+                    0.60,
                     Math.min(
-                        18.00,
-                        (0.35 + 1.15 * (CUSTOM_RIB.textureFactor || 1.0))
-                        * (0.55 + 7.5 * (CUSTOM_RIB.bumpScale || 0.09))
-                        * (0.55 + 5.5 * (CUSTOM_RIB.geometryScale || 0.11))
+                        28.00,
+                        (0.55 + 1.60 * (CUSTOM_RIB.textureFactor || 1.0))
+                        * (0.70 + 10.0 * (CUSTOM_RIB.bumpScale || 0.09))
+                        * (0.70 + 7.5 * (CUSTOM_RIB.geometryScale || 0.11))
                     )
                 );
 
@@ -7786,30 +7786,34 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                         float ribSpacingPx = ${{screenSpacingPx.toFixed(3)}};
                         float ribVisualBoost = ${{ribVisualBoost.toFixed(3)}};
 
-                        // Patró fix en píxels: mateixa separació aparent independentment de longitud/càmera.
-                        float ribCoordProc = (gl_FragCoord.x * 0.97 + gl_FragCoord.y * 0.21) / ribSpacingPx;
+                        // Patró fix en píxels: MUY visible, independentment de longitud/càmera.
+                        float ribCoordProc = (gl_FragCoord.x * 1.00 + gl_FragCoord.y * 0.24) / ribSpacingPx;
                         float ribPhaseProc = fract(ribCoordProc);
 
                         float edgeDistProc = min(ribPhaseProc, 1.0 - ribPhaseProc);
                         float ribCenterProc = abs(ribPhaseProc - 0.50) * 2.0;
 
-                        // Very visible body and grooves.
-                        float ribBodyProc = 1.0 - smoothstep(0.06, 0.92, ribCenterProc);
-                        float ribCoreProc = 1.0 - smoothstep(0.00, 0.55, ribCenterProc);
-                        float ribGrooveProc = 1.0 - smoothstep(0.00, 0.10, edgeDistProc);
-                        float ribGrooveWideProc = 1.0 - smoothstep(0.00, 0.18, edgeDistProc);
+                        // Ridges and grooves intentionally exaggerated.
+                        float ridgeWideProc   = 1.0 - smoothstep(0.08, 0.98, ribCenterProc);
+                        float ridgeCoreProc   = 1.0 - smoothstep(0.00, 0.42, ribCenterProc);
+                        float grooveThinProc  = 1.0 - smoothstep(0.00, 0.14, edgeDistProc);
+                        float grooveWideProc  = 1.0 - smoothstep(0.00, 0.26, edgeDistProc);
 
-                        // Slight breakup so it does not look perfectly flat.
-                        float ribFineProc = sin((gl_FragCoord.x * 0.46 + gl_FragCoord.y * 0.88) * 0.28) * 0.020 * ribVisualBoost;
+                        float microProc = sin((gl_FragCoord.x * 0.52 + gl_FragCoord.y * 0.91) * 0.32) * 0.022 * ribVisualBoost;
 
-                        float ribShadeProc = 1.0
-                            + ribBodyProc * (0.26 * ribVisualBoost)
-                            + ribCoreProc * (0.12 * ribVisualBoost)
-                            - ribGrooveProc * (0.52 * ribVisualBoost)
-                            - ribGrooveWideProc * (0.18 * ribVisualBoost)
-                            + ribFineProc;
+                        vec3 baseColProc = gl_FragColor.rgb;
+                        float darkMaskProc = clamp(grooveThinProc * 1.00 + grooveWideProc * 0.45, 0.0, 1.0);
+                        float lightMaskProc = clamp(ridgeWideProc * 0.70 + ridgeCoreProc * 0.55, 0.0, 1.0);
 
-                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.18, 1.85);
+                        vec3 darkerProc = baseColProc * max(0.10, 1.0 - 0.11 * ribVisualBoost);
+                        vec3 lighterProc = min(vec3(1.0), baseColProc * (1.0 + 0.030 * ribVisualBoost));
+
+                        vec3 ribColProc = baseColProc;
+                        ribColProc = mix(ribColProc, darkerProc, clamp(darkMaskProc, 0.0, 1.0));
+                        ribColProc = mix(ribColProc, lighterProc, clamp(lightMaskProc * 0.70, 0.0, 1.0));
+                        ribColProc += vec3(microProc);
+
+                        gl_FragColor.rgb = clamp(ribColProc, vec3(0.02), vec3(1.0));
 
                         #include <dithering_fragment>
                         `
@@ -14513,9 +14517,9 @@ with tab_production:
                 step=0.05,
                 key="tmp_rib_texture_factor_simple",
                 help=(
-                    "Più alto = zigrinatura visivamente più marcata. In questa versione il contrasto è molto più aggressivo."
+                    "Più alto = zigrinatura visivamente più marcata. En aquesta versió l’efecte és extrem i els solcs es marquen molt més."
                     if lang == "IT"
-                    else "Higher = visually stronger ribbed finish. In this version the contrast is much more aggressive."
+                    else "Higher = visually stronger ribbed finish. In this version the effect is extreme and grooves are much more pronounced."
                 ),
             )
 
