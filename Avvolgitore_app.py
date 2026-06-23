@@ -6848,9 +6848,6 @@ def viewer(
         controls.panSpeed = 0.12;
         controls.dynamicDampingFactor = 0.18;
         controls.staticMoving = false;
-        controls.addEventListener("start", () => {{
-            cameraTransitionActive = false;
-        }});
 
         function updateCameraClipping() {{
             const distance = Math.max(1, camera.position.distanceTo(controls.target));
@@ -7016,7 +7013,12 @@ def viewer(
 
         const localPts = localRaw.map(p => new THREE.Vector3(p[0], p[1], p[2]));
         const totalLengthM = ((lengthRaw[lengthRaw.length - 1] || 0) / 1000.0);
-        const totalLayers = (Math.max(0, ...layerRaw) || 0) + 1;
+        let maxLayerValue = 0;
+        for (let li = 0; li < layerRaw.length; li++) {{
+            const lv = Number(layerRaw[li] || 0);
+            if (lv > maxLayerValue) maxLayerValue = lv;
+        }}
+        const totalLayers = maxLayerValue + 1;
 
         if (infoLengthValueEl) infoLengthValueEl.textContent = `${{totalLengthM.toFixed(1)}} m`;
         if (infoXYValueEl) infoXYValueEl.textContent = `${{coilFootprint.toFixed(1)}} mm`;
