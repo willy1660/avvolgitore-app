@@ -7843,6 +7843,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             const mat = material.clone();
 
+            // IMPORTANT: THREE.Material.clone() does not reliably preserve onBeforeCompile.
+            // Without this, the screen-space zigrinatura shader is lost on the real tube mesh,
+            // so the sliders appear to do nothing.
+            if (material.onBeforeCompile) mat.onBeforeCompile = material.onBeforeCompile;
+            if (material.customProgramCacheKey) mat.customProgramCacheKey = material.customProgramCacheKey;
+
             if (material.map) {{
                 mat.map = material.map.clone();
                 mat.map.repeat.set(1.8, 18.0);
