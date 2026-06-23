@@ -4930,6 +4930,9 @@ def viewer(
     rib_geometry_scale_json = json.dumps(float(rib_geometry_scale))
     rib_bump_scale_json = json.dumps(float(rib_bump_scale))
     rib_texture_factor_json = json.dumps(float(rib_texture_factor))
+    rib_length_compensation_json = json.dumps(float(rib_length_compensation))
+    rib_diameter_compensation_json = json.dumps(float(rib_diameter_compensation))
+    d_tubo_json = json.dumps(float(d_tubo))
     if coil_footprint_mm is None:
         try:
             coil_footprint_mm = compute_max_xy_span(np.array(final_local_points, dtype=float), d_tubo)
@@ -6432,7 +6435,25 @@ def viewer(
             visualDensity: {rib_visual_density_json},
             geometryScale: {rib_geometry_scale_json},
             bumpScale: {rib_bump_scale_json},
-            textureFactor: {rib_texture_factor_json}
+            textureFactor: {rib_texture_factor_json},
+            lengthCompensation: {rib_length_compensation_json},
+            diameterCompensation: {rib_diameter_compensation_json},
+            tubeDiameterMm: {d_tubo_json},
+            referenceLengthM: 25.0,
+            referenceDiameterMm: 30.0
+        }};
+
+        function getEffectiveRibsPerMetre(totalLen) {{
+            const baseDensity = Math.max(1.0, CUSTOM_RIB.visualDensity || 120.0);
+            const lengthMetres = Math.max(0.001, totalLen / 1000.0);
+            const lengthRatio = Math.max(0.05, lengthMetres / (CUSTOM_RIB.referenceLengthM || 25.0));
+            const diameterRatio = Math.max(0.05, (CUSTOM_RIB.tubeDiameterMm || 30.0) / (CUSTOM_RIB.referenceDiameterMm || 30.0));
+
+            // 0 = no compensation. Positive values increase density for longer/larger tubes.
+            const lengthFactor = Math.pow(lengthRatio, CUSTOM_RIB.lengthCompensation || 0.0);
+            const diameterFactor = Math.pow(diameterRatio, CUSTOM_RIB.diameterCompensation || 0.0);
+
+            return Math.max(1.0, baseDensity * lengthFactor * diameterFactor);
         }};
 
         const host = document.getElementById("viewer_root");
@@ -7740,7 +7761,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             if (tubeFinishMode !== "zigrinata" || !material) return material;
 
             const profile = getQualityProfile();
-            const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 120.0);
+            const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
             const fineFactor = Math.max(0.05, profile.ribTextureFactor || CUSTOM_RIB.textureFactor || 1.0);
             const lengthMetres = Math.max(0.001, totalLen / 1000.0);
             const visualRepeat = Math.max(1.0, lengthMetres * ribsPerMetre * fineFactor);
@@ -8638,7 +8659,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 14.0);
+            const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
             const lengthMetres = Math.max(0.001, totalLen / 1000.0);
             const repeats = Math.max(10.0, Math.min(6000.0, lengthMetres * ribsPerMetre));
             const amp = Math.min(radius * 0.090, Math.max(0.16, radius * (profile.ribGeometryScale || 0.076) * 0.68));
@@ -8703,7 +8724,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             );
 
             if (tubeFinishMode === "zigrinata") {{
-                const ribsPerMetre = Math.max(1.0, profile.ribVisualDensity || CUSTOM_RIB.visualDensity || 14.0);
+                const ribsPerMetre = getEffectiveRibsPerMetre(totalLen);
                 const lengthMetres = Math.max(0.001, totalLen / 1000.0);
                 const ribRepeats = Math.max(24, Math.min(6000, lengthMetres * ribsPerMetre));
                 const ribTargetSegments = Math.ceil(ribRepeats * 3.6);
@@ -14461,6 +14482,36 @@ with tab_production:
                 ),
             )
 
+        zg3, zg4 = st.columns(2, gap="large")
+        with zg3:
+            rib_length_compensation = st.slider(
+                "Compensazione lunghezza" if lang == "IT" else "Length compensation",
+                min_value=-1.00,
+                max_value=1.00,
+                value=float(st.session_state.get("tmp_rib_length_compensation", 0.0)),
+                step=0.05,
+                key="tmp_rib_length_compensation",
+                help=(
+                    "Serve per correggere differenze tra 15 / 25 / 50 m. Se nei tubi lunghi la zigrinatura sembra meno fitta, aumenta questo valore."
+                    if lang == "IT"
+                    else "Corrects differences between 15 / 25 / 50 m. If long tubes look less dense, increase this value."
+                ),
+            )
+        with zg4:
+            rib_diameter_compensation = st.slider(
+                "Compensazione diametro" if lang == "IT" else "Diameter compensation",
+                min_value=-1.00,
+                max_value=1.00,
+                value=float(st.session_state.get("tmp_rib_diameter_compensation", 0.0)),
+                step=0.05,
+                key="tmp_rib_diameter_compensation",
+                help=(
+                    "Serve per correggere differenze tra diametri piccoli e grandi. Se nei diametri grandi la zigrinatura sembra meno fitta, aumenta questo valore."
+                    if lang == "IT"
+                    else "Corrects differences between small and large diameters. If large diameters look less dense, increase this value."
+                ),
+            )
+
         st.markdown(
             f"""
             <div class="zigrinatura-values">
@@ -14468,7 +14519,9 @@ with tab_production:
                 {"Densità zigrinatura / metro" if lang == "IT" else "Rib density / metre"}: {rib_visual_density:.0f}<br>
                 {"Rilievo" if lang == "IT" else "Relief"}: {rib_geometry_scale:.3f} ·
                 Bump: {rib_bump_scale:.3f} ·
-                {"Texture fine" if lang == "IT" else "Fine texture"}: × {rib_texture_factor:.2f}
+                {"Texture fine" if lang == "IT" else "Fine texture"}: × {rib_texture_factor:.2f}<br>
+                {"Comp. lunghezza" if lang == "IT" else "Length comp."}: {rib_length_compensation:+.2f} ·
+                {"Comp. diametro" if lang == "IT" else "Diameter comp."}: {rib_diameter_compensation:+.2f}
             </div>
             """,
             unsafe_allow_html=True,
@@ -14505,6 +14558,8 @@ with tab_production:
             rib_geometry_scale=rib_geometry_scale,
             rib_bump_scale=rib_bump_scale,
             rib_texture_factor=rib_texture_factor,
+            rib_length_compensation=rib_length_compensation,
+            rib_diameter_compensation=rib_diameter_compensation,
         ),
         height=720,
     )
