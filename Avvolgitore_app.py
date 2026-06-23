@@ -6724,28 +6724,28 @@ def viewer(
 
             if (quality === "ultra") {{
                 return {{
-                    pixelRatio: 2.65,
-                    maxTubularSegments: 4200,
-                    segmentFactor: 0.34,
-                    radialSegments: 40,
-                    capSegments: 48,
+                    pixelRatio: 3.00,
+                    maxTubularSegments: 6200,
+                    segmentFactor: 0.28,
+                    radialSegments: 56,
+                    capSegments: 64,
                     anisotropy: 16,
                     shadows: true,
-                    clearcoatBoost: 0.16,
-                    bumpScale: 0.052,
+                    clearcoatBoost: 0.22,
+                    bumpScale: 0.060,
                     ribbedBumpScale: CUSTOM_RIB.bumpScale,
                     ribGeometryScale: CUSTOM_RIB.geometryScale,
                     ribVisualDensity: CUSTOM_RIB.visualDensity,
                     ribTextureFactor: CUSTOM_RIB.textureFactor,
-                    ribMaxTubularSegments: 42000,
-                    exposure: 1.11,
-                    ambientBoost: -0.02,
-                    nearMin: 1.2,
-                    nearMax: 22,
-                    nearDivisor: 1280,
-                    farMin: 9200,
-                    farFactor: 8.2,
-                    farPadding: 5200
+                    ribMaxTubularSegments: 56000,
+                    exposure: 1.13,
+                    ambientBoost: -0.035,
+                    nearMin: 0.9,
+                    nearMax: 18,
+                    nearDivisor: 1500,
+                    farMin: 11000,
+                    farFactor: 9.2,
+                    farPadding: 6200
                 }};
             }}
 
@@ -6793,7 +6793,7 @@ def viewer(
             ambient.intensity = Math.max(0.12, getTheme().ambient + profile.ambientBoost);
 
             if (typeof keyLight !== "undefined" && keyLight && keyLight.shadow && keyLight.shadow.mapSize) {{
-                const shadowSize = quality === "ultra" ? 4096 : (quality === "alta" ? 2048 : 1024);
+                const shadowSize = quality === "ultra" ? 6144 : (quality === "alta" ? 2048 : 1024);
                 if (keyLight.shadow.mapSize.width !== shadowSize || keyLight.shadow.mapSize.height !== shadowSize) {{
                     keyLight.shadow.mapSize.width = shadowSize;
                     keyLight.shadow.mapSize.height = shadowSize;
@@ -6925,28 +6925,34 @@ def viewer(
             playPauseBtn.title = isPlaying ? T.pause : T.play;
         }}
 
+        function updateTubeFinishAvailability() {{
+            const zigrinataBlocked = animationEnabled || sceneMode === "packaging";
+
+            if (zigrinataBlocked && tubeFinishMode === "zigrinata") {{
+                tubeFinishMode = "liscio";
+                setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
+                applyRenderQuality(renderQuality);
+            }}
+
+            if (tubeFinishZigrinata) {{
+                tubeFinishZigrinata.disabled = zigrinataBlocked;
+                tubeFinishZigrinata.classList.toggle("viewer_btn_disabled", zigrinataBlocked);
+                tubeFinishZigrinata.title = zigrinataBlocked
+                    ? (sceneMode === "packaging" ? "Disponibile solo nel render avvolgimento" : "Disponibile solo a animazione disattivata")
+                    : "";
+            }}
+        }}
+
         function updateAnimationUI() {{
             if (animationEnabled) {{
                 playPauseBtn.classList.remove("viewer_btn_disabled");
                 playPauseBtn.disabled = false;
-
-                // La zigrinatura pesa massa per l'animació progressiva.
-                // Durant l'animació bloquegem Zigrinata i forcem Liscio.
-                if (tubeFinishZigrinata) {{
-                    tubeFinishZigrinata.disabled = true;
-                    tubeFinishZigrinata.classList.add("viewer_btn_disabled");
-                    tubeFinishZigrinata.title = "Disponibile solo a animazione disattivata";
-                }}
             }} else {{
                 playPauseBtn.classList.add("viewer_btn_disabled");
                 playPauseBtn.disabled = true;
-
-                if (tubeFinishZigrinata) {{
-                    tubeFinishZigrinata.disabled = false;
-                    tubeFinishZigrinata.classList.remove("viewer_btn_disabled");
-                    tubeFinishZigrinata.title = "";
-                }}
             }}
+
+            updateTubeFinishAvailability();
         }}
 
         function setActiveButton(group, value, attr, activeClass="active_opt") {{
@@ -7011,7 +7017,7 @@ def viewer(
             btn.addEventListener("click", () => {{
                 const requestedFinish = btn.dataset.finish || "liscio";
 
-                if (animationEnabled && requestedFinish === "zigrinata") {{
+                if ((animationEnabled || sceneMode === "packaging") && requestedFinish === "zigrinata") {{
                     tubeFinishMode = "liscio";
                     setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
                     return;
@@ -7562,6 +7568,44 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             const sprite = new THREE.Sprite(material);
             sprite.scale.set(180, 56, 1);
             return sprite;
+        }}
+
+        function makeRadialGlowTexture(size = 512, inner = "rgba(255,255,255,0.95)", outer = "rgba(255,255,255,0.0)") {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+            const grad = ctx.createRadialGradient(size * 0.5, size * 0.5, size * 0.08, size * 0.5, size * 0.5, size * 0.5);
+            grad.addColorStop(0.00, inner);
+            grad.addColorStop(0.35, "rgba(255,255,255,0.20)");
+            grad.addColorStop(0.72, "rgba(255,255,255,0.06)");
+            grad.addColorStop(1.00, outer);
+            ctx.clearRect(0, 0, size, size);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+            return tex;
+        }}
+
+        function makeSoftShadowTexture(size = 512) {{
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+            const grad = ctx.createRadialGradient(size * 0.5, size * 0.5, size * 0.12, size * 0.5, size * 0.5, size * 0.5);
+            grad.addColorStop(0.00, "rgba(0,0,0,0.38)");
+            grad.addColorStop(0.38, "rgba(0,0,0,0.24)");
+            grad.addColorStop(0.72, "rgba(0,0,0,0.10)");
+            grad.addColorStop(1.00, "rgba(0,0,0,0.0)");
+            ctx.clearRect(0, 0, size, size);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+            return tex;
         }}
 
         function makeTubeTexture(size = 256, dark=false) {{
@@ -8508,6 +8552,9 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }} else {{
                 setCameraView(currentView);
             }}
+
+            updateTubeFinishAvailability();
+            updatePresentationStage();
         }}
 
         // ==========================================
@@ -8523,11 +8570,19 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             ambient.intensity = Math.max(0.12, theme.ambient + getQualityProfile().ambientBoost);
             hemi.color.setHex(theme.hemiSky);
             hemi.groundColor.setHex(theme.hemiGround);
-            hemi.intensity = renderQuality === "ultra" ? 0.42 : 0.34;
+            hemi.intensity = renderQuality === "ultra" ? 0.48 : 0.34;
 
-            keyLight.intensity = theme.key;
-            fillLight.intensity = theme.fill;
-            rimLight.intensity = theme.rim;
+            if (renderQuality === "ultra") {{
+                keyLight.intensity = theme.key * 1.18;
+                fillLight.intensity = theme.fill * 1.18;
+                rimLight.intensity = theme.rim * 1.34;
+            }} else {{
+                keyLight.intensity = theme.key;
+                fillLight.intensity = theme.fill;
+                rimLight.intensity = theme.rim;
+            }}
+
+            updatePresentationStage();
         }}
 
         function applySectionState() {{
@@ -9298,7 +9353,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }}
         }}
 
-        if (animationEnabled && tubeFinishMode === "zigrinata") {{
+        if ((animationEnabled || sceneMode === "packaging") && tubeFinishMode === "zigrinata") {{
             tubeFinishMode = "liscio";
             setActiveButton(tubeFinishBtns, tubeFinishMode, "data-finish");
         }}
@@ -9307,6 +9362,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
         applyVisualState(true);
         applySceneMode();
         updateAnimationUI();
+        updateTubeFinishAvailability();
         updatePlayBtn();
 
         function animate() {{
@@ -9334,6 +9390,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
 
             if (ghostLine && ghostLine.material && typeof ghostLine.material.dashOffset === "number") {{
                 ghostLine.material.dashOffset -= 0.35 * Math.max(0.5, speed);
+            }}
+
+            if (renderQuality === "ultra" && sceneMode !== "packaging") {{
+                const tNow = performance.now() * 0.001;
+                if (stageGlowMat) stageGlowMat.opacity = 0.14 + Math.sin(tNow * 0.90) * 0.018;
+                if (stageRimMat) stageRimMat.opacity = 0.095 + Math.sin(tNow * 0.72 + 0.8) * 0.012;
             }}
 
             controls.update();
