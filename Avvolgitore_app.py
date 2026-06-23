@@ -6442,7 +6442,21 @@ def viewer(
             diameterCompensation: {rib_diameter_compensation_json},
             tubeDiameterMm: {d_tubo_json},
             referenceLengthM: 25.0,
-            referenceDiameterMm: 30.0
+            referenceDiameterMm: 30.0,
+            referenceFootprintMm: 520.0
+        }};
+
+        function getRollVisualCompensation() {{
+            const footprintRatio = Math.max(0.40, coilFootprint / (CUSTOM_RIB.referenceFootprintMm || 520.0));
+            const diameterRatio = Math.max(0.45, (CUSTOM_RIB.tubeDiameterMm || 30.0) / (CUSTOM_RIB.referenceDiameterMm || 30.0));
+
+            // Bigger coils / diameters occupy fewer visible pixels for the same finish.
+            // Compensate visually: slightly reduce density and increase strength.
+            const visualScale = Math.pow(footprintRatio, 0.58) * Math.pow(diameterRatio, 0.22);
+            const densityComp = Math.max(0.42, Math.min(1.25, 1.0 / visualScale));
+            const strengthComp = Math.max(0.95, Math.min(2.35, Math.pow(visualScale, 0.92)));
+
+            return {{ densityComp, strengthComp }};
         }};
 
         function getEffectiveRibsPerMetre(totalLen) {{
@@ -6451,11 +6465,11 @@ def viewer(
             const lengthRatio = Math.max(0.05, lengthMetres / (CUSTOM_RIB.referenceLengthM || 25.0));
             const diameterRatio = Math.max(0.05, (CUSTOM_RIB.tubeDiameterMm || 30.0) / (CUSTOM_RIB.referenceDiameterMm || 30.0));
 
-            // 0 = no compensation. Positive values increase density for longer/larger tubes.
             const lengthFactor = Math.pow(lengthRatio, CUSTOM_RIB.lengthCompensation || 0.0);
             const diameterFactor = Math.pow(diameterRatio, CUSTOM_RIB.diameterCompensation || 0.0);
+            const visualComp = getRollVisualCompensation();
 
-            return Math.max(1.0, baseDensity * lengthFactor * diameterFactor);
+            return Math.max(1.0, baseDensity * lengthFactor * diameterFactor * visualComp.densityComp);
         }};
 
         const host = document.getElementById("viewer_root");
@@ -7742,12 +7756,12 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
             }});
 
             if (isRibbed) {{
+                const visualComp = getRollVisualCompensation();
+                const ribVisualBoost = Math.max(0.90, Math.min(3.00, visualComp.strengthComp * (CUSTOM_RIB.textureFactor || 1.0)));
                 mat.bumpMap = ribbedTex;
-                mat.bumpScale = mode === "gelblack" ? profile.ribbedBumpScale * 0.95 : profile.ribbedBumpScale * 1.75;
+                mat.bumpScale = (mode === "gelblack" ? profile.ribbedBumpScale * 0.95 : profile.ribbedBumpScale * 1.75) * visualComp.strengthComp;
 
-                // Zigrinatura procedurale: non dipende dal repeat della texture.
-                // Usa la UV reale riscritta lungo il tubo e disegna le nervature nello shader.
-                // Questo evita che le lunghezze lunghe cambino scala per colpa del sampling texture/mipmap.
+                // Zigrinatura procedurale solo visiva: auto-compensata per rotoli grandi.
                 mat.onBeforeCompile = (shader) => {{
                     shader.fragmentShader = shader.fragmentShader.replace(
                         "#include <dithering_fragment>",
@@ -7759,7 +7773,7 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                         float ribCrownProc = exp(-pow((ribPhaseProc - 0.50) / 0.28, 4.0)) * 0.42;
                         float ribGrooveLProc = exp(-pow((ribPhaseProc - 0.040) / 0.026, 2.0));
                         float ribGrooveRProc = exp(-pow((ribPhaseProc - 0.960) / 0.028, 2.0));
-                        float ribVisualBoost = 1.35;
+                        float ribVisualBoost = ${ribVisualBoost.toFixed(3)};
 
                         float ribShadeProc = 1.0
                             + ribBandProc * (0.080 * ribVisualBoost)
@@ -7768,13 +7782,13 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                             - ribGrooveRProc * (0.095 * ribVisualBoost);
 
                         ribShadeProc += sin(vUv.x * 6.2831853 * 0.23 + vUv.y * 18.0) * 0.008 * ribVisualBoost;
-                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.74, 1.22);
+                        gl_FragColor.rgb *= clamp(ribShadeProc, 0.68, 1.28);
 
                         #include <dithering_fragment>
                         `
                     );
                 }};
-                mat.customProgramCacheKey = () => "zigrinata_procedural_length_independent_v53";
+                mat.customProgramCacheKey = () => `zigrinata_visual_auto_${ribVisualBoost.toFixed(2)}`;
             }} else if (!isEco) {{
                 mat.bumpMap = tex;
                 mat.bumpScale = mode === "gelblack" ? profile.bumpScale * 0.55 : profile.bumpScale;
@@ -8720,7 +8734,8 @@ h2{{margin:0 0 14px 0;font-size:18px;}}table{{width:100%;border-collapse:collaps
                 return;
             }}
 
-            const amp = Math.min(radius * 0.055, Math.max(0.08, radius * (profile.ribGeometryScale || 0.076) * 0.38));
+            const visualComp = getRollVisualCompensation();
+            const amp = Math.min(radius * 0.090, Math.max(0.08, radius * (profile.ribGeometryScale || 0.076) * 0.38 * visualComp.strengthComp));
             const smoothstep = (a, b, x) => {{
                 const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1e-6)));
                 return t * t * (3 - 2 * t);
@@ -14428,9 +14443,9 @@ with tab_production:
                 step=1.0,
                 key="tmp_rib_visual_density_simple",
                 help=(
-                    "Più alto = più righe visibili e più ripetizione."
+                    "Più alto = più righe visibili e più ripetizione. L’app compensa automaticamente i rotoli grandi per mantenere l’effetto più simile."
                     if lang == "IT"
-                    else "Higher = more visible rib lines and more repetition."
+                    else "Higher = more visible rib lines and more repetition. The app automatically compensates larger coils to keep the effect more similar."
                 ),
             )
             rib_geometry_scale = st.slider(
@@ -14468,9 +14483,9 @@ with tab_production:
                 step=0.05,
                 key="tmp_rib_texture_factor_simple",
                 help=(
-                    "Più alto = zigrinatura visivamente più marcata."
+                    "Più alto = zigrinatura visivamente più marcata. Il viewer la rinforza automaticamente sui rotoli grandi."
                     if lang == "IT"
-                    else "Higher = visually stronger ribbed finish."
+                    else "Higher = visually stronger ribbed finish. The viewer automatically boosts it on larger coils."
                 ),
             )
 
