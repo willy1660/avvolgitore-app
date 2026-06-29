@@ -14476,8 +14476,6 @@ with tab_production:
                 render_operator_field_label("Fattore passo" if lang == "IT" else "Pitch factor")
                 fattore_passo_effettivo = st.number_input(
                     "Fattore passo effettivo" if lang == "IT" else "Effective pitch factor",
-                    min_value=0.50,
-                    max_value=1.80,
                     step=0.01,
                     format="%.2f",
                     key="calc_fattore_passo_effettivo",
@@ -14495,8 +14493,6 @@ with tab_production:
                 render_operator_field_label("Fattore compattazione" if lang == "IT" else "Compaction factor")
                 fattore_compattazione_radiale = st.number_input(
                     "Fattore compattazione radiale" if lang == "IT" else "Radial compaction factor",
-                    min_value=0.50,
-                    max_value=3.00,
                     step=0.01,
                     format="%.2f",
                     key="calc_fattore_compattazione_radiale",
