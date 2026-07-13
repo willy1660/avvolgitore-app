@@ -4302,7 +4302,7 @@ st.markdown(
     div[data-testid="stTabs"] [role="tab"] > div::after,
     div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
     div[data-testid="stTabs"] [data-testid="stTabHighlight"],
-    div[data-testid="stTabs"] [aria-hidden="true"] {
+    div[data-testid="stTabs"] [role="tablist"] > div[aria-hidden="true"] {
         display: none !important;
         opacity: 0 !important;
         background: transparent !important;
@@ -15164,3 +15164,118 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+
+# =========================
+# STREAMLIT UPDATE COMPATIBILITY PATCH
+# =========================
+# Fixes:
+# - native red tab underline reappearing after Streamlit/BaseWeb DOM changes
+# - selectbox dropdown clipped/hidden inside tabs after Streamlit update
+st.markdown(
+    """
+    <style>
+    /* Tabs: allow selectbox popovers inside tab panels to escape clipping. */
+    div[data-testid="stTabs"],
+    div[data-testid="stTabs"] [role="tabpanel"],
+    div[data-testid="stTabs"] div[data-testid="stVerticalBlock"],
+    div[data-testid="stTabs"] div[data-testid="stSelectbox"] {
+        overflow: visible !important;
+    }
+
+    /* Keep only our copper underline, not the native Streamlit/BaseWeb red indicator. */
+    div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+    div[data-testid="stTabs"] [data-testid="stTabHighlight"],
+    div[data-testid="stTabs"] [role="tablist"] > div[aria-hidden="true"] {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"],
+    div[data-testid="stTabs"] button[role="tab"],
+    div[data-testid="stTabs"] [data-baseweb="tab"] {
+        border-bottom: 0 !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"],
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"],
+    div[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {
+        border-bottom: 0 !important;
+        color: var(--pdm-accent) !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after,
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"]::after,
+    div[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"]::after {
+        content: "" !important;
+        position: absolute !important;
+        left: 0.92rem !important;
+        right: 0.92rem !important;
+        bottom: 0.22rem !important;
+        height: 3px !important;
+        border-radius: 999px !important;
+        background: #C57E5A !important;
+        opacity: 1 !important;
+        z-index: 2 !important;
+        pointer-events: none !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Selectbox: restore dropdown visibility and stacking after BaseWeb/Streamlit update. */
+    div[data-testid="stSelectbox"],
+    div[data-testid="stSelectbox"] > div,
+    div[data-baseweb="select"],
+    div[data-baseweb="select"] > div {
+        overflow: visible !important;
+    }
+
+    div[data-baseweb="popover"],
+    div[data-baseweb="menu"],
+    ul[role="listbox"],
+    div[role="listbox"] {
+        z-index: 2147483647 !important;
+    }
+
+    /* Undo the old broad tabs [aria-hidden] hiding only for selectbox internals. */
+    div[data-testid="stSelectbox"] [aria-hidden="true"],
+    div[data-baseweb="select"] [aria-hidden="true"] {
+        display: inline-flex !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        height: auto !important;
+        width: auto !important;
+    }
+
+    /* Avoid clipping the product selector row specifically. */
+    .preset-selector-card,
+    .preset-selector-card + div,
+    .preset-selector-card ~ div {
+        overflow: visible !important;
+    }
+
+    @media (max-width: 760px) {
+        div[data-testid="stTabs"] [role="tab"][aria-selected="true"]::after,
+        div[data-testid="stTabs"] button[role="tab"][aria-selected="true"]::after,
+        div[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"]::after {
+            left: 0.22rem !important;
+            right: 0.22rem !important;
+            bottom: 0.06rem !important;
+            height: 2px !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
