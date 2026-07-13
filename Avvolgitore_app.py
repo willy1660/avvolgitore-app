@@ -15279,3 +15279,100 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+# =========================
+# TABS FINAL NO-UNDERLINE PATCH
+# =========================
+# Streamlit/BaseWeb changed the tab DOM: remove every possible native/custom underline
+# while keeping the tab selector and product selectbox dropdown working.
+st.markdown(
+    """
+    <style>
+    div[data-testid="stTabs"] [role="tablist"] {
+        border-bottom: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent) !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"],
+    div[data-testid="stTabs"] button[role="tab"],
+    div[data-testid="stTabs"] [data-baseweb="tab"] {
+        position: relative !important;
+        border: 0 !important;
+        border-bottom: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        outline: 0 !important;
+        text-decoration: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"]::before,
+    div[data-testid="stTabs"] [role="tab"]::after,
+    div[data-testid="stTabs"] button[role="tab"]::before,
+    div[data-testid="stTabs"] button[role="tab"]::after,
+    div[data-testid="stTabs"] [data-baseweb="tab"]::before,
+    div[data-testid="stTabs"] [data-baseweb="tab"]::after,
+    div[data-testid="stTabs"] [role="tab"] > div::before,
+    div[data-testid="stTabs"] [role="tab"] > div::after,
+    div[data-testid="stTabs"] button[role="tab"] > div::before,
+    div[data-testid="stTabs"] button[role="tab"] > div::after {
+        content: none !important;
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        border: 0 !important;
+        border-bottom: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    div[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+    div[data-testid="stTabs"] [data-testid="stTabHighlight"],
+    div[data-testid="stTabs"] [role="tablist"] > div[aria-hidden="true"],
+    div[data-testid="stTabs"] [role="tablist"] > div[style*="background-color"],
+    div[data-testid="stTabs"] [role="tablist"] > div[style*="background"],
+    div[data-testid="stTabs"] [role="tablist"] > div[style*="transform"] {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        width: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"],
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"],
+    div[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {
+        color: var(--pdm-accent) !important;
+        border: 0 !important;
+        border-bottom: 0 !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"] p,
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] p,
+    div[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] p {
+        color: var(--pdm-accent) !important;
+        font-weight: 900 !important;
+    }
+
+    div[data-testid="stTabs"] [role="tab"]:focus,
+    div[data-testid="stTabs"] [role="tab"]:focus-visible,
+    div[data-testid="stTabs"] button[role="tab"]:focus,
+    div[data-testid="stTabs"] button[role="tab"]:focus-visible {
+        outline: 0 !important;
+        box-shadow: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
