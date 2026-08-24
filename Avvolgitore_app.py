@@ -1136,8 +1136,10 @@ guide_offset_x = 555.0
 # PRESETS
 # =========================
 
-@st.cache_data
 def load_presets(path="Presets.csv"):
+    # Presets.csv is intentionally NOT cached.
+    # This ensures newly added/edited products are visible immediately
+    # after Streamlit reruns the app.
     # Excel sometimes saves preset files in Windows/Latin encoding instead of UTF-8.
     # Try UTF-8 first, then common Excel encodings.
     last_error = None
